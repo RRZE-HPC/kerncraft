@@ -133,7 +133,7 @@ class ECM:
             iter_max = self._constants[const_name]
         else:  # type(floop.init.right) is c_ast.Constant
             iter_max = int(floop.cond.right.value)
-        # TODO add support for c_ast.BinaryOp with +1 and -1 (like array indices)
+        # TODO add support for c_ast.BinaryOp with +c and -c (like array indices)
 
         # Document for loop stack
         self._loop_stack.append(
@@ -270,8 +270,29 @@ kernels = {
                        + c1*(xz[ k ][ j ][ i ] - xz[k-1][ j ][ i ])
                        + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
         }}}
-        """
-    # TODO uxx stencil (from ipdps15-ECM paper)
+        """,
+    '3d-long-range-stencil':
+        """\
+        for(k=4; k < N; k++) {
+            for(j=4; j < N; j++) {
+                for(i=4; i < N; i++) {
+                    lap = c0 * V[k][j][i]
+                        + c1 * ( V[ k ][ j ][i+1] + V[ k ][ j ][i-1])
+                        + c1 * ( V[ k ][j+1][ i ] + V[ k ][j-1][ i ])
+                        + c1 * ( V[k+1][ j ][ i ] + V[k-1][ j ][ i ])
+                        + c2 * ( V[ k ][ j ][i+2] + V[ k ][ j ][i-2])
+                        + c2 * ( V[ k ][j+2][ i ] + V[ k ][j-2][ i ])
+                        + c2 * ( V[k+2][ j ][ i ] + V[k-2][ j ][ i ])
+                        + c3 * ( V[ k ][ j ][i+3] + V[ k ][ j ][i-3])
+                        + c3 * ( V[ k ][j+3][ i ] + V[ k ][j-3][ i ])
+                        + c3 * ( V[k+3][ j ][ i ] + V[k-3][ j ][ i ])
+                        + c4 * ( V[ k ][ j ][i+4] + V[ k ][ j ][i-4])
+                        + c4 * ( V[ k ][j+4][ i ] + V[ k ][j-4][ i ])
+                        + c4 * ( V[k+4][ j ][ i ] + V[k-4][ j ][ i ]);
+                    U[k][j][i] = 2.f * V[k][j][i] - U[k][j][i] 
+                               + ROC[k][j][i] * lap;
+        }}}
+        """,
     # TODO 3D long-range stencil (from ipdps15-ECM paper)
     }
 
