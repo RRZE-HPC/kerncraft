@@ -23,30 +23,39 @@ class ECM:
     more info to follow...
     """
 
-    def __init__(self, kernel, core, machine, constants=None):
+    def __init__(self, kernel_code, core, machine, constants=None, variables=None):
         """
         *kernel* is a string of c-code describing the kernel loops and updates
         *core* is the  in-core throughput as tuple of (overlapping cycles, non-overlapping cycles)
         *machine* describes the machine (cpu, cache and memory) characteristics
         """
-        self.kernel = kernel
+        self.kernel_code = kernel_code
         self.core = core
         self.machine = machine
+        
+        parser = CParser()
+        self.kernel_ast = parser.parse('void test() {'+kernel_code+'}').ext[0].body
         
         self._arrays = {}
         self._loop_stack = []
         self._sources = {}
         self._destinations = {}
         self._constants = {} if constants is None else constants
+        self._variables = {} if variables is None else variables
     
     def set_constant(self, name, value):
         assert type(name) is str, "constant name needs to be of type str"
         assert type(value) is int, "constant value needs to be of type int"
         self._constants[name] = value
     
+    def set_variable(self, name, type_, size):
+        assert type_ in ['double', 'float'], 'only float and double variables are supported'
+        assert type(size) in [tuple, type(None)], 'size has to be defined as tuple'
+        self._variables[name] = (type_, size)
+    
     def process(self):
-        assert type(self.kernel) is c_ast.Compound, "Kernel has to be a compound statement"
-        floop = self.kernel.block_items[0]
+        assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
+        floop = self.kernel_ast.block_items[0]
         self._p_for(floop)
     
     def _get_offsets(self, aref, dim=0):
@@ -198,7 +207,7 @@ class ECM:
         
         return sources
     
-    def print_info(self):
+    def print_kernel_info(self):
         table = ('     idx |        min        max       step\n' +
                  '---------+---------------------------------\n')
         for l in self._loop_stack:
@@ -221,103 +230,185 @@ class ECM:
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data destinations: ', table))
 
+    def print_kernel_code(self):
+        print(self.kernel_code)
+    
+    def print_variables_info(self):
+        table = ('    name |   type size             \n' +
+                 '---------+-------------------------\n')
+        for name, var_info in self._variables.items():
+            table += '{:>8} | {:>6} {:<10}\n'.format(name, var_info[0], var_info[1])
+        print(prefix_indent('variables: ', table))
+    
+    def print_constants_info(self):
+        table = ('    name | value     \n' +
+                 '---------+-----------\n')
+        for name, value in self._constants.items():
+            table += '{:>8} | {:<10}\n'.format(name, value)
+        print(prefix_indent('constants: ', table))
+
 # Example kernels:
 kernels = {
     'scale':
-        """\
-        for(i=0; i<N; ++i)
-            a[i] = s * b[i];""",
+        {
+            'kernel_code':
+                """\
+                for(i=0; i<N; ++i)
+                    a[i] = s * b[i];
+                """,
+            'constants': [('N', 50)],
+            'variables': [('a', 'double', (50,)),
+                          ('b', 'double', (50,)),
+                          ('s', 'double', None)],
+            
+        },
     'copy':
-        """\
-        for(i=0; i<N; ++i)
-            a[i] = b[i];""",
+        {
+            'kernel_code':
+                """\
+                for(i=0; i<N; ++i)
+                    a[i] = b[i];
+                """,
+            'constants': [('N', 50)],
+            'variables': [('a', 'double', (50,)),
+                          ('b', 'double', (50,))],
+        },
     'add':
-        """\
-        for(i=0; i<N; ++i)
-            a[i] = b[i] + c[i];""",
+        {
+            'kernel_code':
+                """\
+                for(i=0; i<N; ++i)
+                    a[i] = b[i] + c[i];
+                """,
+            'constants': [('N', 50)],
+            'variables': [('a', 'double', (50,)),
+                          ('b', 'double', (50,)),
+                          ('c', 'double', (50,))],
+        },
     'triad':
-        """\
-        for(i=0; i<N; ++i)
-            a[i] = b[i] + s * c[i];""",
+        {
+            'kernel_code':
+                """\
+                for(i=0; i<N; ++i)
+                    a[i] = b[i] + s * c[i];
+                """,
+            'constants': [('N', 50)],
+            'variables': [('a', 'double', (50,)),
+                          ('b', 'double', (50,)),
+                          ('c', 'double', (50,)),
+                          ('s', 'double', None)],
+        },
     '1d-3pt':
-        """\
-        for(i=1; i<N; ++i)
-            b[i] = c * (a[i-1] - 2.0*a[i] + a[i+1]);""",
+        {
+            'kernel_code':
+                """\
+                for(i=1; i<N; ++i)
+                    b[i] = c * (a[i-1] - 2.0*a[i] + a[i+1]);
+                """,
+            'constants': [('N', 50)],
+            'variables': [('a', 'double', (50,)),
+                          ('b', 'double', (50,))],
+        },
     '2d-5pt':
-        """\
-        for(i=0; i<N; ++i)
-            for(j=0; j<N; ++j)
-                b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
-        """,
-    '2d-5pt-doublearray':
-        """\
-        for(i=0; i<N; ++i)
-            for(j=0; j<N; ++j)
-                b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
-        """,
+        {
+            'kernel_code':
+                """\
+                for(i=0; i<N; ++i)
+                    for(j=0; j<N; ++j)
+                        b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
+                """,
+            'constants': [('N', 50)],
+            'variables': [('a', 'double', (50, 50)),
+                          ('b', 'double', (50, 50)),
+                          ('c', 'double', None)],
+        },
     'uxx-stencil':
-        """\
-        for(k=2; k<N; k++) {
-            for(j=2; j<N; j++) {
-                for(i=2; i<N; i++) {
-                    d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
-                            + d1[k-1][j][i] + d1[k-1][j-1][i]);
-                    u1[k][j][i] = u1[k][j][i] + (dth/d)
-                     * ( c1*(xx[ k ][ j ][ i ] - xx[ k ][ j ][i-1])
-                       + c2*(xx[ k ][ j ][i+1] - xx[ k ][ j ][i-2])
-                       + c1*(xy[ k ][ j ][ i ] - xy[ k ][j-1][ i ])
-                       + c2*(xy[ k ][j+1][ i ] - xy[ k ][j-2][ i ])
-                       + c1*(xz[ k ][ j ][ i ] - xz[k-1][ j ][ i ])
-                       + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
-        }}}
-        """,
+        {
+            'kernel_code':
+                """\
+                for(k=2; k<N; k++) {
+                    for(j=2; j<N; j++) {
+                        for(i=2; i<N; i++) {
+                            d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
+                                    + d1[k-1][j][i] + d1[k-1][j-1][i]);
+                            u1[k][j][i] = u1[k][j][i] + (dth/d)
+                             * ( c1*(xx[ k ][ j ][ i ] - xx[ k ][ j ][i-1])
+                               + c2*(xx[ k ][ j ][i+1] - xx[ k ][ j ][i-2])
+                               + c1*(xy[ k ][ j ][ i ] - xy[ k ][j-1][ i ])
+                               + c2*(xy[ k ][j+1][ i ] - xy[ k ][j-2][ i ])
+                               + c1*(xz[ k ][ j ][ i ] - xz[k-1][ j ][ i ])
+                               + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
+                }}}
+                """,
+            'constants': [('N', 50)],
+            'variables': [('u1', 'double', (50, 50, 50)),
+                          ('d1', 'double', (50, 50, 50)),
+                          ('xx', 'double', (50, 50, 50)),
+                          ('xy', 'double', (50, 50, 50)),
+                          ('xz', 'double', (50, 50, 50)),
+                          ('c1', 'double', None),
+                          ('c2', 'double', None),
+                          ('d', 'double', None)],
+        },
     '3d-long-range-stencil':
-        """\
-        for(k=4; k < N; k++) {
-            for(j=4; j < N; j++) {
-                for(i=4; i < N; i++) {
-                    lap = c0 * V[k][j][i]
-                        + c1 * ( V[ k ][ j ][i+1] + V[ k ][ j ][i-1])
-                        + c1 * ( V[ k ][j+1][ i ] + V[ k ][j-1][ i ])
-                        + c1 * ( V[k+1][ j ][ i ] + V[k-1][ j ][ i ])
-                        + c2 * ( V[ k ][ j ][i+2] + V[ k ][ j ][i-2])
-                        + c2 * ( V[ k ][j+2][ i ] + V[ k ][j-2][ i ])
-                        + c2 * ( V[k+2][ j ][ i ] + V[k-2][ j ][ i ])
-                        + c3 * ( V[ k ][ j ][i+3] + V[ k ][ j ][i-3])
-                        + c3 * ( V[ k ][j+3][ i ] + V[ k ][j-3][ i ])
-                        + c3 * ( V[k+3][ j ][ i ] + V[k-3][ j ][ i ])
-                        + c4 * ( V[ k ][ j ][i+4] + V[ k ][ j ][i-4])
-                        + c4 * ( V[ k ][j+4][ i ] + V[ k ][j-4][ i ])
-                        + c4 * ( V[k+4][ j ][ i ] + V[k-4][ j ][ i ]);
-                    U[k][j][i] = 2.f * V[k][j][i] - U[k][j][i] 
-                               + ROC[k][j][i] * lap;
-        }}}
-        """,
-    # TODO 3D long-range stencil (from ipdps15-ECM paper)
+        {
+            'kernel_code':
+                """\
+                for(k=4; k < N; k++) {
+                    for(j=4; j < N; j++) {
+                        for(i=4; i < N; i++) {
+                            lap = c0 * V[k][j][i]
+                                + c1 * ( V[ k ][ j ][i+1] + V[ k ][ j ][i-1])
+                                + c1 * ( V[ k ][j+1][ i ] + V[ k ][j-1][ i ])
+                                + c1 * ( V[k+1][ j ][ i ] + V[k-1][ j ][ i ])
+                                + c2 * ( V[ k ][ j ][i+2] + V[ k ][ j ][i-2])
+                                + c2 * ( V[ k ][j+2][ i ] + V[ k ][j-2][ i ])
+                                + c2 * ( V[k+2][ j ][ i ] + V[k-2][ j ][ i ])
+                                + c3 * ( V[ k ][ j ][i+3] + V[ k ][ j ][i-3])
+                                + c3 * ( V[ k ][j+3][ i ] + V[ k ][j-3][ i ])
+                                + c3 * ( V[k+3][ j ][ i ] + V[k-3][ j ][ i ])
+                                + c4 * ( V[ k ][ j ][i+4] + V[ k ][ j ][i-4])
+                                + c4 * ( V[ k ][j+4][ i ] + V[ k ][j-4][ i ])
+                                + c4 * ( V[k+4][ j ][ i ] + V[k-4][ j ][ i ]);
+                            U[k][j][i] = 2.f * V[k][j][i] - U[k][j][i] 
+                                       + ROC[k][j][i] * lap;
+                }}}
+                """,
+            'constants': [('N', 50)],
+            'variables': [('U', 'double', (50, 50, 50)),
+                          ('V', 'double', (50, 50, 50)),
+                          ('ROC', 'double', (50, 50, 50)),
+                          ('c1', 'double', None),
+                          ('c2', 'double', None),
+                          ('c3', 'double', None),
+                          ('c4', 'double', None),
+                          ('lap', 'double', None)],
+        },
     }
 
 if __name__ == '__main__':
-    for k in kernels.keys():
-        print('='*80 + '\n{:^80}\n'.format(k) + '='*80)
+    for name, info in kernels.items():
+        print('='*80 + '\n{:^80}\n'.format(name) + '='*80)
         # Read machine description
         # TODO
         
         # Read and interpret IACA output
         # TODO
         
-        # Parse given kernel/snippet
-        parser = CParser()
-        kernel = parser.parse('void test() {'+kernels[k]+'}').ext[0].body
-        print(dedent(kernels[k]))
-        print()
-        #kernel.show()
-        
-        e = ECM(kernel, None, None)
-        e.set_constant('N', 50)
+        # Create ECM object and give additional information about runtime
+        e = ECM(dedent(info['kernel_code']), None, None)
+        for const_name, const_value in info['constants']:
+            e.set_constant(const_name, const_value)
+        for var_name, var_type, var_size in info['variables']:
+            e.set_variable(var_name, var_type, var_size)
         
         # Verify code and document data access and loop traversal
         e.process()
-        e.print_info()
+        e.print_kernel_code()
+        print()
+        e.print_variables_info()
+        e.print_constants_info()
+        e.print_kernel_info()
         
         # Analyze access patterns
         # TODO <-- this is my thesis
