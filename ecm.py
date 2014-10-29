@@ -10,7 +10,11 @@ def prefix_indent(prefix, textblock, later_prefix=' '):
     s = prefix + textblock[0] + '\n'
     if len(later_prefix) == 1:
         later_prefix = ' '*len(prefix)
-    return s+'\n'.join(map(lambda x: later_prefix+x, textblock[1:]))
+    s = s+'\n'.join(map(lambda x: later_prefix+x, textblock[1:]))
+    if s[-1] != '\n':
+        return s + '\n'
+    else:
+        return s
 
 class ECM:
     """
@@ -45,8 +49,7 @@ class ECM:
         floop = self.kernel.block_items[0]
         self._p_for(floop)
     
-    @classmethod
-    def _get_offsets(cls, aref):
+    def _get_offsets(self, aref, dim=0):
         '''
         returns a list of offsets of an ArrayRef object in all dimensions
         
@@ -59,6 +62,7 @@ class ECM:
             "array references must only be used with variables or other array references"
         assert type(aref.subscript) in [c_ast.ID, c_ast.Constant, c_ast.BinaryOp], \
             'array subscript must only contain variables or binary operations'
+        # TODO check that order of index variables is same as in loop stack
         
         idxs = []
         
@@ -68,21 +72,24 @@ class ECM:
             assert (type(aref.subscript.left) is c_ast.ID and \
                     type(aref.subscript.right) is c_ast.Constant), \
                 'binary operation in array subscript may only have form "variable +- constant"'
+            assert aref.subscript.left.name == self._loop_stack[-dim-1][0], \
+                'order of varialbes used in array indices has to follow the order of for loop ' + \
+                'counters'
             
             sign = 1 if aref.subscript.op == '+' else -1
-            if type(aref.subscript.right) is c_ast.Constant:
-                offset = sign*int(aref.subscript.right.value)
-            else:
-                offset = sign*int(aref.subscript.left.value)
+            offset = sign*int(aref.subscript.right.value)
             
             idxs.append(('rel', offset))
         elif type(aref.subscript) is c_ast.ID:
+            assert aref.subscript.name == self._loop_stack[-dim-1][0], \
+                'order of varialbes used in array indices has to follow the order of for loop ' + \
+                'counters'
             idxs.append(('rel', 0))
         else:  # type(aref.subscript) is c_ast.Constant
             idxs.append(('abs', int(aref.subscript.value)))
         
         if type(aref.name) is c_ast.ArrayRef:
-            idxs += cls._get_offsets(aref.name)
+            idxs += self._get_offsets(aref.name, dim=dim+1)
         
         return idxs
     
@@ -194,28 +201,16 @@ class ECM:
                  '---------+------------...\n')
         for name, offsets in e._sources.items():
             prefix = '{:>8} | '.format(name)
-            right_side = ''
-            for off in offsets:
-                for o in off:
-                    right_side += '{:>3}'.format(o[0])
-                    right_side += ' {:>+3}'.format(o[1]) if len(o) == 2 else '    '
-                    right_side += ' | '
-                right_side = right_side[:-3] + '\n'
-            table += prefix_indent(prefix, right_side, later_prefix='         | ') + '\n'
+            right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
+            table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data sources:      ', table))
         
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
         for name, offsets in e._destinations.items():
             prefix = '{:>8} | '.format(name)
-            right_side = ''
-            for off in offsets:
-                for o in off:
-                    right_side += '{:>3}'.format(o[0])
-                    right_side += ' {:>+3}'.format(o[1]) if len(o) == 2 else '    '
-                    right_side += ' | '
-                right_side = right_side[:-3] + '\n'
-            table += prefix_indent(prefix, right_side, later_prefix='         | ') + '\n'
+            right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
+            table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data destinations: ', table))
 
 # Example kernels:
