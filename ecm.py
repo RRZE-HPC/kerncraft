@@ -123,6 +123,8 @@ class ECM:
         assert floop.next.expr.name ==  floop.cond.left.name ==  floop.init.lvalue.name, \
             'initial, condition and next statement of for loop must act on same loop counter' + \
             'variable'
+        assert type(floop.stmt) in [c_ast.Compound, c_ast.Assignment, c_ast.For], 'the inner ' + \
+            'loop may contain only assignments or compounds of assignments'
 
         if type(floop.cond.right) is c_ast.ID:
             const_name = floop.cond.right.name
@@ -143,14 +145,20 @@ class ECM:
         # Traverse tree
         if type(floop.stmt) is c_ast.For:
             self._p_for(floop.stmt)
-        else:
-            # TODO support c_ast.Compound
+        elif type(floop.stmt) is c_ast.Compound and \
+                len(floop.stmt.block_items) == 1 and \
+                type(floop.stmt.block_items[0]) is c_ast.For:
+            self._p_for(floop.stmt.block_items[0])
+        elif type(floop.stmt) is c_ast.Assignment:
             self._p_assignment(floop.stmt)
+        else:  # type(floop.stmt) is c_ast.Compound
+            for assgn in floop.stmt.block_items:
+                self._p_assignment(assgn)
 
     def _p_assignment(self, stmt):
         # Check for restrictions
         assert type(stmt) is c_ast.Assignment, \
-            "Only single assignment statements are allowed in loops."
+            "Only assignment statements are allowed in loops."
         assert type(stmt.lvalue) in [c_ast.ArrayRef, c_ast.ID], \
             "Only assignment to array element or varialbe is allowed."
         
@@ -161,8 +169,8 @@ class ECM:
             self._destinations[self._get_basename(stmt.lvalue)].append(
                  self._get_offsets(stmt.lvalue))
         else:  # type(stmt.lvalue) is c_ast.ID
-            self._destinations.setdefault(stmt.lvalue.name.name, [])
-            self._destinations[stmt.lvalue.name.name].append(('dir',))
+            self._destinations.setdefault(stmt.lvalue.name, [])
+            self._destinations[stmt.lvalue.name].append([('dir',)])
         
         # Traverse tree
         self._p_sources(stmt.rvalue)
@@ -247,6 +255,22 @@ kernels = {
             for(j=0; j<N; ++j)
                 b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
         """,
+    'uxx-stencil':
+        """\
+        for(k=2; k<N; k++) {
+            for(j=2; j<N; j++) {
+                for(i=2; i<N; i++) {
+                    d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
+                            + d1[k-1][j][i] + d1[k-1][j-1][i]);
+                    u1[k][j][i] = u1[k][j][i] + (dth/d)
+                     * ( c1*(xx[ k ][ j ][ i ] - xx[ k ][ j ][i-1])
+                       + c2*(xx[ k ][ j ][i+1] - xx[ k ][ j ][i-2])
+                       + c1*(xy[ k ][ j ][ i ] - xy[ k ][j-1][ i ])
+                       + c2*(xy[ k ][j+1][ i ] - xy[ k ][j-2][ i ])
+                       + c1*(xz[ k ][ j ][ i ] - xz[k-1][ j ][ i ])
+                       + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
+        }}}
+        """
     # TODO uxx stencil (from ipdps15-ECM paper)
     # TODO 3D long-range stencil (from ipdps15-ECM paper)
     }
