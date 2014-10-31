@@ -429,6 +429,18 @@ if __name__ == '__main__':
         print('='*80 + '\n{:^80}\n'.format(name) + '='*80)
         # Read machine description
         # TODO
+        machine = {
+            'name': 'Intel Xeon 2660v2',
+            'clock': '2.2 GHz'
+            'IACA archetecture': 'IVB',
+            'caheline': '64 B',
+            'memory bandwidth': '60 GB/s'
+            'cache stack': 
+                [{'level': 1, 'size': '32 KB', 'type': 'per core', 'bw': '1 CL/cy'},
+                 {'level': 2, 'size': '256 KB', 'type': 'per core', 'bw': '1 CL/cy'},
+                 {'level': 3, 'size': '25 MB', 'type': 'per socket'}]
+        }
+        # 
         
         # Read and interpret IACA output
         # TODO
