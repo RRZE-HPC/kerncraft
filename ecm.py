@@ -71,7 +71,6 @@ class ECM:
             "array references must only be used with variables or other array references"
         assert type(aref.subscript) in [c_ast.ID, c_ast.Constant, c_ast.BinaryOp], \
             'array subscript must only contain variables or binary operations'
-        # TODO check that order of index variables is same as in loop stack
         
         idxs = []
         
@@ -124,14 +123,11 @@ class ECM:
             "assignments (declarations are not allowed or needed)"
         assert floop.cond.op in '<', "only lt (<) is allowed as loop condition"
         assert type(floop.cond.left) is c_ast.ID, 'left of cond. operand has to be a variable'
-        assert type(floop.cond.right) in [c_ast.Constant, c_ast.ID], \
-            'right of cond. operand has to be a constant or a variable'
-        assert type(floop.next) is c_ast.UnaryOp, 'next statement has to be a unary operation'
-        assert floop.next.op in ['++', 'p++'], 'only incremental next operations are allowed'
-        assert type(floop.next.expr) is c_ast.ID, 'next operation may only act on loop counter'
-        assert floop.next.expr.name ==  floop.cond.left.name ==  floop.init.lvalue.name, \
-            'initial, condition and next statement of for loop must act on same loop counter' + \
-            'variable'
+        assert type(floop.cond.right) in [c_ast.Constant, c_ast.ID, c_ast.BinaryOp], \
+            'right of cond. operand has to be a constant, a variable or a binary operation'
+        assert type(floop.next) in [c_ast.UnaryOp, c_ast.Assignment], 'next statement has to ' + \
+            'be a unary or assignment operation'
+        assert floop.next.op in ['++', 'p++', '+='], 'only ++ and += next operations are allowed'
         assert type(floop.stmt) in [c_ast.Compound, c_ast.Assignment, c_ast.For], 'the inner ' + \
             'loop may contain only assignments or compounds of assignments'
 
@@ -140,14 +136,36 @@ class ECM:
             assert const_name in self._constants, 'loop right operand has to be defined as a ' +\
                  'constant in ECM object'
             iter_max = self._constants[const_name]
-        else:  # type(floop.init.right) is c_ast.Constant
+        elif type(floop.cond.right) is c_ast.Constant:
             iter_max = int(floop.cond.right.value)
-        # TODO add support for c_ast.BinaryOp with +c and -c (like array indices)
-
+        else:  # type(floop.cond.right) is c_ast.BinaryOp
+            bop = floop.cond.right
+            assert type(bop.left) is c_ast.ID, 'left of operator has to be a variable'
+            assert type(bop.right) is c_ast.Constant, 'right of operator has to be a constant'
+            assert bop.op in '+-', 'only plus (+) and minus (-) are accepted operators'
+            
+            sign = 1 if bop.op == '+' else -1
+            iter_max = self._constants[bop.left.name]+sign*int(bop.right.value)
+        
+        if type(floop.next) is c_ast.Assignment:
+            assert type(floop.next.lvalue) is c_ast.ID, \
+                'next operation may only act on loop counter'
+            assert type(floop.next.rvalue) is c_ast.Constant, 'only constant increments are allowed'
+            assert floop.next.lvalue.name ==  floop.cond.left.name ==  floop.init.lvalue.name, \
+                'initial, condition and next statement of for loop must act on same loop ' + \
+                'counter variable'
+            step_size = int(floop.next.rvalue.value)
+        else:
+            assert type(floop.next.expr) is c_ast.ID, 'next operation may only act on loop counter'
+            assert floop.next.expr.name ==  floop.cond.left.name ==  floop.init.lvalue.name, \
+                'initial, condition and next statement of for loop must act on same loop ' + \
+                'counter variable'
+            step_size = 1
+        
         # Document for loop stack
         self._loop_stack.append(
             # (index name, min, max, step size)
-            (floop.init.lvalue.name, floop.init.rvalue.value, iter_max, int('1'))
+            (floop.init.lvalue.name, floop.init.rvalue.value, iter_max, step_size)
         )
         # TODO add support for other stepsizes (even negative/reverse steps?)
 
@@ -302,7 +320,7 @@ kernels = {
         {
             'kernel_code':
                 """\
-                for(i=1; i<N; ++i)
+                for(i=1; i<N-1; ++i)
                     b[i] = c * (a[i-1] - 2.0*a[i] + a[i+1]);
                 """,
             'constants': [('N', 50)],
@@ -326,9 +344,9 @@ kernels = {
         {
             'kernel_code':
                 """\
-                for(k=2; k<N; k++) {
-                    for(j=2; j<N; j++) {
-                        for(i=2; i<N; i++) {
+                for(k=2; k<N-2; k+=10) {
+                    for(j=2; j<N-2; j++) {
+                        for(i=2; i<N-2; i++) {
                             d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
                                     + d1[k-1][j][i] + d1[k-1][j-1][i]);
                             u1[k][j][i] = u1[k][j][i] + (dth/d)
@@ -354,9 +372,9 @@ kernels = {
         {
             'kernel_code':
                 """\
-                for(k=4; k < N; k++) {
-                    for(j=4; j < N; j++) {
-                        for(i=4; i < N; i++) {
+                for(k=4; k < N-4; k++) {
+                    for(j=4; j < N-4; j++) {
+                        for(i=4; i < N-4; i++) {
                             lap = c0 * V[k][j][i]
                                 + c1 * ( V[ k ][ j ][i+1] + V[ k ][ j ][i-1])
                                 + c1 * ( V[ k ][j+1][ i ] + V[ k ][j-1][ i ])
