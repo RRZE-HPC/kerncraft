@@ -55,7 +55,32 @@ class ECM:
     
     def process(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
-        floop = self.kernel_ast.block_items[0]
+        assert all(map(lambda s: type(s) is c_ast.Decl, self.kernel_ast.block_items[:-1])), \
+            'all statments befor the for loop need to be declarations'
+        assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
+            'last statment in kernel code must be a loop'
+        
+        for item in self.kernel_ast.block_items[:-1]:
+            array = type(item.type) is c_ast.ArrayDecl
+            
+            if array:
+                dims = []
+                t = item.type
+                while type(t) is c_ast.ArrayDecl:
+                    if type(t.dim) is c_ast.ID:
+                        dims.append(self._constants[t.dim.name])
+                    else:  # type(t.dim) is c_ast.Constant
+                        dims.append(int(t.dim.value))
+                    t = t.type
+                
+                assert len(t.type.names) == 1, "only single types are supported"
+                self.set_variable(item.name, t.type.names[0], tuple(dims))
+                
+            else:
+                assert len(item.type.type.names) == 1, "only single types are supported"
+                self.set_variable(item.name, item.type.type.names[0], None)
+        
+        floop = self.kernel_ast.block_items[-1]
         self._p_for(floop)
     
     def _get_offsets(self, aref, dim=0):
@@ -271,80 +296,86 @@ kernels = {
         {
             'kernel_code':
                 """\
+                double a[N], b[N];
+                double s;
+                
                 for(i=0; i<N; ++i)
                     a[i] = s * b[i];
                 """,
             'constants': [('N', 50)],
-            'variables': [('a', 'double', (50,)),
-                          ('b', 'double', (50,)),
-                          ('s', 'double', None)],
             
         },
     'copy':
         {
             'kernel_code':
                 """\
+                double a[N], b[N];
+                
                 for(i=0; i<N; ++i)
                     a[i] = b[i];
                 """,
             'constants': [('N', 50)],
-            'variables': [('a', 'double', (50,)),
-                          ('b', 'double', (50,))],
         },
     'add':
         {
             'kernel_code':
                 """\
+                double a[N], b[N], c[N];
+                
                 for(i=0; i<N; ++i)
                     a[i] = b[i] + c[i];
                 """,
             'constants': [('N', 50)],
-            'variables': [('a', 'double', (50,)),
-                          ('b', 'double', (50,)),
-                          ('c', 'double', (50,))],
         },
     'triad':
         {
             'kernel_code':
                 """\
+                double a[N], b[N], c[N];
+                double s;
+                
                 for(i=0; i<N; ++i)
                     a[i] = b[i] + s * c[i];
                 """,
             'constants': [('N', 50)],
-            'variables': [('a', 'double', (50,)),
-                          ('b', 'double', (50,)),
-                          ('c', 'double', (50,)),
-                          ('s', 'double', None)],
         },
     '1d-3pt':
         {
             'kernel_code':
                 """\
+                double a[N], b[N];
+                
                 for(i=1; i<N-1; ++i)
                     b[i] = c * (a[i-1] - 2.0*a[i] + a[i+1]);
                 """,
             'constants': [('N', 50)],
-            'variables': [('a', 'double', (50,)),
-                          ('b', 'double', (50,))],
         },
     '2d-5pt':
         {
             'kernel_code':
                 """\
+                double a[N][N];
+                double b[N][N];
+                double c;
+                
                 for(i=0; i<N; ++i)
                     for(j=0; j<N; ++j)
                         b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
                 """,
             'constants': [('N', 50)],
-            'variables': [('a', 'double', (50, 50)),
-                          ('b', 'double', (50, 50)),
-                          ('c', 'double', None)],
         },
     'uxx-stencil':
         {
             'kernel_code':
                 """\
-                for(k=2; k<N-2; k+=10) {
+                double u1[N][N][N];
+                double d1[N][N][N];
+                double xx[N][N][N];
+                double xy[N][N][N];
+                double xz[N][N][N];
+                double c1, c2, d;
+                
+                for(k=2; k<N-2; k++) {
                     for(j=2; j<N-2; j++) {
                         for(i=2; i<N-2; i++) {
                             d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
@@ -359,19 +390,16 @@ kernels = {
                 }}}
                 """,
             'constants': [('N', 50)],
-            'variables': [('u1', 'double', (50, 50, 50)),
-                          ('d1', 'double', (50, 50, 50)),
-                          ('xx', 'double', (50, 50, 50)),
-                          ('xy', 'double', (50, 50, 50)),
-                          ('xz', 'double', (50, 50, 50)),
-                          ('c1', 'double', None),
-                          ('c2', 'double', None),
-                          ('d', 'double', None)],
         },
     '3d-long-range-stencil':
         {
             'kernel_code':
                 """\
+                double U[N][N][N];
+                double V[N][N][N];
+                double ROC[N][N][N];
+                double c1, c2, c3, c4, lap;
+                
                 for(k=4; k < N-4; k++) {
                     for(j=4; j < N-4; j++) {
                         for(i=4; i < N-4; i++) {
@@ -393,14 +421,6 @@ kernels = {
                 }}}
                 """,
             'constants': [('N', 50)],
-            'variables': [('U', 'double', (50, 50, 50)),
-                          ('V', 'double', (50, 50, 50)),
-                          ('ROC', 'double', (50, 50, 50)),
-                          ('c1', 'double', None),
-                          ('c2', 'double', None),
-                          ('c3', 'double', None),
-                          ('c4', 'double', None),
-                          ('lap', 'double', None)],
         },
     }
 
@@ -417,8 +437,6 @@ if __name__ == '__main__':
         e = ECM(dedent(info['kernel_code']), None, None)
         for const_name, const_value in info['constants']:
             e.set_constant(const_name, const_value)
-        for var_name, var_type, var_size in info['variables']:
-            e.set_variable(var_name, var_type, var_size)
         
         # Verify code and document data access and loop traversal
         e.process()
