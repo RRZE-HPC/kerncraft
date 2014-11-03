@@ -16,23 +16,56 @@ def prefix_indent(prefix, textblock, later_prefix=' '):
     else:
         return s
 
-class ECM:
-    """
-    class representation of the Execution-Cache-Memory Model
-
-    more info to follow...
-    """
-
-    def __init__(self, kernel_code, core, machine, constants=None, variables=None):
-        """
-        *kernel* is a string of c-code describing the kernel loops and updates
-        *core* is the  in-core throughput as tuple of (overlapping cycles, non-overlapping cycles)
-        *machine* describes the machine (cpu, cache and memory) characteristics
-        """
-        self.kernel_code = kernel_code
-        self.core = core
-        self.machine = machine
+class MachineModel:
+    def __init__(self, name, arch, clock, cores, cl_size, mem_bw, cache_stack):
+        '''
+        *name* is the official name of the CPU
+        *arch* is the archetecture name, this must be SNB, IVB or HSW
+        *clock* is the number of cycles per second the CPU can perform
+        *cores* is the number of cores
+        *cl_size* is the number of bytes in one cache line
+        *mem_bw* is the number of bytes per second that are read from memory to the lowest cache lvl
+        *cache_stack* is a list of cache levels (dictionaries):
+            {level, size, type, bw}
+            *level* is the numerical id of the cache level
+            *size* is the size of the cache
+            *type* can be 'per core' or 'per socket'
+            *bw* is is the numbe of cache lines that can be transfered from/to lower level
+        '''
+        self.name = name
+        self.arch = arch
+        self.clock = clock
+        self.cores = cores
+        self.cl_size = cl_size
+        self.mem_bw = mem_bw
+        self.cache_stack = cache_stack
+    
+    @classmethod
+    def parse_dict(cls, input):
+        # TODO
+        input = {
+        'name': 'Intel Xeon 2660v2',
+        'clock': '2.2 GHz',
+        'IACA architecture': 'IVB',
+        'caheline': '64 B',
+        'memory bandwidth': '60 GB/s',
+        'cores': '10',
+        'cache stack': 
+            [{'size': '32 KB', 'type': 'per core', 'bw': '1 CL/cy'},
+             {'size': '256 KB', 'type': 'per core', 'bw': '1 CL/cy'},
+             {'size': '25 MB', 'type': 'per socket'}]
+        }
         
+        obj = cls(input['name'], arch=input['IACA architecture'], clock=input['clock'],
+                  cores=input['cores'], cl_size=input['cacheline'],
+                  mem_bw=input['memory bandwidth'], cache_stack=input['cache stack'])
+        
+
+class Kernel:
+    def __init__(self, kernel_code, constants=None, variables=None):
+        '''This class captures the DSL kernel code, analyzes it and reports access pattern'''
+        self.kernel_code = kernel_code
+    
         parser = CParser()
         self.kernel_ast = parser.parse('void test() {'+kernel_code+'}').ext[0].body
         
@@ -259,7 +292,7 @@ class ECM:
         
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
-        for name, offsets in e._sources.items():
+        for name, offsets in self._sources.items():
             prefix = '{:>8} | '.format(name)
             right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
@@ -267,7 +300,7 @@ class ECM:
         
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
-        for name, offsets in e._destinations.items():
+        for name, offsets in self._destinations.items():
             prefix = '{:>8} | '.format(name)
             right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
@@ -289,6 +322,23 @@ class ECM:
         for name, value in self._constants.items():
             table += '{:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table))
+
+class ECM:
+    """
+    class representation of the Execution-Cache-Memory Model
+
+    more info to follow...
+    """
+
+    def __init__(self, kernel, core, machine):
+        """
+        *kernel* is a Kernel object
+        *core* is the  in-core throughput as tuple of (overlapping cycles, non-overlapping cycles)
+        *machine* describes the machine (cpu, cache and memory) characteristics
+        """
+        self.kernel = kernel
+        self.core = core
+        self.machine = machine
 
 # Example kernels:
 kernels = {
@@ -428,37 +478,41 @@ if __name__ == '__main__':
     for name, info in kernels.items():
         print('='*80 + '\n{:^80}\n'.format(name) + '='*80)
         # Read machine description
-        # TODO
         machine = {
             'name': 'Intel Xeon 2660v2',
-            'clock': '2.2 GHz'
-            'IACA archetecture': 'IVB',
+            'clock': '2.2 GHz',
+            'IACA architecture': 'IVB',
             'caheline': '64 B',
-            'memory bandwidth': '60 GB/s'
+            'memory bandwidth': '60 GB/s',
             'cache stack': 
                 [{'level': 1, 'size': '32 KB', 'type': 'per core', 'bw': '1 CL/cy'},
                  {'level': 2, 'size': '256 KB', 'type': 'per core', 'bw': '1 CL/cy'},
                  {'level': 3, 'size': '25 MB', 'type': 'per socket'}]
         }
-        # 
+        # TODO support format as seen above
+        machine = MachineModel('Intel Xeon 2660v2', 'IVB', 2.2e9, 10, 64, 60e9, 
+                               [(1, 32*1024, 'per core', 1),
+                                (2, 256*1024, 'per core', 1),
+                                (3, 25*1024*1024, 'per socket', None)])
         
-        # Read and interpret IACA output
+        # Read (run?) and interpret IACA output
         # TODO
         
         # Create ECM object and give additional information about runtime
-        e = ECM(dedent(info['kernel_code']), None, None)
+        kernel = Kernel(dedent(info['kernel_code']))
         for const_name, const_value in info['constants']:
-            e.set_constant(const_name, const_value)
+            kernel.set_constant(const_name, const_value)
         
         # Verify code and document data access and loop traversal
-        e.process()
-        e.print_kernel_code()
+        kernel.process()
+        kernel.print_kernel_code()
         print()
-        e.print_variables_info()
-        e.print_constants_info()
-        e.print_kernel_info()
+        kernel.print_variables_info()
+        kernel.print_constants_info()
+        kernel.print_kernel_info()
         
-        # Analyze access patterns
+        # Analyze access patterns (in regard to cache sizes with layer conditions)
+        ecm = ECM(kernel, None, machine)
         # TODO <-- this is my thesis
         
         # Report
