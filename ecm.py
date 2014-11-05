@@ -4,6 +4,12 @@ from __future__ import print_function
 from textwrap import dedent
 from pycparser import CParser, c_ast
 from pprint import pprint
+from functools import reduce
+import operator
+import intervals
+
+# Datatype sizes in bytes
+datatype_size = {'double': 8, 'float': 4}
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
     textblock = textblock.split('\n')
@@ -25,8 +31,8 @@ class MachineModel:
         *cores* is the number of cores
         *cl_size* is the number of bytes in one cache line
         *mem_bw* is the number of bytes per second that are read from memory to the lowest cache lvl
-        *cache_stack* is a list of cache levels (dictionaries):
-            {level, size, type, bw}
+        *cache_stack* is a list of cache levels (tuple):
+            (level, size, type, bw)
             *level* is the numerical id of the cache level
             *size* is the size of the cache
             *type* can be 'per core' or 'per socket'
@@ -339,6 +345,88 @@ class ECM:
         self.kernel = kernel
         self.core = core
         self.machine = machine
+    
+    def _calculate_relative_offset(self, name, access_dimensions):
+        '''returns the offset from the iteration center in number of elements'''
+        offset = 0
+        for dim, offset_info in enumerate(access_dimensions):
+            offset_type, dim_offset = offset_info
+            assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
+            
+            base_dims = self.kernel._variables[name][1]
+            
+            if offset_type == 'rel':
+                offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
+            else:  # this should not happen
+                pass
+            
+        return offset
+    
+    def calculate_cache_access(self):
+        read_offsets = {}
+        write_offsets = {}
+        
+        for var_name in self.kernel._variables.keys():
+            var_type, var_dims = self.kernel._variables[var_name]
+            
+            # Skip scalar values, they are in registers (hopefully)
+            if var_dims is None: continue
+            
+            # Compile access pattern
+            writes = self.kernel._destinations.get(var_name, [])
+            reads = self.kernel._sources.get(var_name, [])
+            read_offsets[var_name] = map(lambda r: self._calculate_relative_offset(var_name, r),
+                reads)
+            write_offsets[var_name] = map(lambda w: self._calculate_relative_offset(var_name, w),
+                writes)
+        
+        # Check for layer condition towards all cache levels
+        cache_sizes = map(lambda c: c[1], self.machine.cache_stack)
+        
+        # TODO how to handle multiple datatypes (with different size)?
+        element_size = datatype_size['double']
+        iterations_per_cachline = self.machine.cl_size / element_size
+        
+        for cache_layer, cache_info in enumerate(self.machine.cache_stack):
+            caching_length = 0
+            updated_length = True
+            while updated_length:
+                updated_length = False
+                
+                # TODO extend to more then cache level 1
+                cache = {key: intervals.Intervals() for key in read_offsets.keys()+write_offsets.keys()}
+                misses = {name: sorted(read_offsets.get(name, [])+write_offsets.get(name, []), reverse=True)
+                          for name in read_offsets.keys()+write_offsets.keys()}
+                hits = {key: [] for key in read_offsets.keys()+write_offsets.keys()}
+                
+                trace_count = 0
+                cache_used_size = 0
+                s = 0
+                
+                for name in misses.keys():
+                    # Add cache trace
+                    for offset in list(misses[name]):
+                        # If already present in cache add to hits and enlarge trace (due to LRU)
+                        if offset in cache[name]:
+                            misses[name].remove(offset)
+                            hits[name].append(offset)
+                        # Add cache, we can do this since misses are sorted in reverse order of access
+                        cache[name] &= intervals.Intervals([offset-caching_length, offset+1])
+                    
+                    trace_count += len(cache[name]._data)
+                    cache_used_size += len(cache[name])*element_size
+                
+                new_caching_length = caching_length + \
+                    ((cache_sizes[0]/2 - cache_used_size)/trace_count)/element_size
+                
+                if new_caching_length > caching_length:
+                    caching_length = new_caching_length
+                    updated_length = True
+            
+            print('Trace legth in L1:', caching_length)
+            print('Hits in L1:', sum(map(len, hits.values())), hits)
+            print('Misses in L1:', sum(map(len, misses.values())), misses)
+
 
 # Example kernels:
 kernels = {
@@ -513,6 +601,7 @@ if __name__ == '__main__':
         
         # Analyze access patterns (in regard to cache sizes with layer conditions)
         ecm = ECM(kernel, None, machine)
+        ecm.calculate_cache_access()
         # TODO <-- this is my thesis
         
         # Report
