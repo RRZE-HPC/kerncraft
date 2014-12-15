@@ -52,7 +52,7 @@ class Intervals:
         return sum(upper-lower for (lower, upper) in self._data)
     
     def __contains__(self, needle):
-        return any(lower <= needle <= upper for (lower, upper) in self._data)
+        return any(lower <= needle < upper for (lower, upper) in self._data)
             
     def __repr__(self):
          return str(self.__class__) + '(' + ', '.join(map(list.__repr__, self._data)) + ')'
@@ -74,3 +74,4 @@ if __name__ == '__main__':
     assert Intervals([0,5]) & Intervals([5,9]) == Intervals([0,9])
     assert Intervals([2,4]) & Intervals([0,9]) == Intervals([0,9])
     assert len(Intervals([1,2])) == 1
+    assert 10 not in Intervals([0,10]) and 0 in Intervals([0,10])
