@@ -5,9 +5,11 @@ from textwrap import dedent
 from pycparser import CParser, c_ast
 from pprint import pprint
 from functools import reduce
+import sympy
 import operator
 import intervals
 import math
+import copy
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
@@ -22,6 +24,7 @@ def prefix_indent(prefix, textblock, later_prefix=' '):
         return s + '\n'
     else:
         return s
+
 
 def blocking(indices, block_size, initial_boundary=1):
     '''
@@ -43,7 +46,25 @@ def blocking(indices, block_size, initial_boundary=1):
     blocks.sort()
     
     return blocks
+
+
+def find(f, seq):
+  """Return first item in sequence where f(item) == True."""
+  for item in seq:
+    if f(item): 
+      return item
     
+
+def flatten_dict(d):
+    '''
+    transforms 2d-dict d[i][k] into a new 1d-dict e[(i,k)] with 2-tuple keys
+    '''
+    e = {}
+    for k in d.keys():
+        for l in d[k].keys():
+            e[(k,l)] = d[k][l]
+    return e
+
 
 class MachineModel:
     def __init__(self, name, arch, clock, cores, cl_size, mem_bw, cache_stack):
@@ -88,7 +109,76 @@ class MachineModel:
         obj = cls(input['name'], arch=input['IACA architecture'], clock=input['clock'],
                   cores=input['cores'], cl_size=input['cacheline'],
                   mem_bw=input['memory bandwidth'], cache_stack=input['cache stack'])
+
+class ArrayAccess:
+    '''
+    This class under stands array acceess based on multidimensional indices and one dimensional
+    functions of style i*N+j
+    '''
+    def __init__(self, aref=None, array_info=None):
+        '''If *aref* (and *array_info*) is present, this will be parsed.'''
+        self.sym_expr = None
+        self.index_parameters = {}
+        if aref:
+            self.parse(aref, array_info=array_info)
+    
+    def parse(self, aref, dim=0, array_info=None):
+        if type(aref.name) is c_ast.ArrayRef:
+            from_higher_dim = self.parse(aref.name, dim=dim+1, array_info=array_info)
+        else:
+            from_higher_dim = 0
         
+        if array_info and dim != 0:
+            dim_stride = reduce(lambda m,n: sympy.Mul(m, n, evaluate=False), array_info[1][:dim])
+        else:
+            dim_stride = 1
+        
+        sym_expr = sympy.Mul(conv_ast_to_sympy(aref.subscript), dim_stride, evaluate=False) + \
+            from_higher_dim
+        
+        if dim == 0:
+            # Store gathered information
+            self.sym_expr = sym_expr
+        else:
+            # Return gathered information
+            return sym_expr
+    
+    def extract_parameters(self):
+        eq = self.sym_expr.simplify()
+        terms = eq.as_ordered_terms()
+        
+        for t in terms:
+            if type(t) is sympy.Symbol:
+                self.index_parameters[t.name] = {}
+            elif type(t) is sympy.Mul:
+                for a in t.args:
+                    if type(a) is sympy.Symbol:
+                        self.index_parameters[a.name] = {}
+                    elif type(a) is sympy.Integer:
+                        #self.
+                        pass
+    
+    def __repr__(self):
+        return unicode(self.sym_expr)
+
+
+def conv_ast_to_sympy(math_ast):
+    '''
+    converts mathematical expressions containing paranthesis, addition, subtraction and
+    multiplication from AST to SymPy expresions.
+    '''
+    if type(math_ast) is c_ast.ID:
+        return sympy.Symbol(math_ast.name)
+    elif type(math_ast) is c_ast.Constant:
+        return int(math_ast.value)
+    else:  # elif type(dim) is c_ast.BinaryOp:
+        sympy_op = {'*': lambda l,r: sympy.Mul(l, r, evaluate=False),
+                    '+': lambda l,r: sympy.Add(l, r, evaluate=False),
+                    '-': lambda l,r: sympy.Add(l, sympy.Mul(-1, r), evaluate=False)}
+        
+        op = sympy_op[math_ast.op]
+        return op(conv_ast_to_sympy(math_ast.left), conv_ast_to_sympy(math_ast.right))
+
 
 class Kernel:
     def __init__(self, kernel_code, constants=None, variables=None):
@@ -98,7 +188,6 @@ class Kernel:
         parser = CParser()
         self.kernel_ast = parser.parse('void test() {'+kernel_code+'}').ext[0].body
         
-        self._arrays = {}
         self._loop_stack = []
         self._sources = {}
         self._destinations = {}
@@ -129,10 +218,7 @@ class Kernel:
                 dims = []
                 t = item.type
                 while type(t) is c_ast.ArrayDecl:
-                    if type(t.dim) is c_ast.ID:
-                        dims.append(self._constants[t.dim.name])
-                    else:  # type(t.dim) is c_ast.Constant
-                        dims.append(int(t.dim.value))
+                    dims.append(int(conv_ast_to_sympy(t.dim).subs(self._constants)))
                     t = t.type
                 
                 assert len(t.type.names) == 1, "only single types are supported"
@@ -150,7 +236,7 @@ class Kernel:
         returns a list of offsets of an ArrayRef object in all dimensions
         
         the index order is right to left (c-code order).
-            e.g. c[i+1][j-2] -> [-2, +1]
+        e.g. c[i+1][j-2] -> [-2, +1]
         '''
         
         # Check for restrictions
@@ -161,32 +247,34 @@ class Kernel:
         
         idxs = []
         
+        # TODO work-in-progress generisches auswerten von allem in [...]
+        #idxs.append(('rel', conv_ast_to_sympy(aref.subscript)))
         if type(aref.subscript) is c_ast.BinaryOp:
             assert aref.subscript.op in '+-', \
                 'binary operations in array subscript must by + or -'
             assert (type(aref.subscript.left) is c_ast.ID and \
                     type(aref.subscript.right) is c_ast.Constant), \
                 'binary operation in array subscript may only have form "variable +- constant"'
-            assert aref.subscript.left.name == self._loop_stack[-dim-1][0], \
-                'order of varialbes used in array indices has to follow the order of for loop ' + \
-                'counters'
+            assert aref.subscript.left.name in map(lambda l: l[0], self._loop_stack), \
+                'varialbes used in array indices has to be a loop counter'
             
             sign = 1 if aref.subscript.op == '+' else -1
             offset = sign*int(aref.subscript.right.value)
             
-            idxs.append(('rel', offset))
+            idxs.append(('rel', aref.subscript.left.name, offset))
         elif type(aref.subscript) is c_ast.ID:
-            assert aref.subscript.name == self._loop_stack[-dim-1][0], \
-                'order of varialbes used in array indices has to follow the order of for loop ' + \
-                'counters'
-            idxs.append(('rel', 0))
+            assert aref.subscript.name in map(lambda l: l[0], self._loop_stack), \
+                'varialbes used in array indices has to be a loop counter'
+            idxs.append(('rel', aref.subscript.name, 0))
         else:  # type(aref.subscript) is c_ast.Constant
             idxs.append(('abs', int(aref.subscript.value)))
         
         if type(aref.name) is c_ast.ArrayRef:
             idxs += self._get_offsets(aref.name, dim=dim+1)
         
-        idxs.reverse()
+        if dim == 0:
+            idxs.reverse()
+        
         return idxs
     
     @classmethod
@@ -283,6 +371,8 @@ class Kernel:
             self._destinations.setdefault(self._get_basename(stmt.lvalue), [])
             self._destinations[self._get_basename(stmt.lvalue)].append(
                  self._get_offsets(stmt.lvalue))
+            # TODO deactivated for now, since that notation might be useless
+            # ArrayAccess(stmt.lvalue, array_info=self._variables[self._get_basename(stmt.lvalue)])
         else:  # type(stmt.lvalue) is c_ast.ID
             self._destinations.setdefault(stmt.lvalue.name, [])
             self._destinations[stmt.lvalue.name].append([('dir',)])
@@ -302,6 +392,8 @@ class Kernel:
             bname = self._get_basename(stmt)
             self._sources.setdefault(bname, [])
             self._sources[bname].append(self._get_offsets(stmt))
+            # TODO deactivated for now, since that notation might be useless
+            # ArrayAccess(stmt, array_info=self._variables[bname])
         elif type(stmt) is c_ast.ID:
             # Document data source
             self._sources.setdefault(stmt.name, [])
@@ -370,29 +462,43 @@ class ECM:
         self.core = core
         self.machine = machine
     
-    def _calculate_relative_offset(self, name, access_dimensions):
-        '''returns the offset from the iteration center in number of elements'''
+    def _calculate_relative_offset(self, name, access_dimensions, loop_index, count=0):
+        '''
+        returns the offset from the iteration center in number of elements and the order of indices
+        used in access.
+        *loop_index* specifies the loop to be used for iterations (this is typically the inner 
+        moste one)
+        *count* is the numer of iterations done
+        '''
         offset = 0
+        index_order = ''
         for dim, offset_info in enumerate(access_dimensions):
-            offset_type, dim_offset = offset_info
+            offset_type, index_name, dim_offset = offset_info
             assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
             
             base_dims = self.kernel._variables[name][1]
             
             if offset_type == 'rel':
-                offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
-            else:  # this should not happen
+                if loop_index == index_name:
+                    offset += (dim_offset+count)*reduce(operator.mul, base_dims[dim+1:], 1)
+                else:
+                    offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
+                index_order += index_name
+            else:
+                # should not happen
                 pass
-            
-        return offset
+        
+        return index_order, offset
     
     def calculate_cache_access(self):
-        read_offsets = {}
-        write_offsets = {}
+        read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
+        write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         
         # TODO how to handle multiple datatypes (with different size)?
         element_size = datatype_size['double']
         elements_per_cacheline = self.machine.cl_size / element_size
+        
+        loop_order = ''.join(map(lambda l: l[0], self.kernel._loop_stack))
         
         for var_name in self.kernel._variables.keys():
             var_type, var_dims = self.kernel._variables[var_name]
@@ -403,20 +509,35 @@ class ECM:
             # Compile access pattern
             writes = self.kernel._destinations.get(var_name, [])
             reads = self.kernel._sources.get(var_name, [])
-            read_offsets[var_name] = map(lambda r: self._calculate_relative_offset(var_name, r),
-                reads)
-            write_offsets[var_name] = map(lambda w: self._calculate_relative_offset(var_name, w),
-                writes)
+            for r in reads:
+                idx_order, offset = self._calculate_relative_offset(var_name, r, loop_order[-1])
+                read_offsets[var_name].setdefault(idx_order, [])
+                read_offsets[var_name][idx_order].append(offset)
+            for w in writes:
+                idx_order, offset = self._calculate_relative_offset(var_name, w, loop_order[-1])
+                write_offsets[var_name].setdefault(idx_order, [])
+                write_offsets[var_name][idx_order].append(offset)
             
             # Do unrolling so that one iteration equals one cacheline worth of workload:
+            # unrolling is done on inner-most loop only!
             for i in range(1, elements_per_cacheline):
-                initial_read_offsets = read_offsets[var_name]
-                initial_write_offsets = write_offsets[var_name]
-                read_offsets[var_name] += map(lambda r: r-1, initial_read_offsets)
-                write_offsets[var_name] += map(lambda r: r-1, initial_write_offsets)
-            # Remove multiple access to same offsets
-            read_offsets[var_name] = sorted(list(set(read_offsets[var_name])), reverse=True)
-            write_offsets[var_name] = sorted(list(set(write_offsets[var_name])), reverse=True)
+                for r in reads:
+                    idx_order, offset = self._calculate_relative_offset(
+                        var_name, r, loop_order[-1], i)
+                    read_offsets[var_name][idx_order].append(offset)
+            
+                    # Remove multiple access to same offsets
+                    read_offsets[var_name][idx_order] = \
+                        sorted(list(set(read_offsets[var_name][idx_order])), reverse=True)
+                
+                for w in writes:
+                    idx_order, offset = self._calculate_relative_offset(
+                        var_name, w, loop_order[-1], i)
+                    write_offsets[var_name][idx_order].append(offset)
+                    
+                    # Remove multiple access to same offsets
+                    write_offsets[var_name][idx_order] = \
+                        sorted(list(set(write_offsets[var_name][idx_order])), reverse=True)
         
         # initialize misses and hits
         misses = {}
@@ -446,13 +567,21 @@ class ECM:
                 # TODO here read and writes are treated the same, this implies write-allocate
                 #      to support nontemporal stores, this needs to be changed
                 for name in read_offsets.keys()+write_offsets.keys():
-                    cache[name] = intervals.Intervals()
-                    if cache_level-1 not in misses:
-                        misses[cache_level][name] = sorted(
-                            read_offsets.get(name, [])+write_offsets.get(name, []), reverse=True)
-                    else:
-                        misses[cache_level][name] = list(misses[cache_level-1][name])
-                    hits[cache_level][name] = []
+                    cache[name] = {}
+                    misses[cache_level][name] = {}
+                    hits[cache_level][name] = {}
+
+                    for idx_order in read_offsets[name].keys()+write_offsets[name].keys():
+                        cache[name][idx_order] = intervals.Intervals()
+                        if cache_level-1 not in misses:
+                            misses[cache_level][name][idx_order] = sorted(
+                                read_offsets.get(name, {}).get(idx_order, []) + 
+                                write_offsets.get(name, {}).get(idx_order, []),
+                                reverse=True)
+                        else:
+                            misses[cache_level][name][idx_order] = \
+                                 list(misses[cache_level-1][name][idx_order])
+                        hits[cache_level][name][idx_order] = []
                 
                 # Caches are still empty (thus only misses)
                 trace_count = 0
@@ -460,22 +589,24 @@ class ECM:
                 
                 # Now we trace the cache access backwards (in time/iterations) and check for hits
                 for name in misses[cache_level].keys():
-                    # Add cache trace
-                    for offset in list(misses[cache_level][name]):
-                        # If already present in cache add to hits
-                        if offset in cache[name]:
-                            misses[cache_level][name].remove(offset)
-                            
-                            # We might have multiple hits on the same offset (e.g in DAXPY)
-                            if offset not in hits[cache_level][name]:
-                                hits[cache_level][name].append(offset)
-                            
-                        # Add cache, we can do this since misses are sorted in reverse order of
-                        # access and we assume LRU cache replacement policy
-                        cache[name] &= intervals.Intervals([offset-trace_length, offset+1])
-
-                    trace_count += len(cache[name]._data)
-                    cache_used_size += len(cache[name])*element_size
+                    for idx_order in misses[cache_level][name].keys():
+                        # Add cache trace
+                        for offset in list(misses[cache_level][name][idx_order]):
+                            # If already present in cache add to hits
+                            if offset in cache[name][idx_order]:
+                                misses[cache_level][name][idx_order].remove(offset)
+                                
+                                # We might have multiple hits on the same offset (e.g in DAXPY)
+                                if offset not in hits[cache_level][name][idx_order]:
+                                    hits[cache_level][name][idx_order].append(offset)
+                                
+                            # Add cache, we can do this since misses are sorted in reverse order of
+                            # access and we assume LRU cache replacement policy
+                            cache[name][idx_order] &= \
+                                intervals.Intervals([offset-trace_length, offset+1])
+                        
+                        trace_count += len(cache[name][idx_order]._data)
+                        cache_used_size += len(cache[name][idx_order])*element_size
                 
                 # Calculate new possible trace_length according to free space in cache
                 new_trace_length = trace_length + \
@@ -486,19 +617,30 @@ class ECM:
                     updated_length = True
                 
                 # All writes to offset locations require the data to be evicted eventually
+                evicts[cache_level] = \
+                    {var_name: dict() for var_name in self.kernel._variables.keys()}
                 for name in write_offsets.keys():
-                    evicts[cache_level][name] = list(write_offsets[name])
+                    for idx_order in write_offsets[name].keys():
+                        evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
             
             # Compiling stats
-            total_misses[cache_level] = sum(map(len, misses[cache_level].values()))
-            total_hits[cache_level] = sum(map(len, hits[cache_level].values()))
-            total_evicts[cache_level] = sum(map(len, evicts[cache_level].values()))
+            total_misses[cache_level] = sum(map(lambda l: sum(map(len, l.values())),
+                misses[cache_level].values()))
+            total_hits[cache_level] = sum(map(lambda l: sum(map(len, l.values())),
+                hits[cache_level].values()))
+            total_evicts[cache_level] = sum(map(lambda l: sum(map(len, l.values())),
+                evicts[cache_level].values()))
+            
             total_lines_misses[cache_level] = sum(map(
-                lambda o: len(blocking(o, elements_per_cacheline)), misses[cache_level].values()))
+                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
+                misses[cache_level].values()))
             total_lines_hits[cache_level] = sum(map(
-                lambda o: len(blocking(o, elements_per_cacheline)), hits[cache_level].values()))
+                lambda o: sum(map(lambda n:len(blocking(n, elements_per_cacheline)), o.values())),
+                hits[cache_level].values()))
             total_lines_evicts[cache_level] = sum(map(
-                lambda o: len(blocking(o, elements_per_cacheline)), evicts[cache_level].values()))
+                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
+                evicts[cache_level].values()))
+            
             print('Trace legth per access in L{}:'.format(cache_level), trace_length)
             print('Hits in L{}:'.format(cache_level), total_hits[cache_level], hits[cache_level])
             print('Misses in L{}: {} ({}CL):'.format(
@@ -598,8 +740,8 @@ kernels = {
                 double b[N][N];
                 double c;
                 
-                for(i=0; i<N; ++i)
-                    for(j=0; j<N; ++j)
+                for(i=1; i<N-1; ++i)
+                    for(j=1; j<N-1; ++j)
                         b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
                 """,
             'constants': [('N', 4097)],
@@ -623,11 +765,56 @@ kernels = {
                             u1[k][j][i] = u1[k][j][i] + (dth/d)
                              * ( c1*(xx[ k ][ j ][ i ] - xx[ k ][ j ][i-1])
                                + c2*(xx[ k ][ j ][i+1] - xx[ k ][ j ][i-2])
-                               + c1*(xy[ k ][ j ][ i ] - xy[ k ][j-1][ i ])
+                               + c1*(xy[ k ][j+1][ i ] - xy[ k ][j-1][ i ])
                                + c2*(xy[ k ][j+1][ i ] - xy[ k ][j-2][ i ])
                                + c1*(xz[ k ][ j ][ i ] - xz[k-1][ j ][ i ])
                                + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
                 }}}
+                """,
+            'constants': [('N', 100)],
+        },
+    # TODO Work-in-progress beispiel fuer zugriff ueber 1d-arrays
+    #'uxx-stencil-expr':
+    #    {
+    #        'kernel_code':
+    #            """\
+    #            double u1[N*N*N];
+    #            double d1[N*N*N];
+    #            double xx[N*N*N];
+    #            double xy[N*N*N];
+    #            double xz[N*N*N];
+    #            double c1, c2, d;
+    #            
+    #            for(k=2; k<N-2; k++) {
+    #                for(j=2; j<N-2; j++) {
+    #                    for(i=2; i<N-2; i++) {
+    #                        d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
+    #                                + d1[k-1][j][i] + d1[k-1][j-1][i]);
+    #                        u1[k][j][i] = u1[k][j][i] + (dth/d)
+    #                         * ( c1*(xx[k*N*N     + j*N     + i]   - xx[k*N*N     + j       + i-1])
+    #                           + c2*(xx[k*N*N     + j*N     + i+1] - xx[k*N*N     + j       + i-2])
+    #                           + c1*(xy[k*N*N     + j*N     + i]   - xy[k*N*N     + (j-1)*N + i])
+    #                           + c2*(xy[k*N*N     + (j+1)*N + i]   - xy[k*N*N     + (j-2)*N + i])
+    #                           + c1*(xz[k*N*N     + j*N     + i]   - xz[(k-1)*N*N + j*N     + i])
+    #                           + c2*(xz[(k+1)*N*N + j*N     + i]   - xz[(k-2)*N*N + j*N     + i]));
+    #            }}}
+    #            """,
+    #        'constants': [('N', 100)],
+    #    },
+    'matsq':
+        {
+            'kernel_code':
+                """\
+                double S[N][N];
+                double D[N][N];
+                
+                for(i=0; i<N; i++) {
+                    for(j=0; j<N; j++) {
+                        for(k=0; k<N; k++) {
+                            D[i][j] = D[i][j] + S[i][k]*S[k][j];
+                        }
+                    }
+                }
                 """,
             'constants': [('N', 100)],
         },
@@ -638,7 +825,7 @@ kernels = {
                 double U[N][N][N];
                 double V[N][N][N];
                 double ROC[N][N][N];
-                double c1, c2, c3, c4, lap;
+                double c0, c1, c2, c3, c4, lap;
                 
                 for(k=4; k < N-4; k++) {
                     for(j=4; j < N-4; j++) {
