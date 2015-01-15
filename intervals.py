@@ -3,11 +3,13 @@
 class Intervals:
     '''Very simple interval implementation for integers (might also work on floats)'''
     
-    def __init__(self, *args):
-        self._data = list(args)
-        self._data = filter(lambda (lower, upper): upper > lower, self._data)
-        self._enforce_order()
-        self._enforce_no_overlap()
+    def __init__(self, *args, **kwargs):
+        '''if keywords *sane* is True (default: False), checks will not be done on given data.'''
+        self._data = list(args)#list(map(list, args))
+        if not kwargs.get('sane', False):
+            self._data = filter(lambda (lower, upper): upper > lower, self._data)
+            self._enforce_order()
+            self._enforce_no_overlap()
     
     def _enforce_order(self):
         self._data.sort(key=lambda d: d[0])
@@ -26,26 +28,7 @@ class Intervals:
             i += 1
     
     def __and__(self, other):
-        if len(self._data) == 0:
-            self._data = list(other._data)
-        
-        for od in other._data:
-            for sd in self._data:
-                if od[1] <= sd[0]:
-                    # od is before sd
-                    self._data.insert(0, list(od))
-                    break
-                elif od[0] <= sd[1]:
-                    # od and sd overlap
-                    sd[0] = min(sd[0], od[0])
-                    sd[1] = max(sd[1], od[1])
-                    break
-                else:
-                    # od is after sd
-                    continue
-            if od[0] > self._data[-1][1]:
-                self._data.append(list(od))
-        return self
+        return Intervals(*(self._data+other._data))
     
     def __len__(self):
         '''returns sum of range lengths'''

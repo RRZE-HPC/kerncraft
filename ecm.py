@@ -14,6 +14,7 @@ import copy
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
 
+
 def prefix_indent(prefix, textblock, later_prefix=' '):
     textblock = textblock.split('\n')
     s = prefix + textblock[0] + '\n'
@@ -462,37 +463,63 @@ class ECM:
         self.core = core
         self.machine = machine
     
-    def _calculate_relative_offset(self, name, access_dimensions, loop_index, count=0):
+    def _calculate_relative_offset(self, name, access_dimensions):
         '''
         returns the offset from the iteration center in number of elements and the order of indices
         used in access.
-        *loop_index* specifies the loop to be used for iterations (this is typically the inner 
-        moste one)
-        *count* is the numer of iterations done
         '''
         offset = 0
-        index_order = ''
+        base_dims = self.kernel._variables[name][1]
+        
         for dim, offset_info in enumerate(access_dimensions):
-            offset_type, index_name, dim_offset = offset_info
+            offset_type, idx_name, dim_offset = offset_info
             assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
             
-            base_dims = self.kernel._variables[name][1]
-            
             if offset_type == 'rel':
-                if loop_index == index_name:
-                    offset += (dim_offset+count)*reduce(operator.mul, base_dims[dim+1:], 1)
-                else:
-                    offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
-                index_order += index_name
+                offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
             else:
                 # should not happen
                 pass
         
-        return index_order, offset
+        return offset
+    
+    def _calculate_iteration_offset(self, name, index_order, loop_index):
+        '''
+        returns the offset from one to the next iteration using *loop_index*.
+        *index_order* is the order used by the access dimensions e.g. 'ijk' corresponse to [i][j][k]
+        *loop_index* specifies the loop to be used for iterations (this is typically the inner 
+        moste one)
+        '''
+        offset = 0
+        base_dims = self.kernel._variables[name][1]
+            
+        for dim, index_name in enumerate(index_order):
+            if loop_index == index_name:
+                offset += reduce(operator.mul, base_dims[dim+1:], 1)
+        
+        return offset
+    
+    def _get_index_order(self, access_dimensions):
+        '''Returns the order of indices used in *access_dimensions*.'''
+        return ''.join(map(lambda d: d[1], access_dimensions))
+    
+    def _expand_to_cacheline_blocks(self, first, last):
+        '''
+        Returns first and last values wich align with cacheline blocks, by increasing range.
+        '''
+        # TODO how to handle multiple datatypes (with different size)?
+        element_size = datatype_size['double']
+        elements_per_cacheline = self.machine.cl_size / element_size
+        
+        first = first - first%elements_per_cacheline
+        last = last - last%elements_per_cacheline + elements_per_cacheline - 1
+        
+        return [first, last]
     
     def calculate_cache_access(self):
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
+        iteration_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         
         # TODO how to handle multiple datatypes (with different size)?
         element_size = datatype_size['double']
@@ -503,18 +530,24 @@ class ECM:
         for var_name in self.kernel._variables.keys():
             var_type, var_dims = self.kernel._variables[var_name]
             
-            # Skip scalar values, they are in registers (hopefully)
+            # Skip the following access: (they are hopefully kept in registers)
+            #   - scalar values
             if var_dims is None: continue
+            #   - access does not change with inner-most loop index
+            writes = filter(lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
+                self.kernel._destinations.get(var_name, []))
+            reads = filter(lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
+                self.kernel._sources.get(var_name, []))
             
             # Compile access pattern
-            writes = self.kernel._destinations.get(var_name, [])
-            reads = self.kernel._sources.get(var_name, [])
             for r in reads:
-                idx_order, offset = self._calculate_relative_offset(var_name, r, loop_order[-1])
+                offset = self._calculate_relative_offset(var_name, r)
+                idx_order = self._get_index_order(r)
                 read_offsets[var_name].setdefault(idx_order, [])
                 read_offsets[var_name][idx_order].append(offset)
             for w in writes:
-                idx_order, offset = self._calculate_relative_offset(var_name, w, loop_order[-1])
+                offset = self._calculate_relative_offset(var_name, w)
+                idx_order = self._get_index_order(w)
                 write_offsets[var_name].setdefault(idx_order, [])
                 write_offsets[var_name][idx_order].append(offset)
             
@@ -522,8 +555,10 @@ class ECM:
             # unrolling is done on inner-most loop only!
             for i in range(1, elements_per_cacheline):
                 for r in reads:
-                    idx_order, offset = self._calculate_relative_offset(
-                        var_name, r, loop_order[-1], i)
+                    idx_order = self._get_index_order(r)
+                    offset = self._calculate_relative_offset(var_name, r)
+                    offset += i * self._calculate_iteration_offset(
+                        var_name, idx_order, loop_order[-1])
                     read_offsets[var_name][idx_order].append(offset)
             
                     # Remove multiple access to same offsets
@@ -531,8 +566,10 @@ class ECM:
                         sorted(list(set(read_offsets[var_name][idx_order])), reverse=True)
                 
                 for w in writes:
-                    idx_order, offset = self._calculate_relative_offset(
-                        var_name, w, loop_order[-1], i)
+                    idx_order = self._get_index_order(w)
+                    offset = self._calculate_relative_offset(var_name, w)
+                    offset += i * self._calculate_iteration_offset(
+                        var_name, idx_order, loop_order[-1])
                     write_offsets[var_name][idx_order].append(offset)
                     
                     # Remove multiple access to same offsets
@@ -588,27 +625,43 @@ class ECM:
                 cache_used_size = 0
                 
                 # Now we trace the cache access backwards (in time/iterations) and check for hits
-                for name in misses[cache_level].keys():
-                    for idx_order in misses[cache_level][name].keys():
+                for var_name in misses[cache_level].keys():
+                    for idx_order in misses[cache_level][var_name].keys():
+                        iter_offset = self._calculate_iteration_offset(
+                            var_name, idx_order, loop_order[-1])
+                        
                         # Add cache trace
-                        for offset in list(misses[cache_level][name][idx_order]):
+                        for offset in list(misses[cache_level][var_name][idx_order]):
                             # If already present in cache add to hits
-                            if offset in cache[name][idx_order]:
-                                misses[cache_level][name][idx_order].remove(offset)
+                            if offset in cache[var_name][idx_order]:
+                                misses[cache_level][var_name][idx_order].remove(offset)
                                 
                                 # We might have multiple hits on the same offset (e.g in DAXPY)
-                                if offset not in hits[cache_level][name][idx_order]:
-                                    hits[cache_level][name][idx_order].append(offset)
+                                if offset not in hits[cache_level][var_name][idx_order]:
+                                    hits[cache_level][var_name][idx_order].append(offset)
                                 
                             # Add cache, we can do this since misses are sorted in reverse order of
                             # access and we assume LRU cache replacement policy
-                            cache[name][idx_order] &= \
-                                intervals.Intervals([offset-trace_length, offset+1])
-                        
-                        trace_count += len(cache[name][idx_order]._data)
-                        cache_used_size += len(cache[name][idx_order])*element_size
+                            if iter_offset <= elements_per_cacheline:
+                                # iterations overlap, thus we can savely add the whole range
+                                cached_first, cached_last = self._expand_to_cacheline_blocks(
+                                    offset-iter_offset*trace_length, offset+1)
+                                cache[var_name][idx_order] &= intervals.Intervals(
+                                    [cached_first, cached_last+1], sane=True)
+                            else:
+                                # There is no overlap, we can append the ranges onto one another
+                                # TODO optimize this code section (and maybe merge with above)
+                                new_cache = [self._expand_to_cacheline_blocks(o, o) for o in range(
+                                    offset-iter_offset*trace_length, offset+1, iter_offset)]
+                                new_cache = intervals.Intervals(*new_cache, sane=True)
+                                cache[var_name][idx_order] &= new_cache
+                                
+                        trace_count += len(cache[var_name][idx_order]._data)
+                        cache_used_size += len(cache[var_name][idx_order])*element_size
                 
                 # Calculate new possible trace_length according to free space in cache
+                # TODO take CL blocked access into account
+                # TODO make /2 customizable
                 new_trace_length = trace_length + \
                     ((cache_size/2 - cache_used_size)/trace_count)/element_size
                 
@@ -616,7 +669,7 @@ class ECM:
                     trace_length = new_trace_length
                     updated_length = True
                 
-                # All writes to offset locations require the data to be evicted eventually
+                # All writes to require the data to be evicted eventually
                 evicts[cache_level] = \
                     {var_name: dict() for var_name in self.kernel._variables.keys()}
                 for name in write_offsets.keys():
@@ -816,7 +869,7 @@ kernels = {
                     }
                 }
                 """,
-            'constants': [('N', 100)],
+            'constants': [('N', 1000)],
         },
     '3d-long-range-stencil':
         {
