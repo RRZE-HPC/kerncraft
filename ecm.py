@@ -2,14 +2,17 @@
 
 from __future__ import print_function
 from textwrap import dedent
-from pycparser import CParser, c_ast
 from pprint import pprint
 from functools import reduce
-import sympy
 import operator
-import intervals
 import math
 import copy
+import sys
+
+from pycparser import CParser, c_ast
+import sympy  # TODO remove dependency to sympy
+
+import intervals
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
@@ -27,11 +30,11 @@ def prefix_indent(prefix, textblock, later_prefix=' '):
         return s
 
 
-def blocking(indices, block_size, initial_boundary=1):
+def blocking(indices, block_size, initial_boundary=0):
     '''
     splits list of integers into blocks of block_size. returns block indices.
     
-    first block element is located at initial_boundary.
+    first block element is located at initial_boundary (default 0).
     
     >>> blocking([0, -1, -2, -3, -4, -5, -6, -7, -8, -9], 8)
     [0,-1]
@@ -517,6 +520,8 @@ class ECM:
         return [first, last]
     
     def calculate_cache_access(self):
+        results = {}
+        
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         iteration_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
@@ -687,11 +692,11 @@ class ECM:
             total_lines_misses[cache_level] = sum(map(
                 lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
                 misses[cache_level].values()))
-            total_lines_hits[cache_level] = sum(map(
-                lambda o: sum(map(lambda n:len(blocking(n, elements_per_cacheline)), o.values())),
+            total_lines_hits[cache_level] = sum(map(lambda o: sum(map(lambda n:
+                len(blocking(n, elements_per_cacheline)), o.values())),
                 hits[cache_level].values()))
-            total_lines_evicts[cache_level] = sum(map(
-                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
+            total_lines_evicts[cache_level] = sum(map(lambda o: sum(map(lambda n: 
+                len(blocking(n,elements_per_cacheline)), o.values())),
                 evicts[cache_level].values()))
             
             print('Trace legth per access in L{}:'.format(cache_level), trace_length)
@@ -704,13 +709,24 @@ class ECM:
                 evicts[cache_level])
             
             if cache_cycles:
+                results['L{}-L{}'.format(cache_level, cache_level+1)] = round(
+                    (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
+                    cache_cycles, 1)
+                    
                 print('Cycles L{}-L{}:'.format(cache_level, cache_level+1), round(
                     (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
                     cache_cycles, 1))
+                
             else:
+                results['L{}-MEM'.format(cache_level)] = round(
+                    (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
+                    elements_per_cacheline*element_size/self.machine.mem_bw*self.machine.clock, 1)
+                
                 print('Cycles L{}-MEM:'.format(cache_level), round(
                     (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
                     elements_per_cacheline*element_size/self.machine.mem_bw*self.machine.clock, 1))
+            
+        return results
 
 
 # Example kernels:
@@ -725,7 +741,15 @@ kernels = {
                 for(i=0; i<N; ++i)
                     a[i] = a[i] + s * b[i];
                 """,
-            'constants': [('N', 50)],
+            'testcase': [{
+                'constants': [('N', 50)],
+                'results-to-compare': {
+                    'CPU': 2,
+                    'REG-L1': 4,
+                    'L1-L2': 6,
+                    'L2-L3': 6,
+                    'L3-MEM': 13},
+                }],
         },
     'scale':
         {
@@ -737,7 +761,7 @@ kernels = {
                 for(i=0; i<N; ++i)
                     a[i] = s * b[i];
                 """,
-            'constants': [('N', 50)],
+            'testcase': [{'constants': [('N', 50)],}],
             
         },
     'copy':
@@ -749,7 +773,7 @@ kernels = {
                 for(i=0; i<N; ++i)
                     a[i] = b[i];
                 """,
-            'constants': [('N', 50)],
+            'testcase': [{'constants': [('N', 50)],}],
         },
     'add':
         {
@@ -760,7 +784,7 @@ kernels = {
                 for(i=0; i<N; ++i)
                     a[i] = b[i] + c[i];
                 """,
-            'constants': [('N', 50)],
+            'testcase': [{'constants': [('N', 50)],}],
         },
     'triad':
         {
@@ -772,7 +796,7 @@ kernels = {
                 for(i=0; i<N; ++i)
                     a[i] = b[i] + s * c[i];
                 """,
-            'constants': [('N', 50)],
+            'testcase': [{'constants': [('N', 50)],}],
         },
     '1d-3pt':
         {
@@ -783,7 +807,7 @@ kernels = {
                 for(i=1; i<N-1; ++i)
                     b[i] = c * (a[i-1] - 2.0*a[i] + a[i+1]);
                 """,
-            'constants': [('N', 50)],
+            'testcase': [{'constants': [('N', 50)],}],
         },
     '2d-5pt':
         {
@@ -793,11 +817,53 @@ kernels = {
                 double b[N][N];
                 double c;
                 
-                for(i=1; i<N-1; ++i)
-                    for(j=1; j<N-1; ++j)
-                        b[i][j] = c * (a[i-1][j] + a[i][j-1] + a[i][j] + a[i][j+1] + a[i+1][j]);
+                for(j=1; j<N-1; ++j)
+                    for(i=1; i<N-1; ++i)
+                        b[j][i] = ( a[j][i-1] + a[j][i+1]
+                                  + a[j-1][i] + a[j+1][i]) * s;
                 """,
-            'constants': [('N', 4097)],
+            'testcase': [ # See log/2014-12-12.md
+                { 
+                    # L1
+                    'constants': [('N', 511)], 
+                    'results-to-compare': {
+                        'T_nOL': 6,
+                        'T_OL': 8,
+                        'L1-L2': 6,
+                        'L2-L3': 6,
+                        'L3-MEM': 13},
+                },
+                {
+                    # L2
+                    'constants': [('N', 4094)],
+                    'results-to-compare': {
+                        'T_nOL': 6,
+                        'T_OL': 8,
+                        'L1-L2': 10,
+                        'L2-L3': 6,
+                        'L3-MEM': 13},
+                },
+                {
+                    # L3
+                    'constants': [('N', 327677)],
+                    'results-to-compare': {
+                        'T_nOL': 6,
+                        'T_OL': 8,
+                        'L1-L2': 10,
+                        'L2-L3': 10,
+                        'L3-MEM': 13},
+                },
+                {
+                    # MEM
+                    'constants': [('N', 327681)],
+                    'results-to-compare': {
+                        'T_nOL': 6,
+                        'T_OL': 8,
+                        'L1-L2': 10,
+                        'L2-L3': 10,
+                        'L3-MEM': 22},
+                },
+            ],
         },
     'uxx-stencil':
         {
@@ -824,7 +890,16 @@ kernels = {
                                + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
                 }}}
                 """,
-            'constants': [('N', 100)],
+            'testcase': [{ # DP
+                'constants': [('N', 100)],
+                'results-to-compare': {
+                    'T_nOL': 84,
+                    'T_OL': 38,
+                    'L1-L2': 20,
+                    'L2-L3': 20,
+                    'L3-MEM': 26
+                },
+            }], # TODO add results for SP
         },
     # TODO Work-in-progress beispiel fuer zugriff ueber 1d-arrays
     #'uxx-stencil-expr':
@@ -852,7 +927,7 @@ kernels = {
     #                           + c2*(xz[(k+1)*N*N + j*N     + i]   - xz[(k-2)*N*N + j*N     + i]));
     #            }}}
     #            """,
-    #        'constants': [('N', 100)],
+    #        'testcase': [{'constants': [('N', 100)],}],
     #    },
     'matsq':
         {
@@ -869,7 +944,7 @@ kernels = {
                     }
                 }
                 """,
-            'constants': [('N', 1000)],
+            'testcase': [{'constants': [('N', 1000)],}],
         },
     '3d-long-range-stencil':
         {
@@ -900,61 +975,82 @@ kernels = {
                                        + ROC[k][j][i] * lap;
                 }}}
                 """,
-            'constants': [('N', 100)],
+            'testcase': [{
+                'constants': [('N', 100)],
+                'results-to-compare': {
+                    'T_nOL': 68,
+                    'T_OL': 64,
+                    'L1-L2': 24,
+                    'L2-L3': 24,
+                    'L3-MEM': 17
+                },
+            }],
         },
     }
 
 if __name__ == '__main__':
     for name, info in kernels.items():
-        print('='*80 + '\n{:^80}\n'.format(name) + '='*80)
-        # Read machine description
-        machine = {
-            'name': 'Intel Xeon 2660v2',
-            'clock': '2.2 GHz',
-            'IACA architecture': 'IVB',
-            'caheline': '64 B',
-            'memory bandwidth': '60 GB/s',
-            'cache stack': 
-                [{'level': 1, 'size': '32 KB', 'type': 'per core', 'bw': '1 CL/cy'},
-                 {'level': 2, 'size': '256 KB', 'type': 'per core', 'bw': '1 CL/cy'},
-                 {'level': 3, 'size': '25 MB', 'type': 'per socket'}]
-        }
-        # TODO support format as seen above
-        # TODO missing in description bw_type, size_type, read and write bw between levels
-        #      and cache size sharing and cache bw sharing
-        #machine = MachineModel('Intel Xeon 2660v2', 'IVB', 2.2e9, 10, 64, 60e9, 
-        #                       [(1, 32*1024, 'per core', 2),
-        #                        (2, 256*1024, 'per core', 2),
-        #                        (3, 25*1024*1024, 'per socket', None)])
-        # SNB machine as described in ipdps15-ECM.pdf
-        machine = MachineModel('Xeon E5-2680', 'SNB', 2.7e9, 8, 64, 40e9,
-                               [(1, 32*1024, 'per core', 2),
-                                (2, 256*1024, 'per core', 2),
-                                (3, 20*1024*1024, 'per socket', None)])
-        
-        # Read (run?) and interpret IACA output
-        # TODO
-        
-        # Create ECM object and give additional information about runtime
-        kernel = Kernel(dedent(info['kernel_code']))
-        for const_name, const_value in info['constants']:
-            kernel.set_constant(const_name, const_value)
-        
-        # Verify code and document data access and loop traversal
-        kernel.process()
-        kernel.print_kernel_code()
-        print()
-        kernel.print_variables_info()
-        kernel.print_constants_info()
-        kernel.print_kernel_info()
-        
-        # Analyze access patterns (in regard to cache sizes with layer conditions)
-        ecm = ECM(kernel, None, machine)
-        ecm.calculate_cache_access()
-        # TODO <-- this is my thesis
-        
-        # Report
-        # TODO
-        
-        print
+        for test in info['testcase']:
+            print('='*80 + '\n{:^80}\n'.format(name) + '='*80)
+            # Read machine description
+            machine = {
+                'name': 'Intel Xeon 2660v2',
+                'clock': '2.2 GHz',
+                'IACA architecture': 'IVB',
+                'caheline': '64 B',
+                'memory bandwidth': '60 GB/s',
+                'cache stack': 
+                    [{'level': 1, 'size': '32 KB', 'type': 'per core', 'bw': '1 CL/cy'},
+                     {'level': 2, 'size': '256 KB', 'type': 'per core', 'bw': '1 CL/cy'},
+                     {'level': 3, 'size': '25 MB', 'type': 'per socket'}]
+            }
+            # TODO support format as seen above
+            # TODO missing in description bw_type, size_type, read and write bw between levels
+            #      and cache size sharing and cache bw sharing
+            #machine = MachineModel('Intel Xeon 2660v2', 'IVB', 2.2e9, 10, 64, 60e9, 
+            #                       [(1, 32*1024, 'per core', 2),
+            #                        (2, 256*1024, 'per core', 2),
+            #                        (3, 25*1024*1024, 'per socket', None)])
+            # SNB machine as described in ipdps15-ECM.pdf
+            machine = MachineModel('Xeon E5-2680', 'SNB', 2.7e9, 8, 64, 40e9,
+                                   [(1, 32*1024, 'per core', 2),
+                                    (2, 256*1024, 'per core', 2),
+                                    (3, 20*1024*1024, 'per socket', None)])
+            
+            # Read (run?) and interpret IACA output
+            # TODO
+            
+            # Create ECM object and give additional information about runtime
+            kernel = Kernel(dedent(info['kernel_code']))
+            for const_name, const_value in test['constants']:
+                kernel.set_constant(const_name, const_value)
+            
+            # Verify code and document data access and loop traversal
+            kernel.process()
+            kernel.print_kernel_code()
+            print()
+            kernel.print_variables_info()
+            kernel.print_constants_info()
+            kernel.print_kernel_info()
+            
+            # Analyze access patterns (in regard to cache sizes with layer conditions)
+            ecm = ECM(kernel, None, machine)
+            results = ecm.calculate_cache_access()  # <-- this is my thesis
+            if 'results-to-compare' in test:
+                for key, value in results.items():
+                    if key in test['results-to-compare']:
+                        correct_value = test['results-to-compare'][key]
+                        diff = abs(value - correct_value)
+                        if diff > correct_value*0.1:
+                            print("Test values did not match: {} ".format(key) +
+                                "should have been {}, but was {}.".format(correct_value, value))
+                            sys.exit(1)
+                        elif diff:
+                            print("Small difference from theoretical value: {} ".format(key) +
+                                "should have been {}, but was {}.".format(correct_value, value))
+            
+            # Report
+            # TODO
+            
+            print
     
