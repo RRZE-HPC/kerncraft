@@ -1,5 +1,6 @@
-ECM
-===
+kernkraft
+=========
+Kernel Performance Evaluation Toolkit for ECM
 
 This tool allows automatic analasis of loop kernels using the Execution Cache Memory (ECM) model.
 The ECM model provides a framework to predict the performance of loop kernels, similar but more
