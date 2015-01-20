@@ -1,4 +1,4 @@
-kernkraft
+kerncraft
 =========
 Loop Kernel Analysis and Performance Modeling Toolkit
 
