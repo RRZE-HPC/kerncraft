@@ -1,0 +1,20 @@
+double u1[N][N][N];
+double d1[N][N][N];
+double xx[N][N][N];
+double xy[N][N][N];
+double xz[N][N][N];
+double c1, c2, d;
+
+for(k=2; k<N-2; k++) {
+    for(j=2; j<N-2; j++) {
+        for(i=2; i<N-2; i++) {
+            d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
+                    + d1[k-1][j][i] + d1[k-1][j-1][i]);
+            u1[k][j][i] = u1[k][j][i] + (dth/d)
+             * ( c1*(xx[ k ][ j ][ i ] - xx[ k ][ j ][i-1])
+               + c2*(xx[ k ][ j ][i+1] - xx[ k ][ j ][i-2])
+               + c1*(xy[ k ][j+1][ i ] - xy[ k ][j-1][ i ])
+               + c2*(xy[ k ][j+1][ i ] - xy[ k ][j-2][ i ])
+               + c1*(xz[ k ][ j ][ i ] - xz[k-1][ j ][ i ])
+               + c2*(xz[k+1][ j ][ i ] - xz[k-2][ j ][ i ]));
+}}}

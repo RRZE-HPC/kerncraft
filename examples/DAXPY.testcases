@@ -1,0 +1,6 @@
+[{'constants': [('N', 50)],
+  'results-to-compare': {'CPU': 2,
+                         'L1-L2': 6,
+                         'L2-L3': 6,
+                         'L3-MEM': 13,
+                         'REG-L1': 4}}]
