@@ -112,8 +112,6 @@ if __name__ == '__main__':
             kernel.print_constants_info()
             kernel.print_kernel_info()
             
-            print(kernel.as_iaca_file())
-            
             #sys.exit(0)
             
             if args.model == 'ECM':

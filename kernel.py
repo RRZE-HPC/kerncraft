@@ -128,7 +128,7 @@ class Kernel:
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
     
-    def as_iaca_file(self):
+    def as_iaca_code(self):
         ast = copy(self.kernel_ast)
         declarations = filter(lambda d: type(d) is c_ast.Decl, ast.block_items)
         
@@ -144,6 +144,8 @@ class Kernel:
             # Build ast to inject
             if array_dimensions[d.name]:
                 # this is an array, we need a for loop to initialize it
+                # for(init; cond; next) stmt
+                
                 # Init: int i = 0;
                 counter_name = 'i'
                 while counter_name in array_dimensions:
@@ -203,7 +205,6 @@ class Kernel:
             None, None)
         
         ast = c_ast.FuncDef(decl, None, ast)
-        print(CGenerator().visit(c_ast.FuncDef(decl, None, ast)))
         
         # embedd Compound AST into FileAST
         ast = c_ast.FileAST([ast])
@@ -211,23 +212,24 @@ class Kernel:
         # add dummy function declaration
         decl = c_ast.Decl('dummy', [], [], [],
             c_ast.FuncDecl(
-                c_ast.ParamList([
-                    c_ast.Typename([], 
-                        c_ast.PtrDecl([], 
-                            c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
-                c_ast.TypeDecl(
-                    'dummy',
-                    [],
-                    c_ast.IdentifierType(['void']))),
+                c_ast.ParamList([c_ast.Typename([], c_ast.PtrDecl([], 
+                        c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
+                c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
             None, None)
         
         ast.ext.insert(0, decl)
         
-        # TODO add "#include"s for dummy and stdlib (for malloc)
+        # convert to code string
+        code = CGenerator().visit(ast)
         
-        # TODO add "#define"s for constants
+        # add "#define"s for constants
+        for k, v in self._constants.items():
+            code = '#define {} {}\n'.format(k, v) + code
         
-        return CGenerator().visit(ast)
+        # add "#include"s for dummy and stdlib (for malloc)
+        code = '#include <stdlib.h>\n#include "headers/dummy.h"\n\n' + code
+        
+        return code
     
     def set_constant(self, name, value):
         assert type(name) is str, "constant name needs to be of type str"
