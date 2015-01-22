@@ -5,9 +5,9 @@ double xy[N][N][N];
 double xz[N][N][N];
 double c1, c2, d;
 
-for(k=2; k<N-2; k++) {
-    for(j=2; j<N-2; j++) {
-        for(i=2; i<N-2; i++) {
+for(int k=2; k<N-2; k++) {
+    for(int j=2; j<N-2; j++) {
+        for(int i=2; i<N-2; i++) {
             d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
                     + d1[k-1][j][i] + d1[k-1][j-1][i]);
             u1[k][j][i] = u1[k][j][i] + (dth/d)

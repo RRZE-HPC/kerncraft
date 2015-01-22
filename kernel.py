@@ -2,7 +2,11 @@
 
 from __future__ import print_function
 
-from pycparser import CParser, c_ast
+from copy import copy
+import operator
+
+from pycparser import CParser, c_ast, c_generator
+from pycparser.c_generator import CGenerator
 import sympy  # TODO remove dependency to sympy
 
 
@@ -35,6 +39,77 @@ def conv_ast_to_sympy(math_ast):
         op = sympy_op[math_ast.op]
         return op(conv_ast_to_sympy(math_ast.left), conv_ast_to_sympy(math_ast.right))
 
+def trasform_multidim_to_1d_decl(decl):
+    '''
+    Transforms ast of multidimensional declaration to a single dimension declaration.
+    In-place operation!
+    
+    Returns name and dimensions of array (to be used with transform_multidim_to_1d_ref())
+    '''
+    dims = []
+    t = decl.type
+    while type(t) is c_ast.ArrayDecl:
+        dims.append(t.dim)
+        t = t.type
+    
+    if dims:
+        # Multidimensional array
+        decl.type.dim = reduce(lambda l, r: c_ast.BinaryOp('*', l, r), dims)
+        decl.type.type = t
+    
+    return decl.name, dims
+    
+def transform_multidim_to_1d_ref(aref, dimension_dict):
+    '''
+    Transforms ast of multidimensional reference to a single dimension reference.
+    In-place operation!
+    '''
+    dims = []
+    name = aref
+    while type(name) is c_ast.ArrayRef:
+        dims.append(name.subscript)
+        name = name.name
+    
+    subscript_list = []
+    for i, d in enumerate(dims):
+        
+        if i == 0:
+            subscript_list.append(d)
+        else:
+            subscript_list.append(c_ast.BinaryOp('*', d, reduce(
+                lambda l, r: c_ast.BinaryOp('*', l, r), 
+                dimension_dict[name.name][-i-1:-1])))
+    
+    aref.subscript = reduce(
+        lambda l, r: c_ast.BinaryOp('+', l, r), subscript_list)
+    aref.name = name
+
+def transform_array_decl_to_malloc(decl):
+    '''Trans forms "type var_name[N]" to "type* var_name = malloc(sizeof(type)*N)'''
+    if type(decl.type) is not c_ast.ArrayDecl:
+        # Not an array declaration, can be ignored
+        return
+    
+    type_ = c_ast.PtrDecl([], decl.type.type)
+    init = c_ast.FuncCall(
+        c_ast.ID('malloc'),
+        c_ast.ExprList([
+            c_ast.BinaryOp(
+                '*',
+                c_ast.UnaryOp(
+                    'sizeof', 
+                    c_ast.Typename([], c_ast.TypeDecl(None, [], decl.type.type.type))),
+                decl.type.dim)]))
+    
+    decl.type = type_
+    decl.init = init
+
+def find_array_references(ast):
+    '''returns list of array references in AST'''
+    if type(ast) is c_ast.ArrayRef:
+        return [ast]
+    else:
+        return reduce(operator.add, map(lambda o: find_array_references(o[1]), ast.children()), [])
 
 class Kernel:
     def __init__(self, kernel_code, constants=None, variables=None):
@@ -42,13 +117,117 @@ class Kernel:
         self.kernel_code = kernel_code
     
         parser = CParser()
-        self.kernel_ast = parser.parse('void test() {'+kernel_code+'}').ext[0].body
+        self.kernel_ast = parser.parse(self.as_function()).ext[0].body
         
         self._loop_stack = []
         self._sources = {}
         self._destinations = {}
         self._constants = {} if constants is None else constants
         self._variables = {} if variables is None else variables
+    
+    def as_function(self, func_name='test'):
+        return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
+    
+    def as_iaca_file(self):
+        ast = copy(self.kernel_ast)
+        declarations = filter(lambda d: type(d) is c_ast.Decl, ast.block_items)
+        
+        # transform multi-dimensional declarations to one dimensional references
+        array_dimensions = dict(map(trasform_multidim_to_1d_decl, declarations))
+        # transform to pointer and malloc notation (stack can be too small)
+        map(transform_array_decl_to_malloc, declarations)
+        
+        # inject array initialization
+        for d in declarations:
+            i = ast.block_items.index(d)
+            
+            # Build ast to inject
+            if array_dimensions[d.name]:
+                # this is an array, we need a for loop to initialize it
+                # Init: int i = 0;
+                counter_name = 'i'
+                while counter_name in array_dimensions:
+                    counter_name = chr(ord(counter_name)+1)
+                
+                init = c_ast.DeclList([
+                    c_ast.Decl(
+                        counter_name, [], [], [], c_ast.TypeDecl(
+                            counter_name, [], c_ast.IdentifierType(['int'])),
+                        c_ast.Constant('int', '0'), 
+                        None)],
+                    None)
+                
+                # Cond: i < ... (... is length of array)
+                cond = c_ast.BinaryOp(
+                    '<',
+                    c_ast.ID(counter_name),
+                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
+                
+                # Next: i++
+                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
+                
+                # Statement
+                stmt = c_ast.Assignment(
+                    '=',
+                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
+                    c_ast.Constant('int', '0'))
+                
+                ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
+            
+                # inject dummy access to arrays, so compiler does not over-optimize code
+                # TODO put if around it, so code will actually run
+                ast.block_items.insert(
+                    i+2, c_ast.FuncCall(c_ast.ID('dummy'), c_ast.ExprList([c_ast.ID(d.name)])))
+            else:
+                # this is a scalar, so a simple Assignment is enough
+                ast.block_items.insert(
+                    i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant('int', '0')))
+                
+                # inject dummy access to scalar, so compiler does not over-optimize code
+                # TODO put if around it, so code will actually run
+                ast.block_items.insert(
+                    i+2,
+                    c_ast.FuncCall(c_ast.ID('dummy'),
+                    c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+        
+        # transform multi-dimensional array references to one dimensional references
+        map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
+            find_array_references(ast))
+        
+        # embedd Compound into FuncDecl
+        decl = c_ast.Decl('main', [], [], [],
+            c_ast.FuncDecl(None, c_ast.TypeDecl(
+                'main',
+                [],
+                c_ast.IdentifierType(['int']))),
+            None, None)
+        
+        ast = c_ast.FuncDef(decl, None, ast)
+        print(CGenerator().visit(c_ast.FuncDef(decl, None, ast)))
+        
+        # embedd Compound AST into FileAST
+        ast = c_ast.FileAST([ast])
+        
+        # add dummy function declaration
+        decl = c_ast.Decl('dummy', [], [], [],
+            c_ast.FuncDecl(
+                c_ast.ParamList([
+                    c_ast.Typename([], 
+                        c_ast.PtrDecl([], 
+                            c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
+                c_ast.TypeDecl(
+                    'dummy',
+                    [],
+                    c_ast.IdentifierType(['void']))),
+            None, None)
+        
+        ast.ext.insert(0, decl)
+        
+        # TODO add "#include"s for dummy and stdlib (for malloc)
+        
+        # TODO add "#define"s for constants
+        
+        return CGenerator().visit(ast)
     
     def set_constant(self, name, value):
         assert type(name) is str, "constant name needs to be of type str"
@@ -151,8 +330,9 @@ class Kernel:
         assert type(floop) is c_ast.For, "May only be a for loop"
         assert hasattr(floop, 'init') and hasattr(floop, 'cond') and hasattr(floop, 'next'), \
             "Loop must have initial, condition and next statements."
-        assert type(floop.init) is c_ast.Assignment, "Initialization of loops need to be " + \
-            "assignments (declarations are not allowed or needed)"
+        assert type(floop.init) is c_ast.DeclList, "Initialization of loops need to be "+ \
+            " declarations."
+        assert len(floop.init.decls) == 1, "Only single declaration is allowed in init. of loop."
         assert floop.cond.op in '<', "only lt (<) is allowed as loop condition"
         assert type(floop.cond.left) is c_ast.ID, 'left of cond. operand has to be a variable'
         assert type(floop.cond.right) in [c_ast.Constant, c_ast.ID, c_ast.BinaryOp], \
@@ -183,13 +363,13 @@ class Kernel:
             assert type(floop.next.lvalue) is c_ast.ID, \
                 'next operation may only act on loop counter'
             assert type(floop.next.rvalue) is c_ast.Constant, 'only constant increments are allowed'
-            assert floop.next.lvalue.name ==  floop.cond.left.name ==  floop.init.lvalue.name, \
+            assert floop.next.lvalue.name ==  floop.cond.left.name ==  floop.init.decls[0].name, \
                 'initial, condition and next statement of for loop must act on same loop ' + \
                 'counter variable'
             step_size = int(floop.next.rvalue.value)
         else:
             assert type(floop.next.expr) is c_ast.ID, 'next operation may only act on loop counter'
-            assert floop.next.expr.name ==  floop.cond.left.name ==  floop.init.lvalue.name, \
+            assert floop.next.expr.name ==  floop.cond.left.name ==  floop.init.decls[0].name, \
                 'initial, condition and next statement of for loop must act on same loop ' + \
                 'counter variable'
             step_size = 1
@@ -197,7 +377,7 @@ class Kernel:
         # Document for loop stack
         self._loop_stack.append(
             # (index name, min, max, step size)
-            (floop.init.lvalue.name, floop.init.rvalue.value, iter_max, step_size)
+            (floop.init.decls[0].name, floop.init.decls[0].init.value, iter_max, step_size)
         )
         # TODO add support for other stepsizes (even negative/reverse steps?)
 

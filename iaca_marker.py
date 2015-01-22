@@ -24,7 +24,7 @@ def find_codeblocks(code_lines):
         if re.match(r"^v(mul|add|sub|div)p[ds].*", line.strip()):
             packed_ctr += 1
         # TODO add more statistics: half-width ops and mov
-        elif line.startswith('..'):
+        elif re.match(r'^..B[0-9]+\.[0-9]+:', line):
            last_label = line[0:line.find(':')]
            last_label_line = i
         elif '# Prob' in line:
