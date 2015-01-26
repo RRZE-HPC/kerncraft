@@ -464,7 +464,7 @@ class Kernel:
         '''
         if not out_filename:
             if self._filename:
-                out_filename = os.path.splitext(self._filename)[0]
+                out_filename = os.path.abspath(os.path.splitext(self._filename)[0])
             else:
                 out_filename = tempfile.mkstemp()
         
