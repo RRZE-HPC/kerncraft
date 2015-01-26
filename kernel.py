@@ -11,6 +11,7 @@ import operator
 
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
+import iaca_marker as iaca
 
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
@@ -450,15 +451,16 @@ class Kernel:
         
         return code
     
-    def assemble(self, in_file, out_filename=None, iaca_marked=True):
+    def assemble(self, in_filename, out_filename=None, iaca_markers=True):
         '''
-        Assembles *in_file* (filepointers) to *out_filename*.
+        Assembles *in_filename* to *out_filename*.
         
         If *out_filename* is not given a new file will created either temporarily or according
         to kernel file location.
         
         if *iaca_marked* is set to true, markers are inserted around the block with most packed
-        instructions or (if no packed instr. were found) the largest block.
+        instructions or (if no packed instr. were found) the largest block and modified file is 
+        saved to *in_file*.
         
         Returns two-tuple (filepointer, filename) to temp binary file.
         '''
@@ -467,6 +469,26 @@ class Kernel:
                 out_filename = os.path.abspath(os.path.splitext(self._filename)[0])
             else:
                 out_filename = tempfile.mkstemp()
+        
+        # TODO insert iaca markers
+        if iaca_markers:
+            with open(in_filename, 'r') as in_file:
+                lines = in_file.readlines()
+            blocks = iaca.find_asm_blocks(lines)
+    
+            # TODO check for already present markers
+    
+            # Choose best default block:
+            best_idx = iaca.select_best_block(blocks)
+            block = blocks[best_idx][1]
+    
+            # Insert markers:
+            lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])
+    
+            # write back to file
+
+            with open(in_filename, 'w') as in_file:
+                in_file.writelines(lines)
         
         try:
             # Assamble all to a binary
@@ -482,7 +504,7 @@ class Kernel:
         
         return out_filename
     
-    def compile(self, compiler_args=['-O3', '-xHost', '-std=c99']):
+    def compile(self, compiler_args=['-O3', '-xHost', '-std=c99', '-fno-alias']):
         '''
         Compiles source (from as_code()) to assembly.
         
@@ -512,10 +534,8 @@ class Kernel:
         finally:
             in_file.close()
         
-        # Let's find the out_file
-        out_file = open(os.path.splitext(in_file.name)[0]+'.s')
-        
-        return out_file, out_file.name
+        # Let's return the out_file name
+        return os.path.splitext(in_file.name)[0]+'.s'
     
     def print_kernel_info(self):
         table = ('     idx |        min        max       step\n' +

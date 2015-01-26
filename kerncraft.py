@@ -112,8 +112,8 @@ if __name__ == '__main__':
             kernel.print_constants_info()
             kernel.print_kernel_info()
             
-            asm_fp, asm_name = kernel.compile()
-            bin_name = kernel.assemble(asm_fp)
+            asm_name = kernel.compile()
+            bin_name = kernel.assemble(asm_name)
             
             #sys.exit(0)
             
