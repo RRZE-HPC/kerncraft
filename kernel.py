@@ -470,7 +470,7 @@ class Kernel:
             else:
                 out_filename = tempfile.mkstemp()
         
-        # TODO insert iaca markers
+        # insert iaca markers
         if iaca_markers:
             with open(in_filename, 'r') as in_file:
                 lines = in_file.readlines()

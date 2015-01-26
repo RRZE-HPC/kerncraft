@@ -54,7 +54,7 @@ def userselect_block(blocks, default=None):
     # Let user select block:
     block_idx = -1
     while 0 >= block_idx < len(blocks):
-        block_idx = raw_input("Choose block to be marked ["+str(default[0])+"]: ") or default[0]
+        block_idx = raw_input("Choose block to be marked ["+str(default)+"]: ") or default
         try:
             block_idx = int(block_idx)
         except ValueError:
