@@ -4,6 +4,9 @@ from __future__ import print_function
 
 from copy import copy
 import operator
+import tempfile
+import subprocess
+import os.path
 
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
@@ -112,9 +115,10 @@ def find_array_references(ast):
         return reduce(operator.add, map(lambda o: find_array_references(o[1]), ast.children()), [])
 
 class Kernel:
-    def __init__(self, kernel_code, constants=None, variables=None):
+    def __init__(self, kernel_code, constants=None, variables=None, filename=None):
         '''This class captures the DSL kernel code, analyzes it and reports access pattern'''
         self.kernel_code = kernel_code
+        self._filename = filename
     
         parser = CParser()
         self.kernel_ast = parser.parse(self.as_function()).ext[0].body
@@ -127,109 +131,6 @@ class Kernel:
     
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
-    
-    def as_iaca_code(self):
-        ast = copy(self.kernel_ast)
-        declarations = filter(lambda d: type(d) is c_ast.Decl, ast.block_items)
-        
-        # transform multi-dimensional declarations to one dimensional references
-        array_dimensions = dict(map(trasform_multidim_to_1d_decl, declarations))
-        # transform to pointer and malloc notation (stack can be too small)
-        map(transform_array_decl_to_malloc, declarations)
-        
-        # inject array initialization
-        for d in declarations:
-            i = ast.block_items.index(d)
-            
-            # Build ast to inject
-            if array_dimensions[d.name]:
-                # this is an array, we need a for loop to initialize it
-                # for(init; cond; next) stmt
-                
-                # Init: int i = 0;
-                counter_name = 'i'
-                while counter_name in array_dimensions:
-                    counter_name = chr(ord(counter_name)+1)
-                
-                init = c_ast.DeclList([
-                    c_ast.Decl(
-                        counter_name, [], [], [], c_ast.TypeDecl(
-                            counter_name, [], c_ast.IdentifierType(['int'])),
-                        c_ast.Constant('int', '0'), 
-                        None)],
-                    None)
-                
-                # Cond: i < ... (... is length of array)
-                cond = c_ast.BinaryOp(
-                    '<',
-                    c_ast.ID(counter_name),
-                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
-                
-                # Next: i++
-                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
-                
-                # Statement
-                stmt = c_ast.Assignment(
-                    '=',
-                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
-                    c_ast.Constant('int', '0'))
-                
-                ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
-            
-                # inject dummy access to arrays, so compiler does not over-optimize code
-                # TODO put if around it, so code will actually run
-                ast.block_items.insert(
-                    i+2, c_ast.FuncCall(c_ast.ID('dummy'), c_ast.ExprList([c_ast.ID(d.name)])))
-            else:
-                # this is a scalar, so a simple Assignment is enough
-                ast.block_items.insert(
-                    i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant('int', '0')))
-                
-                # inject dummy access to scalar, so compiler does not over-optimize code
-                # TODO put if around it, so code will actually run
-                ast.block_items.insert(
-                    i+2,
-                    c_ast.FuncCall(c_ast.ID('dummy'),
-                    c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
-        
-        # transform multi-dimensional array references to one dimensional references
-        map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
-            find_array_references(ast))
-        
-        # embedd Compound into FuncDecl
-        decl = c_ast.Decl('main', [], [], [],
-            c_ast.FuncDecl(None, c_ast.TypeDecl(
-                'main',
-                [],
-                c_ast.IdentifierType(['int']))),
-            None, None)
-        
-        ast = c_ast.FuncDef(decl, None, ast)
-        
-        # embedd Compound AST into FileAST
-        ast = c_ast.FileAST([ast])
-        
-        # add dummy function declaration
-        decl = c_ast.Decl('dummy', [], [], [],
-            c_ast.FuncDecl(
-                c_ast.ParamList([c_ast.Typename([], c_ast.PtrDecl([], 
-                        c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
-                c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
-            None, None)
-        
-        ast.ext.insert(0, decl)
-        
-        # convert to code string
-        code = CGenerator().visit(ast)
-        
-        # add "#define"s for constants
-        for k, v in self._constants.items():
-            code = '#define {} {}\n'.format(k, v) + code
-        
-        # add "#include"s for dummy and stdlib (for malloc)
-        code = '#include <stdlib.h>\n#include "headers/dummy.h"\n\n' + code
-        
-        return code
     
     def set_constant(self, name, value):
         assert type(name) is str, "constant name needs to be of type str"
@@ -442,6 +343,174 @@ class Kernel:
             self._p_sources(stmt.right)
         
         return sources
+        
+    def as_code(self):
+        ast = copy(self.kernel_ast)
+        declarations = filter(lambda d: type(d) is c_ast.Decl, ast.block_items)
+        
+        # transform multi-dimensional declarations to one dimensional references
+        array_dimensions = dict(map(trasform_multidim_to_1d_decl, declarations))
+        # transform to pointer and malloc notation (stack can be too small)
+        map(transform_array_decl_to_malloc, declarations)
+        
+        # inject array initialization
+        for d in declarations:
+            i = ast.block_items.index(d)
+            
+            # Build ast to inject
+            if array_dimensions[d.name]:
+                # this is an array, we need a for loop to initialize it
+                # for(init; cond; next) stmt
+                
+                # Init: int i = 0;
+                counter_name = 'i'
+                while counter_name in array_dimensions:
+                    counter_name = chr(ord(counter_name)+1)
+                
+                init = c_ast.DeclList([
+                    c_ast.Decl(
+                        counter_name, [], [], [], c_ast.TypeDecl(
+                            counter_name, [], c_ast.IdentifierType(['int'])),
+                        c_ast.Constant('int', '0'), 
+                        None)],
+                    None)
+                
+                # Cond: i < ... (... is length of array)
+                cond = c_ast.BinaryOp(
+                    '<',
+                    c_ast.ID(counter_name),
+                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
+                
+                # Next: i++
+                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
+                
+                # Statement
+                stmt = c_ast.Assignment(
+                    '=',
+                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
+                    c_ast.Constant('int', '0'))
+                
+                ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
+            
+                # inject dummy access to arrays, so compiler does not over-optimize code
+                # TODO put if around it, so code will actually run
+                ast.block_items.insert(
+                    i+2, c_ast.FuncCall(c_ast.ID('dummy'), c_ast.ExprList([c_ast.ID(d.name)])))
+            else:
+                # this is a scalar, so a simple Assignment is enough
+                ast.block_items.insert(
+                    i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant('int', '0')))
+                
+                # inject dummy access to scalar, so compiler does not over-optimize code
+                # TODO put if around it, so code will actually run
+                ast.block_items.insert(
+                    i+2,
+                    c_ast.FuncCall(c_ast.ID('dummy'),
+                    c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+        
+        # transform multi-dimensional array references to one dimensional references
+        map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
+            find_array_references(ast))
+        
+        # embedd Compound into FuncDecl
+        decl = c_ast.Decl('main', [], [], [],
+            c_ast.FuncDecl(None, c_ast.TypeDecl(
+                'main',
+                [],
+                c_ast.IdentifierType(['int']))),
+            None, None)
+        
+        ast = c_ast.FuncDef(decl, None, ast)
+        
+        # embedd Compound AST into FileAST
+        ast = c_ast.FileAST([ast])
+        
+        # add dummy function declaration
+        decl = c_ast.Decl('dummy', [], [], [],
+            c_ast.FuncDecl(
+                c_ast.ParamList([c_ast.Typename([], c_ast.PtrDecl([], 
+                        c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
+                c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
+            None, None)
+        
+        ast.ext.insert(0, decl)
+        
+        # convert to code string
+        code = CGenerator().visit(ast)
+        
+        # add "#define"s for constants
+        for k, v in self._constants.items():
+            code = '#define {} {}\n'.format(k, v) + code
+        
+        # add "#include"s for dummy and stdlib (for malloc)
+        code = '#include <stdlib.h>\n\n' + code
+        
+        return code
+    
+    def assemble(self, in_file, out_filename=None, iaca_marked=True):
+        '''
+        Assembles *in_file* (filepointers) to *out_filename*.
+        
+        If *out_filename* is not given a new file will created either temporarily or according
+        to kernel file location.
+        
+        if *iaca_marked* is set to true, markers are inserted around the block with most packed
+        instructions or (if no packed instr. were found) the largest block.
+        
+        Returns two-tuple (filepointer, filename) to temp binary file.
+        '''
+        if not out_filename:
+            if self._filename:
+                out_filename = os.path.splitext(self._filename)[0]
+            else:
+                out_filename = tempfile.mkstemp()
+        
+        try:
+            # Assamble all to a binary
+            subprocess.Popen(
+                ["icc",
+                 os.path.basename(in_file.name), 
+                 'dummy.s', 
+                 '-o', 
+                 out_filename],
+                cwd=os.path.dirname(in_file.name))
+        finally:
+            in_file.close()
+    
+    def compile(self, compiler_args=['-O3', '-xHost', '-std=c99']):
+        '''
+        Compiles source (from as_code()) to assembly.
+        
+        Returns two-tuple (filepointer, filename) to assembly file.
+        
+        Output can be used with Kernel.assemble()
+        '''
+        
+        if not self._filename:
+            in_file = tempfile.NamedTempfile(suffix='_compilable.c').file
+        else:
+            in_file = open(self._filename+"_compilable.c", 'w')
+
+        in_file.write(self.as_code())
+        in_file.flush()
+        
+        try:
+            subprocess.Popen(
+                ["icc"]+compiler_args+[os.path.basename(in_file.name), '-S'],
+                cwd=os.path.dirname(in_file.name))
+            
+            subprocess.Popen(
+                ["icc"] + compiler_args + [
+                    os.path.abspath(os.path.dirname(__file__)+'/headers/dummy.c'),
+                    '-S'],
+                cwd=os.path.dirname(in_file.name))
+        finally:
+            in_file.close()
+        
+        # Let's find the out_file
+        out_file = open(os.path.splitext(in_file.name)[0]+'.s')
+        
+        return out_file, out_file.name
     
     def print_kernel_info(self):
         table = ('     idx |        min        max       step\n' +

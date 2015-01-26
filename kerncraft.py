@@ -95,7 +95,7 @@ if __name__ == '__main__':
             
             print('='*80 + '\n{:^80}\n'.format(code_file.name) + '='*80)
         
-            kernel = Kernel(code)
+            kernel = Kernel(code, filename=code_file.name)
             
             assert 'constants' in testcase, "Could not find key 'constants' in testcase file."
             for k, v in testcase['constants']:
@@ -111,6 +111,9 @@ if __name__ == '__main__':
             kernel.print_variables_info()
             kernel.print_constants_info()
             kernel.print_kernel_info()
+            
+            asm_fp, asm_name = kernel.compile()
+            bin_fp, bin_name = kernel.assemble(asm_fp)
             
             #sys.exit(0)
             
