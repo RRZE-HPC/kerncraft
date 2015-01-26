@@ -7,10 +7,10 @@ import operator
 import tempfile
 import subprocess
 import os.path
+import operator
 
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
-import sympy  # TODO remove dependency to sympy
 
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
@@ -24,23 +24,6 @@ def prefix_indent(prefix, textblock, later_prefix=' '):
     else:
         return s
 
-
-def conv_ast_to_sympy(math_ast):
-    '''
-    converts mathematical expressions containing paranthesis, addition, subtraction and
-    multiplication from AST to SymPy expresions.
-    '''
-    if type(math_ast) is c_ast.ID:
-        return sympy.Symbol(math_ast.name)
-    elif type(math_ast) is c_ast.Constant:
-        return int(math_ast.value)
-    else:  # elif type(dim) is c_ast.BinaryOp:
-        sympy_op = {'*': lambda l,r: sympy.Mul(l, r, evaluate=False),
-                    '+': lambda l,r: sympy.Add(l, r, evaluate=False),
-                    '-': lambda l,r: sympy.Add(l, sympy.Mul(-1, r), evaluate=False)}
-        
-        op = sympy_op[math_ast.op]
-        return op(conv_ast_to_sympy(math_ast.left), conv_ast_to_sympy(math_ast.right))
 
 def trasform_multidim_to_1d_decl(decl):
     '''
@@ -156,7 +139,8 @@ class Kernel:
                 dims = []
                 t = item.type
                 while type(t) is c_ast.ArrayDecl:
-                    dims.append(int(conv_ast_to_sympy(t.dim).subs(self._constants)))
+                    t.show()
+                    dims.append(self.conv_ast_to_int(t.dim))
                     t = t.type
                 
                 assert len(t.type.names) == 1, "only single types are supported"
@@ -168,6 +152,26 @@ class Kernel:
         
         floop = self.kernel_ast.block_items[-1]
         self._p_for(floop)
+    
+    def conv_ast_to_int(self, math_ast):
+        '''
+        converts mathematical expressions containing paranthesis, addition, subtraction and
+        multiplication from AST to int.
+        '''
+        if type(math_ast) is c_ast.ID:
+            return self._constants[math_ast.name]
+        elif type(math_ast) is c_ast.Constant:
+            return int(math_ast.value)
+        else:  # elif type(dim) is c_ast.BinaryOp:
+            op = {
+                '*': operator.mul,
+                '+': operator.add,
+                '-': operator.sub
+            }
+        
+            return int(op[math_ast.op](
+                self.conv_ast_to_int(math_ast.left),
+                self.conv_ast_to_int(math_ast.right)))
     
     def _get_offsets(self, aref, dim=0):
         '''
@@ -186,7 +190,6 @@ class Kernel:
         idxs = []
         
         # TODO work-in-progress generisches auswerten von allem in [...]
-        #idxs.append(('rel', conv_ast_to_sympy(aref.subscript)))
         if type(aref.subscript) is c_ast.BinaryOp:
             assert aref.subscript.op in '+-', \
                 'binary operations in array subscript must by + or -'
@@ -476,6 +479,8 @@ class Kernel:
                 cwd=os.path.dirname(in_file.name))
         finally:
             in_file.close()
+        
+        return out_filename
     
     def compile(self, compiler_args=['-O3', '-xHost', '-std=c99']):
         '''
