@@ -465,10 +465,13 @@ class Kernel:
         Returns two-tuple (filepointer, filename) to temp binary file.
         '''
         if not out_filename:
+            suffix = ''
+            if iaca_markers:
+                suffix += '.iaca_marked'
             if self._filename:
-                out_filename = os.path.abspath(os.path.splitext(self._filename)[0])
+                out_filename = os.path.abspath(os.path.splitext(self._filename)[0]+suffix)
             else:
-                out_filename = tempfile.mkstemp()
+                out_filename = tempfile.mkstemp(suffix=suffix)
         
         # insert iaca markers
         if iaca_markers:
@@ -486,7 +489,6 @@ class Kernel:
             lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])
     
             # write back to file
-
             with open(in_filename, 'w') as in_file:
                 in_file.writelines(lines)
         
