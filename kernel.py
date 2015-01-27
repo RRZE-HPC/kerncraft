@@ -494,12 +494,8 @@ class Kernel:
         
         try:
             # Assamble all to a binary
-            subprocess.Popen(
-                ["icc",
-                 os.path.basename(in_file.name), 
-                 'dummy.s', 
-                 '-o', 
-                 out_filename],
+            subprocess.check_output(
+                ["icc", os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
                 cwd=os.path.dirname(in_file.name))
         finally:
             in_file.close()
@@ -524,11 +520,11 @@ class Kernel:
         in_file.flush()
         
         try:
-            subprocess.Popen(
+            subprocess.check_output(
                 ["icc"]+compiler_args+[os.path.basename(in_file.name), '-S'],
                 cwd=os.path.dirname(in_file.name))
             
-            subprocess.Popen(
+            subprocess.check_output(
                 ["icc"] + compiler_args + [
                     os.path.abspath(os.path.dirname(__file__)+'/headers/dummy.c'),
                     '-S'],

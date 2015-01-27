@@ -6,6 +6,7 @@ import argparse
 import ast
 import sys
 import os.path
+import subprocess
 
 from ecm import ECM
 from kernel import Kernel
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--cpu', default='Xeon E5-2680',
                         help='CPU model to be analized for (default "Xeon E5-2680")')
-    parser.add_argument('model', choices=['ECM'],
+    parser.add_argument('model', choices=['ECM', 'ECM-DATA', 'ECM-CPU'],
                         help='Performance model to apply')
     parser.add_argument('code_file', type=argparse.FileType(), nargs='+',
                         help='File with loop kernel C code')
@@ -112,12 +113,7 @@ if __name__ == '__main__':
             kernel.print_constants_info()
             kernel.print_kernel_info()
             
-            asm_name = kernel.compile()
-            bin_name = kernel.assemble(asm_name)
-            
-            #sys.exit(0)
-            
-            if args.model == 'ECM':
+            if args.model in ['ECM', 'ECM-DATA']:
                 # Analyze access patterns (in regard to cache sizes with layer conditions)
                 ecm = ECM(kernel, None, machine)
                 results = ecm.calculate_cache_access()  # <-- this is my thesis
@@ -133,3 +129,12 @@ if __name__ == '__main__':
                             elif diff:
                                 print("Small difference from theoretical value: {} ".format(key) +
                                     "should have been {}, but was {}.".format(correct_value, value))
+            if args.model in ['ECM', 'ECM-CPU']:
+                # For the IACA/CPU analysis we need to compile and assemble
+                asm_name = kernel.compile()
+                bin_name = kernel.assemble(asm_name, iaca_markers=True)
+                
+                proc = subprocess.check_output(['iaca.sh', '-64', bin_name])
+                (stdoutdata, stderrdata) = proc.communicate()
+                print(stdoutdata, stderrdata)
+                
