@@ -7,6 +7,7 @@ import ast
 import sys
 import os.path
 import subprocess
+import re
 
 from ecm import ECM
 from kernel import Kernel
@@ -77,7 +78,9 @@ if __name__ == '__main__':
     machine = MachineModel('Intel Xeon E5-2680', 'SNB', 2.7e9, 8, 64, 40e9,
                            [(1, 32*1024, 'per core', 2),
                             (2, 256*1024, 'per core', 2),
-                            (3, 20*1024*1024, 'per socket', None)])
+                            (3, 20*1024*1024, 'per socket', None)],
+                           {'2': 'LOAD', '3': 'LOAD', '4': 'STORE'},
+                           ['-xAVX'])
     
     # process kernels and testcases
     for code_file in args.code_file:
@@ -131,10 +134,36 @@ if __name__ == '__main__':
                                     "should have been {}, but was {}.".format(correct_value, value))
             if args.model in ['ECM', 'ECM-CPU']:
                 # For the IACA/CPU analysis we need to compile and assemble
-                asm_name = kernel.compile()
+                asm_name = kernel.compile(compiler_args=machine.icc_flags)
                 bin_name = kernel.assemble(asm_name, iaca_markers=True)
                 
-                proc = subprocess.check_output(['iaca.sh', '-64', bin_name])
-                (stdoutdata, stderrdata) = proc.communicate()
-                print(stdoutdata, stderrdata)
+                iaca_output = subprocess.check_output(
+                    ['iaca.sh', '-64', '-arch', machine.arch, bin_name])
                 
+                # Get total cycles per loop iteration
+                match = re.search(
+                    r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
+                assert match, "Could not find Block Throughput in iaca output"
+                block_throughput = match.groups()[0]
+                
+                # Find ports and cyles per port
+                ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
+                cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
+                assert ports and cycles, "Could not find ports/cylces lines in iaca output."
+                ports = map(str.strip, ports[0].split('|'))[2:]
+                cycles = map(str.strip, cycles[0].split('|'))[2:]
+                port_cycles = []
+                for i in range(len(ports)):
+                    if '-' in ports[i] and ' ' in cycles[i]:
+                        subports = map(str.strip, ports[i].split('-'))
+                        subcycles = filter(bool, cycles[i].split(' '))
+                        port_cycles.append((subports[0], subcycles[0]))
+                        port_cycles.append((subports[0]+subports[1], subcycles[1]))
+                    elif ports[i] and cycles[i]:
+                        port_cycles.append((ports[i], cycles[i]))
+                port_cycles = dict(port_cycles)
+                
+                print(machine.port_match)
+                print('Ports and cycles:', port_cycles)
+                print('Throughput:', block_throughput)
+

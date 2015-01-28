@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 class MachineModel:
-    def __init__(self, name, arch, clock, cores, cl_size, mem_bw, cache_stack):
+    def __init__(
+            self, name, arch, clock, cores, cl_size, mem_bw, cache_stack, port_match, icc_flags):
         '''
         *name* is the official name of the CPU
         *arch* is the archetecture name, this must be SNB, IVB or HSW
@@ -15,6 +16,7 @@ class MachineModel:
             *size* is the size of the cache
             *type* can be 'per core' or 'per socket'
             *cycles* is is the numbe of cycles to transfer one cache line from/to lower level
+        *port_match* is a dict matching port names to LOAD and STORE
         '''
         self.name = name
         self.arch = arch
@@ -23,6 +25,8 @@ class MachineModel:
         self.cl_size = cl_size
         self.mem_bw = mem_bw
         self.cache_stack = cache_stack
+        self.port_match = port_match
+        self.icc_flags = icc_flags
     
     @classmethod
     def parse_dict(cls, input):

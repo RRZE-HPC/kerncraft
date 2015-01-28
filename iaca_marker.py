@@ -21,7 +21,7 @@ def find_asm_blocks(asm_lines):
     last_label = None
     packed_ctr = 0
     for i, line in enumerate(asm_lines):
-        if re.match(r"^v(mul|add|sub|div)p[ds].*", line.strip()):
+        if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line.strip()):
             packed_ctr += 1
         # TODO add more statistics: half-width ops and mov
         elif re.match(r'^..B[0-9]+\.[0-9]+:', line):

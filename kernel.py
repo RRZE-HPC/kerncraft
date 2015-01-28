@@ -501,7 +501,7 @@ class Kernel:
         
         return out_filename
     
-    def compile(self, compiler_args=['-O3', '-xHost', '-std=c99', '-fno-alias']):
+    def compile(self, compiler_args=None):
         '''
         Compiles source (from as_code()) to assembly.
         
@@ -517,6 +517,10 @@ class Kernel:
 
         in_file.write(self.as_code())
         in_file.flush()
+
+	if compiler_args is None:
+            compiler_args = []
+        compiler_args += ['-O3', '-fno-alias', '-std=c99']
         
         try:
             subprocess.check_output(
