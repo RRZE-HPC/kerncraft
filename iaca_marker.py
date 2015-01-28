@@ -5,35 +5,76 @@ from __future__ import print_function
 import re
 import sys
 
-START_MARKER = ['        movl      $111, %ebx # INSERTED BY IACA MARKER UTILITY\n'
-                '        .byte     100        # INSERTED BY IACA MARKER UTILITY\n'
-                '        .byte     103        # INSERTED BY IACA MARKER UTILITY\n'
-                '        .byte     144        # INSERTED BY IACA MARKER UTILITY\n']
-END_MARKER = ['        movl      $222, %ebx # INSERTED BY IACA MARKER UTILITY\n'
-              '        .byte     100        # INSERTED BY IACA MARKER UTILITY\n'
-              '        .byte     103        # INSERTED BY IACA MARKER UTILITY\n'
-              '        .byte     144        # INSERTED BY IACA MARKER UTILITY\n']
+START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
+                '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
+                '        .byte     103        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
+                '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
+END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
+              '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
+              '        .byte     103        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
+              '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
 
-def find_asm_blocks(asm_lines):
+def find_asm_blocks(asm_lines, with_nop=True):
+    '''
+    if with_nop is True, only blocks within nop markers will be considered
+    '''
     blocks = []
     
     last_label_line = -1
     last_label = None
     packed_ctr = 0
+    avx_ctr = 0
+    xmm_references = []
+    ymm_references = []
+    gp_references = []
+    last_incr = None
+    within_nop_region = False
     for i, line in enumerate(asm_lines):
+        if with_nop:
+            if line.strip().startswith("nop"):
+                within_nop_region = not within_nop_region
+            if not within_nop_region:
+                continue
+        
+        # Register access counts
+        ymm_references += re.findall(' %ymm[0-9]+', line)
+        xmm_references += re.findall(' %xmm[0-9]+', line)
+        gp_references += re.findall(' %r[a-z0-9]+', line)
+        
         if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line.strip()):
+            if line.strip().startswith('v'):
+                avx_ctr += 1
             packed_ctr += 1
-        # TODO add more statistics: half-width ops and mov
-        elif re.match(r'^..B[0-9]+\.[0-9]+:', line):
-           last_label = line[0:line.find(':')]
-           last_label_line = i
-        elif '# Prob' in line:
+        elif re.match(r'^\S+:', line):
+            last_label = line[0:line.find(':')]
+            last_label_line = i
+            
+            # Reset counters
+            packed_ctr = 0
+            avx_ctr = 0
+            xmm_references = []
+            ymm_references = []
+            gp_references = []
+            last_incr = None
+        elif re.match(r'^inc[bwlq]', line.strip()):
+            last_incr = 1
+        elif re.match(r'^add[bwlq]\s+\$[0-9]+,', line.strip()):
+            const_start = line.find('$')+1
+            const_end = line[const_start+1:].find(',')+const_start+1
+            last_incr = int(line[const_start:const_end])
+        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+'\s+', line.strip()):
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
                            'lines': i-last_label_line,
                            'label': last_label,
-                           'packed_instr': packed_ctr})
-            packed_ctr = 0
+                           'packed_instr': packed_ctr,
+                           'avx_instr': avx_ctr,
+                           'XMM': (len(xmm_references), len(set(xmm_references))),
+                           'YMM': (len(ymm_references), len(set(ymm_references))),
+                           'GP': (len(gp_references), len(set(gp_references))),
+                           'regs': (len(xmm_references)+len(ymm_references)+len(gp_references),
+                                    len(set(xmm_references)), len(set(ymm_references)), len(set(gp_references))),
+                           'loop_increment': last_incr, })
     
     return list(enumerate(blocks))
 
@@ -47,10 +88,13 @@ def select_best_block(blocks):
     
 def userselect_block(blocks, default=None):
     print("Blocks found in assembly file:")
+    print("block | OPs | packed | AVX || Registers |   YMM   |   XMM   |    GP   || l.inc |\n" + 
+          "------+-----+--------+-----++-----------+---------+---------+---------++-------|")
     for idx, b in blocks:
-        print(str(idx)+": Block", b['label'], "from line", b['first_line'], "to", b['last_line'],
-              "(length of", b['lines'], "lines and", b['packed_instr'], "packed instr.)")
-    
+        print(
+            ' [{:>2}] | {b[lines]:>3} | {b[packed_instr]:>6} | {b[avx_instr]:>3} |'.format(idx, b=b)+
+            '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>2} ({b[YMM][1]:>2}) | {b[XMM][0]:>2} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || {b[loop_increment]:>5} |'.format(b=b))
+        
     # Let user select block:
     block_idx = -1
     while 0 >= block_idx < len(blocks):

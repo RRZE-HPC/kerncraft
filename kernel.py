@@ -415,6 +415,14 @@ class Kernel:
         map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
             find_array_references(ast))
         
+        # Mark the outer for-loop by injecting asm("nop");
+        ast.block_items.insert(
+            -1,
+            c_ast.FuncCall(c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
+        ast.block_items.append(
+            c_ast.FuncCall(c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
+        
+        
         # embedd Compound into FuncDecl
         decl = c_ast.Decl('main', [], [], [],
             c_ast.FuncDecl(None, c_ast.TypeDecl(
@@ -450,7 +458,7 @@ class Kernel:
         
         return code
     
-    def assemble(self, in_filename, out_filename=None, iaca_markers=True):
+    def assemble(self, in_filename, out_filename=None, iaca_markers=True, asm_block='auto'):
         '''
         Assembles *in_filename* to *out_filename*.
         
@@ -460,6 +468,9 @@ class Kernel:
         if *iaca_marked* is set to true, markers are inserted around the block with most packed
         instructions or (if no packed instr. were found) the largest block and modified file is 
         saved to *in_file*.
+        
+        *asm_block* controlls how the to-be-marked block is chosen. "auto" (default) results in
+        the largest block, "manual" results in interactive and a number in the according block.
         
         Returns two-tuple (filepointer, filename) to temp binary file.
         '''
@@ -477,12 +488,17 @@ class Kernel:
             with open(in_filename, 'r') as in_file:
                 lines = in_file.readlines()
             blocks = iaca.find_asm_blocks(lines)
-    
+            
             # TODO check for already present markers
     
             # Choose best default block:
-            best_idx = iaca.select_best_block(blocks)
-            block = blocks[best_idx][1]
+            block_idx = iaca.select_best_block(blocks)
+            if asm_block == 'manual':
+                block_idx = iaca.userselect_block(blocks, default=block_idx)
+            elif asm_block != 'auto':
+                block_idx = asm_block
+            
+            block = blocks[block_idx][1]
     
             # Insert markers:
             lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])

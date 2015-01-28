@@ -50,9 +50,21 @@ if __name__ == '__main__':
     parser.add_argument('--testcase-index', '-i', metavar='INDEX', type=int, default=0,
                         help='Index of testcase in testcase file. If not given, all cases are ' + \
                              'executed.')
+    parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
+                        help='Number of ASM block to mark for IACA, "auto" for automatic ' + \
+                             'selection or "manual" for interactiv selection.')
     
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
+    
+    if args.model not in ['ECM', 'ECM-CPU'] and args.asm_block:
+        parser.error('--asm-block can only be set with ECM or ECM-CPU')
+    else:
+        if args.asm_block not in ['auto', 'manual']:
+            try:
+                args.asm_block = int(args.asm_block)
+            except ValueError:
+                parser.error('--asm-block can only be "auto", "manual" or an integer')
     
     # machine information
     # Read machine description
@@ -135,7 +147,7 @@ if __name__ == '__main__':
             if args.model in ['ECM', 'ECM-CPU']:
                 # For the IACA/CPU analysis we need to compile and assemble
                 asm_name = kernel.compile(compiler_args=machine.icc_flags)
-                bin_name = kernel.assemble(asm_name, iaca_markers=True)
+                bin_name = kernel.assemble(asm_name, iaca_markers=True, asm_block=args.asm_block)
                 
                 iaca_output = subprocess.check_output(
                     ['iaca.sh', '-64', '-arch', machine.arch, bin_name])
