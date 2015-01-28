@@ -72,8 +72,9 @@ def find_asm_blocks(asm_lines, with_nop=True):
                            'XMM': (len(xmm_references), len(set(xmm_references))),
                            'YMM': (len(ymm_references), len(set(ymm_references))),
                            'GP': (len(gp_references), len(set(gp_references))),
-                           'regs': (len(xmm_references)+len(ymm_references)+len(gp_references),
-                                    len(set(xmm_references)), len(set(ymm_references)), len(set(gp_references))),
+                           'regs': (len(xmm_references) + len(ymm_references) + len(gp_references),
+                                    len(set(xmm_references)) + len(set(ymm_references)) + 
+                                        len(set(gp_references))),
                            'loop_increment': last_incr, })
     
     return list(enumerate(blocks))

@@ -356,6 +356,18 @@ class Kernel:
         # transform to pointer and malloc notation (stack can be too small)
         map(transform_array_decl_to_malloc, declarations)
         
+        # add declarations for constants
+        for k, v in self._constants.items():
+            # cont int N = atoi(argv[1])
+            # TODO change subscript of argv depending on constant count
+            type_decl = c_ast.TypeDecl(k, ['const'], c_ast.IdentifierType(['int']))
+            init = c_ast.FuncCall(
+                c_ast.ID('atoi'),
+                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', '1'))]))
+            ast.block_items.insert(0, c_ast.Decl(
+                k, ['const'], [], [],
+                type_decl, init, None))
+        
         # inject array initialization
         for d in declarations:
             i = ast.block_items.index(d)
@@ -423,12 +435,16 @@ class Kernel:
             c_ast.FuncCall(c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
         
         
-        # embedd Compound into FuncDecl
+        # embedd Compound into main FuncDecl
         decl = c_ast.Decl('main', [], [], [],
-            c_ast.FuncDecl(None, c_ast.TypeDecl(
-                'main',
-                [],
-                c_ast.IdentifierType(['int']))),
+            c_ast.FuncDecl(
+                c_ast.ParamList([
+                    c_ast.Typename([], c_ast.TypeDecl('argc', [], c_ast.IdentifierType(['int']))),
+                    c_ast.Typename([], 
+                        c_ast.PtrDecl([],
+                            c_ast.PtrDecl([],
+                                c_ast.TypeDecl('argv', [], c_ast.IdentifierType(['char'])))))]),
+                c_ast.TypeDecl('main', [], c_ast.IdentifierType(['int']))),
             None, None)
         
         ast = c_ast.FuncDef(decl, None, ast)
@@ -448,10 +464,6 @@ class Kernel:
         
         # convert to code string
         code = CGenerator().visit(ast)
-        
-        # add "#define"s for constants
-        for k, v in self._constants.items():
-            code = '#define {} {}UL\n'.format(k, v) + code
         
         # add "#include"s for dummy and stdlib (for malloc)
         code = '#include <stdlib.h>\n\n' + code
