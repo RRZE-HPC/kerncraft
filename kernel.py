@@ -140,7 +140,6 @@ class Kernel:
                 dims = []
                 t = item.type
                 while type(t) is c_ast.ArrayDecl:
-                    t.show()
                     dims.append(self.conv_ast_to_int(t.dim))
                     t = t.type
                 
@@ -444,7 +443,7 @@ class Kernel:
         
         # add "#define"s for constants
         for k, v in self._constants.items():
-            code = '#define {} {}\n'.format(k, v) + code
+            code = '#define {} {}UL\n'.format(k, v) + code
         
         # add "#include"s for dummy and stdlib (for malloc)
         code = '#include <stdlib.h>\n\n' + code
