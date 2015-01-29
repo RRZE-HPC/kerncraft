@@ -313,11 +313,21 @@ class Kernel:
             self._destinations.setdefault(self._get_basename(stmt.lvalue), [])
             self._destinations[self._get_basename(stmt.lvalue)].append(
                  self._get_offsets(stmt.lvalue))
-            # TODO deactivated for now, since that notation might be useless
-            # ArrayAccess(stmt.lvalue, array_info=self._variables[self._get_basename(stmt.lvalue)])
+                 
+            if stmt.op != '=':
+                # this means that +=, -= or something of that sort was used
+                self._sources.setdefault(self._get_basename(stmt.lvalue), [])
+                self._sources[self._get_basename(stmt.lvalue)].append(
+                     self._get_offsets(stmt.lvalue))
+                
         else:  # type(stmt.lvalue) is c_ast.ID
             self._destinations.setdefault(stmt.lvalue.name, [])
             self._destinations[stmt.lvalue.name].append([('dir',)])
+            
+            if stmt.op != '=':
+                # this means that +=, -= or something of that sort was used
+                self._sources.setdefault(stmt.lvalue.name, [])
+                self._sources[stmt.lvalue.name].append([('dir',)])
         
         # Traverse tree
         self._p_sources(stmt.rvalue)
