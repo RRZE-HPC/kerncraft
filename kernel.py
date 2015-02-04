@@ -112,6 +112,7 @@ class Kernel:
         self._destinations = {}
         self._constants = {} if constants is None else constants
         self._variables = {} if variables is None else variables
+        self._flops = {}
     
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -307,17 +308,33 @@ class Kernel:
         assert type(stmt.lvalue) in [c_ast.ArrayRef, c_ast.ID], \
             "Only assignment to array element or varialbe is allowed."
         
+        write_and_read = False
+        if stmt.op != '=':
+            write_and_read = True
+            op = stmt.op.strip('=')
+            self._flops[op] = self._flops.get(op, 0)+1
+        
         # Document data destination
         if type(stmt.lvalue) is c_ast.ArrayRef:
             # self._destinations[dest name] = [dest offset, ...])
             self._destinations.setdefault(self._get_basename(stmt.lvalue), [])
             self._destinations[self._get_basename(stmt.lvalue)].append(
                  self._get_offsets(stmt.lvalue))
-            # TODO deactivated for now, since that notation might be useless
-            # ArrayAccess(stmt.lvalue, array_info=self._variables[self._get_basename(stmt.lvalue)])
+                 
+            if write_and_read:
+                # this means that +=, -= or something of that sort was used
+                self._sources.setdefault(self._get_basename(stmt.lvalue), [])
+                self._sources[self._get_basename(stmt.lvalue)].append(
+                     self._get_offsets(stmt.lvalue))
+                
         else:  # type(stmt.lvalue) is c_ast.ID
             self._destinations.setdefault(stmt.lvalue.name, [])
             self._destinations[stmt.lvalue.name].append([('dir',)])
+            
+            if write_and_read:
+                # this means that +=, -= or something of that sort was used
+                self._sources.setdefault(stmt.lvalue.name, [])
+                self._sources[stmt.lvalue.name].append([('dir',)])
         
         # Traverse tree
         self._p_sources(stmt.rvalue)
@@ -344,6 +361,8 @@ class Kernel:
             # Traverse tree
             self._p_sources(stmt.left)
             self._p_sources(stmt.right)
+            
+            self._flops[stmt.op] = self._flops.get(stmt.op, 0)+1
         
         return sources
         
@@ -588,6 +607,14 @@ class Kernel:
             right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data destinations: ', table))
+        
+        table = (' op | count \n' +
+                 '----+-------\n')
+        for op, count in self._flops.items():
+            table += '{:>3} | {:>4}\n'.format(op, count)
+        table += '     =======\n'
+        table += '      {:>4}'.format(sum(self._flops.values()))
+        print(prefix_indent('FLOPs:     ', table))
 
     def print_kernel_code(self):
         print(self.kernel_code)

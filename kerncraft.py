@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
     
-    if args.model not in ['ECM', 'ECM-CPU'] and args.asm_block:
+    if args.model not in ['ECM', 'ECM-CPU'] and args.asm_block != 'auto':
         parser.error('--asm-block can only be set with ECM or ECM-CPU')
     else:
         if args.asm_block not in ['auto', 'manual']:
@@ -155,13 +155,13 @@ if __name__ == '__main__':
                 # Get total cycles per loop iteration
                 match = re.search(
                     r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
-                assert match, "Could not find Block Throughput in iaca output"
+                assert match, "Could not find Block Throughput in IACA output."
                 block_throughput = match.groups()[0]
                 
                 # Find ports and cyles per port
                 ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
                 cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
-                assert ports and cycles, "Could not find ports/cylces lines in iaca output."
+                assert ports and cycles, "Could not find ports/cylces lines in IACA output."
                 ports = map(str.strip, ports[0].split('|'))[2:]
                 cycles = map(str.strip, cycles[0].split('|'))[2:]
                 port_cycles = []
@@ -175,7 +175,12 @@ if __name__ == '__main__':
                         port_cycles.append((ports[i], cycles[i]))
                 port_cycles = dict(port_cycles)
                 
+                match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
+                assert match, "Could not find Uops in IACA output."
+                uops = match.groups()[0]
+                
                 print(machine.port_match)
                 print('Ports and cycles:', port_cycles)
                 print('Throughput:', block_throughput)
+                print('Uops:', uops)
 

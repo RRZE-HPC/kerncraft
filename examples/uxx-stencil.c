@@ -3,7 +3,7 @@ double d1[N][N][N];
 double xx[N][N][N];
 double xy[N][N][N];
 double xz[N][N][N];
-double c1, c2, d;
+double c1, c2, d, dth;
 
 for(int k=2; k<N-2; k++) {
     for(int j=2; j<N-2; j++) {

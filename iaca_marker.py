@@ -37,9 +37,9 @@ def find_asm_blocks(asm_lines, with_nop=True):
                 continue
         
         # Register access counts
-        ymm_references += re.findall(' %ymm[0-9]+', line)
-        xmm_references += re.findall(' %xmm[0-9]+', line)
-        gp_references += re.findall(' %r[a-z0-9]+', line)
+        ymm_references += re.findall('%ymm[0-9]+', line)
+        xmm_references += re.findall('%xmm[0-9]+', line)
+        gp_references += re.findall('%r[a-z0-9]+', line)
         
         if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line.strip()):
             if line.strip().startswith('v'):
@@ -56,12 +56,18 @@ def find_asm_blocks(asm_lines, with_nop=True):
             ymm_references = []
             gp_references = []
             last_incr = None
-        elif re.match(r'^inc[bwlq]', line.strip()):
+        elif re.match(r'^inc[bwlq]?', line.strip()):
             last_incr = 1
-        elif re.match(r'^add[bwlq]\s+\$[0-9]+,', line.strip()):
+        elif re.match(r'^add[bwlq]?\s+\$[0-9]+,', line.strip()):
             const_start = line.find('$')+1
             const_end = line[const_start+1:].find(',')+const_start+1
             last_incr = int(line[const_start:const_end])
+        elif re.match(r'^dec[bwlq]?', line.strip()):
+            last_incr = -1
+        elif re.match(r'^sub[bwlq]?\s+\$[0-9]+,', line.strip()):
+            const_start = line.find('$')+1
+            const_end = line[const_start+1:].find(',')+const_start+1
+            last_incr = -int(line[const_start:const_end])
         elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+'\s+', line.strip()):
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
@@ -89,12 +95,12 @@ def select_best_block(blocks):
     
 def userselect_block(blocks, default=None):
     print("Blocks found in assembly file:")
-    print("block | OPs | packed | AVX || Registers |   YMM   |   XMM   |    GP   || l.inc |\n" + 
-          "------+-----+--------+-----++-----------+---------+---------+---------++-------|")
+    print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   || l.inc |\n"+ 
+          "-----------+-----+------+-----++-----------+----------+----------+---------++-------|")
     for idx, b in blocks:
         print(
-            ' [{:>2}] | {b[lines]:>3} | {b[packed_instr]:>6} | {b[avx_instr]:>3} |'.format(idx, b=b)+
-            '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>2} ({b[YMM][1]:>2}) | {b[XMM][0]:>2} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || {b[loop_increment]:>5} |'.format(b=b))
+            '{:>2} {b[label]:>5} | {b[lines]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'.format(idx, b=b)+
+            '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>3} ({b[YMM][1]:>2}) | {b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || {b[loop_increment]:>5} |'.format(b=b))
         
     # Let user select block:
     block_idx = -1
