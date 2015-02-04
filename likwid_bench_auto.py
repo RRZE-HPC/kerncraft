@@ -6,88 +6,7 @@ import re
 import sys
 from pprint import pprint
 
-import yaml
-
-class UnitValue:
-    PREFIXES = {'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e13, 'P': 1e16, 'E':1e19, 'Z': 1e21, 'Y': 1e24,
-                '': 1}
-    
-    def __init__(self, *args):
-        args = list(args)
-        
-        if len(args) == 1:
-            if type(args[0]) == str:
-                m = re.match(r'^(?P<value>[0-9]+(?:\.[0-9]+)?)\s+(?P<prefix>[kMGTP])?(?P<unit>.+)$', args[0])
-                assert m, "Could not parse unit paramtere "+repr(s)
-                g = m.groups()
-                args = [float(g[0]), g[1], g[2]]
-            else:
-                args = [float(args[0]),'','']
-        
-        if len(args) == 2:
-            m = re.match(r'^(?P<prefix>[kMGTP])?(?P<unit>.+)$', args[1])
-            assert m, "Could not parse unit parameter"+repr(args)
-            gd = m.groupdict()
-            args = [float(args[0]), gd['prefix'], gd['unit']]
-        
-        if args[1] is None:
-            args[1] = ''
-        
-        assert args[1] in self.PREFIXES, "Unknown prefix: "+repr(args[1])
-        self.value, self.prefix, self.unit = args
-    
-    def base_value(self):
-        '''gives value without prefix'''
-        return self.value*self.PREFIXES[self.prefix]
-    
-    def good_prefix(self, max_error=0.01, round_length=2, min_prefix='', max_prefix=None):
-        '''
-        returns the largest prefix where the relative error is bellow *max_error* although rounded
-        by *round_length*
-        
-        if *max_prefix* is found in UnitValue.PREFIXES, returned value will not exceed this prefix.
-        if *min_prefix* is given, returned value will atleast be of that prefix (no matter the 
-        error)
-        '''
-        good_prefix = min_prefix
-        base_value = self.base_value()
-    
-        for k,v in self.PREFIXES.items():
-            # Ignoring to large prefixes
-            if max_prefix is not None and v > self.PREFIXES[max_prefix]:
-                continue
-        
-            # Check that differences is < relative error *max_error*
-            if abs(round(base_value/v, round_length)*v - base_value) > base_value*max_error:
-                continue
-        
-            # Check that resulting number is >= 0.9
-            if abs(round(base_value/v, round_length)) < 0.9:
-                continue
-        
-            # Check if prefix is larger then already chosen
-            if v < self.PREFIXES[good_prefix]:
-                continue
-        
-            # seems to be okay
-            good_prefix = k
-    
-        return good_prefix
-        
-    def with_prefix(self, prefix):
-        return self.__class__(
-            self.base_value()/self.PREFIXES[prefix], prefix, self.unit)
-    
-    def __str__(self):
-        good_prefix = self.good_prefix()
-        if self.prefix == good_prefix:
-            return '{0:.2f} {1}{2}'.format(self.value, self.prefix, self.unit)
-        else:
-            return self.with_prefix(good_prefix).__str__()
-    
-    def __repr__(self):
-        return '{0}({1!r}, {2!r}, {3!r})'.format(
-            self.__class__.__name__, self.value, self.prefix, self.unit)
+from prefixedunit import PrefixedUnit
 
 def get_match_or_break(regex, haystack, flags=re.MULTILINE):
     m = re.search(regex, haystack, flags)
@@ -118,7 +37,7 @@ def get_machine_topology():
         if line.startswith('Level:'):
             cache['level'] = int(line.split(':')[1].strip())
         elif line.startswith('Size:'):
-            cache['size'] = UnitValue(line.split(':')[1].strip())
+            cache['size'] = PrefixedUnit(line.split(':')[1].strip())
         elif line.startswith('Cache groups:'):
             cache['groups'] = line.count('(')
             cache['threads per group'] = (machine['threads per core'] * 
@@ -140,8 +59,8 @@ def measure_bw(type_, total_size, threads_per_socket, sockets, iterations=1000):
     #print(cmd, end='')
     output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
     bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
-    #print(UnitValue(bw, 'MB/s'))
-    return UnitValue(bw, 'MB/s')
+    #print(PrefixedUnit(bw, 'MB/s'))
+    return PrefixedUnit(bw, 'MB/s')
 
 if __name__ == '__main__':
     machine = get_machine_topology()
@@ -169,8 +88,8 @@ if __name__ == '__main__':
                              cache['size'].base_value())
             per_thread = total_size/threads
             measurement_setup['data sizes'][cache['level']][threads] = \
-                {'total': UnitValue(measurement_setup['cache utilization']*total_size, 'B'), 
-                 'per thread': UnitValue(measurement_setup['cache utilization']*per_thread, 'B')}
+                {'total': PrefixedUnit(measurement_setup['cache utilization']*total_size, 'B'), 
+                 'per thread': PrefixedUnit(measurement_setup['cache utilization']*per_thread, 'B')}
     measurement_setup['data sizes']['MEM'] = {}
     for threads in measurement_setup['threads']:
         last_level_cache = machine['cache stack'][-1]
@@ -179,8 +98,8 @@ if __name__ == '__main__':
             cache['size'].base_value())*4
         per_thread = total_size/threads
         measurement_setup['data sizes']['MEM'][threads] = \
-            {'total': UnitValue(total_size, 'B'), 
-             'per thread': UnitValue(per_thread, 'B')}
+            {'total': PrefixedUnit(total_size, 'B'), 
+             'per thread': PrefixedUnit(per_thread, 'B')}
     pprint(measurement_setup)
     
     print('Progress: ', end='')
