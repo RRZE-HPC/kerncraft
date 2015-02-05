@@ -172,7 +172,7 @@ class ECM:
         '''
         # TODO how to handle multiple datatypes (with different size)?
         element_size = datatype_size['double']
-        elements_per_cacheline = float(int(self.machine['cacheline size'])) / element_size
+        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         
         first = first - first%elements_per_cacheline
         last = last - last%elements_per_cacheline + elements_per_cacheline - 1
@@ -253,9 +253,9 @@ class ECM:
         total_lines_evicts = {}
         
         # Check for layer condition towards all cache levels (except main memory/last level)
-        for cache_level, cache_info in enumerate(self.machine['memory hierarchy'])[:-1]:
-            cache_size = float(cache_info['size per group'])
-            cache_cycles = cache_info['cycle per cacheline transfer']
+        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
+            cache_size = int(float(cache_info['size per group']))
+            cache_cycles = cache_info['cycles per cacheline transfer']
             
             trace_length = 0
             updated_length = True

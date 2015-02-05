@@ -3,8 +3,10 @@ import re
 
 import yaml
 
+import prefixedunit
+
 class MachineModel:
-    def __init__(path_to_yaml):
+    def __init__(self, path_to_yaml):
         self._path = path_to_yaml
         self._data = {}
         with open(path_to_yaml, 'r') as f:
