@@ -1,4 +1,4 @@
-[{'constants': [('N', 100)],
+[{'constants': [('N', 50)],
   'results-to-compare': {'L1-L2': 20,
                          'L2-L3': 20,
                          'L3-MEM': 26,
