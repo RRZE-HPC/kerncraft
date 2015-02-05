@@ -182,12 +182,12 @@ benchmarks:
         threads per core: 2
         total size: [50000000.0, 50000000.0, 50000000.0, 50000000.0, 50000000.0, 50000000.0,
           50000000.0, 50000000.0, 50000000.0, 50000000.0]
-cacheline size: 4 B
+cacheline size: 64 B
 clock: 2.2 GHz
 cores per socket: 10
 icc architecture flags: [-xAVX]
 memory hierarchy:
-- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: null,
+- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,
   groups: 20, level: L1, max. total bandwidth: null, size per group: 32.00
     kB, threads per group: 2}
 - {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,

@@ -53,6 +53,8 @@ if __name__ == '__main__':
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic ' + \
                              'selection or "manual" for interactiv selection.')
+    parser.add_argument('--machine', '-m', type=file,
+                        help='Path to machine description yaml file.')
     
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
@@ -73,7 +75,7 @@ if __name__ == '__main__':
         'clock': '2.2 GHz',
         'IACA architecture': 'IVB',
         'caheline': '64 B',
-        'memory bandwidth': '60 GB/s',
+        'memory bandwidth': '18 GB/s',
         'cache stack': 
             [{'level': 1, 'size': '32 KB', 'type': 'per core', 'bw': '2 cy/CL'},
              {'level': 2, 'size': '256 KB', 'type': 'per core', 'bw': '2 cy/CL'},
@@ -87,12 +89,13 @@ if __name__ == '__main__':
     #                        (2, 256*1024, 'per core', 2),
     #                        (3, 25*1024*1024, 'per socket', None)])
     # SNB machine as described in ipdps15-ECM.pdf
-    machine = MachineModel('Intel Xeon E5-2680', 'SNB', 2.7e9, 8, 64, 40e9,
-                           [(1, 32*1024, 'per core', 2),
-                            (2, 256*1024, 'per core', 2),
-                            (3, 20*1024*1024, 'per socket', None)],
-                           {'2': 'LOAD', '3': 'LOAD', '4': 'STORE'},
-                           ['-xAVX'])
+    #machine = MachineModel('Intel Xeon E5-2680', 'SNB', 2.7e9, 8, 64, 40e9,
+    #                       [(1, 32*1024, 'per core', 2),
+    #                        (2, 256*1024, 'per core', 2),
+    #                        (3, 20*1024*1024, 'per socket', None)],
+    #                       {'2': 'LOAD', '3': 'LOAD', '4': 'STORE'},
+    #                       ['-xAVX'])
+    machine = MachineModel(args.machine.name)
     
     # process kernels and testcases
     for code_file in args.code_file:
@@ -146,11 +149,11 @@ if __name__ == '__main__':
                                     "should have been {}, but was {}.".format(correct_value, value))
             if args.model in ['ECM', 'ECM-CPU']:
                 # For the IACA/CPU analysis we need to compile and assemble
-                asm_name = kernel.compile(compiler_args=machine.icc_flags)
+                asm_name = kernel.compile(compiler_args=machine['icc architecture flags'])
                 bin_name = kernel.assemble(asm_name, iaca_markers=True, asm_block=args.asm_block)
                 
                 iaca_output = subprocess.check_output(
-                    ['iaca.sh', '-64', '-arch', machine.arch, bin_name])
+                    ['iaca.sh', '-64', '-arch', machine['micro-architecture'], bin_name])
                 
                 # Get total cycles per loop iteration
                 match = re.search(
@@ -179,7 +182,6 @@ if __name__ == '__main__':
                 assert match, "Could not find Uops in IACA output."
                 uops = match.groups()[0]
                 
-                print(machine.port_match)
                 print('Ports and cycles:', port_cycles)
                 print('Throughput:', block_throughput)
                 print('Uops:', uops)

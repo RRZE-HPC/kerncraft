@@ -172,7 +172,7 @@ class ECM:
         '''
         # TODO how to handle multiple datatypes (with different size)?
         element_size = datatype_size['double']
-        elements_per_cacheline = self.machine.cl_size / element_size
+        elements_per_cacheline = float(int(self.machine['cacheline size'])) / element_size
         
         first = first - first%elements_per_cacheline
         last = last - last%elements_per_cacheline + elements_per_cacheline - 1
@@ -188,7 +188,7 @@ class ECM:
         
         # TODO how to handle multiple datatypes (with different size)?
         element_size = datatype_size['double']
-        elements_per_cacheline = self.machine.cl_size / element_size
+        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         
         loop_order = ''.join(map(lambda l: l[0], self.kernel._loop_stack))
         
@@ -252,8 +252,11 @@ class ECM:
         total_lines_hits = {}
         total_lines_evicts = {}
         
-        # Check for layer condition towards all cache levels
-        for cache_level, cache_size, cache_type, cache_cycles in self.machine.cache_stack:
+        # Check for layer condition towards all cache levels (except main memory/last level)
+        for cache_level, cache_info in enumerate(self.machine['memory hierarchy'])[:-1]:
+            cache_size = float(cache_info['size per group'])
+            cache_cycles = cache_info['cycle per cacheline transfer']
+            
             trace_length = 0
             updated_length = True
             while updated_length:
@@ -378,12 +381,14 @@ class ECM:
                     cache_cycles, 1))
                 
             else:
+                mem_bw = float(self.machine['memory hierarchy'][-2]['max. total bandwidth'])
+                clock = float(self.machine['clock'])
                 results['L{}-MEM'.format(cache_level)] = round(
                     (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
-                    elements_per_cacheline*element_size/self.machine.mem_bw*self.machine.clock, 1)
+                    elements_per_cacheline*element_size/mem_bw*clock, 1)
                 
                 print('Cycles L{}-MEM:'.format(cache_level), round(
                     (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
-                    elements_per_cacheline*element_size/self.machine.mem_bw*self.machine.clock, 1))
+                    elements_per_cacheline*element_size/mem_bw*clock, 1))
             
         return results
