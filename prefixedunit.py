@@ -24,7 +24,6 @@ class PrefixedUnit(yaml.YAMLObject):
         return dumper.represent_scalar(cls.yaml_tag, unicode(data))
     
     def __init__(self, *args):
-        print(args)
         if len(args) == 1:
             if isinstance(args[0], basestring):
                 m = re.match(
@@ -50,6 +49,8 @@ class PrefixedUnit(yaml.YAMLObject):
     def base_value(self):
         '''gives value without prefix'''
         return self.value*self.PREFIXES[self.prefix]
+    
+    __float__ = base_value
     
     def good_prefix(self, max_error=0.01, round_length=2, min_prefix='', max_prefix=None):
         '''
@@ -89,6 +90,9 @@ class PrefixedUnit(yaml.YAMLObject):
         return self.__class__(
             self.base_value()/self.PREFIXES[prefix], prefix, self.unit)
     
+    def reduced(self):
+        return self.with_prefix(self.good_prefix(max_error=0.0))
+    
     def __str__(self):
         good_prefix = self.good_prefix()
         if self.prefix == good_prefix:
@@ -99,6 +103,24 @@ class PrefixedUnit(yaml.YAMLObject):
     def __repr__(self):
         return '{0}({1!r}, {2!r}, {3!r})'.format(
             self.__class__.__name__, self.value, self.prefix, self.unit)
+    
+    def __mul__(self, other):
+        if isinstance(other, self.__class__):
+            unit = self.unit+other.unit
+        else:
+            unit = self.unit
+        
+        v = self.__class__(float(self)*float(other), unit)
+        return v.reduced()
+    
+    def __div__(self, other):
+        if isinstance(other, self.__class__):
+            unit = self.unit+'/'+other.unit
+        else:
+            unit = self.unit
+        
+        v = self.__class__(float(self)/float(other), unit)
+        return v.reduced()
 
 # Make this tag automatic
 yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)
