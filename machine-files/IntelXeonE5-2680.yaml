@@ -1,0 +1,33 @@
+model name: Intel Xeon E5-2680
+clock: 2.7 GHz
+sockets: 2
+cores per socket: 8
+threads per core: 2
+cacheline size: 64 B
+icc architecture flags: [-xAVX]
+micro-architecture: SNB
+FLOPs per cycle:
+    SP: {total: 8, ADD: 4, MUL: 4}
+    DP: {total: 4, ADD: 2, MUL: 2}
+benchmarks:
+  kernels:
+    copy: {FLOPs per iteration: 0, read streams: 1, write streams: 1}
+    daxpy: {FLOPs per iteration: 2, read streams: 2, write streams: 1}
+    load: {FLOPs per iteration: 0, read streams: 1, write streams: 0}
+    triad: {FLOPs per iteration: 2, read streams: 3, write streams: 1}
+    update: {FLOPs per iteration: 0, read streams: 1, write streams: 1}
+  measurements: {}
+memory hierarchy:
+- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,
+  groups: 20, level: L1, max. total bandwidth: null, size per group: 32.00
+    kB, threads per group: 2}
+- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,
+  groups: 20, level: L2, max. total bandwidth: null, size per group: 256.00
+    kB, threads per group: 2}
+- {bandwidth per core: 18 GB/s, cores per group: 10, cycles per cacheline transfer: null,
+  groups: 2, level: L3, max. total bandwidth: 40 GB/s, size per group: 20.00
+    MB, threads per group: 20}
+- {bandwidth per core: null, cores per group: 10, cycles per cacheline transfer: null,
+  level: MEM, max. total bandwidth: null, size per group: null, threads per group: 20}
+
+
