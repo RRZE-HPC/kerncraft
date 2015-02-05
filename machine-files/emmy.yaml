@@ -1,4 +1,6 @@
-FLOPs per cycle: INFORMATION_REQUIRED
+FLOPs per cycle:
+    SP: {total: 8, ADD: 4, MUL: 4}
+    DP: {total: 4, ADD: 2, MUL: 2}
 benchmarks:
   kernels:
     copy: {FLOPs per iteration: 0, read streams: 1, write streams: 1}
@@ -180,23 +182,23 @@ benchmarks:
         threads per core: 2
         total size: [50000000.0, 50000000.0, 50000000.0, 50000000.0, 50000000.0, 50000000.0,
           50000000.0, 50000000.0, 50000000.0, 50000000.0]
-cacheline size: INFORMATION_REQUIRED
-clock: INFORMATION_REQUIRED
+cacheline size: 4 B
+clock: 2.2 GHz
 cores per socket: 10
-icc architecture flags: INFORMATION_REQUIRED
+icc architecture flags: [-xAVX]
 memory hierarchy:
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 1, cycles per cacheline transfer: INFORMATION_REQUIRED,
-  groups: 20, level: L1, max. total bandwidth: INFORMATION_REQUIRED, size per group: 32.00
+- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: null,
+  groups: 20, level: L1, max. total bandwidth: null, size per group: 32.00
     kB, threads per group: 2}
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 1, cycles per cacheline transfer: INFORMATION_REQUIRED,
-  groups: 20, level: L2, max. total bandwidth: INFORMATION_REQUIRED, size per group: 256.00
+- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,
+  groups: 20, level: L2, max. total bandwidth: null, size per group: 256.00
     kB, threads per group: 2}
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 10, cycles per cacheline transfer: INFORMATION_REQUIRED,
-  groups: 2, level: L3, max. total bandwidth: INFORMATION_REQUIRED, size per group: 25.00
+- {bandwidth per core: null, cores per group: 10, cycles per cacheline transfer: 2,
+  groups: 2, level: L3, max. total bandwidth: null, size per group: 25.00
     MB, threads per group: 20}
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 10, cycles per cacheline transfer: null,
-  level: MEM, max. total bandwidth: INFORMATION_REQUIRED, size per group: null, threads per group: 20}
-micro-architecture: INFORMATION_REQUIRED
+- {bandwidth per core: 12 GB/s, cores per group: 10, cycles per cacheline transfer: null,
+  level: MEM, max. total bandwidth: 60 GB/s, size per group: null, threads per group: 20}
+micro-architecture: IVB
 model name: Intel Core IvyBridge EP processor
 sockets: 2
 threads per core: 2
