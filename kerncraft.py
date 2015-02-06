@@ -36,6 +36,10 @@ class AppendStringInteger(argparse.Action):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--machine', '-m', type=file, required=True,
+                        help='Path to machine description yaml file.')
+    parser.add_argument('--pmodel', '-p', choices=models.__all__, required=True, action='append', 
+                        default=[], help='Performance model to apply')
     parser.add_argument('-D', '--define', nargs=2, metavar=('KEY', 'VALUE'), default=[],
                         action=AppendStringInteger,
                         help='Define constant to be used in C code. Values must be integers. ' + \
@@ -45,11 +49,7 @@ if __name__ == '__main__':
     parser.add_argument('--testcase-index', '-i', metavar='INDEX', type=int, default=0,
                         help='Index of testcase in testcase file. If not given, all cases are ' + \
                              'executed.')
-    parser.add_argument('--machine', '-m', type=file, required=True,
-                        help='Path to machine description yaml file.')
-    parser.add_argument('model', choices=models.__all__,
-                        help='Performance model to apply')
-    parser.add_argument('code_file', type=argparse.FileType(), nargs='+',
+    parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(), nargs='+',
                         help='File with loop kernel C code')
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
@@ -97,22 +97,23 @@ if __name__ == '__main__':
             kernel.print_constants_info()
             kernel.print_kernel_info()
             
-            model = getattr(models, args.model)(kernel, machine, args)
-            
-            model.analyze()
-            model.report()
-            
-
-            if 'results-to-compare' in testcase:
-                for key, value in model.results.items():
-                    if key in testcase['results-to-compare']:
-                        correct_value = testcase['results-to-compare'][key]
-                        diff = abs(value - correct_value)
-                        if diff > correct_value*0.1:
-                            print("Test values did not match: {} ".format(key) +
-                                "should have been {}, but was {}.".format(correct_value, value))
-                            sys.exit(1)
-                        elif diff:
-                            print("Small difference from theoretical value: {} ".format(key) +
-                                "should have been {}, but was {}.".format(correct_value, value))
+            for model_name in set(args.pmodel):
+                model = getattr(models, model_name)(kernel, machine, args)
+                
+                model.analyze()
+                model.report()
+                
+                # TODO take care of different performance models
+                if 'results-to-compare' in testcase:
+                    for key, value in model.results.items():
+                        if key in testcase['results-to-compare']:
+                            correct_value = testcase['results-to-compare'][key]
+                            diff = abs(value - correct_value)
+                            if diff > correct_value*0.1:
+                                print("Test values did not match: {} ".format(key) +
+                                    "should have been {}, but was {}.".format(correct_value, value))
+                                sys.exit(1)
+                            elif diff:
+                                print("Small difference from theoretical value: {} ".format(key) +
+                                    "should have been {}, but was {}.".format(correct_value, value))
 
