@@ -191,7 +191,7 @@ memory hierarchy:
   groups: 20, level: L1, bandwidth: null, size per group: 32.00
     kB, threads per group: 2}
 - {cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 20, level: L2, bandwidth: null,, size per group: 256.00
+  groups: 20, level: L2, bandwidth: null, size per group: 256.00
     kB, threads per group: 2}
 - {cores per group: 10, cycles per cacheline transfer: 2,
   groups: 2, level: L3, bandwidth: 60 GB/s, size per group: 25.00

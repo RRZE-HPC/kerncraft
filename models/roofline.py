@@ -57,66 +57,14 @@ def flatten_dict(d):
     return e
 
 
-class ArrayAccess:
-    '''
-    This class under stands array acceess based on multidimensional indices and one dimensional
-    functions of style i*N+j
-    '''
-    def __init__(self, aref=None, array_info=None):
-        '''If *aref* (and *array_info*) is present, this will be parsed.'''
-        self.sym_expr = None
-        self.index_parameters = {}
-        if aref:
-            self.parse(aref, array_info=array_info)
-    
-    def parse(self, aref, dim=0, array_info=None):
-        if type(aref.name) is c_ast.ArrayRef:
-            from_higher_dim = self.parse(aref.name, dim=dim+1, array_info=array_info)
-        else:
-            from_higher_dim = 0
-        
-        if array_info and dim != 0:
-            dim_stride = reduce(lambda m,n: sympy.Mul(m, n, evaluate=False), array_info[1][:dim])
-        else:
-            dim_stride = 1
-        
-        sym_expr = sympy.Mul(conv_ast_to_sympy(aref.subscript), dim_stride, evaluate=False) + \
-            from_higher_dim
-        
-        if dim == 0:
-            # Store gathered information
-            self.sym_expr = sym_expr
-        else:
-            # Return gathered information
-            return sym_expr
-    
-    def extract_parameters(self):
-        eq = self.sym_expr.simplify()
-        terms = eq.as_ordered_terms()
-        
-        for t in terms:
-            if type(t) is sympy.Symbol:
-                self.index_parameters[t.name] = {}
-            elif type(t) is sympy.Mul:
-                for a in t.args:
-                    if type(a) is sympy.Symbol:
-                        self.index_parameters[a.name] = {}
-                    elif type(a) is sympy.Integer:
-                        #self.
-                        pass
-    
-    def __repr__(self):
-        return unicode(self.sym_expr)
-
-
-class ECMData:
+class Roofline:
     """
-    class representation of the Execution-Cache-Memory Model (only the data part)
-
+    class representation of the Roofline Model
+    
     more info to follow...
     """
     
-    name = "Execution-Cache-Memory (data transfers only)"
+    name = "Roofline"
     
     @classmethod
     def configure_arggroup(cls, parser):
@@ -224,31 +172,8 @@ class ECMData:
                 idx_order = self._get_index_order(w)
                 write_offsets[var_name].setdefault(idx_order, [])
                 write_offsets[var_name][idx_order].append(offset)
-            
-            # Do unrolling so that one iteration equals one cacheline worth of workload:
-            # unrolling is done on inner-most loop only!
-            for i in range(1, elements_per_cacheline):
-                for r in reads:
-                    idx_order = self._get_index_order(r)
-                    offset = self._calculate_relative_offset(var_name, r)
-                    offset += i * self._calculate_iteration_offset(
-                        var_name, idx_order, loop_order[-1])
-                    read_offsets[var_name][idx_order].append(offset)
-            
-                    # Remove multiple access to same offsets
-                    read_offsets[var_name][idx_order] = \
-                        sorted(list(set(read_offsets[var_name][idx_order])), reverse=True)
                 
-                for w in writes:
-                    idx_order = self._get_index_order(w)
-                    offset = self._calculate_relative_offset(var_name, w)
-                    offset += i * self._calculate_iteration_offset(
-                        var_name, idx_order, loop_order[-1])
-                    write_offsets[var_name][idx_order].append(offset)
-                    
-                    # Remove multiple access to same offsets
-                    write_offsets[var_name][idx_order] = \
-                        sorted(list(set(write_offsets[var_name][idx_order])), reverse=True)
+            # With ECM we would do unrolling, but not with roofline
         
         # initialize misses and hits
         misses = {}
@@ -260,8 +185,6 @@ class ECMData:
         total_lines_misses = {}
         total_lines_hits = {}
         total_lines_evicts = {}
-        
-        self.results = {}
         
         # Check for layer condition towards all cache levels (except main memory/last level)
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
@@ -372,163 +295,41 @@ class ECMData:
             total_lines_evicts[cache_level] = sum(map(lambda o: sum(map(lambda n: 
                 len(blocking(n,elements_per_cacheline)), o.values())),
                 evicts[cache_level].values()))
+        
+            # Calculate performance (arithmetic intensity * bandwidth with 
+            # arithmetic intensity = flops / bytes transfered)
+            bytes_transfered = (total_misses[cache_level]+total_evicts[cache_level])*element_size
+            total_flops = sum(self.kernel._flops.values())
+            arith_intens = float(total_flops)/float(bytes_transfered)
             
-            self.results[cache_level] = dict(
-                total_misses=total_misses,
-                total_hits=total_hits,
-                total_evicts=total_evicts,
-                total_line_misses=total_lines_misses,
-                total_line_hits=total_lines_hits,
-                total_line_evicts=total_lines_evicts,)
+            # choose bw according to cache level and problem
+            # TODO choose smt, kernel and cores automatically
+            threads_per_core, measurement_kernel, cores = 1, 'triad', 1
+            bw_measurements = self.machine['benchmarks']['measurements'][cache_info['level']]
+            bw = bw_measurements[threads_per_core]['results'][measurement_kernel][cores]
             
-            print('Trace legth per access in L{}:'.format(cache_level), trace_length)
-            print('Hits in L{}:'.format(cache_level), total_hits[cache_level], hits[cache_level])
-            print('Misses in L{}: {} ({}CL):'.format(
-                cache_level, total_misses[cache_level], total_lines_misses[cache_level]), 
-                misses[cache_level])
-            print('Evicts from L{} {} ({}CL):'.format(
-                cache_level, total_evicts[cache_level], total_lines_evicts[cache_level]),
-                evicts[cache_level])
-            
-            if cache_cycles:
-                results['L{}-L{}'.format(cache_level, cache_level+1)] = round(
-                    (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
-                    cache_cycles, 1)
-                    
-                print('Cycles L{}-L{}:'.format(cache_level, cache_level+1), round(
-                    (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
-                    cache_cycles, 1))
-                
-            else:
-                mem_bw = float(self.machine['memory hierarchy'][-2]['bandwidth'])
-                clock = float(self.machine['clock'])
-                results['L{}-MEM'.format(cache_level)] = round(
-                    (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
-                    elements_per_cacheline*element_size/mem_bw*clock, 1)
-                
-                print('Cycles L{}-MEM:'.format(cache_level), round(
-                    (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
-                    elements_per_cacheline*element_size/mem_bw*clock, 1))
-            
+            performance = arith_intens * float(bw)
+            if performance <= results.get('performance', performance):
+                results['performance'] = performance
+                results['bottleneck'] = self.machine['memory hierarchy'][cache_level]['level']+'-'+\
+                    self.machine['memory hierarchy'][cache_level+1]['level']
+                results['arithmetic intensity'] = arith_intens
         return results
 
     def analyze(self):
         self._results = self.calculate_cache_access()
     
     def report(self):
-        # TODO move output from calculate_chace_access to this palce
-        pass
-
-
-class ECMCPU:
-    """
-    class representation of the Execution-Cache-Memory Model (only the operation part)
-
-    more info to follow...
-    """
-    
-    name = "Execution-Cache-Memory (CPU operations only)"
-    
-    @classmethod
-    def configure_arggroup(cls, parser):
-        parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
-                            help='Number of ASM block to mark for IACA, "auto" for automatic ' + \
-                                 'selection or "manual" for interactiv selection.')
-    
-    def __init__(self, kernel, machine, args=None):
-        """
-        *kernel* is a Kernel object
-        *machine* describes the machine (cpu, cache and memory) characteristics
-        *args* (optional) are the parsed arguments from the comand line
-        """
-        self.kernel = kernel
-        self.machine = machine
-        self._args = args
-        
-        if args:
-            # handle CLI info
-            if self._args.asm_block not in ['auto', 'manual']:
-                try:
-                    self._args.asm_block = int(args.asm_block)
-                except ValueError:
-                    parser.error('--asm-block can only be "auto", "manual" or an integer')
-    
-    def analyze(self):
-        # For the IACA/CPU analysis we need to compile and assemble
-        asm_name = self.kernel.compile(compiler_args=self.machine['icc architecture flags'])
-        bin_name = self.kernel.assemble(
-            asm_name, iaca_markers=True, asm_block=self._args.asm_block)
-        
-        iaca_output = subprocess.check_output(
-            ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
-        
-        # Get total cycles per loop iteration
-        match = re.search(
-            r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
-        assert match, "Could not find Block Throughput in IACA output."
-        block_throughput = match.groups()[0]
-        
-        # Find ports and cyles per port
-        ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
-        cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
-        assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-        ports = map(str.strip, ports[0].split('|'))[2:]
-        cycles = map(str.strip, cycles[0].split('|'))[2:]
-        port_cycles = []
-        for i in range(len(ports)):
-            if '-' in ports[i] and ' ' in cycles[i]:
-                subports = map(str.strip, ports[i].split('-'))
-                subcycles = filter(bool, cycles[i].split(' '))
-                port_cycles.append((subports[0], subcycles[0]))
-                port_cycles.append((subports[0]+subports[1], subcycles[1]))
-            elif ports[i] and cycles[i]:
-                port_cycles.append((ports[i], cycles[i]))
-        port_cycles = dict(port_cycles)
-        
-        self.results = dict(port_cycles=port_cycles, block_throughput=block_throughput, uops=uops)
-        
-        match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
-        assert match, "Could not find Uops in IACA output."
-        uops = match.groups()[0]
-    
-    def report(self):
-        print('Ports and cycles:', port_cycles)
-        print('Throughput:', block_throughput)
-        print('Uops:', uops)
-
-class ECM:
-    """
-    class representation of the Execution-Cache-Memory Model (data and operations)
-
-    more info to follow...
-    """
-    
-    name = "Execution-Cache-Memory"
-    
-    @classmethod
-    def configure_arggroup(cls, parser):
-        # they are being configured in ECMData and ECMCPU
-        pass
-    
-    def __init__(self, kernel, machine, args=None):
-        """
-        *kernel* is a Kernel object
-        *machine* describes the machine (cpu, cache and memory) characteristics
-        *args* (optional) are the parsed arguments from the comand line
-        """
-        self.kernel = kernel
-        self.machine = machine
-        
-        if args:
-            # handle CLI info
-            pass
-        
-        self._CPU = ECMCPU(kernel, machine, args)
-        self._data = ECMData(kernel, machine, args)
-    
-    def analyze(self):
-        self._CPU.analyze()
-        self._data.analyze()
-    
-    def report(self):
-        return self._CPU.report()+'\n'+self._data.report()
+        # TODO support SP
+        max_flops = float(self.machine['clock'])*sum(self.machine['FLOPs per cycle']['DP'].values())
+        if self._results['performance'] > float(max_flops):
+            # CPU bound
+            print('CPU bound')
+            print('{} GFLOP/s due to CPU max. FLOP/s'.format(max_flops/10e9))
+        else:
+            # Cache or mem bound
+            print('Cache or mem bound')
+            print('{:.2f} GFLOP/s due to {} transfer bottleneck'.format(
+                self._results['performance']/10e9,
+                self._results['bottleneck']))
+        print('Arithmetic Intensity: {:.2f}'.format(self._results['arithmetic intensity']))
