@@ -8,6 +8,7 @@ The exported classes must have the following class level attributes:
   * construct_from_args(kernel, machine, args) classmethod that construct the object
   * analyze() that analyses ther kernel with regard to the machine definition and args passed
   * report() return a readable text output with analysis report
+  * results (dict) must be available after analyze has been called
 '''
 from ecm import ECM, ECMData, ECMCPU
 

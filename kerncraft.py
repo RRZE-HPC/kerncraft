@@ -47,13 +47,13 @@ if __name__ == '__main__':
                              'executed.')
     parser.add_argument('--machine', '-m', type=file, required=True,
                         help='Path to machine description yaml file.')
+    parser.add_argument('model', choices=models.__all__,
+                        help='Performance model to apply')
     parser.add_argument('code_file', type=argparse.FileType(), nargs='+',
                         help='File with loop kernel C code')
-    subparsers = parser.add_subparsers(title='model', dest='model', metavar='MODEL',
-                                       help='Performance model to apply')
     for m in models.__all__:
-        sp = subparsers.add_parser(m, help=getattr(models, m).name)
-        getattr(models, m).configure_subparser(sp)
+        ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
+        getattr(models, m).configure_arggroup(ag)
     
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
@@ -101,4 +101,18 @@ if __name__ == '__main__':
             
             model.analyze()
             model.report()
+            
+
+            if 'results-to-compare' in testcase:
+                for key, value in model.results.items():
+                    if key in testcase['results-to-compare']:
+                        correct_value = testcase['results-to-compare'][key]
+                        diff = abs(value - correct_value)
+                        if diff > correct_value*0.1:
+                            print("Test values did not match: {} ".format(key) +
+                                "should have been {}, but was {}.".format(correct_value, value))
+                            sys.exit(1)
+                        elif diff:
+                            print("Small difference from theoretical value: {} ".format(key) +
+                                "should have been {}, but was {}.".format(correct_value, value))
 

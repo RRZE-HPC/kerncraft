@@ -119,7 +119,7 @@ class ECMData:
     name = "Execution-Cache-Memory (data transfers only)"
     
     @classmethod
-    def configure_subparser(cls, parser):
+    def configure_arggroup(cls, parser):
         pass
     
     def __init__(self, kernel, machine, args=None):
@@ -406,19 +406,8 @@ class ECMData:
         self._results = self.calculate_cache_access()
     
     def report(self):
-        if 'results-to-compare' in testcase:
-            for key, value in results.items():
-                if key in testcase['results-to-compare']:
-                    correct_value = testcase['results-to-compare'][key]
-                    diff = abs(value - correct_value)
-                    if diff > correct_value*0.1:
-                        print("Test values did not match: {} ".format(key) +
-                            "should have been {}, but was {}.".format(correct_value, value))
-                        sys.exit(1)
-                    elif diff:
-                        print("Small difference from theoretical value: {} ".format(key) +
-                            "should have been {}, but was {}.".format(correct_value, value))
         # TODO move output from calculate_chace_access to this palce
+        pass
 
 
 class ECMCPU:
@@ -431,7 +420,7 @@ class ECMCPU:
     name = "Execution-Cache-Memory (CPU operations only)"
     
     @classmethod
-    def configure_subparser(cls, parser):
+    def configure_arggroup(cls, parser):
         parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                             help='Number of ASM block to mark for IACA, "auto" for automatic ' + \
                                  'selection or "manual" for interactiv selection.')
@@ -448,16 +437,17 @@ class ECMCPU:
         
         if args:
             # handle CLI info
-            if args.asm_block not in ['auto', 'manual']:
+            if self._args.asm_block not in ['auto', 'manual']:
                 try:
-                    args.asm_block = int(args.asm_block)
+                    self._args.asm_block = int(args.asm_block)
                 except ValueError:
                     parser.error('--asm-block can only be "auto", "manual" or an integer')
     
     def analyze(self):
         # For the IACA/CPU analysis we need to compile and assemble
         asm_name = self.kernel.compile(compiler_args=self.machine['icc architecture flags'])
-        bin_name = self.kernel.assemble(asm_name, iaca_markers=True, asm_block=self._args.asm_block)
+        bin_name = self.kernel.assemble(
+            asm_name, iaca_markers=True, asm_block=self._args.asm_block)
         
         iaca_output = subprocess.check_output(
             ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
@@ -485,11 +475,8 @@ class ECMCPU:
                 port_cycles.append((ports[i], cycles[i]))
         port_cycles = dict(port_cycles)
         
-        self.port_cycles = port_cycles
-        self.block_throughput = block_throughput
-        self.uops = uops
+        self.results = dict(port_cycles=port_cycles, block_throughput=block_throughput, uops=uops)
         
-
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
         uops = match.groups()[0]
@@ -509,8 +496,9 @@ class ECM:
     name = "Execution-Cache-Memory"
     
     @classmethod
-    def configure_subparser(cls, parser):
-        ECMCPU.configure_subparser(parser)
+    def configure_arggroup(cls, parser):
+        # they are being configured in ECMData and ECMCPU
+        pass
     
     def __init__(self, kernel, machine, args=None):
         """

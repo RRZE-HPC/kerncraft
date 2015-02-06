@@ -4,8 +4,6 @@ import re
 import yaml
 import prefixedunit
 
-import prefixedunit
-
 class MachineModel:
     def __init__(self, path_to_yaml):
         self._path = path_to_yaml
