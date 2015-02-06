@@ -69,8 +69,7 @@ def get_machine_topology():
         'cores per group': machine['cores per socket'],
         'threads per group': machine['threads per core'] * machine['cores per socket'],
         'cycles per cacheline transfer': None,
-        'bandwidth per core': 'INFORMATION_REQUIRED',
-        'max. total bandwidth': 'INFORMATION_REQUIRED'
+        'bandwidth': 'INFORMATION_REQUIRED'
     })
     
     return machine

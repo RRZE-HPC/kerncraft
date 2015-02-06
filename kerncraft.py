@@ -9,7 +9,8 @@ import os.path
 import subprocess
 import re
 
-from ecm import ECM
+import models
+from models.ecm import ECM
 from kernel import Kernel
 from machinemodel import MachineModel
 
@@ -35,12 +36,6 @@ class AppendStringInteger(argparse.Action):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--cpu', default='Xeon E5-2680',
-                        help='CPU model to be analized for (default "Xeon E5-2680")')
-    parser.add_argument('model', choices=['ECM', 'ECM-DATA', 'ECM-CPU'],
-                        help='Performance model to apply')
-    parser.add_argument('code_file', type=argparse.FileType(), nargs='+',
-                        help='File with loop kernel C code')
     parser.add_argument('-D', '--define', nargs=2, metavar=('KEY', 'VALUE'), default=[],
                         action=AppendStringInteger,
                         help='Define constant to be used in C code. Values must be integers. ' + \
@@ -50,51 +45,22 @@ if __name__ == '__main__':
     parser.add_argument('--testcase-index', '-i', metavar='INDEX', type=int, default=0,
                         help='Index of testcase in testcase file. If not given, all cases are ' + \
                              'executed.')
-    parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
-                        help='Number of ASM block to mark for IACA, "auto" for automatic ' + \
-                             'selection or "manual" for interactiv selection.')
-    parser.add_argument('--machine', '-m', type=file,
+    parser.add_argument('--machine', '-m', type=file, required=True,
                         help='Path to machine description yaml file.')
+    parser.add_argument('code_file', type=argparse.FileType(), nargs='+',
+                        help='File with loop kernel C code')
+    subparsers = parser.add_subparsers(title='model', dest='model', metavar='MODEL',
+                                       help='Performance model to apply')
+    for m in models.__all__:
+        sp = subparsers.add_parser(m, help=getattr(models, m).name)
+        getattr(models, m).configure_subparser(sp)
     
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
-    
-    if args.model not in ['ECM', 'ECM-CPU'] and args.asm_block != 'auto':
-        parser.error('--asm-block can only be set with ECM or ECM-CPU')
-    else:
-        if args.asm_block not in ['auto', 'manual']:
-            try:
-                args.asm_block = int(args.asm_block)
-            except ValueError:
-                parser.error('--asm-block can only be "auto", "manual" or an integer')
+    print(args)
     
     # machine information
     # Read machine description
-    machine = {
-        'name': 'Intel Xeon 2660v2',
-        'clock': '2.2 GHz',
-        'IACA architecture': 'IVB',
-        'caheline': '64 B',
-        'memory bandwidth': '18 GB/s',
-        'cache stack': 
-            [{'level': 1, 'size': '32 KB', 'type': 'per core', 'bw': '2 cy/CL'},
-             {'level': 2, 'size': '256 KB', 'type': 'per core', 'bw': '2 cy/CL'},
-             {'level': 3, 'size': '25 MB', 'type': 'per socket'}]
-    }
-    # TODO support format as seen above
-    # TODO missing in description bw_type, size_type, read and write bw between levels
-    #      and cache size sharing and cache bw sharing
-    #machine = MachineModel('Intel Xeon 2660v2', 'IVB', 2.2e9, 10, 64, 60e9, 
-    #                       [(1, 32*1024, 'per core', 2),
-    #                        (2, 256*1024, 'per core', 2),
-    #                        (3, 25*1024*1024, 'per socket', None)])
-    # SNB machine as described in ipdps15-ECM.pdf
-    #machine = MachineModel('Intel Xeon E5-2680', 'SNB', 2.7e9, 8, 64, 40e9,
-    #                       [(1, 32*1024, 'per core', 2),
-    #                        (2, 256*1024, 'per core', 2),
-    #                        (3, 20*1024*1024, 'per socket', None)],
-    #                       {'2': 'LOAD', '3': 'LOAD', '4': 'STORE'},
-    #                       ['-xAVX'])
     machine = MachineModel(args.machine.name)
     
     # process kernels and testcases
@@ -131,58 +97,8 @@ if __name__ == '__main__':
             kernel.print_constants_info()
             kernel.print_kernel_info()
             
-            if args.model in ['ECM', 'ECM-DATA']:
-                # Analyze access patterns (in regard to cache sizes with layer conditions)
-                ecm = ECM(kernel, None, machine)
-                results = ecm.calculate_cache_access()  # <-- this is my thesis
-                if 'results-to-compare' in testcase:
-                    for key, value in results.items():
-                        if key in testcase['results-to-compare']:
-                            correct_value = testcase['results-to-compare'][key]
-                            diff = abs(value - correct_value)
-                            if diff > correct_value*0.1:
-                                print("Test values did not match: {} ".format(key) +
-                                    "should have been {}, but was {}.".format(correct_value, value))
-                                sys.exit(1)
-                            elif diff:
-                                print("Small difference from theoretical value: {} ".format(key) +
-                                    "should have been {}, but was {}.".format(correct_value, value))
-            if args.model in ['ECM', 'ECM-CPU']:
-                # For the IACA/CPU analysis we need to compile and assemble
-                asm_name = kernel.compile(compiler_args=machine['icc architecture flags'])
-                bin_name = kernel.assemble(asm_name, iaca_markers=True, asm_block=args.asm_block)
-                
-                iaca_output = subprocess.check_output(
-                    ['iaca.sh', '-64', '-arch', machine['micro-architecture'], bin_name])
-                
-                # Get total cycles per loop iteration
-                match = re.search(
-                    r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
-                assert match, "Could not find Block Throughput in IACA output."
-                block_throughput = match.groups()[0]
-                
-                # Find ports and cyles per port
-                ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
-                cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
-                assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-                ports = map(str.strip, ports[0].split('|'))[2:]
-                cycles = map(str.strip, cycles[0].split('|'))[2:]
-                port_cycles = []
-                for i in range(len(ports)):
-                    if '-' in ports[i] and ' ' in cycles[i]:
-                        subports = map(str.strip, ports[i].split('-'))
-                        subcycles = filter(bool, cycles[i].split(' '))
-                        port_cycles.append((subports[0], subcycles[0]))
-                        port_cycles.append((subports[0]+subports[1], subcycles[1]))
-                    elif ports[i] and cycles[i]:
-                        port_cycles.append((ports[i], cycles[i]))
-                port_cycles = dict(port_cycles)
-                
-                match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
-                assert match, "Could not find Uops in IACA output."
-                uops = match.groups()[0]
-                
-                print('Ports and cycles:', port_cycles)
-                print('Throughput:', block_throughput)
-                print('Uops:', uops)
+            model = getattr(models, args.model)(kernel, machine, args)
+            
+            model.analyze()
+            model.report()
 

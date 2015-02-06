@@ -109,22 +109,31 @@ class ArrayAccess:
         return unicode(self.sym_expr)
 
 
-class ECM:
+class ECMData:
     """
-    class representation of the Execution-Cache-Memory Model
+    class representation of the Execution-Cache-Memory Model (only the data part)
 
     more info to follow...
     """
-
-    def __init__(self, kernel, core, machine):
+    
+    name = "Execution-Cache-Memory (data transfers only)"
+    
+    @classmethod
+    def configure_subparser(cls, parser):
+        pass
+    
+    def __init__(self, kernel, machine, args=None):
         """
         *kernel* is a Kernel object
-        *core* is the  in-core throughput as tuple of (overlapping cycles, non-overlapping cycles)
         *machine* describes the machine (cpu, cache and memory) characteristics
+        *args* (optional) are the parsed arguments from the comand line
         """
         self.kernel = kernel
-        self.core = core
         self.machine = machine
+        
+        if args:
+            # handle CLI info
+            pass
     
     def _calculate_relative_offset(self, name, access_dimensions):
         '''
@@ -381,7 +390,7 @@ class ECM:
                     cache_cycles, 1))
                 
             else:
-                mem_bw = float(self.machine['memory hierarchy'][-2]['max. total bandwidth'])
+                mem_bw = float(self.machine['memory hierarchy'][-2]['bandwidth'])
                 clock = float(self.machine['clock'])
                 results['L{}-MEM'.format(cache_level)] = round(
                     (total_lines_misses[cache_level]+total_lines_evicts[cache_level]) *
@@ -392,3 +401,136 @@ class ECM:
                     elements_per_cacheline*element_size/mem_bw*clock, 1))
             
         return results
+
+    def analyze(self):
+        self._results = self.calculate_cache_access()
+    
+    def report(self):
+        if 'results-to-compare' in testcase:
+            for key, value in results.items():
+                if key in testcase['results-to-compare']:
+                    correct_value = testcase['results-to-compare'][key]
+                    diff = abs(value - correct_value)
+                    if diff > correct_value*0.1:
+                        print("Test values did not match: {} ".format(key) +
+                            "should have been {}, but was {}.".format(correct_value, value))
+                        sys.exit(1)
+                    elif diff:
+                        print("Small difference from theoretical value: {} ".format(key) +
+                            "should have been {}, but was {}.".format(correct_value, value))
+        # TODO move output from calculate_chace_access to this palce
+
+
+class ECMCPU:
+    """
+    class representation of the Execution-Cache-Memory Model (only the operation part)
+
+    more info to follow...
+    """
+    
+    name = "Execution-Cache-Memory (CPU operations only)"
+    
+    @classmethod
+    def configure_subparser(cls, parser):
+        parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
+                            help='Number of ASM block to mark for IACA, "auto" for automatic ' + \
+                                 'selection or "manual" for interactiv selection.')
+    
+    def __init__(self, kernel, machine, args=None):
+        """
+        *kernel* is a Kernel object
+        *machine* describes the machine (cpu, cache and memory) characteristics
+        *args* (optional) are the parsed arguments from the comand line
+        """
+        self.kernel = kernel
+        self.machine = machine
+        self._args = args
+        
+        if args:
+            # handle CLI info
+            if args.asm_block not in ['auto', 'manual']:
+                try:
+                    args.asm_block = int(args.asm_block)
+                except ValueError:
+                    parser.error('--asm-block can only be "auto", "manual" or an integer')
+    
+    def analyze(self):
+        # For the IACA/CPU analysis we need to compile and assemble
+        asm_name = self.kernel.compile(compiler_args=self.machine['icc architecture flags'])
+        bin_name = self.kernel.assemble(asm_name, iaca_markers=True, asm_block=self._args.asm_block)
+        
+        iaca_output = subprocess.check_output(
+            ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
+        
+        # Get total cycles per loop iteration
+        match = re.search(
+            r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
+        assert match, "Could not find Block Throughput in IACA output."
+        block_throughput = match.groups()[0]
+        
+        # Find ports and cyles per port
+        ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
+        cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
+        assert ports and cycles, "Could not find ports/cylces lines in IACA output."
+        ports = map(str.strip, ports[0].split('|'))[2:]
+        cycles = map(str.strip, cycles[0].split('|'))[2:]
+        port_cycles = []
+        for i in range(len(ports)):
+            if '-' in ports[i] and ' ' in cycles[i]:
+                subports = map(str.strip, ports[i].split('-'))
+                subcycles = filter(bool, cycles[i].split(' '))
+                port_cycles.append((subports[0], subcycles[0]))
+                port_cycles.append((subports[0]+subports[1], subcycles[1]))
+            elif ports[i] and cycles[i]:
+                port_cycles.append((ports[i], cycles[i]))
+        port_cycles = dict(port_cycles)
+        
+        self.port_cycles = port_cycles
+        self.block_throughput = block_throughput
+        self.uops = uops
+        
+
+        match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
+        assert match, "Could not find Uops in IACA output."
+        uops = match.groups()[0]
+    
+    def report(self):
+        print('Ports and cycles:', port_cycles)
+        print('Throughput:', block_throughput)
+        print('Uops:', uops)
+
+class ECM:
+    """
+    class representation of the Execution-Cache-Memory Model (data and operations)
+
+    more info to follow...
+    """
+    
+    name = "Execution-Cache-Memory"
+    
+    @classmethod
+    def configure_subparser(cls, parser):
+        ECMCPU.configure_subparser(parser)
+    
+    def __init__(self, kernel, machine, args=None):
+        """
+        *kernel* is a Kernel object
+        *machine* describes the machine (cpu, cache and memory) characteristics
+        *args* (optional) are the parsed arguments from the comand line
+        """
+        self.kernel = kernel
+        self.machine = machine
+        
+        if args:
+            # handle CLI info
+            pass
+        
+        self._CPU = ECMCPU(kernel, machine, args)
+        self._data = ECMData(kernel, machine, args)
+    
+    def analyze(self):
+        self._CPU.analyze()
+        self._data.analyze()
+    
+    def report(self):
+        return self._CPU.report()+'\n'+self._data.report()

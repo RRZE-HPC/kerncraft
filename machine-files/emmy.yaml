@@ -187,17 +187,17 @@ clock: 2.2 GHz
 cores per socket: 10
 icc architecture flags: [-xAVX]
 memory hierarchy:
-- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 20, level: L1, max. total bandwidth: null, size per group: 32.00
+- {cores per group: 1, cycles per cacheline transfer: 2,
+  groups: 20, level: L1, bandwidth: null, size per group: 32.00
     kB, threads per group: 2}
-- {bandwidth per core: null, cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 20, level: L2, max. total bandwidth: null, size per group: 256.00
+- {cores per group: 1, cycles per cacheline transfer: 2,
+  groups: 20, level: L2, bandwidth: null,, size per group: 256.00
     kB, threads per group: 2}
-- {bandwidth per core: null, cores per group: 10, cycles per cacheline transfer: 2,
-  groups: 2, level: L3, max. total bandwidth: null, size per group: 25.00
+- {cores per group: 10, cycles per cacheline transfer: 2,
+  groups: 2, level: L3, bandwidth: 60 GB/s, size per group: 25.00
     MB, threads per group: 20}
-- {bandwidth per core: 12 GB/s, cores per group: 10, cycles per cacheline transfer: null,
-  level: MEM, max. total bandwidth: 60 GB/s, size per group: null, threads per group: 20}
+- {cores per group: 10, cycles per cacheline transfer: null,
+  level: MEM, bandwidth: null, size per group: null, threads per group: 20}
 micro-architecture: IVB
 model name: Intel Core IvyBridge EP processor
 sockets: 2

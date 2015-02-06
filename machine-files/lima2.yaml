@@ -187,17 +187,17 @@ clock: INFORMATION_REQUIRED
 cores per socket: 6
 icc architecture flags: INFORMATION_REQUIRED
 memory hierarchy:
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 1, cycles per cacheline transfer: INFORMATION_REQUIRED,
-  groups: 12, level: L1, max. total bandwidth: INFORMATION_REQUIRED, size per group: 32.00
+- {cores per group: 1, cycles per cacheline transfer: INFORMATION_REQUIRED,
+  groups: 12, level: L1, bandwidth: INFORMATION_REQUIRED, size per group: 32.00
     kB, threads per group: 2}
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 1, cycles per cacheline transfer: INFORMATION_REQUIRED,
-  groups: 12, level: L2, max. total bandwidth: INFORMATION_REQUIRED, size per group: 256.00
+- {cores per group: 1, cycles per cacheline transfer: INFORMATION_REQUIRED,
+  groups: 12, level: L2, bandwidth: INFORMATION_REQUIRED, size per group: 256.00
     kB, threads per group: 2}
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 6, cycles per cacheline transfer: INFORMATION_REQUIRED,
-  groups: 2, level: L3, max. total bandwidth: INFORMATION_REQUIRED, size per group: 12.00
+- {cores per group: 6, cycles per cacheline transfer: INFORMATION_REQUIRED,
+  groups: 2, level: L3, bandwidth: INFORMATION_REQUIRED, size per group: 12.00
     MB, threads per group: 12}
-- {bandwidth per core: INFORMATION_REQUIRED, cores per group: 6, cycles per cacheline transfer: null,
-  level: MEM, max. total bandwidth: INFORMATION_REQUIRED, size per group: null, threads per group: 12}
+- {cores per group: 6, cycles per cacheline transfer: null,
+  level: MEM, bandwidth: INFORMATION_REQUIRED, size per group: null, threads per group: 12}
 micro-architecture: INFORMATION_REQUIRED
 model name: Intel Core Westmere processor
 sockets: 2
