@@ -106,15 +106,18 @@ if __name__ == '__main__':
                 
                 # TODO take care of different performance models
                 if 'results-to-compare' in testcase:
+                    failed = False
                     for key, value in model.results.items():
                         if key in testcase['results-to-compare']:
-                            correct_value = testcase['results-to-compare'][key]
+                            correct_value = float(testcase['results-to-compare'][key])
                             diff = abs(value - correct_value)
                             if diff > correct_value*0.1:
                                 print("Test values did not match: {} ".format(key) +
                                     "should have been {}, but was {}.".format(correct_value, value))
-                                sys.exit(1)
+                                failed = True
                             elif diff:
                                 print("Small difference from theoretical value: {} ".format(key) +
                                     "should have been {}, but was {}.".format(correct_value, value))
+                    if failed:
+                        sys.exit(1)
 
