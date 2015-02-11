@@ -12,6 +12,7 @@ import sys
 import intervals
 from kernel import Kernel
 from machinemodel import MachineModel
+from prefixedunit import PrefixedUnit
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
@@ -78,6 +79,7 @@ class Roofline:
         """
         self.kernel = kernel
         self.machine = machine
+        self._args = args
         
         if args:
             # handle CLI info
@@ -137,7 +139,7 @@ class Roofline:
         return [first, last]
     
     def calculate_cache_access(self):
-        results = {}
+        results = {'bottleneck level': None, 'mem bottlenecks': []}
         
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
@@ -337,29 +339,46 @@ class Roofline:
             bw = bw_measurements[threads_per_core]['results'][measurement_kernel][cores]
             
             performance = arith_intens * float(bw)
-            if performance <= results.get('performance', performance):
-                results['performance'] = performance
-                results['bottleneck'] = self.machine['memory hierarchy'][cache_level]['level']+'-'+\
-                    self.machine['memory hierarchy'][cache_level+1]['level']
-                results['arithmetic intensity'] = arith_intens
-                results['bw kernel'] = measurement_kernel
+            results['mem bottlenecks'].append({
+                'performance': PrefixedUnit(performance, 'FLOP/s'),
+                'level': self.machine['memory hierarchy'][cache_level]['level'] + '-' + \
+                    self.machine['memory hierarchy'][cache_level+1]['level'],
+                'arithmetic intensity': arith_intens,
+                'bw kernel': measurement_kernel,
+                'bandwidth': bw})
+            if performance <= results.get('min performance', performance):
+                results['bottleneck level'] = len(results['mem bottlenecks'])-1
+                results['min performance'] = performance
         return results
 
     def analyze(self):
         self._results = self.calculate_cache_access()
     
     def report(self):
+        max_flops = self.machine['clock']*sum(self.machine['FLOPs per cycle']['DP'].values())
+        max_flops.unit = "FLOP/s"
+        if self._args and self._args.verbose >= 1:
+            print('Bottlnecks:')
+            print('  level |   performance   |  bandwidth | bandwidth kernel')
+            print('--------+-----------------+------------+-----------------')
+            print('    CPU | {:>15} |            |'.format(max_flops))
+            for b in self._results['mem bottlenecks']:
+                print('{level:>7} | {performance:>15} | {bandwidth:>10} | {bw kernel:<8}'.format(
+                    **b))
+            print()
+        
         # TODO support SP
-        max_flops = float(self.machine['clock'])*sum(self.machine['FLOPs per cycle']['DP'].values())
-        if self._results['performance'] > float(max_flops):
+        if self._results['min performance'] > max_flops:
             # CPU bound
             print('CPU bound')
-            print('{} GFLOP/s due to CPU max. FLOP/s'.format(max_flops/10e9))
+            print('{!s} due to CPU max. FLOP/s'.format(max_flops))
         else:
             # Cache or mem bound
             print('Cache or mem bound')
-            print('{:.2f} GFLOP/s due to {} transfer bottleneck (bw with from {} benchmark)'.format(
-                self._results['performance']/10e9,
-                self._results['bottleneck'],
-                self._results['bw kernel']))
-        print('Arithmetic Intensity: {:.2f}'.format(self._results['arithmetic intensity']))
+            
+            bottleneck = self._results['mem bottlenecks'][self._results['bottleneck level']]
+            print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
+                bottleneck['performance'],
+                bottleneck['level'],
+                bottleneck['bw kernel']))
+        print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))
