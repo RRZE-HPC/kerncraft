@@ -113,6 +113,7 @@ class Kernel:
         self._constants = {} if constants is None else constants
         self._variables = {} if variables is None else variables
         self._flops = {}
+        self.blocks = {}  # ASM block information, populated after call to assemble
     
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -518,7 +519,7 @@ class Kernel:
         if iaca_markers:
             with open(in_filename, 'r') as in_file:
                 lines = in_file.readlines()
-            blocks = iaca.find_asm_blocks(lines)
+            self.blocks = iaca.find_asm_blocks(lines)
             
             # TODO check for already present markers
     

@@ -495,9 +495,12 @@ class ECMCPU:
             'port cycles': port_cycles, 'block throughput': block_throughput, 'uops': uops}
         
     def report(self):
-        print('Ports and cycles:', self.results['port cycles'])
+        if self._args and self._args['verbose'] > 0:
+            print('Ports and cycles:', self.results['port cycles'])
+            print('Uops:', self.results['uops'])
+            
         print('Throughput:', self.results['block throughput'])
-        print('Uops:', self.results['uops'])
+        
 
 class ECM:
     """
