@@ -13,7 +13,7 @@ class PrefixedUnit(yaml.YAMLObject):
     
     yaml_tag = u'!prefixed'
     yaml_implicit_pattern = re.compile(re.compile(
-        r'^(?P<value>[0-9]+(?:\.[0-9]+)?)\s*(?P<prefix>[kMGTP])?(?P<unit>.*)$'))
+        r'^(?P<value>[0-9]+(?:\.[0-9]+)?) (?P<prefix>[kMGTP])?(?P<unit>.*)$'))
     
     @classmethod
     def from_yaml(cls, loader, node):
@@ -27,7 +27,7 @@ class PrefixedUnit(yaml.YAMLObject):
         if len(args) == 1:
             if isinstance(args[0], basestring):
                 m = re.match(
-                    r'^(?P<value>[0-9]+(?:\.[0-9]+)?)\s*(?P<prefix>[kMGTP])?(?P<unit>.*)$', args[0])
+                    r'^(?P<value>[0-9]+(?:\.[0-9]+)?) (?P<prefix>[kMGTP])?(?P<unit>.*)$', args[0])
                 assert m, "Could not parse unit paramtere "+repr(s)
                 g = m.groups()
                 args = [float(g[0]), g[1], g[2]]

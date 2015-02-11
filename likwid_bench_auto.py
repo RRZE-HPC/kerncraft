@@ -31,6 +31,8 @@ def get_machine_topology():
         'micro-architecture': 'INFORMATION_REQUIRED',
         'icc architecture flags': 'INFORMATION_REQUIRED',
         'cacheline size': 'INFORMATION_REQUIRED',
+        'overlapping ports': 'INFORAMTION_REQUIRED',
+        'non-overlapping ports': 'INFORMATION_REQUIRED',
     }
     
     threads_start = topo.find('HWThread')

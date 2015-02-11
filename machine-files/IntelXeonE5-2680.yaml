@@ -50,4 +50,5 @@ memory hierarchy:
 - {cores per group: 10, cycles per cacheline transfer: null,
   level: MEM, bandwidth: null, size per group: null, threads per group: 20}
 
-
+overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
+non-overlapping ports: ["2D", "3D"]

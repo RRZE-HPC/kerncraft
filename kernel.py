@@ -114,6 +114,7 @@ class Kernel:
         self._variables = {} if variables is None else variables
         self._flops = {}
         self.blocks = {}  # ASM block information, populated after call to assemble
+        self.block_idx = None  # Block index used for marking (and containing the inner loop)
     
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -524,13 +525,14 @@ class Kernel:
             # TODO check for already present markers
     
             # Choose best default block:
-            block_idx = iaca.select_best_block(blocks)
+            block_idx = iaca.select_best_block(self.blocks)
             if asm_block == 'manual':
-                block_idx = iaca.userselect_block(blocks, default=block_idx)
+                block_idx = iaca.userselect_block(self.blocks, default=block_idx)
             elif asm_block != 'auto':
                 block_idx = asm_block
+            self.block_idx = block_idx
             
-            block = blocks[block_idx][1]
+            block = self.blocks[block_idx][1]
     
             # Insert markers:
             lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])

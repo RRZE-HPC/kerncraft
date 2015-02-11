@@ -221,3 +221,5 @@ micro-architecture: IVB
 model name: Intel Core IvyBridge EP processor
 sockets: 2
 threads per core: 2
+overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
+non-overlapping ports: ["2D", "3D"]

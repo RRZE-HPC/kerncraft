@@ -202,4 +202,5 @@ micro-architecture: INFORMATION_REQUIRED
 model name: Intel Core Westmere processor
 sockets: 2
 threads per core: 2
-
+overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
+non-overlapping ports: ["2D", "3D"]

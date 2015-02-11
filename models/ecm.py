@@ -463,12 +463,12 @@ class ECMCPU:
         
         iaca_output = subprocess.check_output(
             ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
-        
+
         # Get total cycles per loop iteration
         match = re.search(
             r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
         assert match, "Could not find Block Throughput in IACA output."
-        block_throughput = match.groups()[0]
+        block_throughput = float(match.groups()[0])
         
         # Find ports and cyles per port
         ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
@@ -481,26 +481,48 @@ class ECMCPU:
             if '-' in ports[i] and ' ' in cycles[i]:
                 subports = map(str.strip, ports[i].split('-'))
                 subcycles = filter(bool, cycles[i].split(' '))
-                port_cycles.append((subports[0], subcycles[0]))
-                port_cycles.append((subports[0]+subports[1], subcycles[1]))
+                port_cycles.append((subports[0], float(subcycles[0])))
+                port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
             elif ports[i] and cycles[i]:
-                port_cycles.append((ports[i], cycles[i]))
+                port_cycles.append((ports[i], float(cycles[i])))
         port_cycles = dict(port_cycles)
         
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
-        uops = match.groups()[0]
-    
+        uops = float(match.groups()[0])
+        
+        # Normalize to cycles per cacheline
+        block_elements = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
+        block_size = block_elements*8  # TODO support SP
+        block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
+        
+        port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
+        uops = uops*block_to_cl_ratio
+        block_throughput = block_throughput*block_to_cl_ratio
+        
+        # Compile most relevant information
+        T_OL = max([v for k,v in port_cycles.items() if k in self.machine['overlapping ports']])
+        T_nOL = max(
+            [v for k,v in port_cycles.items() if k in self.machine['non-overlapping ports']])
+        
+        # Create result dictionary
         self.results = {
-            'port cycles': port_cycles, 'block throughput': block_throughput, 'uops': uops}
+            'port cycles': port_cycles,
+            'block throughput': block_throughput,
+            'uops': uops,
+            'T_nOL': T_OL, 
+            'T_OL': T_nOL}
         
     def report(self):
-        if self._args and self._args['verbose'] > 0:
+        if self._args and self._args.verbose > 0:
             print('Ports and cycles:', self.results['port cycles'])
             print('Uops:', self.results['uops'])
             
-        print('Throughput:', self.results['block throughput'])
+            print('Throughput: {}cy per CL'.format(self.results['block throughput']))
         
+        print('T_nOL = {}cy'.format(self.results['T_nOL']))
+        print('T_OL = {}cy'.format(self.results['T_OL']))
+
 
 class ECM:
     """
