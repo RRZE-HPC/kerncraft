@@ -94,14 +94,14 @@ if __name__ == '__main__':
     machine['benchmarks'] = benchmarks
     benchmarks['kernels'] = {
         'load': {
-            'read': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},
+            'read streams': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},
             'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0,'B')},
             'write streams': {'streams': 0, 'bytes': PrefixedUnit(0,'B')},
             'FLOPs per iteration': 0},
         'copy': {
-            'read streams': 1,
+            'read streams': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},
             'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0,'B')},
-            'write streams': 1,
+            'write streams': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},
             'FLOPs per iteration': 0},
         'update': {
             'read streams': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},

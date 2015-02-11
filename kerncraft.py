@@ -57,7 +57,6 @@ if __name__ == '__main__':
     
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
-    print(args)
     
     # machine information
     # Read machine description

@@ -303,8 +303,36 @@ class Roofline:
             arith_intens = float(total_flops)/float(bytes_transfered)
             
             # choose bw according to cache level and problem
-            # TODO choose smt, kernel and cores automatically
-            threads_per_core, measurement_kernel, cores = 1, 'triad', 1
+            # first, compile stream counts at current cache level
+            read_streams = 0
+            for var_name in misses[cache_level].keys():
+                for idx_order in misses[cache_level][var_name]:
+                    read_streams += len(misses[cache_level][var_name][idx_order])
+            write_streams = 0
+            for var_name in evicts[cache_level].keys():
+                for idx_order in evicts[cache_level][var_name]:
+                    write_streams += len(evicts[cache_level][var_name][idx_order])
+            read_write_streams = 0
+            for var_name in set(evicts[cache_level].keys()) & set(misses[cache_level].keys()):
+                for idx_order in set(evicts[cache_level][var_name].keys()) & \
+                        set(misses[cache_level][var_name].keys()):
+                    read_write_streams += len(set(evicts[cache_level][var_name][idx_order]) & 
+                                              set(misses[cache_level][var_name][idx_order]))
+            # second, try to find best fitting kernel (closest to stream seen stream counts):
+            measurement_kernel = 'load'
+            measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
+            for kernel_name, kernel_info in self.machine['benchmarks']['kernels'].items():
+                if (read_streams >= kernel_info['read streams']['streams'] > 
+                        measurement_kernel_info['read streams']['streams'] and
+                        write_streams >= kernel_info['write streams']['streams'] >
+                        measurement_kernel_info['write streams']['streams'] and
+                        read_write_streams >= kernel_info['read+write streams']['streams'] > 
+                        measurement_kernel_info['read+write streams']['streams']):
+                    measurement_kernel = kernel_name
+                    measurement_kernel_info = kernel_info
+            
+            # TODO choose smt and cores:
+            threads_per_core, cores = 1, 1
             bw_measurements = self.machine['benchmarks']['measurements'][cache_info['level']]
             bw = bw_measurements[threads_per_core]['results'][measurement_kernel][cores]
             
@@ -314,6 +342,7 @@ class Roofline:
                 results['bottleneck'] = self.machine['memory hierarchy'][cache_level]['level']+'-'+\
                     self.machine['memory hierarchy'][cache_level+1]['level']
                 results['arithmetic intensity'] = arith_intens
+                results['bw kernel'] = measurement_kernel
         return results
 
     def analyze(self):
@@ -329,7 +358,8 @@ class Roofline:
         else:
             # Cache or mem bound
             print('Cache or mem bound')
-            print('{:.2f} GFLOP/s due to {} transfer bottleneck'.format(
+            print('{:.2f} GFLOP/s due to {} transfer bottleneck (bw with from {} benchmark)'.format(
                 self._results['performance']/10e9,
-                self._results['bottleneck']))
+                self._results['bottleneck'],
+                self._results['bw kernel']))
         print('Arithmetic Intensity: {:.2f}'.format(self._results['arithmetic intensity']))
