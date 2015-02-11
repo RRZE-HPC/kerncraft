@@ -8,6 +8,8 @@ import operator
 import math
 import copy
 import sys
+import subprocess
+import re
 
 import intervals
 from kernel import Kernel
@@ -485,16 +487,17 @@ class ECMCPU:
                 port_cycles.append((ports[i], cycles[i]))
         port_cycles = dict(port_cycles)
         
-        self.results = dict(port_cycles=port_cycles, block_throughput=block_throughput, uops=uops)
-        
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
         uops = match.groups()[0]
     
+        self.results = {
+            'port cycles': port_cycles, 'block throughput': block_throughput, 'uops': uops}
+        
     def report(self):
-        print('Ports and cycles:', port_cycles)
-        print('Throughput:', block_throughput)
-        print('Uops:', uops)
+        print('Ports and cycles:', self.results['port cycles'])
+        print('Throughput:', self.results['block throughput'])
+        print('Uops:', self.results['uops'])
 
 class ECM:
     """
