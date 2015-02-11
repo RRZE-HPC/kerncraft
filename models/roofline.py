@@ -12,6 +12,7 @@ import sys
 import intervals
 from kernel import Kernel
 from machinemodel import MachineModel
+from prefixedunit import PrefixedUnit
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
@@ -78,6 +79,7 @@ class Roofline:
         """
         self.kernel = kernel
         self.machine = machine
+        self._args = args
         
         if args:
             # handle CLI info
@@ -137,7 +139,7 @@ class Roofline:
         return [first, last]
     
     def calculate_cache_access(self):
-        results = {}
+        results = {'bottleneck level': None, 'mem bottlenecks': []}
         
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
@@ -303,33 +305,80 @@ class Roofline:
             arith_intens = float(total_flops)/float(bytes_transfered)
             
             # choose bw according to cache level and problem
-            # TODO choose smt, kernel and cores automatically
-            threads_per_core, measurement_kernel, cores = 1, 'triad', 1
+            # first, compile stream counts at current cache level
+            read_streams = 0
+            for var_name in misses[cache_level].keys():
+                for idx_order in misses[cache_level][var_name]:
+                    read_streams += len(misses[cache_level][var_name][idx_order])
+            write_streams = 0
+            for var_name in evicts[cache_level].keys():
+                for idx_order in evicts[cache_level][var_name]:
+                    write_streams += len(evicts[cache_level][var_name][idx_order])
+            read_write_streams = 0
+            for var_name in set(evicts[cache_level].keys()) & set(misses[cache_level].keys()):
+                for idx_order in set(evicts[cache_level][var_name].keys()) & \
+                        set(misses[cache_level][var_name].keys()):
+                    read_write_streams += len(set(evicts[cache_level][var_name][idx_order]) & 
+                                              set(misses[cache_level][var_name][idx_order]))
+            # second, try to find best fitting kernel (closest to stream seen stream counts):
+            measurement_kernel = 'load'
+            measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
+            for kernel_name, kernel_info in self.machine['benchmarks']['kernels'].items():
+                if (read_streams >= kernel_info['read streams']['streams'] > 
+                        measurement_kernel_info['read streams']['streams'] and
+                        write_streams >= kernel_info['write streams']['streams'] >
+                        measurement_kernel_info['write streams']['streams'] and
+                        read_write_streams >= kernel_info['read+write streams']['streams'] > 
+                        measurement_kernel_info['read+write streams']['streams']):
+                    measurement_kernel = kernel_name
+                    measurement_kernel_info = kernel_info
+            
+            # TODO choose smt and cores:
+            threads_per_core, cores = 1, 1
             bw_measurements = self.machine['benchmarks']['measurements'][cache_info['level']]
             bw = bw_measurements[threads_per_core]['results'][measurement_kernel][cores]
             
             performance = arith_intens * float(bw)
-            if performance <= results.get('performance', performance):
-                results['performance'] = performance
-                results['bottleneck'] = self.machine['memory hierarchy'][cache_level]['level']+'-'+\
-                    self.machine['memory hierarchy'][cache_level+1]['level']
-                results['arithmetic intensity'] = arith_intens
+            results['mem bottlenecks'].append({
+                'performance': PrefixedUnit(performance, 'FLOP/s'),
+                'level': self.machine['memory hierarchy'][cache_level]['level'] + '-' + \
+                    self.machine['memory hierarchy'][cache_level+1]['level'],
+                'arithmetic intensity': arith_intens,
+                'bw kernel': measurement_kernel,
+                'bandwidth': bw})
+            if performance <= results.get('min performance', performance):
+                results['bottleneck level'] = len(results['mem bottlenecks'])-1
+                results['min performance'] = performance
         return results
 
     def analyze(self):
         self._results = self.calculate_cache_access()
     
     def report(self):
+        max_flops = self.machine['clock']*sum(self.machine['FLOPs per cycle']['DP'].values())
+        max_flops.unit = "FLOP/s"
+        if self._args and self._args.verbose >= 1:
+            print('Bottlnecks:')
+            print('  level |   performance   |  bandwidth | bandwidth kernel')
+            print('--------+-----------------+------------+-----------------')
+            print('    CPU | {:>15} |            |'.format(max_flops))
+            for b in self._results['mem bottlenecks']:
+                print('{level:>7} | {performance:>15} | {bandwidth:>10} | {bw kernel:<8}'.format(
+                    **b))
+            print()
+        
         # TODO support SP
-        max_flops = float(self.machine['clock'])*sum(self.machine['FLOPs per cycle']['DP'].values())
-        if self._results['performance'] > float(max_flops):
+        if self._results['min performance'] > max_flops:
             # CPU bound
             print('CPU bound')
-            print('{} GFLOP/s due to CPU max. FLOP/s'.format(max_flops/10e9))
+            print('{!s} due to CPU max. FLOP/s'.format(max_flops))
         else:
             # Cache or mem bound
             print('Cache or mem bound')
-            print('{:.2f} GFLOP/s due to {} transfer bottleneck'.format(
-                self._results['performance']/10e9,
-                self._results['bottleneck']))
-        print('Arithmetic Intensity: {:.2f}'.format(self._results['arithmetic intensity']))
+            
+            bottleneck = self._results['mem bottlenecks'][self._results['bottleneck level']]
+            print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
+                bottleneck['performance'],
+                bottleneck['level'],
+                bottleneck['bw kernel']))
+        print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))

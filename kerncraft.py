@@ -49,6 +49,8 @@ if __name__ == '__main__':
     parser.add_argument('--testcase-index', '-i', metavar='INDEX', type=int, default=0,
                         help='Index of testcase in testcase file. If not given, all cases are ' + \
                              'executed.')
+    parser.add_argument('--verbose', '-v', action='count',
+                        help='Increases verbosity level.')
     parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(), nargs='+',
                         help='File with loop kernel C code')
     for m in models.__all__:
@@ -57,7 +59,6 @@ if __name__ == '__main__':
     
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
-    print(args)
     
     # machine information
     # Read machine description

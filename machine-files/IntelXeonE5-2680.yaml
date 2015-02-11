@@ -11,11 +11,31 @@ FLOPs per cycle:
     DP: {total: 4, ADD: 2, MUL: 2}
 benchmarks:
   kernels:
-    copy: {FLOPs per iteration: 0, read streams: 1, write streams: 1}
-    daxpy: {FLOPs per iteration: 2, read streams: 2, write streams: 1}
-    load: {FLOPs per iteration: 0, read streams: 1, write streams: 0}
-    triad: {FLOPs per iteration: 2, read streams: 3, write streams: 1}
-    update: {FLOPs per iteration: 0, read streams: 1, write streams: 1}
+    copy:
+      FLOPs per iteration: 0
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 8.00 B, streams: 1}
+    daxpy:
+      FLOPs per iteration: 2
+      read streams: {bytes: 16.00 B, streams: 2}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
+    load:
+      FLOPs per iteration: 0
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 0.00 B, streams: 0}
+    triad:
+      FLOPs per iteration: 2
+      read streams: {bytes: 24.00 B, streams: 3}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
+    update:
+      FLOPs per iteration: 0
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
   measurements: {}
 memory hierarchy:
 - {cores per group: 1, cycles per cacheline transfer: 2,
