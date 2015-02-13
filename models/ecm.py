@@ -10,6 +10,15 @@ import copy
 import sys
 import subprocess
 import re
+import imp
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    plot_support = True
+except ImportError:
+    plot_support = False
 
 import intervals
 from kernel import Kernel
@@ -538,7 +547,8 @@ class ECM:
     @classmethod
     def configure_arggroup(cls, parser):
         # they are being configured in ECMData and ECMCPU
-        pass
+        parser.add_argument('--ecm-plot',
+            help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
     
     def __init__(self, kernel, machine, args=None):
         """
@@ -570,8 +580,66 @@ class ECM:
             self._data.report()
         
         report += '{{ {} || {} | {} }}'.format(
-            self._CPU.results['T_OL'],
-            self._CPU.results['T_nOL'],
-            ' | '.join([str(i[1]) for i in self._data.results['cycles']]))
+            self.results['T_OL'],
+            self.results['T_nOL'],
+            ' | '.join([str(i[1]) for i in self.results['cycles']]))
         
         print(report)
+        
+        if self._args and self._args.ecm_plot:
+            assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
+            
+            results = self.results['cycles'] + [('T_OL', self.results['T_OL']) +
+                                               ('T_nOL', self.results['T_nOL'])]
+            
+            fig = plt.figure(frameon=False)
+            ax = fig.add_subplot(1,1,1)
+
+            sorted_overlapping_ports = sorted(
+                map(lambda p: (p, self.results['port cycles'][p]),
+                    self.machine['overlapping ports']),
+                key=lambda x: x[1])
+
+            yticks_labels = []
+            yticks = []
+            xticks_labels = []
+            xticks = []
+            
+            # Plot configuration
+            height = 0.8
+
+            i = 0
+            # T_OL
+            colors = [(254./255, 177./255., 178./255.)] + [(255./255., 255./255., 255./255.)] * \
+                 (len(sorted_overlapping_ports) - 1)
+            for p, c in sorted_overlapping_ports:
+                ax.barh(i, c, height, align='center', color=colors.pop())
+                yticks_labels.append(p)
+                yticks.append(i)
+                i += 1
+            xticks.append(sorted_overlapping_ports[-1][1])
+            xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
+
+            # T_nOL + memory transfers
+            y = 0
+            colors = [(187./255., 255/255., 188./255.)] * (len(self.results['cycles'])) + \
+                [(119./255, 194./255., 255./255.)]
+            for k,v in [('T_nOL', self.results['T_nOL'])]+self.results['cycles']:
+                ax.barh(i, v, height, y, align='center', color=colors.pop())
+                ax.text(y+v/2.0, i, k, ha='center', va='center')
+                xticks.append(y+v)
+                xticks_labels.append('{:.1f}'.format(y+v))
+                y += v
+            yticks_labels.append('LD')
+            yticks.append(i)
+
+            ax.tick_params(axis='y', which='both', left='off', right='off')
+            ax.tick_params(axis='x', which='both', top='off')
+            ax.set_xlabel('t [cy]')
+            ax.set_ylabel('execution port')
+            ax.set_yticks(yticks)
+            ax.set_yticklabels(yticks_labels)
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+            ax.grid(axis='x', alpha=0.7, linestyle='--')
+            fig.savefig(self._args.ecm_plot)
