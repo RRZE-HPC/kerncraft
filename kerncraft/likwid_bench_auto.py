@@ -88,7 +88,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
     return PrefixedUnit(bw, 'MB/s')
 
-if __name__ == '__main__':
+def main():
     machine = get_machine_topology()
     
     total_threads = machine['threads per core'] * machine['cores per socket']
@@ -176,4 +176,5 @@ if __name__ == '__main__':
     
     print(yaml.dump(machine))
            
-    
+if __name__ == '__main__':
+    main()

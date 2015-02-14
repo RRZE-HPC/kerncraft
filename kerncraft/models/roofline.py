@@ -9,10 +9,10 @@ import math
 import copy
 import sys
 
-import intervals
-from kernel import Kernel
-from machinemodel import MachineModel
-from prefixedunit import PrefixedUnit
+from kerncraft import intervals
+from kerncraft.kernel import Kernel
+from kerncraft.machinemodel import MachineModel
+from kerncraft.prefixedunit import PrefixedUnit
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}

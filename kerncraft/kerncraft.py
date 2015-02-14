@@ -34,7 +34,7 @@ class AppendStringInteger(argparse.Action):
             else:
                 setattr(namespace, self.dest, [values])
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--machine', '-m', type=file, required=True,
                         help='Path to machine description yaml file.')
@@ -121,3 +121,6 @@ if __name__ == '__main__':
                     if failed:
                         sys.exit(1)
 
+
+if __name__ == '__main__':
+    main()

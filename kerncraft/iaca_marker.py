@@ -120,7 +120,7 @@ def insert_markers(asm_lines, start_line, end_line):
                 asm_lines[end_line+1:]
     return asm_lines
 
-if __name__ == '__main__':
+def main():
     if len(sys.argv) != 2:
         print("Usage:", sys.argv[0], "filename.s")
         sys.exit(1)
@@ -146,3 +146,6 @@ if __name__ == '__main__':
         fp.writelines(lines)
     
     print("Markers inserted.")
+
+if __name__ == '__main__':
+    main()

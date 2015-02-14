@@ -20,9 +20,9 @@ try:
 except ImportError:
     plot_support = False
 
-import intervals
-from kernel import Kernel
-from machinemodel import MachineModel
+from kerncraft import intervals
+from kerncraft.kernel import Kernel
+from kerncraft.machinemodel import MachineModel
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
