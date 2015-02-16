@@ -29,7 +29,7 @@ benchmarks:
     triad:
       FLOPs per iteration: 2
       read streams: {bytes: 24.00 B, streams: 3}
-      read+write streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
       write streams: {bytes: 8.00 B, streams: 1}
     update:
       FLOPs per iteration: 0

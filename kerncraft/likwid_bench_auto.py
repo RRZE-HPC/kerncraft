@@ -112,7 +112,7 @@ def main():
             'FLOPs per iteration': 0},
         'triad': {
             'read streams': {'streams': 3, 'bytes': PrefixedUnit(24,'B')},
-            'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},
+            'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0,'B')},
             'write streams': {'streams': 1, 'bytes': PrefixedUnit(8,'B')},
             'FLOPs per iteration': 2},
         'daxpy': {
