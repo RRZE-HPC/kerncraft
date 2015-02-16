@@ -19,6 +19,6 @@ for(int k=4; k < N-4; k++) {
                 + c4 * ( V[ k ][ j ][i+4] + V[ k ][ j ][i-4])
                 + c4 * ( V[ k ][j+4][ i ] + V[ k ][j-4][ i ])
                 + c4 * ( V[k+4][ j ][ i ] + V[k-4][ j ][ i ]);
-            U[k][j][i] = 2.f * V[k][j][i] - U[k][j][i] 
+            U[k][j][i] = 2.f * V[k][j][i] - U[k][j][i]
                        + ROC[k][j][i] * lap;
 }}}

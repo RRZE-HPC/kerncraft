@@ -39,13 +39,6 @@ def blocking(indices, block_size, initial_boundary=0):
     return blocks
 
 
-def find(f, seq):
-  """Return first item in sequence where f(item) == True."""
-  for item in seq:
-    if f(item):
-      return item
-
-
 def flatten_dict(d):
     '''
     transforms 2d-dict d[i][k] into a new 1d-dict e[(i,k)] with 2-tuple keys
@@ -53,7 +46,7 @@ def flatten_dict(d):
     e = {}
     for k in d.keys():
         for l in d[k].keys():
-            e[(k,l)] = d[k][l]
+            e[(k, l)] = d[k][l]
     return e
 
 
@@ -132,8 +125,8 @@ class Roofline:
         element_size = datatype_size['double']
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
-        first = first - first%elements_per_cacheline
-        last = last - last%elements_per_cacheline + elements_per_cacheline - 1
+        first = first - first % elements_per_cacheline
+        last = last - last % elements_per_cacheline + elements_per_cacheline - 1
 
         return [first, last]
 
@@ -155,11 +148,14 @@ class Roofline:
 
             # Skip the following access: (they are hopefully kept in registers)
             #   - scalar values
-            if var_dims is None: continue
+            if var_dims is None:
+                continue
             #   - access does not change with inner-most loop index
-            writes = filter(lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
+            writes = filter(
+                lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
                 self.kernel._destinations.get(var_name, []))
-            reads = filter(lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
+            reads = filter(
+                lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
                 self.kernel._sources.get(var_name, []))
 
             # Compile access pattern
@@ -219,8 +215,8 @@ class Roofline:
                                 write_offsets.get(name, {}).get(idx_order, []),
                                 reverse=True)
                         else:
-                            misses[cache_level][name][idx_order] = \
-                                 list(misses[cache_level-1][name][idx_order])
+                            misses[cache_level][name][idx_order] = list(
+                                misses[cache_level-1][name][idx_order])
                         hits[cache_level][name][idx_order] = []
 
                 # Caches are still empty (thus only misses)
@@ -280,21 +276,24 @@ class Roofline:
                         evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
 
             # Compiling stats
-            total_misses[cache_level] = sum(map(lambda l: sum(map(len, l.values())),
+            total_misses[cache_level] = sum(map(
+                lambda l: sum(map(len, l.values())),
                 misses[cache_level].values()))
-            total_hits[cache_level] = sum(map(lambda l: sum(map(len, l.values())),
+            total_hits[cache_level] = sum(map(
+                lambda l: sum(map(len, l.values())),
                 hits[cache_level].values()))
-            total_evicts[cache_level] = sum(map(lambda l: sum(map(len, l.values())),
+            total_evicts[cache_level] = sum(map(
+                lambda l: sum(map(len, l.values())),
                 evicts[cache_level].values()))
 
             total_lines_misses[cache_level] = sum(map(
                 lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
                 misses[cache_level].values()))
-            total_lines_hits[cache_level] = sum(map(lambda o: sum(map(lambda n:
-                len(blocking(n, elements_per_cacheline)), o.values())),
+            total_lines_hits[cache_level] = sum(map(
+                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
                 hits[cache_level].values()))
-            total_lines_evicts[cache_level] = sum(map(lambda o: sum(map(lambda n:
-                len(blocking(n,elements_per_cacheline)), o.values())),
+            total_lines_evicts[cache_level] = sum(map(
+                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
                 evicts[cache_level].values()))
 
             # Calculate performance (arithmetic intensity * bandwidth with
@@ -321,9 +320,9 @@ class Roofline:
             measurement_kernel = 'load'
             measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
             for kernel_name, kernel_info in self.machine['benchmarks']['kernels'].items():
-                if (read_streams >= kernel_info['read streams']['streams'] +
-                                    kernel_info['write streams']['streams'] -
-                                    kernel_info['read+write streams']['streams'] >
+                if (read_streams >= (kernel_info['read streams']['streams'] +
+                                     kernel_info['write streams']['streams'] -
+                                     kernel_info['read+write streams']['streams']) >
                         measurement_kernel_info['read streams']['streams'] +
                         measurement_kernel_info['write streams']['streams'] -
                         measurement_kernel_info['read+write streams']['streams'] and
@@ -335,7 +334,7 @@ class Roofline:
             # TODO choose smt and cores:
             threads_per_core, cores = 1, 1
             bw_measurements = \
-                 self.machine['benchmarks']['measurements'][cache_info['level']][threads_per_core]
+                self.machine['benchmarks']['measurements'][cache_info['level']][threads_per_core]
             assert threads_per_core == bw_measurements['threads per core'], \
                 'malformed measurement dictionary in machine file.'
             run_index = bw_measurements['cores'].index(cores)
@@ -354,8 +353,8 @@ class Roofline:
             performance = arith_intens * float(bw)
             results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
-                'level': self.machine['memory hierarchy'][cache_level]['level'] + '-' + \
-                    self.machine['memory hierarchy'][cache_level+1]['level'],
+                'level': (self.machine['memory hierarchy'][cache_level]['level'] + '-' +
+                          self.machine['memory hierarchy'][cache_level+1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw})
@@ -376,8 +375,8 @@ class Roofline:
             print('--------+--------------+-----------------+------------+-----------------')
             print('    CPU |              | {:>15} |            |'.format(max_flops))
             for b in self._results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} | {bandwidth:>10} | {bw kernel:<8}'.format(
-                    **b))
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
+                      ' {bandwidth:>10} | {bw kernel:<8}'.format(**b))
             print()
 
         # TODO support SP

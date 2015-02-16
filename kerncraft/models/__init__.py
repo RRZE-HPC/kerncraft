@@ -1,6 +1,7 @@
 '''Collection of performance models
 
-This model combines all performance models currently supported by kerncraft. Only the performace model class is exported, so please add new models to __all__.
+This model combines all performance models currently supported by kerncraft. Only the performace
+model class is exported, so please add new models to __all__.
 
 The exported classes must have the following class level attributes:
   * name (str) is the name of the performance model (no abreviatation)
