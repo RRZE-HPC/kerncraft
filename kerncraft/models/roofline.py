@@ -321,10 +321,10 @@ class Roofline:
             measurement_kernel = 'load'
             measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
             for kernel_name, kernel_info in self.machine['benchmarks']['kernels'].items():
-                if (read_streams >= kernel_info['read streams']['streams'] + 
-                                    kernel_info['write streams']['streams'] - 
+                if (read_streams >= kernel_info['read streams']['streams'] +
+                                    kernel_info['write streams']['streams'] -
                                     kernel_info['read+write streams']['streams'] >
-                        measurement_kernel_info['read streams']['streams'] + 
+                        measurement_kernel_info['read streams']['streams'] +
                         measurement_kernel_info['write streams']['streams'] -
                         measurement_kernel_info['read+write streams']['streams'] and
                         write_streams >= kernel_info['write streams']['streams'] >
@@ -340,14 +340,14 @@ class Roofline:
                 'malformed measurement dictionary in machine file.'
             run_index = bw_measurements['cores'].index(cores)
             bw = bw_measurements['results'][measurement_kernel][run_index]
-            
+
             # Correct bandwidth due to miss-measurement of write allocation
             # TODO support non-temporal stores and non-write-allocate architectures
             measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
-            factor = (float(measurement_kernel_info['read streams']['bytes']) + 
-                      2.0*float(measurement_kernel_info['write streams']['bytes']) - 
+            factor = (float(measurement_kernel_info['read streams']['bytes']) +
+                      2.0*float(measurement_kernel_info['write streams']['bytes']) -
                       float(measurement_kernel_info['read+write streams']['bytes'])) / \
-                     (float(measurement_kernel_info['read streams']['bytes']) + 
+                     (float(measurement_kernel_info['read streams']['bytes']) +
                       float(measurement_kernel_info['write streams']['bytes']))
             bw = bw * factor
 
