@@ -1,5 +1,5 @@
-double a[N], b[N], c[N];
+double a[N], b[N], c[N], d[N];
 double s;
 
 for(int i=0; i<N; ++i)
-    a[i] = b[i] + s * c[i];
+    a[i] = b[i] + c[i] * d[i];

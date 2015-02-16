@@ -305,6 +305,7 @@ class Roofline:
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
+            # write-allocate is allready resolved above
             read_streams = 0
             for var_name in misses[cache_level].keys():
                 for idx_order in misses[cache_level][var_name]:
@@ -313,22 +314,21 @@ class Roofline:
             for var_name in evicts[cache_level].keys():
                 for idx_order in evicts[cache_level][var_name]:
                     write_streams += len(evicts[cache_level][var_name][idx_order])
-            read_write_streams = 0
-            for var_name in set(evicts[cache_level].keys()) & set(misses[cache_level].keys()):
-                for idx_order in set(evicts[cache_level][var_name].keys()) & \
-                        set(misses[cache_level][var_name].keys()):
-                    read_write_streams += len(set(evicts[cache_level][var_name][idx_order]) &
-                                              set(misses[cache_level][var_name][idx_order]))
+            print(read_streams, write_streams)
             # second, try to find best fitting kernel (closest to stream seen stream counts):
+            # write allocate has to be handled in kernel information (all writes are also reads)
+            # TODO support for non-write-allocate architectures
             measurement_kernel = 'load'
             measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
             for kernel_name, kernel_info in self.machine['benchmarks']['kernels'].items():
-                if (read_streams >= kernel_info['read streams']['streams'] >
-                        measurement_kernel_info['read streams']['streams'] and
+                if (read_streams >= kernel_info['read streams']['streams'] + 
+                                    kernel_info['write streams']['streams'] - 
+                                    kernel_info['read+write streams']['streams'] >
+                        measurement_kernel_info['read streams']['streams'] + 
+                        measurement_kernel_info['write streams']['streams'] -
+                        measurement_kernel_info['read+write streams']['streams'] and
                         write_streams >= kernel_info['write streams']['streams'] >
-                        measurement_kernel_info['write streams']['streams'] and
-                        read_write_streams >= kernel_info['read+write streams']['streams'] >
-                        measurement_kernel_info['read+write streams']['streams']):
+                        measurement_kernel_info['write streams']['streams']):
                     measurement_kernel = kernel_name
                     measurement_kernel_info = kernel_info
 
@@ -340,6 +340,16 @@ class Roofline:
                 'malformed measurement dictionary in machine file.'
             run_index = bw_measurements['cores'].index(cores)
             bw = bw_measurements['results'][measurement_kernel][run_index]
+            
+            # Correct bandwidth due to miss-measurement of write allocation
+            # TODO support non-temporal stores and non-write-allocate architectures
+            measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
+            factor = (float(measurement_kernel_info['read streams']['bytes']) + 
+                      2.0*float(measurement_kernel_info['write streams']['bytes']) - 
+                      float(measurement_kernel_info['read+write streams']['bytes'])) / \
+                     (float(measurement_kernel_info['read streams']['bytes']) + 
+                      float(measurement_kernel_info['write streams']['bytes']))
+            bw = bw * factor
 
             performance = arith_intens * float(bw)
             results['mem bottlenecks'].append({
@@ -362,11 +372,11 @@ class Roofline:
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:')
-            print('  level |   performance   |  bandwidth | bandwidth kernel')
-            print('--------+-----------------+------------+-----------------')
-            print('    CPU | {:>15} |            |'.format(max_flops))
+            print('  level | a. intensity |   performance   |  bandwidth | bandwidth kernel')
+            print('--------+--------------+-----------------+------------+-----------------')
+            print('    CPU |              | {:>15} |            |'.format(max_flops))
             for b in self._results['mem bottlenecks']:
-                print('{level:>7} | {performance:>15} | {bandwidth:>10} | {bw kernel:<8}'.format(
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} | {bandwidth:>10} | {bw kernel:<8}'.format(
                     **b))
             print()
 
