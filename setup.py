@@ -80,8 +80,7 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'kerncraft': ['headers/dummy.c', 'examples/kernels/*.c', 'examples/kernels/*.testcases', 
-                      'examples/machine-files/*.yaml'],
+        'kerncraft': ['headers/dummy.c'],
     },
 
     # Although 'package_data' is the preferred approach, in some case you may
