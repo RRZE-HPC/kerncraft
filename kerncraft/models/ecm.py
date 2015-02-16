@@ -640,6 +640,6 @@ class ECM:
             ax.set_yticks(yticks)
             ax.set_yticklabels(yticks_labels)
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
-            ax.grid(axis='x', alpha=0.7, linestyle='--')
+            ax.set_xticklabels(xticks_labels, rotation='vertical')
+            ax.xaxis.grid(alpha=0.7, linestyle='--')
             fig.savefig(self._args.ecm_plot)
