@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=W0142
 
 from __future__ import print_function
 
@@ -10,8 +11,8 @@ import os.path
 
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
-import kerncraft.iaca_marker as iaca
 
+import iaca_marker as iaca
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
     textblock = textblock.split('\n')

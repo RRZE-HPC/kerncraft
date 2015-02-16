@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# pylint: disable=W0142
 
 class Intervals:
     '''Very simple interval implementation for integers (might also work on floats)'''

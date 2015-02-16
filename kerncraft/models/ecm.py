@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=W0142
 
 from __future__ import print_function
 from pprint import pprint
@@ -18,9 +19,7 @@ try:
 except ImportError:
     plot_support = False
 
-from kerncraft import intervals
-from kerncraft.kernel import Kernel
-from kerncraft.machinemodel import MachineModel
+from kerncraft.intervals import Intervals
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
@@ -242,7 +241,7 @@ class ECMData:
                     hits[i][name] = {}
 
                     for idx_order in read_offsets[name].keys()+write_offsets[name].keys():
-                        cache[name][idx_order] = intervals.Intervals()
+                        cache[name][idx_order] = Intervals()
                         if i-1 not in misses:
                             misses[i][name][idx_order] = sorted(
                                 read_offsets.get(name, {}).get(idx_order, []) +
@@ -278,14 +277,14 @@ class ECMData:
                                 # iterations overlap, thus we can savely add the whole range
                                 cached_first, cached_last = self._expand_to_cacheline_blocks(
                                     offset-iter_offset*trace_length, offset+1)
-                                cache[var_name][idx_order] &= intervals.Intervals(
+                                cache[var_name][idx_order] &= Intervals(
                                     [cached_first, cached_last+1], sane=True)
                             else:
                                 # There is no overlap, we can append the ranges onto one another
                                 # TODO optimize this code section (and maybe merge with above)
                                 new_cache = [self._expand_to_cacheline_blocks(o, o) for o in range(
                                     offset-iter_offset*trace_length, offset+1, iter_offset)]
-                                new_cache = intervals.Intervals(*new_cache, sane=True)
+                                new_cache = Intervals(*new_cache, sane=True)
                                 cache[var_name][idx_order] &= new_cache
 
                         trace_count += len(cache[var_name][idx_order]._data)

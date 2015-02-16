@@ -5,7 +5,7 @@ from pprint import pprint
 from functools import reduce
 import operator
 
-from kerncraft import intervals
+from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
 
 # Datatype sizes in bytes
@@ -203,7 +203,7 @@ class Roofline:
                     hits[cache_level][name] = {}
 
                     for idx_order in read_offsets[name].keys()+write_offsets[name].keys():
-                        cache[name][idx_order] = intervals.Intervals()
+                        cache[name][idx_order] = Intervals()
                         if cache_level-1 not in misses:
                             misses[cache_level][name][idx_order] = sorted(
                                 read_offsets.get(name, {}).get(idx_order, []) +
@@ -240,14 +240,14 @@ class Roofline:
                                 # iterations overlap, thus we can savely add the whole range
                                 cached_first, cached_last = self._expand_to_cacheline_blocks(
                                     offset-iter_offset*trace_length, offset+1)
-                                cache[var_name][idx_order] &= intervals.Intervals(
+                                cache[var_name][idx_order] &= Intervals(
                                     [cached_first, cached_last+1], sane=True)
                             else:
                                 # There is no overlap, we can append the ranges onto one another
                                 # TODO optimize this code section (and maybe merge with above)
                                 new_cache = [self._expand_to_cacheline_blocks(o, o) for o in range(
                                     offset-iter_offset*trace_length, offset+1, iter_offset)]
-                                new_cache = intervals.Intervals(*new_cache, sane=True)
+                                new_cache = Intervals(*new_cache, sane=True)
                                 cache[var_name][idx_order] &= new_cache
 
                         trace_count += len(cache[var_name][idx_order]._data)
