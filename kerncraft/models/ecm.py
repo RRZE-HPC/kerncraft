@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from textwrap import dedent
 from pprint import pprint
-from functools import reduce
+from functools import reduce as reduce_
 import operator
-import math
 import copy
 import sys
 import subprocess
@@ -61,58 +59,6 @@ def flatten_dict(d):
     return e
 
 
-class ArrayAccess:
-    '''
-    This class under stands array acceess based on multidimensional indices and one dimensional
-    functions of style i*N+j
-    '''
-    def __init__(self, aref=None, array_info=None):
-        '''If *aref* (and *array_info*) is present, this will be parsed.'''
-        self.sym_expr = None
-        self.index_parameters = {}
-        if aref:
-            self.parse(aref, array_info=array_info)
-
-    def parse(self, aref, dim=0, array_info=None):
-        if type(aref.name) is c_ast.ArrayRef:
-            from_higher_dim = self.parse(aref.name, dim=dim+1, array_info=array_info)
-        else:
-            from_higher_dim = 0
-
-        if array_info and dim != 0:
-            dim_stride = reduce(lambda m, n: sympy.Mul(m, n, evaluate=False), array_info[1][:dim])
-        else:
-            dim_stride = 1
-
-        sym_expr = sympy.Mul(conv_ast_to_sympy(aref.subscript), dim_stride, evaluate=False) + \
-            from_higher_dim
-
-        if dim == 0:
-            # Store gathered information
-            self.sym_expr = sym_expr
-        else:
-            # Return gathered information
-            return sym_expr
-
-    def extract_parameters(self):
-        eq = self.sym_expr.simplify()
-        terms = eq.as_ordered_terms()
-
-        for t in terms:
-            if type(t) is sympy.Symbol:
-                self.index_parameters[t.name] = {}
-            elif type(t) is sympy.Mul:
-                for a in t.args:
-                    if type(a) is sympy.Symbol:
-                        self.index_parameters[a.name] = {}
-                    elif type(a) is sympy.Integer:
-                        #self.
-                        pass
-
-    def __repr__(self):
-        return unicode(self.sym_expr)
-
-
 class ECMData:
     """
     class representation of the Execution-Cache-Memory Model (only the data part)
@@ -126,7 +72,7 @@ class ECMData:
     def configure_arggroup(cls, parser):
         pass
 
-    def __init__(self, kernel, machine, args=None):
+    def __init__(self, kernel, machine, args=None, parser=None):
         """
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
@@ -153,7 +99,7 @@ class ECMData:
             assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
 
             if offset_type == 'rel':
-                offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
+                offset += dim_offset*reduce_(operator.mul, base_dims[dim+1:], 1)
             else:
                 # should not happen
                 pass
@@ -172,7 +118,7 @@ class ECMData:
 
         for dim, index_name in enumerate(index_order):
             if loop_index == index_name:
-                offset += reduce(operator.mul, base_dims[dim+1:], 1)
+                offset += reduce_(operator.mul, base_dims[dim+1:], 1)
 
         return offset
 
@@ -446,11 +392,12 @@ class ECMCPU:
                             help='Number of ASM block to mark for IACA, "auto" for automatic '
                                  'selection or "manual" for interactiv selection.')
 
-    def __init__(self, kernel, machine, args=None):
+    def __init__(self, kernel, machine, args=None, parser=None):
         """
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
+        if *args* is given also *parser* has to be provided
         """
         self.kernel = kernel
         self.machine = machine
@@ -549,7 +496,7 @@ class ECM:
             '--ecm-plot',
             help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
 
-    def __init__(self, kernel, machine, args=None):
+    def __init__(self, kernel, machine, args=None, parser=None):
         """
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
@@ -563,8 +510,8 @@ class ECM:
             # handle CLI info
             pass
 
-        self._CPU = ECMCPU(kernel, machine, args)
-        self._data = ECMData(kernel, machine, args)
+        self._CPU = ECMCPU(kernel, machine, args, parser)
+        self._data = ECMData(kernel, machine, args, parser)
 
     def analyze(self):
         self._CPU.analyze()
@@ -587,9 +534,6 @@ class ECM:
 
         if self._args and self._args.ecm_plot:
             assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
-
-            results = self.results['cycles'] + [('T_OL', self.results['T_OL']) +
-                                                ('T_nOL', self.results['T_nOL'])]
 
             fig = plt.figure(frameon=False)
             ax = fig.add_subplot(1, 1, 1)

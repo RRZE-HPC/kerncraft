@@ -7,11 +7,10 @@ import operator
 import tempfile
 import subprocess
 import os.path
-import operator
 
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
-import iaca_marker as iaca
+import kerncraft.iaca_marker as iaca
 
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
@@ -559,7 +558,7 @@ class Kernel:
         '''
 
         if not self._filename:
-            in_file = tempfile.NamedTempfile(suffix='_compilable.c').file
+            in_file = tempfile.NamedTemporaryFile(suffix='_compilable.c').file
         else:
             in_file = open(self._filename+"_compilable.c", 'w')
 

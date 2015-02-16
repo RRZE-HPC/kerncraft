@@ -1,8 +1,6 @@
 #!/usr/bin/env python
-import re
 
 import yaml
-import prefixedunit
 
 
 class MachineModel:

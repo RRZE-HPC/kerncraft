@@ -8,7 +8,7 @@ class Intervals:
         '''if keywords *sane* is True (default: False), checks will not be done on given data.'''
         self._data = list(args)
         if not kwargs.get('sane', False):
-            self._data = filter(lambda (lower, upper): upper > lower, self._data)
+            self._data = [d for d in self._data if d[1] > d[0]]
             self._enforce_order()
             self._enforce_no_overlap()
 

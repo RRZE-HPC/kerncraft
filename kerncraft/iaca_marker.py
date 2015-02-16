@@ -69,7 +69,7 @@ def find_asm_blocks(asm_lines, with_nop=True):
             const_start = line.find('$')+1
             const_end = line[const_start+1:].find(',')+const_start+1
             last_incr = -int(line[const_start:const_end])
-        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+'\s+', line.strip()):
+        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s+', line.strip()):
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
                            'lines': i-last_label_line,

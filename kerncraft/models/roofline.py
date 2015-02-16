@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from textwrap import dedent
 from pprint import pprint
 from functools import reduce
 import operator
-import copy
-import sys
 
 from kerncraft import intervals
-from kerncraft.kernel import Kernel
-from kerncraft.machinemodel import MachineModel
 from kerncraft.prefixedunit import PrefixedUnit
 
 # Datatype sizes in bytes

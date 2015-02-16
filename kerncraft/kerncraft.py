@@ -6,34 +6,31 @@ import argparse
 import ast
 import sys
 import os.path
-import subprocess
-import re
 
 import models
-from models.ecm import ECM
 from kernel import Kernel
 from machinemodel import MachineModel
 
 
 class AppendStringInteger(argparse.Action):
-        """Action to append a string and integer"""
-        def __call__(self, parser, namespace, values, option_string=None):
-            message = ''
-            if len(values) != 2:
-                message = 'requires 2 arguments'
-            else:
-                try:
-                    values[1] = int(values[1])
-                except ValueError:
-                    message = ('second argument requires an integer')
+    """Action to append a string and integer"""
+    def __call__(self, parser, namespace, values, option_string=None):
+        message = ''
+        if len(values) != 2:
+            message = 'requires 2 arguments'
+        else:
+            try:
+                values[1] = int(values[1])
+            except ValueError:
+                message = ('second argument requires an integer')
 
-            if message:
-                raise argparse.ArgumentError(self, message)
+        if message:
+            raise argparse.ArgumentError(self, message)
 
-            if hasattr(namespace, self.dest):
-                getattr(namespace, self.dest).append(values)
-            else:
-                setattr(namespace, self.dest, [values])
+        if hasattr(namespace, self.dest):
+            getattr(namespace, self.dest).append(values)
+        else:
+            setattr(namespace, self.dest, [values])
 
 
 def main():
@@ -101,7 +98,7 @@ def main():
             kernel.print_kernel_info()
 
             for model_name in set(args.pmodel):
-                model = getattr(models, model_name)(kernel, machine, args)
+                model = getattr(models, model_name)(kernel, machine, args, parser)
 
                 model.analyze()
                 model.report()
