@@ -52,12 +52,22 @@ def main():
                         help='Increases verbosity level.')
     parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(), nargs='+',
                         help='File with loop kernel C code')
+    parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
+                        help='Number of ASM block to mark for IACA, "auto" for automatic '
+                             'selection or "manual" for interactiv selection.')
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)
 
     # BUSINESS LOGIC IS FOLLOWING
     args = parser.parse_args()
+    
+    # Checking arguments
+    if args.asm_block not in ['auto', 'manual']:
+        try:
+            args.asm_block = int(args.asm_block)
+        except ValueError:
+            parser.error('--asm-block can only be "auto", "manual" or an integer')
 
     # machine information
     # Read machine description

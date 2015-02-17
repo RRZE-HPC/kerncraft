@@ -12,6 +12,6 @@ The exported classes must have the following class level attributes:
   * results (dict) must be available after analyze has been called
 '''
 from ecm import ECM, ECMData, ECMCPU
-from roofline import Roofline
+from roofline import Roofline, RooflineIACA
 
-__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline']
+__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA']

@@ -80,6 +80,7 @@ class ECMData:
         self.kernel = kernel
         self.machine = machine
         self._args = args
+        self._parser = parser
 
         if args:
             # handle CLI info
@@ -387,9 +388,7 @@ class ECMCPU:
 
     @classmethod
     def configure_arggroup(cls, parser):
-        parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
-                            help='Number of ASM block to mark for IACA, "auto" for automatic '
-                                 'selection or "manual" for interactiv selection.')
+        pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
@@ -401,6 +400,7 @@ class ECMCPU:
         self.kernel = kernel
         self.machine = machine
         self._args = args
+        self._parser = parser
 
         if args:
             # handle CLI info

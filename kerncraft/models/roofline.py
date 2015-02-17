@@ -4,6 +4,8 @@ from __future__ import print_function
 from pprint import pprint
 from functools import reduce
 import operator
+import subprocess
+import re
 
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
@@ -58,7 +60,7 @@ class Roofline:
     def configure_arggroup(cls, parser):
         pass
 
-    def __init__(self, kernel, machine, args=None):
+    def __init__(self, kernel, machine, args=None, parser=None):
         """
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
@@ -67,6 +69,7 @@ class Roofline:
         self.kernel = kernel
         self.machine = machine
         self._args = args
+        self._parser = parser
 
         if args:
             # handle CLI info
@@ -308,7 +311,6 @@ class Roofline:
             for var_name in evicts[cache_level].keys():
                 for idx_order in evicts[cache_level][var_name]:
                     write_streams += len(evicts[cache_level][var_name][idx_order])
-            print(read_streams, write_streams)
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             # write allocate has to be handled in kernel information (all writes are also reads)
             # TODO support for non-write-allocate architectures
@@ -359,7 +361,7 @@ class Roofline:
         return results
 
     def analyze(self):
-        self._results = self.calculate_cache_access()
+        self.results = self.calculate_cache_access()
 
     def report(self):
         max_flops = self.machine['clock']*sum(self.machine['FLOPs per cycle']['DP'].values())
@@ -369,13 +371,13 @@ class Roofline:
             print('  level | a. intensity |   performance   |  bandwidth | bandwidth kernel')
             print('--------+--------------+-----------------+------------+-----------------')
             print('    CPU |              | {:>15} |            |'.format(max_flops))
-            for b in self._results['mem bottlenecks']:
+            for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
                       ' {bandwidth:>10} | {bw kernel:<8}'.format(**b))
             print()
 
         # TODO support SP
-        if self._results['min performance'] > max_flops:
+        if self.results['min performance'] > max_flops:
             # CPU bound
             print('CPU bound')
             print('{!s} due to CPU max. FLOP/s'.format(max_flops))
@@ -383,9 +385,119 @@ class Roofline:
             # Cache or mem bound
             print('Cache or mem bound')
 
-            bottleneck = self._results['mem bottlenecks'][self._results['bottleneck level']]
+            bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
                 bottleneck['performance'],
                 bottleneck['level'],
                 bottleneck['bw kernel']))
-        print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))
+            print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))
+
+class RooflineIACA(Roofline):
+    """
+    class representation of the Roofline Model (with IACA throughput analysis)
+
+    more info to follow...
+    """
+
+    name = "Roofline (with IACA throughput)"
+
+    @classmethod
+    def configure_arggroup(cls, parser):
+        pass
+
+    def __init__(self, kernel, machine, args=None, parser=None):
+        """
+        *kernel* is a Kernel object
+        *machine* describes the machine (cpu, cache and memory) characteristics
+        *args* (optional) are the parsed arguments from the comand line
+        if *args* is given also *parser* has to be provided
+        """
+        Roofline.__init__(self, kernel, machine, args, parser)
+
+    def analyze(self):
+        self.results = self.calculate_cache_access()
+        
+        # For the IACA/CPU analysis we need to compile and assemble
+        asm_name = self.kernel.compile(compiler_args=self.machine['icc architecture flags'])
+        bin_name = self.kernel.assemble(
+            asm_name, iaca_markers=True, asm_block=self._args.asm_block)
+
+        iaca_output = subprocess.check_output(
+            ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
+
+        # Get total cycles per loop iteration
+        match = re.search(
+            r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
+        assert match, "Could not find Block Throughput in IACA output."
+        block_throughput = float(match.groups()[0])
+
+        # Find ports and cyles per port
+        ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
+        cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
+        assert ports and cycles, "Could not find ports/cylces lines in IACA output."
+        ports = map(str.strip, ports[0].split('|'))[2:]
+        cycles = map(str.strip, cycles[0].split('|'))[2:]
+        port_cycles = []
+        for i in range(len(ports)):
+            if '-' in ports[i] and ' ' in cycles[i]:
+                subports = map(str.strip, ports[i].split('-'))
+                subcycles = filter(bool, cycles[i].split(' '))
+                port_cycles.append((subports[0], float(subcycles[0])))
+                port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
+            elif ports[i] and cycles[i]:
+                port_cycles.append((ports[i], float(cycles[i])))
+        port_cycles = dict(port_cycles)
+
+        match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
+        assert match, "Could not find Uops in IACA output."
+        uops = float(match.groups()[0])
+
+        # Normalize to cycles per cacheline
+        elements_per_block = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
+        block_size = elements_per_block*8  # TODO support SP
+        block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
+
+        port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
+        uops = uops*block_to_cl_ratio
+        cl_throughput = block_throughput*block_to_cl_ratio
+        flops_per_element = sum(self.kernel._flops.values())
+
+        # Create result dictionary
+        self.results.update({
+            'cpu bottleneck': {
+                'port cycles': port_cycles,
+                'cl throughput': cl_throughput,
+                'uops': uops,
+                'performance':
+                    self.machine['clock']/block_throughput*elements_per_block*flops_per_element}})
+        self.results['cpu bottleneck']['performance'].unit = 'FLOP/s'
+
+    def report(self):
+        cpu_flops = PrefixedUnit(self.results['cpu bottleneck']['performance'], "FLOP/s")
+        if self._args and self._args.verbose >= 1:
+            print('Bottlnecks:')
+            print('  level | a. intensity |   performance   |  bandwidth | bandwidth kernel')
+            print('--------+--------------+-----------------+------------+-----------------')
+            print('    CPU |              | {:>15} |            |'.format(cpu_flops))
+            for b in self.results['mem bottlenecks']:
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
+                      ' {bandwidth:>10} | {bw kernel:<8}'.format(**b))
+            print()
+            print('IACA analisys:')
+            print(self.results['cpu bottleneck'])
+
+        # TODO support SP
+        if float(self.results['min performance']) > float(cpu_flops):
+            # CPU bound
+            print('CPU bound')
+            print('{!s} due to CPU bottleneck'.format(cpu_flops))
+        else:
+            # Cache or mem bound
+            print('Cache or mem bound')
+
+            bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
+            print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
+                bottleneck['performance'],
+                bottleneck['level'],
+                bottleneck['bw kernel']))
+            print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))
