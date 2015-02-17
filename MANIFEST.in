@@ -1,0 +1,2 @@
+recursive-include examples/machine-files *.yaml
+recursive-include examples/kernels *.c *.testcases
