@@ -7,6 +7,7 @@ import sys
 from pprint import pprint
 from itertools import chain
 from copy import copy
+from textwrap import dedent
 
 import yaml
 
@@ -94,6 +95,24 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     return PrefixedUnit(bw, 'MB/s')
 
 
+def cli():
+    # TODO support everything described here
+    if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
+        print('''Usage:', sys.argv[0], '[-h] {collect|measure} [machinefile] | upgrade machinefile
+        
+        collect will retriev as much hardware information as possible, without benchmarking
+        measure will do the same as collect, but also include memory benchmarks
+        
+        If machinefile already exists the CPU name will be compared. If they matche, measurements 
+        will proceed and the file is updated accordingly. All other information in the file 
+        (typically manually inserted) will be left alone.
+        
+        If no machinefile is given, the information will be printed to stdout.
+        
+        updgrade will transform machinefile to the most up-to-date machine file version.
+        ''')
+
+
 def main():
     machine = get_machine_topology()
 
@@ -143,10 +162,7 @@ def main():
                     for c in cores]
             else:
                 last_mem = machine['memory hierarchy'][-2]
-                total_sizes = [
-                    max(last_mem['size per group']*c/mem['cores per group'],
-                        last_mem['size per group'])/USAGE_FACTOR
-                    for c in cores]
+                total_sizes = [last_mem['size per group']/USAGE_FACTOR] * len(cores)
             sizes_per_core = [t/cores[i] for i, t in enumerate(total_sizes)]
             sizes_per_thread = [t/threads[i] for i, t in enumerate(total_sizes)]
 
