@@ -22,8 +22,10 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
 
 def get_machine_topology():
     topo = subprocess.Popen(['likwid-topology'], stdout=subprocess.PIPE).communicate()[0]
+    cpuinfo = open('/proc/cpuinfo', 'r').read()
     machine = {
-        'model name': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
+        'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
+        'model name': get_match_or_break(r'^model name      : (.+?)\s*$', cpuinfo)[0],
         'sockets': int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0]),
         'cores per socket': int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0]),
         'threads per core': int(get_match_or_break(r'^Threads per core:\s+([0-9]+)\s*$', topo)[0]),
@@ -60,8 +62,7 @@ def get_machine_topology():
             mem_level['threads per group'] = \
                 mem_level['cores per group'] * machine['threads per core']
         mem_level['cycles per cacheline transfer'] = 'INFORMATION_REQUIRED'
-        mem_level['bandwidth per core'] = 'INFORMATION_REQUIRED'
-        mem_level['max. total bandwidth'] = 'INFORMATION_REQUIRED'
+        mem_level['bandwidth'] = 'INFORMATION_REQUIRED'
 
         if len(mem_level) == 8:
             machine['memory hierarchy'].append(mem_level)
@@ -162,7 +163,7 @@ def main():
                     for c in cores]
             else:
                 last_mem = machine['memory hierarchy'][-2]
-                total_sizes = [last_mem['size per group']/USAGE_FACTOR] * len(cores)
+                total_sizes = [last_mem['size per group']/USAGE_FACTOR for c in cores]
             sizes_per_core = [t/cores[i] for i, t in enumerate(total_sizes)]
             sizes_per_thread = [t/threads[i] for i, t in enumerate(total_sizes)]
 
