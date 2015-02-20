@@ -3,10 +3,11 @@
 
 from __future__ import print_function
 
-from copy import copy
+from copy import copy, deepcopy
 import operator
 import tempfile
 import subprocess
+import os
 import os.path
 
 from pycparser import CParser, c_ast, c_generator
@@ -117,8 +118,6 @@ class Kernel:
         self._constants = {} if constants is None else constants
         self._variables = {} if variables is None else variables
         self._flops = {}
-        self.blocks = {}  # ASM block information, populated after call to assemble
-        self.block_idx = None  # Block index used for marking (and containing the inner loop)
 
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -372,8 +371,13 @@ class Kernel:
 
         return sources
 
-    def as_code(self):
-        ast = copy(self.kernel_ast)
+    def as_code(self, type_='iaca'):
+        '''
+        generates compilable source code from AST
+
+        *type* can be iaca or likwid.
+        '''
+        ast = deepcopy(self.kernel_ast)
         declarations = filter(lambda d: type(d) is c_ast.Decl, ast.block_items)
 
         # transform multi-dimensional declarations to one dimensional references
@@ -392,6 +396,12 @@ class Kernel:
             ast.block_items.insert(0, c_ast.Decl(
                 k, ['const'], [], [],
                 type_decl, init, None))
+
+        if type_ == 'likwid':
+            # Call likwid_markerInit()
+            ast.block_items.insert(0, c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None))
+            # Call likwid_markerClose()
+            ast.block_items.append(c_ast.FuncCall(c_ast.ID('likwid_markerClose'), None))
 
         # inject array initialization
         for d in declarations:
@@ -452,12 +462,43 @@ class Kernel:
         map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
             find_array_references(ast))
 
-        # Mark the outer for-loop by injecting asm("nop");
-        ast.block_items.insert(
-            -1,
-            c_ast.FuncCall(c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
-        ast.block_items.append(
-            c_ast.FuncCall(c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
+        if type_ == 'iaca':
+            # Mark the outer for-loop by injecting asm("nop");
+            ast.block_items.insert(-1, c_ast.FuncCall(
+                c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
+            ast.block_items.append(c_ast.FuncCall(
+                c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
+        elif type_ == 'likwid':
+            # Instrument the outer for-loop with likwid
+            ast.block_items.insert(-2, c_ast.FuncCall(
+                c_ast.ID('likwid_markerStartRegion'),
+                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+
+            dummies = []
+            # Make sure nothing gets removed by inserting dummy calls
+            for d in declarations:
+                dummies.append(c_ast.FuncCall(
+                    c_ast.ID('dummy'), c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+
+            # Wrap everything in a reapeat loop
+            # int repeat = atoi(argv[2])
+            type_decl = c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int']))
+            init = c_ast.FuncCall(
+                c_ast.ID('atoi'),
+                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', '2'))]))
+            ast.block_items.insert(-3, c_ast.Decl(
+                'repeat', ['const'], [], [],
+                type_decl, init, None))
+            # for(; repeat > 0; repeat--) {...}
+            cond = c_ast.BinaryOp( '>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
+            next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
+            stmt = c_ast.Compound([ast.block_items.pop(-2)]+dummies)
+
+            ast.block_items.insert(-2, c_ast.For(None, cond, next_, stmt))
+
+            ast.block_items.insert(-1, c_ast.FuncCall(
+                c_ast.ID('likwid_markerStopRegion'),
+                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
 
         # embedd Compound into main FuncDecl
         decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
@@ -486,6 +527,8 @@ class Kernel:
 
         # add "#include"s for dummy and stdlib (for malloc)
         code = '#include <stdlib.h>\n\n' + code
+        if type_ == 'likwid':
+            code = '#include <likwid.h>\n' + code
 
         return code
 
@@ -518,19 +561,19 @@ class Kernel:
         if iaca_markers:
             with open(in_filename, 'r') as in_file:
                 lines = in_file.readlines()
-            self.blocks = iaca.find_asm_blocks(lines)
+            blocks = iaca.find_asm_blocks(lines)
 
             # TODO check for already present markers
 
             # Choose best default block:
-            block_idx = iaca.select_best_block(self.blocks)
+            block_idx = iaca.select_best_block(blocks)
             if asm_block == 'manual':
-                block_idx = iaca.userselect_block(self.blocks, default=block_idx)
+                block_idx = iaca.userselect_block(blocks, default=block_idx)
             elif asm_block != 'auto':
                 block_idx = asm_block
-            self.block_idx = block_idx
+            block_idx = block_idx
 
-            block = self.blocks[block_idx][1]
+            block = blocks[block_idx][1]
 
             # Insert markers:
             lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])
@@ -551,7 +594,7 @@ class Kernel:
 
     def compile(self, compiler_args=None):
         '''
-        Compiles source (from as_code()) to assembly.
+        Compiles source (from as_code(type_)) to assembly.
 
         Returns two-tuple (filepointer, filename) to assembly file.
 
@@ -585,6 +628,46 @@ class Kernel:
 
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
+
+    def build(self, cflags=None, lflags=None):
+        '''
+        compiles source to executable with likwid capabilities
+
+        returns the executable name
+        '''
+        assert 'LIKWID_INCLUDE' in os.environ and 'LIKWID_LIB' in os.environ, \
+            'Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables'
+
+        if cflags is None:
+            cflags = []
+        cflags += ['-O3', '-fno-alias', '-std=c99', os.environ['LIKWID_INCLUDE']]
+
+        if cflags is None:
+            cflags = []
+        lflags += LIKWID_LIB.split(' ') + ['-pthread']
+
+        if not self._filename:
+            source_file = tempfile.NamedTemporaryFile(suffix='_compilable.c')
+        else:
+            source_file = open(self._filename+"_compilable.c", 'w')
+
+        source_file.write(self.as_code(type_='likwid'))
+        source_file.flush()
+
+        infiles += ['headers/dummy.c'. source_file.name]
+        if self._filename:
+            outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
+        else:
+            outfile = tempfile.mkstemp(suffix='.likwid_marked')
+        cmd = ['icc'] + infiles + cflags + ['-o', outfile]
+
+        try:
+            # print(cmd)
+            subprocess.check_output(cmd)
+        finally:
+            source_file.close()
+        
+        return outfile
 
     def print_kernel_info(self):
         table = ('     idx |        min        max       step\n' +

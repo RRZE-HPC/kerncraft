@@ -13,5 +13,6 @@ The exported classes must have the following class level attributes:
 '''
 from ecm import ECM, ECMData, ECMCPU
 from roofline import Roofline, RooflineIACA
+from benchmark import Benchmark
 
-__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA']
+__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA', 'Benchmark']``
