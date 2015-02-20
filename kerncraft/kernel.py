@@ -477,8 +477,12 @@ class Kernel:
             dummies = []
             # Make sure nothing gets removed by inserting dummy calls
             for d in declarations:
-                dummies.append(c_ast.FuncCall(
-                    c_ast.ID('dummy'), c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+                if array_dimensions[d.name]:
+                    dummies.append(c_ast.FuncCall(
+                        c_ast.ID('dummy'), c_ast.ExprList([c_ast.ID(d.name)])))
+                else:
+                    dummies.append(c_ast.FuncCall(
+                        c_ast.ID('dummy'), c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
 
             # Wrap everything in a reapeat loop
             # int repeat = atoi(argv[2])
@@ -642,9 +646,9 @@ class Kernel:
             cflags = []
         cflags += ['-O3', '-fno-alias', '-std=c99', os.environ['LIKWID_INCLUDE']]
 
-        if cflags is None:
-            cflags = []
-        lflags += LIKWID_LIB.split(' ') + ['-pthread']
+        if lflags is None:
+            lflags = []
+        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(suffix='_compilable.c')
@@ -654,12 +658,13 @@ class Kernel:
         source_file.write(self.as_code(type_='likwid'))
         source_file.flush()
 
-        infiles += ['headers/dummy.c'. source_file.name]
+        infiles = [os.path.abspath(os.path.dirname(__file__))+'/headers/dummy.c', source_file.name]
         if self._filename:
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
-        cmd = ['icc'] + infiles + cflags + ['-o', outfile]
+        cmd = ['icc'] + infiles + cflags + lflags + ['-o', outfile]
+	print(' '.join(cmd))
 
         try:
             # print(cmd)
