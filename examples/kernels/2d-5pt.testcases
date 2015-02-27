@@ -1,24 +1,28 @@
-[{'constants': [('N', 511)],
+[{'constants': [('N', 300), ('M', 416666)],
   'results-to-compare': {'L1-L2': 6,
                          'L2-L3': 6,
                          'L3-MEM': 13,
                          'T_OL': 8,
-                         'T_nOL': 6}},
- {'constants': [('N', 4094)],
+                         #'T_nOL': 6
+                         }},
+ {'constants': [('N', 2000), ('M', 62500)],
   'results-to-compare': {'L1-L2': 10,
                          'L2-L3': 6,
                          'L3-MEM': 13,
                          'T_OL': 8,
-                         'T_nOL': 6}},
- {'constants': [('N', 327677)],
+                         #'T_nOL': 6
+                         }},
+ {'constants': [('N', 152495), ('M', 820)],
   'results-to-compare': {'L1-L2': 10,
                          'L2-L3': 10,
                          'L3-MEM': 13,
                          'T_OL': 8,
-                         'T_nOL': 6}},
- {'constants': [('N', 327681)],
+                         #'T_nOL': 6
+                         }},
+ {'constants': [('N', 600000), ('M', 208)],
   'results-to-compare': {'L1-L2': 10,
                          'L2-L3': 10,
                          'L3-MEM': 22,
                          'T_OL': 8,
-                         'T_nOL': 6}}]
+                         #'T_nOL': 6
+                         }}]

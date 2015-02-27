@@ -61,13 +61,12 @@ def transform_multidim_to_1d_ref(aref, dimension_dict):
 
     subscript_list = []
     for i, d in enumerate(dims):
-
         if i == 0:
             subscript_list.append(d)
         else:
             subscript_list.append(c_ast.BinaryOp('*', d, reduce(
                 lambda l, r: c_ast.BinaryOp('*', l, r),
-                dimension_dict[name.name][-i-1:-1])))
+                dimension_dict[name.name][-1:-i-1:-1])))
 
     aref.subscript = reduce(
         lambda l, r: c_ast.BinaryOp('+', l, r), subscript_list)
@@ -75,30 +74,34 @@ def transform_multidim_to_1d_ref(aref, dimension_dict):
 
 
 def transform_array_decl_to_malloc(decl):
-    '''Trans forms "type var_name[N]" to "type* var_name = malloc(sizeof(type)*N)'''
+    '''Transforms ast of "type var_name[N]" to "type* var_name = __mm_malloc(N, 32)"
+    (in-place)'''
     if type(decl.type) is not c_ast.ArrayDecl:
         # Not an array declaration, can be ignored
         return
 
     type_ = c_ast.PtrDecl([], decl.type.type)
-    init = c_ast.FuncCall(
-        c_ast.ID('malloc'),
+    decl.init = c_ast.FuncCall(
+        c_ast.ID('_mm_malloc'),
         c_ast.ExprList([
             c_ast.BinaryOp(
                 '*',
                 c_ast.UnaryOp(
                     'sizeof',
                     c_ast.Typename([], c_ast.TypeDecl(None, [], decl.type.type.type))),
-                decl.type.dim)]))
-
+                decl.type.dim),
+            c_ast.Constant('int', '32')]))
     decl.type = type_
-    decl.init = init
 
 
 def find_array_references(ast):
     '''returns list of array references in AST'''
     if type(ast) is c_ast.ArrayRef:
         return [ast]
+    elif type(ast) is list:
+        return map(find_array_references, ast)
+    elif ast is None:
+        return []
     else:
         return reduce(operator.add, map(lambda o: find_array_references(o[1]), ast.children()), [])
 
@@ -118,6 +121,8 @@ class Kernel:
         self._constants = {} if constants is None else constants
         self._variables = {} if variables is None else variables
         self._flops = {}
+        self.blocks = {}
+        self.block_idx = None
 
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -386,13 +391,15 @@ class Kernel:
         map(transform_array_decl_to_malloc, declarations)
 
         # add declarations for constants
+        i = 1  # subscript for cli input
         for k, v in self._constants.items():
             # cont int N = atoi(argv[1])
             # TODO change subscript of argv depending on constant count
             type_decl = c_ast.TypeDecl(k, ['const'], c_ast.IdentifierType(['int']))
             init = c_ast.FuncCall(
                 c_ast.ID('atoi'),
-                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', '1'))]))
+                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
+            i += 1
             ast.block_items.insert(0, c_ast.Decl(
                 k, ['const'], [], [],
                 type_decl, init, None))
@@ -438,7 +445,7 @@ class Kernel:
                 stmt = c_ast.Assignment(
                     '=',
                     c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
-                    c_ast.Constant('int', '0'))
+                    c_ast.Constant('float', '0.23'))
 
                 ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
 
@@ -449,7 +456,7 @@ class Kernel:
             else:
                 # this is a scalar, so a simple Assignment is enough
                 ast.block_items.insert(
-                    i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant('int', '0')))
+                    i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant('float', '0.23')))
 
                 # inject dummy access to scalar, so compiler does not over-optimize code
                 # TODO put if around it, so code will actually run
@@ -470,7 +477,7 @@ class Kernel:
                 c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
         elif type_ == 'likwid':
             # Instrument the outer for-loop with likwid
-            ast.block_items.insert(-2, c_ast.FuncCall(
+            ast.block_items.insert(-3, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
 
@@ -489,7 +496,8 @@ class Kernel:
             type_decl = c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int']))
             init = c_ast.FuncCall(
                 c_ast.ID('atoi'),
-                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', '2'))]))
+                c_ast.ExprList([c_ast.ArrayRef(
+                    c_ast.ID('argv'), c_ast.Constant('int', str(len(self._constants)+1)))]))
             ast.block_items.insert(-3, c_ast.Decl(
                 'repeat', ['const'], [], [],
                 type_decl, init, None))
@@ -565,19 +573,18 @@ class Kernel:
         if iaca_markers:
             with open(in_filename, 'r') as in_file:
                 lines = in_file.readlines()
-            blocks = iaca.find_asm_blocks(lines)
+            self.blocks = iaca.find_asm_blocks(lines)
 
             # TODO check for already present markers
 
             # Choose best default block:
-            block_idx = iaca.select_best_block(blocks)
+            self.block_idx = iaca.select_best_block(self.blocks)
             if asm_block == 'manual':
-                block_idx = iaca.userselect_block(blocks, default=block_idx)
+                self.block_idx = iaca.userselect_block(self.blocks, default=self.block_idx)
             elif asm_block != 'auto':
-                block_idx = asm_block
-            block_idx = block_idx
+                self.block_idx = asm_block
 
-            block = blocks[block_idx][1]
+            block = self.blocks[self.block_idx][1]
 
             # Insert markers:
             lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])
@@ -639,16 +646,18 @@ class Kernel:
 
         returns the executable name
         '''
-        assert 'LIKWID_INCLUDE' in os.environ and 'LIKWID_LIB' in os.environ, \
+        assert ('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and \
+            'LIKWID_LIB' in os.environ, \
             'Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables'
 
         if cflags is None:
             cflags = []
-        cflags += ['-O3', '-fno-alias', '-std=c99', os.environ['LIKWID_INCLUDE']]
+        cflags += ['-O3', '-fno-alias', '-std=c99', os.environ.get('LIKWID_INCLUDE', ''),
+                   os.environ.get('LIKWID_INC', '')]
 
         if lflags is None:
             lflags = []
-        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
+        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread', '-llikwid']
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(suffix='_compilable.c')
@@ -664,8 +673,7 @@ class Kernel:
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
         cmd = ['icc'] + infiles + cflags + lflags + ['-o', outfile]
-	print(' '.join(cmd))
-
+        print(' '.join(cmd))
         try:
             # print(cmd)
             subprocess.check_output(cmd)

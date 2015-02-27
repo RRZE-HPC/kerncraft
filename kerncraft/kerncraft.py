@@ -101,11 +101,13 @@ def main():
                 kernel.set_constant(k, v)
 
             kernel.process()
-            kernel.print_kernel_code()
-            print()
-            kernel.print_variables_info()
-            kernel.print_constants_info()
-            kernel.print_kernel_info()
+            if args.verbose > 1:
+                kernel.print_kernel_code()
+                print()
+                kernel.print_variables_info()
+                kernel.print_kernel_info()
+            if args.verbose > 0:
+                kernel.print_constants_info()
 
             for model_name in set(args.pmodel):
                 model = getattr(models, model_name)(kernel, machine, args, parser)

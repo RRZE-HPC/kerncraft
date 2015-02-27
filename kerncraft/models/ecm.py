@@ -362,7 +362,7 @@ class ECMData:
         self._results = self.calculate_cache_access()
 
     def report(self):
-        if self._args and self._args.verbose > 0:
+        if self._args and self._args.verbose > 1:
             for r in self.results['memory hierarchy']:
                 print('Trace legth per access in {}:'.format(r['level']), r['trace length'])
                 print('Hits in {}:'.format(r['level']), r['total hits'], r['hits'])
@@ -469,7 +469,7 @@ class ECMCPU:
             'T_OL': T_OL}
 
     def report(self):
-        if self._args and self._args.verbose > 0:
+        if self._args and self._args.verbose > 1:
             print('Ports and cycles:', self.results['port cycles'])
             print('Uops:', self.results['uops'])
 
@@ -520,14 +520,16 @@ class ECM:
 
     def report(self):
         report = ''
-        if self._args and self._args.verbose > 0:
+        if self._args and self._args.verbose > 1:
             self._CPU.report()
             self._data.report()
 
-        report += '{{ {} || {} | {} }}'.format(
+        report += '{{ {} || {} | {} }} = {}cy'.format(
             self.results['T_OL'],
             self.results['T_nOL'],
-            ' | '.join([str(i[1]) for i in self.results['cycles']]))
+            ' | '.join([str(i[1]) for i in self.results['cycles']]),
+            max(self.results['T_OL'],
+                sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']])))
 
         print(report)
 
