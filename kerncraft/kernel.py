@@ -477,7 +477,7 @@ class Kernel:
                 c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
         elif type_ == 'likwid':
             # Instrument the outer for-loop with likwid
-            ast.block_items.insert(-3, c_ast.FuncCall(
+            ast.block_items.insert(-2, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
 
@@ -506,7 +506,7 @@ class Kernel:
             next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
             stmt = c_ast.Compound([ast.block_items.pop(-2)]+dummies)
 
-            ast.block_items.insert(-2, c_ast.For(None, cond, next_, stmt))
+            ast.block_items.insert(-1, c_ast.For(None, cond, next_, stmt))
 
             ast.block_items.insert(-1, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStopRegion'),
@@ -640,7 +640,7 @@ class Kernel:
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def build(self, cflags=None, lflags=None):
+    def build(self, cflags=None, lflags=None, verbose=False):
         '''
         compiles source to executable with likwid capabilities
 
@@ -673,9 +673,9 @@ class Kernel:
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
         cmd = ['icc'] + infiles + cflags + lflags + ['-o', outfile]
-        print(' '.join(cmd))
+        if verbose:
+            print(' '.join(cmd))
         try:
-            # print(cmd)
             subprocess.check_output(cmd)
         finally:
             source_file.close()
