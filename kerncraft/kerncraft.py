@@ -56,7 +56,7 @@ def main():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
-    parser.add_argument('--store', metavar='DB', type=argparse.FileType('w+b'),
+    parser.add_argument('--store', metavar='DB', type=argparse.FileType('r+b'),
                         help='Addes results to DB file for later processing.')
     
     for m in models.__all__:
@@ -74,12 +74,11 @@ def main():
             parser.error('--asm-block can only be "auto", "manual" or an integer')
 
     # Try loading results file (if requested)
-    result_storage = {}
     if args.store:
         try:
             result_storage = pickle.load(args.store)
         except EOFError:
-            pass
+            result_storage = {}
     
     # machine information
     # Read machine description
@@ -132,10 +131,12 @@ def main():
                         result_storage[code_file.name] = {}
                     if tuple(kernel._constants.items()) not in result_storage[code_file.name]:
                         result_storage[code_file.name][tuple(kernel._constants.items())] = {}
-                    result_storage[code_file.name][tuple(kernel._constants.items())][model_name] = model.results
+                    result_storage[code_file.name][tuple(kernel._constants.items())][model_name] = \
+                        model.results
                     
                     args.store.seek(0)
                     pickle.dump(result_storage, args.store)
+                    args.store.flush()
 
                 # TODO take care of different performance models
                 if 'results-to-compare' in testcase:
@@ -153,6 +154,8 @@ def main():
                                       "been {}, but was {}.".format(key, correct_value, value))
                     if failed:
                         sys.exit(1)
+            
+        args.store.close()
 
 if __name__ == '__main__':
     main()
