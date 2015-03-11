@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
-    parser.add_argument('--store', metavar='DB', type=argparse.FileType('rb'),
+    parser.add_argument('--store', metavar='DB', type=argparse.FileType('w+b'),
                         help='Addes results to DB file for later processing.')
     
     for m in models.__all__:
