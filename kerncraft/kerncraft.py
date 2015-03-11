@@ -6,6 +6,7 @@ import argparse
 import ast
 import sys
 import os.path
+import pickle
 
 import models
 from kernel import Kernel
@@ -55,6 +56,9 @@ def main():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
+    parser.add_argument('--store', metavar='DB', type=argparse.FileType('r+b'),
+                        help='Addes results to DB file for later processing.')
+    
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)
@@ -69,6 +73,13 @@ def main():
         except ValueError:
             parser.error('--asm-block can only be "auto", "manual" or an integer')
 
+    # Try loading results file (if requested)
+    if args.store:
+        try:
+            result_storage = pickle.load(args.store)
+        except EOFError:
+            result_storage = {}
+    
     # machine information
     # Read machine description
     machine = MachineModel(args.machine.name)
@@ -87,7 +98,6 @@ def main():
             testcases = [{'constants': {}}]
 
         for testcase in testcases:
-
             print('='*80 + '\n{:^80}\n'.format(code_file.name) + '='*80)
 
             kernel = Kernel(code, filename=code_file.name)
@@ -114,6 +124,19 @@ def main():
 
                 model.analyze()
                 model.report()
+                
+                # Store results (if requested)
+                if args.store:
+                    if code_file.name not in result_storage:
+                        result_storage[code_file.name] = {}
+                    if tuple(kernel._constants.items()) not in result_storage[code_file.name]:
+                        result_storage[code_file.name][tuple(kernel._constants.items())] = {}
+                    result_storage[code_file.name][tuple(kernel._constants.items())][model_name] = \
+                        model.results
+                    
+                    args.store.seek(0)
+                    pickle.dump(result_storage, args.store)
+                    args.store.flush()
 
                 # TODO take care of different performance models
                 if 'results-to-compare' in testcase:
@@ -131,6 +154,8 @@ def main():
                                       "been {}, but was {}.".format(key, correct_value, value))
                     if failed:
                         sys.exit(1)
+            
+        args.store.close()
 
 if __name__ == '__main__':
     main()
