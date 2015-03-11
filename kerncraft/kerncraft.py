@@ -127,11 +127,12 @@ def main():
                 
                 # Store results (if requested)
                 if args.store:
-                    if code_file.name not in result_storage:
-                        result_storage[code_file.name] = {}
+                    kernel_name = os.path.split(code_file.name)[1]
+                    if kernel_name not in result_storage:
+                        result_storage[kernel_name] = {}
                     if tuple(kernel._constants.items()) not in result_storage[code_file.name]:
-                        result_storage[code_file.name][tuple(kernel._constants.items())] = {}
-                    result_storage[code_file.name][tuple(kernel._constants.items())][model_name] = \
+                        result_storage[kernel_name][tuple(kernel._constants.items())] = {}
+                    result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
                         model.results
                     
                     args.store.seek(0)
