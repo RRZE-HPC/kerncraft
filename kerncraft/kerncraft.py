@@ -57,8 +57,8 @@ def main():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
-    parser.add_argument('--store', metavar='DB', type=argparse.FileType('w+b'),
-                        help='Addes results to DB file for later processing.')
+    parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
+                        help='Addes results to PICKLE file for later processing.')
     
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
@@ -76,11 +76,13 @@ def main():
 
     # Try loading results file (if requested)
     if args.store:
+        args.store.seek(0)
         try:
             result_storage = pickle.load(args.store)
         except EOFError:
             result_storage = {}
         args.store.close()
+        print('loaded', sum(map(len, result_storage.values())), 'results')
     
     # machine information
     # Read machine description
@@ -159,7 +161,9 @@ def main():
                 tempname = args.store.name + '.tmp'
                 with open(tempname, 'w+') as f:
                     pickle.dump(result_storage, f)
+                print(args.store.name)
                 shutil.move(tempname, args.store.name)
+                print('saved', sum(map(len, result_storage.values())), 'results')
 
 if __name__ == '__main__':
     main()
