@@ -7,6 +7,7 @@ import ast
 import sys
 import os.path
 import pickle
+import shutil
 
 import models
 from kernel import Kernel
@@ -56,7 +57,7 @@ def main():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
-    parser.add_argument('--store', metavar='DB', type=argparse.FileType('r+b'),
+    parser.add_argument('--store', metavar='DB', type=argparse.FileType('rb'),
                         help='Addes results to DB file for later processing.')
     
     for m in models.__all__:
@@ -79,6 +80,7 @@ def main():
             result_storage = pickle.load(args.store)
         except EOFError:
             result_storage = {}
+        args.store.close()
     
     # machine information
     # Read machine description
@@ -125,18 +127,15 @@ def main():
                 model.analyze()
                 model.report()
                 
-                # Store results (if requested)
+                # Add results to storage (if requested)
                 if args.store:
-                    if code_file.name not in result_storage:
-                        result_storage[code_file.name] = {}
-                    if tuple(kernel._constants.items()) not in result_storage[code_file.name]:
-                        result_storage[code_file.name][tuple(kernel._constants.items())] = {}
-                    result_storage[code_file.name][tuple(kernel._constants.items())][model_name] = \
+                    kernel_name = os.path.split(code_file.name)[1]
+                    if kernel_name not in result_storage:
+                        result_storage[kernel_name] = {}
+                    if tuple(kernel._constants.items()) not in result_storage[kernel_name]:
+                        result_storage[kernel_name][tuple(kernel._constants.items())] = {}
+                    result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
                         model.results
-                    
-                    args.store.seek(0)
-                    pickle.dump(result_storage, args.store)
-                    args.store.flush()
 
                 # TODO take care of different performance models
                 if 'results-to-compare' in testcase:
@@ -155,7 +154,12 @@ def main():
                     if failed:
                         sys.exit(1)
             
-        args.store.close()
+            # Save new storage to file
+            if args.store:
+                tempname = args.store.name + '.tmp'
+                with open(tempname, 'w+') as f:
+                    pickle.dump(result_storage, f)
+                shutil.move(tempname, args.store.name)
 
 if __name__ == '__main__':
     main()
