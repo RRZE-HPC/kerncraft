@@ -82,7 +82,6 @@ def main():
         except EOFError:
             result_storage = {}
         args.store.close()
-        print('loaded', sum(map(len, result_storage.values())), 'results')
     
     # machine information
     # Read machine description
@@ -161,9 +160,7 @@ def main():
                 tempname = args.store.name + '.tmp'
                 with open(tempname, 'w+') as f:
                     pickle.dump(result_storage, f)
-                print(args.store.name)
                 shutil.move(tempname, args.store.name)
-                print('saved', sum(map(len, result_storage.values())), 'results')
 
 if __name__ == '__main__':
     main()

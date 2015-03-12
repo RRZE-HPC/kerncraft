@@ -77,7 +77,10 @@ class Benchmark:
         
         while runtime < 0.15:
             # Interpolate to a 0.2s run
-            repetitions = 0.2//time_per_repetition
+            if time_per_repetition != 0.0:
+                repetitions = 0.2//time_per_repetition
+            else:
+                repetitions *= 10
             
             result = self.perfctr(args+[str(repetitions)])
             runtime = float(result['Runtime (RDTSC) [s]'][0])
