@@ -1,9 +1,9 @@
-double U[N][N][N];
-double V[N][N][N];
-double ROC[N][N][N];
+double U[M][N][N];
+double V[M][N][N];
+double ROC[M][N][N];
 double c0, c1, c2, c3, c4, lap;
 
-for(int k=4; k < N-4; k++) {
+for(int k=4; k < M-4; k++) {
     for(int j=4; j < N-4; j++) {
         for(int i=4; i < N-4; i++) {
             lap = c0 * V[k][j][i]

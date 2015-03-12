@@ -1,11 +1,11 @@
-double u1[N][N][N];
-double d1[N][N][N];
-double xx[N][N][N];
-double xy[N][N][N];
-double xz[N][N][N];
+double u1[M][N][N];
+double d1[M][N][N];
+double xx[M][N][N];
+double xy[M][N][N];
+double xz[M][N][N];
 double c1, c2, d, dth;
 
-for(int k=2; k<N-2; k++) {
+for(int k=2; k<M-2; k++) {
     for(int j=2; j<N-2; j++) {
         for(int i=2; i<N-2; i++) {
             d = 0.25*(d1[ k ][j][i] + d1[ k ][j-1][i]
