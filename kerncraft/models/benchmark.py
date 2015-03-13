@@ -54,7 +54,7 @@ class Benchmark:
         results = {}
         ignore = True
         for l in output:
-            if ignore and l.startswith('Event,core 0'):
+            if ignore and (l.startswith('Event,core 0') or l.startswith('Metric,Core 0')):
                 ignore = False
             elif ignore or not l:
                 continue

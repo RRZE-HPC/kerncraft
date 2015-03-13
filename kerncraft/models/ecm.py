@@ -221,6 +221,7 @@ class ECMData:
         for i, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_size = int(float(cache_info['size per group']))
             cache_cycles = cache_info['cycles per cacheline transfer']
+            bandwidth = cache_info['bandwidth']
 
             trace_length = 0
             updated_length = True
@@ -294,8 +295,10 @@ class ECMData:
                 # Calculate new possible trace_length according to free space in cache
                 # TODO take CL blocked access into account
                 # TODO make /2 customizable
+                #new_trace_length = trace_length + \
+                #    ((cache_size/2 - cache_used_size)/trace_count)/element_size
                 new_trace_length = trace_length + \
-                    ((cache_size/2 - cache_used_size)/trace_count)/element_size
+                    ((cache_size - cache_used_size)/trace_count)/element_size
 
                 if new_trace_length > trace_length:
                     trace_length = new_trace_length
@@ -322,16 +325,18 @@ class ECMData:
                 lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
                 evicts[i].values()))
 
-            if cache_cycles:
-                # Cache
+            if not bandwidth:
+                # only cache cycles count
                 cycles = (total_lines_misses[i] + total_lines_evicts[i]) * \
                     cache_cycles
             else:
-                # Memory
+                # Memory transfer
+                # we use bandwidth to calculate cycles and then add panalty cycles (if given)
                 cycles = (total_lines_misses[i] + total_lines_evicts[i]) * \
                     elements_per_cacheline * element_size * \
-                    float(self.machine['clock']) / \
-                    float(self.machine['memory hierarchy'][-2]['bandwidth'])
+                    float(self.machine['clock']) / float(bandwidth)
+                if cache_cycles:
+                    cycles += cache_cycles
 
             self.results['memory hierarchy'].append({
                 'index': i,
@@ -587,3 +592,4 @@ class ECM:
             ax.set_xticklabels(xticks_labels, rotation='vertical')
             ax.xaxis.grid(alpha=0.7, linestyle='--')
             fig.savefig(self._args.ecm_plot)
+
