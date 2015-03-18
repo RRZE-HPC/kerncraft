@@ -597,7 +597,7 @@ class Kernel:
             # Assamble all to a binary
             subprocess.check_output(
                 ["icc", os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
-                cwd=os.path.dirname(in_file.name))
+                cwd=os.path.dirname(os.path.realpath(in_file.name)))
         finally:
             in_file.close()
 
@@ -627,13 +627,13 @@ class Kernel:
         try:
             subprocess.check_output(
                 ["icc"]+compiler_args+[os.path.basename(in_file.name), '-S'],
-                cwd=os.path.dirname(in_file.name))
+                cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(
                 ["icc"] + compiler_args + [
-                    os.path.abspath(os.path.dirname(__file__)+'/headers/dummy.c'),
+                    os.path.abspath(os.path.dirname(os.path.realpath(__file__))+'/headers/dummy.c'),
                     '-S'],
-                cwd=os.path.dirname(in_file.name))
+                cwd=os.path.dirname(os.path.realpath(in_file.name)))
         finally:
             in_file.close()
 
@@ -667,7 +667,7 @@ class Kernel:
         source_file.write(self.as_code(type_='likwid'))
         source_file.flush()
 
-        infiles = [os.path.abspath(os.path.dirname(__file__))+'/headers/dummy.c', source_file.name]
+        infiles = [os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c', source_file.name]
         if self._filename:
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
