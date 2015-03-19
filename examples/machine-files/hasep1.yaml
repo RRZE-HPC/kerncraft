@@ -264,7 +264,7 @@ memory hierarchy:
 - {cores per group: 1, cycles per cacheline transfer: 2,
   groups: 28, level: L1, bandwidth: null, size per group: 32.00
     kB, threads per group: 2}
-- {cores per group: 1, cycles per cacheline transfer: 2,
+- {cores per group: 1, cycles per cacheline transfer: 2.77,
   groups: 28, level: L2, bandwidth: null, size per group: 256.00
     kB, threads per group: 2}
 - {cores per group: 14, cycles per cacheline transfer: null,
@@ -275,8 +275,8 @@ memory hierarchy:
 micro-architecture: HSW
 model type: Intel Core Haswell EX processor
 model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
-non-overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
-overlapping ports: ["2D", "3D"]
+overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
+non-overlapping ports: ["2D", "3D"]
 sockets: 2
 threads per core: 2
 
