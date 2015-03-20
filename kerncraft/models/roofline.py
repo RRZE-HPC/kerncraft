@@ -179,15 +179,16 @@ class Roofline:
         total_evicts = {}
         
         # L1-CPU level is special, because everything is a miss here
-        self.machine['memory hierarchy'].insert(0, {
-            'cores per group': 1,
-            'cycles per cacheline transfer': None,
-            'groups': 16,
-            'level': 'CPU',
-            'bandwidth': None,
-            'size per group': 0,
-            'threads per group': 2,
-        })
+        if CPUL1:
+            self.machine['memory hierarchy'].insert(0, {
+                'cores per group': 1,
+                'cycles per cacheline transfer': None,
+                'groups': 16,
+                'level': 'CPU',
+                'bandwidth': None,
+                'size per group': 0,
+                'threads per group': 2,
+            })
 
         # Check for layer condition towards all cache levels
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
