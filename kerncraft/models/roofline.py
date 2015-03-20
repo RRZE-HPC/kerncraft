@@ -128,7 +128,7 @@ class Roofline:
 
         return [first, last]
 
-    def calculate_cache_access(self):
+    def calculate_cache_access(self, CPUL1=True):
         results = {'bottleneck level': None, 'mem bottlenecks': []}
 
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
@@ -177,11 +177,19 @@ class Roofline:
         total_misses = {}
         total_hits = {}
         total_evicts = {}
-        total_lines_misses = {}
-        total_lines_hits = {}
-        total_lines_evicts = {}
+        
+        # L1-CPU level is special, because everything is a miss here
+        self.machine['memory hierarchy'].insert(0, {
+            'cores per group': 1,
+            'cycles per cacheline transfer': None,
+            'groups': 16,
+            'level': 'CPU',
+            'bandwidth': None,
+            'size per group': 0,
+            'threads per group': 2,
+        })
 
-        # Check for layer condition towards all cache levels (except main memory/last level)
+        # Check for layer condition towards all cache levels
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_size = int(float(cache_info['size per group']))
             cache_cycles = cache_info['cycles per cacheline transfer']
@@ -284,16 +292,6 @@ class Roofline:
                 lambda l: sum(map(len, l.values())),
                 evicts[cache_level].values()))
 
-            total_lines_misses[cache_level] = sum(map(
-                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
-                misses[cache_level].values()))
-            total_lines_hits[cache_level] = sum(map(
-                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
-                hits[cache_level].values()))
-            total_lines_evicts[cache_level] = sum(map(
-                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
-                evicts[cache_level].values()))
-
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
             bytes_transfered = (total_misses[cache_level]+total_evicts[cache_level])*element_size
@@ -330,8 +328,9 @@ class Roofline:
 
             # TODO choose smt and cores:
             threads_per_core, cores = 1, 1
+            bw_level = self.machine['memory hierarchy'][cache_level+1]['level']
             bw_measurements = \
-                self.machine['benchmarks']['measurements'][cache_info['level']][threads_per_core]
+                self.machine['benchmarks']['measurements'][bw_level][threads_per_core]
             assert threads_per_core == bw_measurements['threads per core'], \
                 'malformed measurement dictionary in machine file.'
             run_index = bw_measurements['cores'].index(cores)
@@ -368,12 +367,12 @@ class Roofline:
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:')
-            print('  level | a. intensity |   performance   |  bandwidth | bandwidth kernel')
-            print('--------+--------------+-----------------+------------+-----------------')
-            print('    CPU |              | {:>15} |            |'.format(max_flops))
+            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
+            print('--------+--------------+-----------------+--------------+-----------------')
+            print('    CPU |              | {:>15} |              |'.format(max_flops))
             for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
-                      ' {bandwidth:>10} | {bw kernel:<8}'.format(**b))
+                      ' {bandwidth:>12} | {bw kernel:<8}'.format(**b))
             print()
 
         # TODO support SP
@@ -415,7 +414,7 @@ class RooflineIACA(Roofline):
         Roofline.__init__(self, kernel, machine, args, parser)
 
     def analyze(self):
-        self.results = self.calculate_cache_access()
+        self.results = self.calculate_cache_access(CPUL1=False)
         
         # For the IACA/CPU analysis we need to compile and assemble
         asm_name = self.kernel.compile(compiler_args=self.machine['icc architecture flags'])
@@ -476,12 +475,12 @@ class RooflineIACA(Roofline):
         cpu_flops = PrefixedUnit(self.results['cpu bottleneck']['performance'], "FLOP/s")
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:')
-            print('  level | a. intensity |   performance   |  bandwidth | bandwidth kernel')
-            print('--------+--------------+-----------------+------------+-----------------')
-            print('    CPU |              | {:>15} |            |'.format(cpu_flops))
+            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
+            print('--------+--------------+-----------------+--------------+-----------------')
+            print('    CPU |              | {:>15} |              |'.format(cpu_flops))
             for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
-                      ' {bandwidth:>10} | {bw kernel:<8}'.format(**b))
+                      ' {bandwidth:>12} | {bw kernel:<8}'.format(**b))
             print()
             print('IACA analisys:')
             print(self.results['cpu bottleneck'])
