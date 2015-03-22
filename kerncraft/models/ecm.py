@@ -401,6 +401,10 @@ class ECMData:
                 'hits': hits[cache_level],
                 'evicts': evicts[cache_level],
                 'cycles': cycles})
+            if bandwidth:
+                self.results['memory hierarchy'][-1].update({
+                    'memory bandwidth kernel': measurement_kernel,
+                    'memory bandwidth': bw})
             self.results['cycles'].append((
                 '{}-{}'.format(cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level']),
                 cycles))
@@ -426,6 +430,9 @@ class ECMData:
                 print('Evicts from {} {} ({}CL):'.format(
                     r['level'], r['total evicts'], r['total lines evicts']),
                     r['evicts'])
+                if 'memory bandwidth' in r:
+                    print('memory bandwidth: {} (from {} kernel benchmark)'.format(
+                        r['memory bandwidth'], r['memory bandwidth kernel']))
 
         for level, cycles in self.results['cycles']:
             print('{} = {}cy'.format(level, cycles))
