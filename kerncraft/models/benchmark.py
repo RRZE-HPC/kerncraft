@@ -105,7 +105,7 @@ class Benchmark:
         self.results['Performance [MFLOP/s]'] = \
             sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
         self.results['MEM BW [MByte/s]'] = float(result['Memory BW [MBytes/s]'][0])
-        self.results['Perfomance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
+        self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
     def report(self):
         if self._args.verbose > 0:
