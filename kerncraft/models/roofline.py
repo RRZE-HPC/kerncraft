@@ -390,7 +390,7 @@ class Roofline:
                 bottleneck['performance'],
                 bottleneck['level'],
                 bottleneck['bw kernel']))
-            print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))
+            print('Arithmetic Intensity: {:.2f} FLOP/b'.format(bottleneck['arithmetic intensity']))
 
 class RooflineIACA(Roofline):
     """
@@ -469,7 +469,8 @@ class RooflineIACA(Roofline):
                 'cl throughput': cl_throughput,
                 'uops': uops,
                 'performance':
-                    self.machine['clock']/block_throughput*elements_per_block*flops_per_element}})
+                    self.machine['clock']/block_throughput*elements_per_block*flops_per_element,
+                'IACA output': iaca_output}})
         self.results['cpu bottleneck']['performance'].unit = 'FLOP/s'
 
     def report(self):
@@ -484,7 +485,9 @@ class RooflineIACA(Roofline):
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(**b))
             print()
             print('IACA analisys:')
-            print(self.results['cpu bottleneck'])
+            if self._args.verbose >= 3:
+                print(self.results['cpu bottleneck']['IACA output'])
+            print({k: v for k, v in self.results['cpu bottleneck'].items() if k != 'IACA output'})
 
         # TODO support SP
         if float(self.results['min performance']) > float(cpu_flops):
@@ -500,4 +503,4 @@ class RooflineIACA(Roofline):
                 bottleneck['performance'],
                 bottleneck['level'],
                 bottleneck['bw kernel']))
-            print('Arithmetic Intensity: {:.2f}'.format(bottleneck['arithmetic intensity']))
+            print('Arithmetic Intensity: {:.2f} FLOP/b'.format(bottleneck['arithmetic intensity']))
