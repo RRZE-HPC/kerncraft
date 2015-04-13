@@ -20,6 +20,7 @@ except ImportError:
     plot_support = False
 
 from kerncraft.intervals import Intervals
+from kerncraft.prefixedunit import PrefixedUnit
 
 # Datatype sizes in bytes
 datatype_size = {'double': 8, 'float': 4}
@@ -419,6 +420,26 @@ class ECMData:
     def analyze(self):
         self._results = self.calculate_cache_access()
 
+    def conv_cy(self, cy_cl, unit, default='cy/CL'):
+        '''Convert cycles (cy/CL) to other units, such as FLOP/s or It/s'''
+        if not isinstance(cy_cl, PrefixedUnit):
+            cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
+        if not unit:
+            unit = default
+        
+        clock = self.machine['clock']
+        element_size = datatype_size['double']
+        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        it_s = clock/cy_cl*elements_per_cacheline
+        it_s.unit = 'It/s'
+        flops_per_it = sum(self.kernel._flops.values())
+        performance = it_s*flops_per_it
+        performance.unit = 'FLOP/s'
+        
+        return {'It/s': it_s,
+                'cy/CL': cy_cl,
+                'FLOP/s': performance}[unit]
+
     def report(self):
         if self._args and self._args.verbose > 1:
             for r in self.results['memory hierarchy']:
@@ -435,7 +456,7 @@ class ECMData:
                         r['memory bandwidth'], r['memory bandwidth kernel']))
 
         for level, cycles in self.results['cycles']:
-            print('{} = {}cy'.format(level, cycles))
+            print('{} = {} cy/CL'.format(level, cycles))
 
 
 class ECMCPU:
@@ -530,6 +551,27 @@ class ECMCPU:
             'T_OL': T_OL,
             'IACA output': iaca_output}
 
+
+    def conv_cy(self, cy_cl, unit, default='cy/CL'):
+        '''Convert cycles (cy/CL) to other units, such as FLOP/s or It/s'''
+        if not isinstance(cy_cl, PrefixedUnit):
+            cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
+        if not unit:
+            unit = default
+        
+        clock = self.machine['clock']
+        element_size = datatype_size['double']
+        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        it_s = clock/cy_cl*elements_per_cacheline
+        it_s.unit = 'It/s'
+        flops_per_it = sum(self.kernel._flops.values())
+        performance = it_s*flops_per_it
+        performance.unit = 'FLOP/s'
+        
+        return {'It/s': it_s,
+                'cy/CL': cy_cl,
+                'FLOP/s': performance}[unit]
+
     def report(self):
         if self._args and self._args.verbose > 2:
             print("IACA Output:")
@@ -539,11 +581,12 @@ class ECMCPU:
         if self._args and self._args.verbose > 1:
             print('Ports and cycles:', self.results['port cycles'])
             print('Uops:', self.results['uops'])
+            
+            print('Throughput: {}'.format(
+                self.conv_cy(self.results['block throughput'], self._args.unit)))
 
-            print('Throughput: {}cy per CL'.format(self.results['block throughput']))
-
-        print('T_nOL = {}cy'.format(self.results['T_nOL']))
-        print('T_OL = {}cy'.format(self.results['T_OL']))
+        print('T_nOL = {} cy/CL'.format(self.results['T_nOL']))
+        print('T_OL = {} cy/CL'.format(self.results['T_OL']))
 
 
 class ECM:
@@ -590,13 +633,18 @@ class ECM:
         if self._args and self._args.verbose > 1:
             self._CPU.report()
             self._data.report()
-
-        report += '{{ {} || {} | {} }} = {}cy'.format(
+        
+        total_cycles = max(
+            self.results['T_OL'],
+            sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']]))
+        report += '{{ {} || {} | {} }} = {:.2f} cy/CL'.format(
             self.results['T_OL'],
             self.results['T_nOL'],
             ' | '.join([str(i[1]) for i in self.results['cycles']]),
-            max(self.results['T_OL'],
-                sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']])))
+            total_cycles)
+        
+        if self._args.unit:
+            report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
 
         print(report)
 
