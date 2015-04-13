@@ -500,7 +500,7 @@ class RooflineIACA(Roofline):
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
             print('--------+--------------+-----------------+--------------+-----------------')
             print('    CPU |              | {:>15} |              |'.format(
-                self.conv_perf(cpu_flops, self._args.unit))
+                self.conv_perf(cpu_flops, self._args.unit)))
             for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {:>15} |'
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
