@@ -362,6 +362,24 @@ class Roofline:
 
     def analyze(self):
         self.results = self.calculate_cache_access()
+    
+    def conv_perf(self, performance, unit, default='FLOP/s'):
+        '''Convert performance (FLOP/s) to other units, such as It/s or cy/CL'''
+        if not unit:
+            unit = default
+        
+        clock = self.machine['clock']
+        flops_per_it = sum(self.kernel._flops.values())
+        it_s = performance/flops_per_it
+        it_s.unit = 'It/s'
+        element_size = datatype_size['double']
+        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        cy_cl = clock/it_s*elements_per_cacheline
+        cy_cl.unit = 'cy/CL'
+        
+        return {'It/s': it_s,
+                'cy/CL': cy_cl,
+                'FLOP/s': performance}[unit]
 
     def report(self):
         max_flops = self.machine['clock']*sum(self.machine['FLOPs per cycle']['DP'].values())
@@ -370,10 +388,12 @@ class Roofline:
             print('Bottlnecks:')
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
             print('--------+--------------+-----------------+--------------+-----------------')
-            print('    CPU |              | {:>15} |              |'.format(max_flops))
+            print('    CPU |              | {:>15} |              |'.format(
+                self.conv_perf(max_flops, self._args.unit)))
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
-                      ' {bandwidth:>12} | {bw kernel:<8}'.format(**b))
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {:>15} |'
+                      ' {bandwidth:>12} | {bw kernel:<8}'.format(
+                          self.conv_perf(b['performance'], self._args.unit), **b))
             print()
 
         # TODO support SP
@@ -387,7 +407,7 @@ class Roofline:
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
-                bottleneck['performance'],
+                self.conv_perf(bottleneck['performance'], self._args.unit),
                 bottleneck['level'],
                 bottleneck['bw kernel']))
             print('Arithmetic Intensity: {:.2f} FLOP/b'.format(bottleneck['arithmetic intensity']))
@@ -479,10 +499,12 @@ class RooflineIACA(Roofline):
             print('Bottlnecks:')
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
             print('--------+--------------+-----------------+--------------+-----------------')
-            print('    CPU |              | {:>15} |              |'.format(cpu_flops))
+            print('    CPU |              | {:>15} |              |'.format(
+                self.conv_perf(cpu_flops, self._args.unit))
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {performance:>15} |'
-                      ' {bandwidth:>12} | {bw kernel:<8}'.format(**b))
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {:>15} |'
+                      ' {bandwidth:>12} | {bw kernel:<8}'.format(
+                          self.conv_perf(b['performance'], self._args.unit), **b))
             print()
             print('IACA analisys:')
             if self._args.verbose >= 3:
@@ -493,14 +515,14 @@ class RooflineIACA(Roofline):
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
             print('CPU bound')
-            print('{!s} due to CPU bottleneck'.format(cpu_flops))
+            print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)))
         else:
             # Cache or mem bound
             print('Cache or mem bound')
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
-                bottleneck['performance'],
+                self.conv_perf(bottleneck['performance'], self._args.unit),
                 bottleneck['level'],
                 bottleneck['bw kernel']))
             print('Arithmetic Intensity: {:.2f} FLOP/b'.format(bottleneck['arithmetic intensity']))

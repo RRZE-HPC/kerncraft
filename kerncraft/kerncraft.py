@@ -59,6 +59,8 @@ def main():
                              'selection or "manual" for interactiv selection.')
     parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
                         help='Addes results to PICKLE file for later processing.')
+    parser.add_argument('--unit', '-u', choices=['cy/CL', 'It/s', 'FLOP/s'],
+                        help='Select the output unit, defaults to model specific if not given.')
     
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
