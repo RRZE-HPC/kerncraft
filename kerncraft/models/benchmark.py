@@ -106,6 +106,7 @@ class Benchmark:
             sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
         self.results['MEM BW [MByte/s]'] = float(result['Memory BW [MBytes/s]'][0])
         self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
+        self.results['Performance[MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
     def report(self):
         if self._args.verbose > 0:
@@ -118,6 +119,7 @@ class Benchmark:
               self.results['MEM volume (per repetition) [B]'])
         print('Performance [MFLOP/s]', self.results['Performance [MFLOP/s]'])
         print('Performance [MLUP/s]', self.results['Performance [MLUP/s]'])
+        print('Performance [It/s]', self.results['Performance[MIt/s]'])
         if self._args.verbose > 0:
             print('MEM BW [MByte/s]:', self.results['MEM BW [MByte/s]'])
         print()
