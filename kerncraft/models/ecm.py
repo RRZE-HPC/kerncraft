@@ -633,9 +633,10 @@ class ECM:
         # very simple approach. Assumptions are:
         #  - bottleneck is always LLC-MEM
         #  - all caches scale with number of cores (bw AND size(WRONG!))
-        self.results['scaling cores'] = math.ceil(
-            max(self.results['T_OL'], self.results['T_nOL']+sum(self.results['cycles']))) / \
-            self.results['cycles'][-1))
+        self.results['scaling cores'] = int(math.ceil(
+                max(self.results['T_OL'],
+                self.results['T_nOL']+sum([c[1] for c in self.results['cycles']])) / \
+            self.results['cycles'][-1][1]))
 
     def report(self):
         report = ''
@@ -653,9 +654,9 @@ class ECM:
             total_cycles)
         
         if self._args.unit:
-            report += ' = {}\n'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
+            report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
         
-        report += 'saturating at {} cores'.format(self.results['scaling cores'])
+        report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 
         print(report)
 

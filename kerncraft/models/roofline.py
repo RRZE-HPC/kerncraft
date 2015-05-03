@@ -6,6 +6,7 @@ from functools import reduce
 import operator
 import subprocess
 import re
+from copy import deepcopy
 
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
@@ -178,7 +179,7 @@ class Roofline:
         total_hits = {}
         total_evicts = {}
         
-        memory_hierarchy = self.machine['memory hierarchy']
+        memory_hierarchy = deepcopy(self.machine['memory hierarchy'])
         
         # L1-CPU level is special, because everything is a miss here
         if CPUL1:
