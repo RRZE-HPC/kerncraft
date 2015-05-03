@@ -178,9 +178,11 @@ class Roofline:
         total_hits = {}
         total_evicts = {}
         
+        memory_hierarchy = self.machine['memory hierarchy']
+        
         # L1-CPU level is special, because everything is a miss here
         if CPUL1:
-            self.machine['memory hierarchy'].insert(0, {
+            memory_hierarchy.insert(0, {
                 'cores per group': 1,
                 'cycles per cacheline transfer': None,
                 'groups': 16,
@@ -191,7 +193,7 @@ class Roofline:
             })
 
         # Check for layer condition towards all cache levels
-        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
+        for cache_level, cache_info in list(enumerate(memory_hierarchy))[:-1]:
             cache_size = int(float(cache_info['size per group']))
             cache_cycles = cache_info['cycles per cacheline transfer']
 
@@ -329,7 +331,7 @@ class Roofline:
 
             # TODO choose smt and cores:
             threads_per_core, cores = 1, 1
-            bw_level = self.machine['memory hierarchy'][cache_level+1]['level']
+            bw_level = memory_hierarchy[cache_level+1]['level']
             bw_measurements = \
                 self.machine['benchmarks']['measurements'][bw_level][threads_per_core]
             assert threads_per_core == bw_measurements['threads per core'], \
@@ -350,8 +352,8 @@ class Roofline:
             performance = arith_intens * float(bw)
             results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
-                'level': (self.machine['memory hierarchy'][cache_level]['level'] + '-' +
-                          self.machine['memory hierarchy'][cache_level+1]['level']),
+                'level': (memory_hierarchy[cache_level]['level'] + '-' +
+                          memory_hierarchy[cache_level+1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw})

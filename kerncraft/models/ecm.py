@@ -10,6 +10,7 @@ import sys
 import subprocess
 import re
 import imp
+import math
 
 try:
     import matplotlib
@@ -627,6 +628,14 @@ class ECM:
         self._data.analyze()
         self.results = copy.deepcopy(self._CPU.results)
         self.results.update(copy.deepcopy(self._data.results))
+        
+        # Saturation/multi-core scaling analysis
+        # very simple approach. Assumptions are:
+        #  - bottleneck is always LLC-MEM
+        #  - all caches scale with number of cores (bw AND size(WRONG!))
+        self.results['scaling cores'] = math.ceil(
+            max(self.results['T_OL'], self.results['T_nOL']+sum(self.results['cycles']))) / \
+            self.results['cycles'][-1))
 
     def report(self):
         report = ''
@@ -644,7 +653,9 @@ class ECM:
             total_cycles)
         
         if self._args.unit:
-            report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
+            report += ' = {}\n'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
+        
+        report += 'saturating at {} cores'.format(self.results['scaling cores'])
 
         print(report)
 
