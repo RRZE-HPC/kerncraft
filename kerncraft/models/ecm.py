@@ -685,6 +685,8 @@ class ECM:
                 (len(sorted_overlapping_ports) - 1)
             for p, c in sorted_overlapping_ports:
                 ax.barh(i, c, height, align='center', color=colors.pop())
+                if i == len(sorted_overlapping_ports)-1:
+                    ax.text(c/2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
                 yticks_labels.append(p)
                 yticks.append(i)
                 i += 1
@@ -695,9 +697,9 @@ class ECM:
             y = 0
             colors = [(187./255., 255/255., 188./255.)] * (len(self.results['cycles'])) + \
                 [(119./255, 194./255., 255./255.)]
-            for k, v in [('T_nOL', self.results['T_nOL'])]+self.results['cycles']:
+            for k, v in [('nOL', self.results['T_nOL'])]+self.results['cycles']:
                 ax.barh(i, v, height, y, align='center', color=colors.pop())
-                ax.text(y+v/2.0, i, k, ha='center', va='center')
+                ax.text(y+v/2.0, i, '$T_\mathrm{'+k+'}$', ha='center', va='center')
                 xticks.append(y+v)
                 xticks_labels.append('{:.1f}'.format(y+v))
                 y += v
