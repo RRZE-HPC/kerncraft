@@ -664,6 +664,7 @@ class ECM:
             assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
 
             fig = plt.figure(frameon=False)
+            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
             ax = fig.add_subplot(1, 1, 1)
 
             sorted_overlapping_ports = sorted(
@@ -677,7 +678,7 @@ class ECM:
             xticks = []
 
             # Plot configuration
-            height = 0.8
+            height = 0.9
 
             i = 0
             # T_OL
