@@ -215,7 +215,7 @@ memory hierarchy:
 - {cores per group: 10, cycles per cacheline transfer: null,
   groups: 2, level: L3, bandwidth: 48 GB/s, size per group: 25.00
     MB, threads per group: 20}
-- {cores per group: 10, cycles per cacheline transfer: null,
+- {cores per group: 10, cycles per cacheline transfer: 3,
   level: MEM, bandwidth: null, size per group: null, threads per group: 20}
 micro-architecture: IVB
 model type: Intel Core IvyBridge EP processor

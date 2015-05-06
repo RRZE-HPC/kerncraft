@@ -387,7 +387,7 @@ class ECMData:
                     elements_per_cacheline * element_size * \
                     float(self.machine['clock']) / float(bw)
                 if cache_cycles:
-                    cycles += cache_cycles
+                    cycles += total_lines_misses[cache_level]*cache_cycles
 
             self.results['memory hierarchy'].append({
                 'index': i,

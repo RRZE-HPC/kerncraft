@@ -270,7 +270,7 @@ memory hierarchy:
 - {cores per group: 14, cycles per cacheline transfer: null,
   groups: 2, level: L3, bandwidth: 54 GB/s, size per group: 35.00
     MB, threads per group: 28}
-- {bandwidth: null, cores per group: 14, cycles per cacheline transfer: null,
+- {bandwidth: null, cores per group: 14, cycles per cacheline transfer: 4,
   level: MEM, size per group: null, threads per group: 28}
 micro-architecture: HSW
 model type: Intel Core Haswell EX processor
