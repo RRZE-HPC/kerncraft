@@ -222,6 +222,16 @@ class ECMData:
         # Check for layer condition towards all cache levels (except main memory/last level)
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_size = int(float(cache_info['size per group']))
+            # reduce cache size in parallel execution
+            if self._args.cores > 1 and cache_info['cores per group'] is not None and \
+                    cache_info['cores per group'] > 1:
+                print('cache_info', cache_info)
+                if self._args.cores < cache_info['cores per group']:
+                    cache_size /= self._args.cores
+                    print('reduced cache size')
+                else:
+                    cache_size /= cache_info['cores per group']
+                    print('reduced cache size')
             cache_cycles = cache_info['cycles per cacheline transfer']
             bandwidth = cache_info['bandwidth']
 

@@ -61,6 +61,8 @@ def main():
                         help='Addes results to PICKLE file for later processing.')
     parser.add_argument('--unit', '-u', choices=['cy/CL', 'It/s', 'FLOP/s'],
                         help='Select the output unit, defaults to model specific if not given.')
+    parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
+                        help='Number of cores to be used in parallel. (default: 1)')
     
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
