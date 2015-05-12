@@ -450,9 +450,15 @@ class Kernel:
                 ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
 
                 # inject dummy access to arrays, so compiler does not over-optimize code
-                # TODO put if around it, so code will actually run
+                # with if around it, so code will actually run
                 ast.block_items.insert(
-                    i+2, c_ast.FuncCall(c_ast.ID('dummy'), c_ast.ExprList([c_ast.ID(d.name)])))
+                    i+2, c_ast.If(
+                        cond=c_ast.ID('var_false'),
+                        iftrue=c_ast.Compound([
+                            c_ast.FuncCall(
+                                c_ast.ID('dummy'),
+                                c_ast.ExprList([c_ast.ID(d.name)]))]),
+                        iffalse=None))
             else:
                 # this is a scalar, so a simple Assignment is enough
                 ast.block_items.insert(
@@ -461,9 +467,13 @@ class Kernel:
                 # inject dummy access to scalar, so compiler does not over-optimize code
                 # TODO put if around it, so code will actually run
                 ast.block_items.insert(
-                    i+2,
-                    c_ast.FuncCall(c_ast.ID('dummy'),
-                                   c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+                    i+2, c_ast.If(
+                        cond=c_ast.ID('var_false'),
+                        iftrue=c_ast.Compound([
+                            c_ast.FuncCall(
+                                c_ast.ID('dummy'),
+                                c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
+                        iffalse=None))
 
         # transform multi-dimensional array references to one dimensional references
         map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
@@ -485,11 +495,21 @@ class Kernel:
             # Make sure nothing gets removed by inserting dummy calls
             for d in declarations:
                 if array_dimensions[d.name]:
-                    dummies.append(c_ast.FuncCall(
-                        c_ast.ID('dummy'), c_ast.ExprList([c_ast.ID(d.name)])))
+                    dummies.append(c_ast.If(
+                        cond=c_ast.ID('var_false'),
+                        iftrue=c_ast.Compound([
+                            c_ast.FuncCall(
+                                c_ast.ID('dummy'),
+                                c_ast.ExprList([c_ast.ID(d.name)]))]),
+                        iffalse=None))
                 else:
-                    dummies.append(c_ast.FuncCall(
-                        c_ast.ID('dummy'), c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+                    dummies.append(c_ast.If(
+                        cond=c_ast.ID('var_false'),
+                        iftrue=c_ast.Compound([
+                            c_ast.FuncCall(
+                                c_ast.ID('dummy'),
+                                c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
+                        iffalse=None))
 
             # Wrap everything in a reapeat loop
             # int repeat = atoi(argv[2])
@@ -531,13 +551,19 @@ class Kernel:
                 [], c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
             c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
             None, None)
-
         ast.ext.insert(0, decl)
+        
+        # add external var_false declaration
+        decl = c_ast.Decl('var_false', [], ['extern'], [], c_ast.TypeDecl(
+                'var_false', [], c_ast.IdentifierType(['int'])
+            ), None, None)
+        ast.ext.insert(1, decl)
+
 
         # convert to code string
         code = CGenerator().visit(ast)
 
-        # add "#include"s for dummy and stdlib (for malloc)
+        # add "#include"s for dummy, var_false and stdlib (for malloc)
         code = '#include <stdlib.h>\n\n' + code
         if type_ == 'likwid':
             code = '#include <likwid.h>\n' + code
@@ -667,7 +693,8 @@ class Kernel:
         source_file.write(self.as_code(type_='likwid'))
         source_file.flush()
 
-        infiles = [os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c', source_file.name]
+        infiles = [os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c',
+                   source_file.name]
         if self._filename:
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
