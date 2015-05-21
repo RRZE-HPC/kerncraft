@@ -407,6 +407,8 @@ class Kernel:
         if type_ == 'likwid':
             # Call likwid_markerInit()
             ast.block_items.insert(0, c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None))
+            # Call likwid_markerThreadInit()
+            ast.block_items.insert(1, c_ast.FuncCall(c_ast.ID('likwid_markerThreadInit'), None))
             # Call likwid_markerClose()
             ast.block_items.append(c_ast.FuncCall(c_ast.ID('likwid_markerClose'), None))
 
