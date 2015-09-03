@@ -664,12 +664,12 @@ class ECM:
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
         
         report += '\n{{ {} \ {} }} cy/CL'.format(
-            self.results['T_OL'] + self.results['T_nOL'],
-            ' \ '.join(['{:.2f}'.format(sum(map(lambda x: x[1], self.results['cycles'][:i+1])) +
-            self.results['T_OL'] + self.results['T_nOL']) 
+            max(self.results['T_OL'], self.results['T_nOL']),
+            ' \ '.join(['{:.2f}'.format(max(sum(map(lambda x: x[1], self.results['cycles'][:i+1])) +
+            self.results['T_nOL'], self.results['T_OL']))
                 for i in range(len(self.results['cycles']))]),
             total_cycles)
-        
+
         report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 
         print(report)

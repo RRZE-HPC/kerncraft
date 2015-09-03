@@ -104,7 +104,10 @@ class Benchmark:
             float(result['Memory data volume [GBytes]'][0])*1e9/repetitions
         self.results['Performance [MFLOP/s]'] = \
             sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
-        self.results['MEM BW [MByte/s]'] = float(result['Memory BW [MBytes/s]'][0])
+        if 'Memory bandwidth [MBytes/s]' in result:
+            self.results['MEM BW [MByte/s]'] = float(result['Memory bandwidth [MBytes/s]'][0])
+        else:
+            self.results['MEM BW [MByte/s]'] = float(result['Memory BW [MBytes/s]'][0])
         self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
         self.results['Performance[MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
