@@ -88,7 +88,8 @@ def transform_array_decl_to_malloc(decl):
                 '*',
                 c_ast.UnaryOp(
                     'sizeof',
-                    c_ast.Typename([], c_ast.TypeDecl(None, [], decl.type.type.type))),
+                    c_ast.Typename(None, [], c_ast.TypeDecl(
+                        None, [], decl.type.type.type))),
                 decl.type.dim),
             c_ast.Constant('int', '32')]))
     decl.type = type_
@@ -536,8 +537,8 @@ class Kernel:
 
         # embedd Compound into main FuncDecl
         decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
-            c_ast.Typename([], c_ast.TypeDecl('argc', [], c_ast.IdentifierType(['int']))),
-            c_ast.Typename([], c_ast.PtrDecl([], c_ast.PtrDecl(
+            c_ast.Typename(None, [], c_ast.TypeDecl('argc', [], c_ast.IdentifierType(['int']))),
+            c_ast.Typename(None, [], c_ast.PtrDecl([], c_ast.PtrDecl(
                 [], c_ast.TypeDecl('argv', [], c_ast.IdentifierType(['char'])))))]),
             c_ast.TypeDecl('main', [], c_ast.IdentifierType(['int']))),
             None, None)
@@ -549,7 +550,7 @@ class Kernel:
 
         # add dummy function declaration
         decl = c_ast.Decl('dummy', [], [], [], c_ast.FuncDecl(
-            c_ast.ParamList([c_ast.Typename([], c_ast.PtrDecl(
+            c_ast.ParamList([c_ast.Typename(None, [], c_ast.PtrDecl(
                 [], c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
             c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
             None, None)

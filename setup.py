@@ -14,7 +14,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.dev8',
+    version='0.1.dev10',
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
@@ -66,7 +66,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'PyYAML',
-        'pycparser'
+        'pycparser>=2.14'
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
@@ -80,7 +80,7 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'kerncraft': ['headers/dummy.c'],
+        'kerncraft': ['headers/dummy.c', 'README', 'LICENSE'],
         'examples': [
             'machine-files/*.yaml',
             'kernels/*.c',
