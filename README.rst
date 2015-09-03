@@ -9,6 +9,8 @@ data reuse and cache requirements by static code analysis. In combination with t
 kerncraft can give a good overview of both in-core and memory bottlenecks and use that data to 
 apply performance models.
 
+For a detailed documentation see this master's thesis: `pdf <doc/masterthesis-2015.pdf>`_
+
 Installation
 ============
 
