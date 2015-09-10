@@ -63,6 +63,8 @@ def main():
                         help='Select the output unit, defaults to model specific if not given.')
     parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
                         help='Number of cores to be used in parallel. (default: 1)')
+    parser.add_argument('--latency', action='store_true',
+                        help='Use pessimistic IACA latency instead of throughput prediction.')
     
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)

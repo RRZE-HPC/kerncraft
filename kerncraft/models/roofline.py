@@ -445,10 +445,10 @@ class RooflineIACA(Roofline):
         bin_name = self.kernel.assemble(
             asm_name, iaca_markers=True, asm_block=self._args.asm_block)
 
+        # Get total cycles per loop iteration
         iaca_output = subprocess.check_output(
             ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
-
-        # Get total cycles per loop iteration
+            
         match = re.search(
             r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
         assert match, "Could not find Block Throughput in IACA output."
@@ -474,6 +474,17 @@ class RooflineIACA(Roofline):
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
         uops = float(match.groups()[0])
+        
+        # Get latency prediction from IACA
+        iaca_latency_output = subprocess.check_output(
+            ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
+             self.machine['micro-architecture'], bin_name])
+
+        # Get predicted latency
+        match = re.search(
+            r'^Latency: ([0-9\.]+) Cycles', iaca_latency_output, re.MULTILINE)
+        assert match, "Could not find Latency in IACA latency analysis output."
+        block_latency = float(match.groups()[0])
 
         # Normalize to cycles per cacheline
         elements_per_block = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
@@ -483,6 +494,7 @@ class RooflineIACA(Roofline):
         port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
         uops = uops*block_to_cl_ratio
         cl_throughput = block_throughput*block_to_cl_ratio
+        cl_latency = block_latency*block_to_cl_ratio
         flops_per_element = sum(self.kernel._flops.values())
 
         # Create result dictionary
@@ -490,14 +502,24 @@ class RooflineIACA(Roofline):
             'cpu bottleneck': {
                 'port cycles': port_cycles,
                 'cl throughput': cl_throughput,
+                'cl latency': cl_latency,
                 'uops': uops,
-                'performance':
+                'performance throughput':
                     self.machine['clock']/block_throughput*elements_per_block*flops_per_element,
-                'IACA output': iaca_output}})
-        self.results['cpu bottleneck']['performance'].unit = 'FLOP/s'
+                'performance latency':
+                    self.machine['clock']/block_latency*elements_per_block*flops_per_element,
+                'IACA output': iaca_output,
+                'IACA latency output': iaca_latency_output}})
+        self.results['cpu bottleneck']['performance throughput'].unit = 'FLOP/s'
+        self.results['cpu bottleneck']['performance latency'].unit = 'FLOP/s'
 
     def report(self):
-        cpu_flops = PrefixedUnit(self.results['cpu bottleneck']['performance'], "FLOP/s")
+        if not self._args.latency:
+            cpu_flops = PrefixedUnit(
+                self.results['cpu bottleneck']['performance throughput'], "FLOP/s")
+        else:
+            cpu_flops = PrefixedUnit(
+                self.results['cpu bottleneck']['performance latency'], "FLOP/s")
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:')
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
@@ -512,7 +534,9 @@ class RooflineIACA(Roofline):
             print('IACA analisys:')
             if self._args.verbose >= 3:
                 print(self.results['cpu bottleneck']['IACA output'])
-            print({k: v for k, v in self.results['cpu bottleneck'].items() if k != 'IACA output'})
+                print(self.results['cpu bottleneck']['IACA latency output'])
+            print({k: v for k, v in self.results['cpu bottleneck'].items() if k not in 
+                ['IACA output', 'IACA latency output']})
 
         # TODO support SP
         if float(self.results['min performance']) > float(cpu_flops):
