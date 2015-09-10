@@ -535,7 +535,16 @@ class ECMCPU:
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
         uops = float(match.groups()[0])
-
+        
+        # Get latency prediction from IACA
+        iaca_latency_output = subprocess.check_output(
+            ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
+             self.machine['micro-architecture'], bin_name])
+        match = re.search(
+            r'^Latency: ([0-9\.]+) Cycles', iaca_latency_output, re.MULTILINE)
+        assert match, "Could not find Latency in IACA latency analysis output."
+        block_latency = float(match.groups()[0])
+        
         # Normalize to cycles per cacheline
         block_elements = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
         block_size = block_elements*8  # TODO support SP
@@ -543,21 +552,28 @@ class ECMCPU:
 
         port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
         uops = uops*block_to_cl_ratio
-        block_throughput = block_throughput*block_to_cl_ratio
+        cl_throughput = block_throughput*block_to_cl_ratio
+        cl_latency = block_latency*block_to_cl_ratio
 
         # Compile most relevant information
-        T_OL = max([v for k, v in port_cycles.items() if k in self.machine['overlapping ports']])
+        if self._args.latency:
+            T_OL = cl_latency
+        else:
+            T_OL = max(
+                [v for k, v in port_cycles.items() if k in self.machine['overlapping ports']])
         T_nOL = max(
             [v for k, v in port_cycles.items() if k in self.machine['non-overlapping ports']])
-
+        
         # Create result dictionary
         self.results = {
             'port cycles': port_cycles,
-            'block throughput': block_throughput,
+            'cl throughput': cl_throughput,
+            'cl latency': cl_latency,
             'uops': uops,
             'T_nOL': T_nOL,
             'T_OL': T_OL,
-            'IACA output': iaca_output}
+            'IACA output': iaca_output,
+            'IACA latency output': iaca_latency_output}
 
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
@@ -584,6 +600,7 @@ class ECMCPU:
         if self._args and self._args.verbose > 2:
             print("IACA Output:")
             print(self.results['IACA output'])
+            print(self.results['IACA latency output'])
             print()
         
         if self._args and self._args.verbose > 1:
@@ -591,8 +608,11 @@ class ECMCPU:
             print('Uops:', self.results['uops'])
             
             print('Throughput: {}'.format(
-                self.conv_cy(self.results['block throughput'], self._args.unit)))
-
+                self.conv_cy(self.results['cl throughput'], self._args.unit)))
+            
+            print('Latency: {}'.format(
+                self.conv_cy(self.results['cl latency'], self._args.unit)))
+        
         print('T_nOL = {} cy/CL'.format(self.results['T_nOL']))
         print('T_OL = {} cy/CL'.format(self.results['T_OL']))
 
