@@ -8,8 +8,8 @@ cacheline size: 64 B
 icc architecture flags: [-xAVX]
 micro-architecture: SNB
 FLOPs per cycle:
-    SP: {total: 8, ADD: 4, MUL: 4}
-    DP: {total: 4, ADD: 2, MUL: 2}
+    SP: {total: 16, ADD: 8, MUL: 8}
+    DP: {total: 8, ADD: 4, MUL: 4}
 overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
 non-overlapping ports: ["2D", "3D"]
 memory hierarchy:
