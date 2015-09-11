@@ -331,7 +331,7 @@ class Roofline:
                     measurement_kernel_info = kernel_info
 
             # TODO choose smt and cores:
-            threads_per_core, cores = 1, 1
+            threads_per_core, cores = 1, self._args.cores
             bw_level = memory_hierarchy[cache_level+1]['level']
             bw_measurements = \
                 self.machine['benchmarks']['measurements'][bw_level][threads_per_core]
@@ -385,7 +385,8 @@ class Roofline:
                 'FLOP/s': performance}[unit]
 
     def report(self):
-        max_flops = self.machine['clock']*sum(self.machine['FLOPs per cycle']['DP'].values())
+        max_flops = self.machine['clock']*self._args.cores*sum(
+            self.machine['FLOPs per cycle']['DP'].values())
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:')
@@ -402,11 +403,11 @@ class Roofline:
         # TODO support SP
         if self.results['min performance'] > max_flops:
             # CPU bound
-            print('CPU bound')
+            print('CPU bound with', self._args.cores, 'core(s)')
             print('{!s} due to CPU max. FLOP/s'.format(max_flops))
         else:
             # Cache or mem bound
-            print('Cache or mem bound')
+            print('Cache or mem bound with', self._args.cores, 'core(s)')
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
@@ -505,9 +506,11 @@ class RooflineIACA(Roofline):
                 'cl latency': cl_latency,
                 'uops': uops,
                 'performance throughput':
-                    self.machine['clock']/block_throughput*elements_per_block*flops_per_element,
+                    self.machine['clock']/block_throughput*elements_per_block*flops_per_element
+                    *self._args.cores,
                 'performance latency':
-                    self.machine['clock']/block_latency*elements_per_block*flops_per_element,
+                    self.machine['clock']/block_latency*elements_per_block*flops_per_element
+                    *self._args.cores,
                 'IACA output': iaca_output,
                 'IACA latency output': iaca_latency_output}})
         self.results['cpu bottleneck']['performance throughput'].unit = 'FLOP/s'
@@ -541,11 +544,11 @@ class RooflineIACA(Roofline):
         # TODO support SP
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
-            print('CPU bound')
+            print('CPU bound with', self._args.cores, 'core(s)')
             print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)))
         else:
             # Cache or mem bound
-            print('Cache or mem bound')
+            print('Cache or mem bound with', self._args.cores, 'core(s)')
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
