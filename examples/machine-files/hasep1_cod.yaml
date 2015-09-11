@@ -1,6 +1,6 @@
 FLOPs per cycle:
-  DP: {ADD: 4, FMA: 4, MUL: 4, total: 8}
-  SP: {ADD: 8, FMA: 8, MUL: 8, total: 16}
+  DP: {ADD: 8, FMA: 8, MUL: 8, total: 16}
+  SP: {ADD: 16, FMA: 16, MUL: 16, total: 32}
 benchmarks:
   kernels:
     copy:
