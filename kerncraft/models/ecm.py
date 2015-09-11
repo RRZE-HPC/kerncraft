@@ -556,13 +556,18 @@ class ECMCPU:
         cl_latency = block_latency*block_to_cl_ratio
 
         # Compile most relevant information
-        if self._args.latency:
-            T_OL = cl_latency
-        else:
-            T_OL = max(
-                [v for k, v in port_cycles.items() if k in self.machine['overlapping ports']])
+        T_OL = max(
+            [v for k, v in port_cycles.items() if k in self.machine['overlapping ports']])
         T_nOL = max(
             [v for k, v in port_cycles.items() if k in self.machine['non-overlapping ports']])
+        
+        # Use IACA throughput prediction if it is slower then T_nOL
+        if T_nOL < cl_throughput:
+            T_OL = cl_throughput
+        
+        # Use latency if requested
+        if self._args.latency:
+            T_OL = cl_latency
         
         # Create result dictionary
         self.results = {
