@@ -259,7 +259,8 @@ class ECMData:
                                 write_offsets.get(name, {}).get(idx_order, []),
                                 reverse=True)
                         else:
-                            misses[cache_level][name][idx_order] = list(misses[i-1][name][idx_order])
+                            misses[cache_level][name][idx_order] = list(
+                                misses[i-1][name][idx_order])
                         hits[cache_level][name][idx_order] = []
 
                 # Caches are still empty (thus only misses)
@@ -321,9 +322,12 @@ class ECMData:
                         evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
 
             # Compiling stats
-            total_misses[cache_level] = sum(map(lambda l: sum(map(len, l.values())), misses[cache_level].values()))
-            total_hits[cache_level] = sum(map(lambda l: sum(map(len, l.values())), hits[cache_level].values()))
-            total_evicts[cache_level] = sum(map(lambda l: sum(map(len, l.values())), evicts[cache_level].values()))
+            total_misses[cache_level] = sum(map(
+                lambda l: sum(map(len, l.values())), misses[cache_level].values()))
+            total_hits[cache_level] = sum(map(
+                lambda l: sum(map(len, l.values())), hits[cache_level].values()))
+            total_evicts[cache_level] = sum(map(
+                lambda l: sum(map(len, l.values())), evicts[cache_level].values()))
 
             total_lines_misses[cache_level] = sum(map(
                 lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
@@ -390,9 +394,11 @@ class ECMData:
                           float(measurement_kernel_info['write streams']['bytes']))
                 bw = bw * factor
                 
+                # calculate cycles
                 cycles = (total_lines_misses[cache_level] + total_lines_evicts[cache_level]) * \
                     elements_per_cacheline * element_size * \
                     float(self.machine['clock']) / float(bw)
+                # add penalty cycles for each read stream
                 if cache_cycles:
                     cycles += total_lines_misses[cache_level]*cache_cycles
 
