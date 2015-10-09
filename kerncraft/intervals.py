@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # pylint: disable=W0142
+from copy import copy
 
 class Intervals:
     '''Very simple interval implementation for integers (might also work on floats)'''
@@ -15,8 +16,8 @@ class Intervals:
     def _enforce_order(self):
         self._data.sort(key=lambda d: d[0])
 
-    def _enforce_no_overlap(self):
-        i = 0
+    def _enforce_no_overlap(self, start_at=0):
+        i = start_at
         while i+1 < len(self._data):
             if self._data[i][1] >= self._data[i+1][0]:
                 # beginning of i+1-th range is contained in i-th range
@@ -29,6 +30,7 @@ class Intervals:
             i += 1
 
     def __and__(self, other):
+        '''combines two intervals, under the assumption that they are sane'''
         return Intervals(*(self._data+other._data))
 
     def __len__(self):

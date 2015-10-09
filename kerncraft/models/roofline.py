@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+
 from pprint import pprint
 from functools import reduce
 import operator
@@ -56,6 +57,7 @@ class Roofline:
     """
 
     name = "Roofline"
+    _expand_to_cacheline_blocks_cache = {}
 
     @classmethod
     def configure_arggroup(cls, parser):
@@ -120,14 +122,16 @@ class Roofline:
         '''
         Returns first and last values wich align with cacheline blocks, by increasing range.
         '''
-        # TODO how to handle multiple datatypes (with different size)?
-        element_size = datatype_size['double']
-        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        if (first,last) not in self._expand_to_cacheline_blocks_cache:
+            # TODO how to handle multiple datatypes (with different size)?
+            element_size = datatype_size['double']
+            elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
-        first = first - first % elements_per_cacheline
-        last = last - last % elements_per_cacheline + elements_per_cacheline - 1
+            self._expand_to_cacheline_blocks_cache[(first,last)] = [
+                first - first % elements_per_cacheline,
+                last - last % elements_per_cacheline + elements_per_cacheline - 1]
 
-        return [first, last]
+        return self._expand_to_cacheline_blocks_cache[(first,last)]
 
     def calculate_cache_access(self, CPUL1=True):
         results = {'bottleneck level': None, 'mem bottlenecks': []}
@@ -149,7 +153,8 @@ class Roofline:
             #   - scalar values
             if var_dims is None:
                 continue
-            #   - access does not change with inner-most loop index
+            #   - access does not change with inner-most loop index (they are hopefully kept in 
+            #     registers)
             writes = filter(
                 lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
                 self.kernel._destinations.get(var_name, []))
@@ -200,7 +205,9 @@ class Roofline:
 
             trace_length = 0
             updated_length = True
+            x = 0
             while updated_length:
+                x += 1
                 updated_length = False
 
                 # Initialize cache, misses, hits and evicts for current level
@@ -209,7 +216,7 @@ class Roofline:
                 hits[cache_level] = {}
                 evicts[cache_level] = {}
 
-                # We consider everythin a miss in the beginning
+                # We consider everythin a miss in the beginning, unless it is completly cached
                 # TODO here read and writes are treated the same, this implies write-allocate
                 #      to support nontemporal stores, this needs to be changed
                 for name in read_offsets.keys()+write_offsets.keys():
@@ -219,15 +226,35 @@ class Roofline:
 
                     for idx_order in read_offsets[name].keys()+write_offsets[name].keys():
                         cache[name][idx_order] = Intervals()
-                        if cache_level-1 not in misses:
-                            misses[cache_level][name][idx_order] = sorted(
-                                read_offsets.get(name, {}).get(idx_order, []) +
-                                write_offsets.get(name, {}).get(idx_order, []),
-                                reverse=True)
+                        
+                        # Check for complete caching/in-cache
+                        # TODO change from pessimistic to more realistic approach (different 
+                        #      indexes are treasted as individual arrays)
+                        total_array_size = reduce(
+                            operator.mul, self.kernel._variables[name][1])*element_size
+                        if total_array_size < trace_length:
+                            # all hits no misses
+                            misses[cache_level][name][idx_order] = []
+                            if cache_level-1 not in misses:
+                                hits[cache_level][name][idx_order] = sorted(
+                                    read_offsets.get(name, {}).get(idx_order, []) +
+                                    write_offsets.get(name, {}).get(idx_order, []),
+                                    reverse=True)
+                            else:
+                                hits[cache_level][name][idx_order] = list(
+                                    misses[cache_level-1][name][idx_order])
+                          
+                        # partial caching (default case) 
                         else:
-                            misses[cache_level][name][idx_order] = list(
-                                misses[cache_level-1][name][idx_order])
-                        hits[cache_level][name][idx_order] = []
+                            if cache_level-1 not in misses:
+                                misses[cache_level][name][idx_order] = sorted(
+                                    read_offsets.get(name, {}).get(idx_order, []) +
+                                    write_offsets.get(name, {}).get(idx_order, []),
+                                    reverse=True)
+                            else:
+                                misses[cache_level][name][idx_order] = list(
+                                    misses[cache_level-1][name][idx_order])
+                            hits[cache_level][name][idx_order] = []
 
                 # Caches are still empty (thus only misses)
                 trace_count = 0
@@ -267,34 +294,34 @@ class Roofline:
 
                         trace_count += len(cache[var_name][idx_order]._data)
                         cache_used_size += len(cache[var_name][idx_order])*element_size
-
+                
                 # Calculate new possible trace_length according to free space in cache
                 # TODO take CL blocked access into account
                 # TODO make /2 customizable
-                new_trace_length = trace_length + \
-                    ((cache_size/2 - cache_used_size)/trace_count)/element_size
+                #new_trace_length = trace_length + \
+                #    ((cache_size/2 - cache_used_size)/trace_count)/element_size
+                if trace_count > 0:  # to catch complete caching
+                    new_trace_length = trace_length + \
+                        ((cache_size - cache_used_size)/trace_count)/element_size
 
                 if new_trace_length > trace_length:
                     trace_length = new_trace_length
                     updated_length = True
 
                 # All writes to require the data to be evicted eventually
-                evicts[cache_level] = \
-                    {var_name: dict() for var_name in self.kernel._variables.keys()}
+                evicts[cache_level] = {
+                    var_name: dict() for var_name in self.kernel._variables.keys()}
                 for name in write_offsets.keys():
                     for idx_order in write_offsets[name].keys():
                         evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
-
+            
             # Compiling stats
             total_misses[cache_level] = sum(map(
-                lambda l: sum(map(len, l.values())),
-                misses[cache_level].values()))
+                lambda l: sum(map(len, l.values())), misses[cache_level].values()))
             total_hits[cache_level] = sum(map(
-                lambda l: sum(map(len, l.values())),
-                hits[cache_level].values()))
+                lambda l: sum(map(len, l.values())), hits[cache_level].values()))
             total_evicts[cache_level] = sum(map(
-                lambda l: sum(map(len, l.values())),
-                evicts[cache_level].values()))
+                lambda l: sum(map(len, l.values())), evicts[cache_level].values()))
 
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
