@@ -10,6 +10,7 @@ import subprocess
 import os
 import os.path
 
+from .lib import pycparser
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
 
