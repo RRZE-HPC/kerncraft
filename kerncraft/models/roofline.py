@@ -12,9 +12,6 @@ from copy import deepcopy
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
 
-# Datatype sizes in bytes
-datatype_size = {'double': 8, 'float': 4}
-
 
 def blocking(indices, block_size, initial_boundary=0):
     '''
@@ -123,8 +120,8 @@ class Roofline:
         Returns first and last values wich align with cacheline blocks, by increasing range.
         '''
         if (first,last) not in self._expand_to_cacheline_blocks_cache:
-            # TODO how to handle multiple datatypes (with different size)?
-            element_size = datatype_size['double']
+            # handle multiple datatypes
+            element_size = self.kernel.datatypes_size[self.kernel.datatype]
             elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
             self._expand_to_cacheline_blocks_cache[(first,last)] = [
@@ -140,8 +137,8 @@ class Roofline:
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         iteration_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
 
-        # TODO how to handle multiple datatypes (with different size)?
-        element_size = datatype_size['double']
+        # handle multiple datatypes
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
         loop_order = ''.join(map(lambda l: l[0], self.kernel._loop_stack))
@@ -402,7 +399,7 @@ class Roofline:
         flops_per_it = sum(self.kernel._flops.values())
         it_s = performance/flops_per_it
         it_s.unit = 'It/s'
-        element_size = datatype_size['double']
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         cy_cl = clock/it_s*elements_per_cacheline
         cy_cl.unit = 'cy/CL'
@@ -412,8 +409,9 @@ class Roofline:
                 'FLOP/s': performance}[unit]
 
     def report(self):
+        precision = 'DP' if self.kernel.datatype == 'double' else 'SP'
         max_flops = self.machine['clock']*self._args.cores*sum(
-            self.machine['FLOPs per cycle']['DP'].values())
+            self.machine['FLOPs per cycle'][precision].values())
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:')
@@ -427,7 +425,6 @@ class Roofline:
                           self.conv_perf(b['performance'], self._args.unit), **b))
             print()
 
-        # TODO support SP
         if self.results['min performance'] > max_flops:
             # CPU bound
             print('CPU bound with', self._args.cores, 'core(s)')
@@ -516,7 +513,7 @@ class RooflineIACA(Roofline):
 
         # Normalize to cycles per cacheline
         elements_per_block = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
-        block_size = elements_per_block*8  # TODO support SP
+        block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
 
         port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
@@ -568,7 +565,6 @@ class RooflineIACA(Roofline):
             print({k: v for k, v in self.results['cpu bottleneck'].items() if k not in 
                 ['IACA output', 'IACA latency output']})
 
-        # TODO support SP
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
             print('CPU bound with', self._args.cores, 'core(s)')

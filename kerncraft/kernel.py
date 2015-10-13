@@ -10,7 +10,6 @@ import subprocess
 import os
 import os.path
 
-from .lib import pycparser
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
 
@@ -109,6 +108,9 @@ def find_array_references(ast):
 
 
 class Kernel:
+    # Datatype sizes in bytes
+    datatypes_size = {'double': 8, 'float': 4}
+    
     def __init__(self, kernel_code, constants=None, variables=None, filename=None):
         '''This class captures the DSL kernel code, analyzes it and reports access pattern'''
         self.kernel_code = kernel_code
@@ -125,6 +127,8 @@ class Kernel:
         self._flops = {}
         self.blocks = {}
         self.block_idx = None
+        
+        self.datatype = None
 
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -135,7 +139,11 @@ class Kernel:
         self._constants[name] = value
 
     def set_variable(self, name, type_, size):
-        assert type_ in ['double', 'float'], 'only float and double variables are supported'
+        assert type_ in self.datatypes_size, 'only float and double variables are supported'
+        if self.datatype is None:
+            self.datatype = type_
+        else:
+            assert type_ == self.datatype, 'mixing of datatypes within a kernel is not supported.'
         assert type(size) in [tuple, type(None)], 'size has to be defined as tuple'
         self._variables[name] = (type_, size)
 

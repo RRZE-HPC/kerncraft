@@ -24,10 +24,6 @@ except ImportError:
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
 
-# Datatype sizes in bytes
-datatype_size = {'double': 8, 'float': 4}
-
-
 def blocking(indices, block_size, initial_boundary=0):
     '''
     splits list of integers into blocks of block_size. returns block indices.
@@ -135,8 +131,8 @@ class ECMData:
         Returns first and last values wich align with cacheline blocks, by increasing range.
         '''
         if (first,last) not in self._expand_to_cacheline_blocks_cache:
-            # TODO how to handle multiple datatypes (with different size)?
-            element_size = datatype_size['double']
+            # handle multiple datatypes
+            element_size = self.kernel.datatypes_size[self.kernel.datatype]
             elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
             self._expand_to_cacheline_blocks_cache[(first,last)] = [
@@ -152,8 +148,8 @@ class ECMData:
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         iteration_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
 
-        # TODO how to handle multiple datatypes (with different size)?
-        element_size = datatype_size['double']
+        # handle multiple datatypes
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
         loop_order = ''.join(map(lambda l: l[0], self.kernel._loop_stack))
@@ -470,7 +466,7 @@ class ECMData:
             unit = default
         
         clock = self.machine['clock']
-        element_size = datatype_size['double']
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
@@ -581,7 +577,7 @@ class ECMCPU:
         
         # Normalize to cycles per cacheline
         block_elements = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
-        block_size = block_elements*8  # TODO support SP
+        block_size = block_elements*self.kernel.datatypes_size[self.kernel.datatype]
         block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
 
         port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
@@ -623,7 +619,7 @@ class ECMCPU:
             unit = default
         
         clock = self.machine['clock']
-        element_size = datatype_size['double']
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
