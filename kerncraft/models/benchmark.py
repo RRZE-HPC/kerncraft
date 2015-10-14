@@ -49,7 +49,11 @@ class Benchmark:
         perf_cmd += cmd
         if self._args.verbose > 1:
             print(' '.join(perf_cmd))
-        output = subprocess.check_output(perf_cmd).split('\n')
+        try:
+            output = subprocess.check_output(perf_cmd).split('\n')
+        except subprocess.CalledProcessError as e:
+            print("Executing benchmark failed:", e, file=sys.stderr)
+            sys.exit(1)
         
         results = {}
         ignore = True
@@ -65,7 +69,8 @@ class Benchmark:
         return results
 
     def analyze(self):
-        bench = self.kernel.build(cflags=self.machine['icc architecture flags'],
+        bench = self.kernel.build(self.machine['compiler'],
+                                  cflags=self.machine['compiler flags'],
                                   verbose=self._args.verbose > 1)
         
         # Build arguments to pass to command:

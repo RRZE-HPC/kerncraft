@@ -466,14 +466,19 @@ class RooflineIACA(Roofline):
         self.results = self.calculate_cache_access(CPUL1=False)
         
         # For the IACA/CPU analysis we need to compile and assemble
-        asm_name = self.kernel.compile(compiler_args=self.machine['icc architecture flags'])
+        asm_name = self.kernel.compile(
+            self.machine['compiler'], compiler_args=self.machine['compiler flags'])
         bin_name = self.kernel.assemble(
-            asm_name, iaca_markers=True, asm_block=self._args.asm_block)
+           self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block)
 
         # Get total cycles per loop iteration
-        iaca_output = subprocess.check_output(
-            ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
-            
+        try:
+            iaca_output = subprocess.check_output(
+                ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
+        except subprocess.CalledProcessError as e:
+            print("IACA throughput analysis failed:", e, file=sys.stderr)
+            sys.exit(1)
+        
         match = re.search(
             r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
         assert match, "Could not find Block Throughput in IACA output."
@@ -501,10 +506,14 @@ class RooflineIACA(Roofline):
         uops = float(match.groups()[0])
         
         # Get latency prediction from IACA
-        iaca_latency_output = subprocess.check_output(
-            ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
-             self.machine['micro-architecture'], bin_name])
-
+        try:
+            iaca_latency_output = subprocess.check_output(
+                ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
+                 self.machine['micro-architecture'], bin_name])
+        except subprocess.CalledProcessError as e:
+            print("IACA latency analysis failed:", e, file=sys.stderr)
+            sys.exit(1)
+        
         # Get predicted latency
         match = re.search(
             r'^Latency: ([0-9\.]+) Cycles', iaca_latency_output, re.MULTILINE)
@@ -512,7 +521,7 @@ class RooflineIACA(Roofline):
         block_latency = float(match.groups()[0])
 
         # Normalize to cycles per cacheline
-        elements_per_block = self.kernel.blocks[self.kernel.block_idx][1]['loop_increment']
+        elements_per_block = abs(self.kernel.blocks[self.kernel.block_idx][1]['loop_increment'])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
 

@@ -202,7 +202,8 @@ benchmarks:
 cacheline size: 64 B
 clock: 2.3 GHz
 cores per socket: 14
-icc architecture flags: [-xAVX]
+compiler: icc
+compiler flags: [-O3, -xAVX, -fno-alias]
 memory hierarchy:
 - {bandwidth: null, cores per group: 1, cycles per cacheline transfer: 1, groups: 28,
   level: L1, size per group: 32.00 kB, threads per group: 2}

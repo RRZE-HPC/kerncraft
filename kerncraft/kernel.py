@@ -9,6 +9,7 @@ import tempfile
 import subprocess
 import os
 import os.path
+import sys
 
 from pycparser import CParser, c_ast, c_generator
 from pycparser.c_generator import CGenerator
@@ -82,7 +83,7 @@ def transform_array_decl_to_malloc(decl):
 
     type_ = c_ast.PtrDecl([], decl.type.type)
     decl.init = c_ast.FuncCall(
-        c_ast.ID('_mm_malloc'),
+        c_ast.ID('aligned_malloc'),
         c_ast.ExprList([
             c_ast.BinaryOp(
                 '*',
@@ -490,14 +491,8 @@ class Kernel:
         # transform multi-dimensional array references to one dimensional references
         map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
             find_array_references(ast))
-
-        if type_ == 'iaca':
-            # Mark the outer for-loop by injecting asm("nop");
-            ast.block_items.insert(-1, c_ast.FuncCall(
-                c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
-            ast.block_items.append(c_ast.FuncCall(
-                c_ast.ID('asm'), c_ast.ExprList([c_ast.Constant('string', '"nop"')])))
-        elif type_ == 'likwid':
+        
+        if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
             ast.block_items.insert(-2, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
@@ -577,12 +572,14 @@ class Kernel:
 
         # add "#include"s for dummy, var_false and stdlib (for malloc)
         code = '#include <stdlib.h>\n\n' + code
+        code = '#include "kerncraft.h"\n' + code
         if type_ == 'likwid':
             code = '#include <likwid.h>\n' + code
 
         return code
 
-    def assemble(self, in_filename, out_filename=None, iaca_markers=True, asm_block='auto'):
+    def assemble(self, compiler, in_filename,
+                 out_filename=None, iaca_markers=True, asm_block='auto'):
         '''
         Assembles *in_filename* to *out_filename*.
 
@@ -634,14 +631,17 @@ class Kernel:
         try:
             # Assamble all to a binary
             subprocess.check_output(
-                ["icc", os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
+                [compiler, os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
+        except subprocess.CalledProcessError as e:
+            print("Assemblation failed:", e, file=sys.stderr)
+            sys.exit(1)
         finally:
             in_file.close()
 
         return out_filename
 
-    def compile(self, compiler_args=None):
+    def compile(self, compiler, compiler_args=None):
         '''
         Compiles source (from as_code(type_)) to assembly.
 
@@ -660,25 +660,29 @@ class Kernel:
 
         if compiler_args is None:
             compiler_args = []
-        compiler_args += ['-O3', '-fno-alias', '-std=c99']
+        compiler_args += ['-std=c99']
 
         try:
             subprocess.check_output(
-                ["icc"]+compiler_args+[os.path.basename(in_file.name), '-S'],
+                [compiler]+compiler_args+[os.path.basename(in_file.name), '-S',
+                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(
-                ["icc"] + compiler_args + [
+                [compiler] + compiler_args + [
                     os.path.abspath(os.path.dirname(os.path.realpath(__file__))+'/headers/dummy.c'),
                     '-S'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
+        except subprocess.CalledProcessError as e:
+            print("Compilation failed:", e, file=sys.stderr)
+            sys.exit(1)
         finally:
             in_file.close()
 
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def build(self, cflags=None, lflags=None, verbose=False):
+    def build(self, compiler, cflags=None, lflags=None, verbose=False):
         '''
         compiles source to executable with likwid capabilities
 
@@ -690,7 +694,7 @@ class Kernel:
 
         if cflags is None:
             cflags = []
-        cflags += ['-O3', '-fno-alias', '-std=c99', os.environ.get('LIKWID_INCLUDE', ''),
+        cflags += ['-std=c99', os.environ.get('LIKWID_INCLUDE', ''),
                    os.environ.get('LIKWID_INC', '')]
 
         if lflags is None:
@@ -711,11 +715,14 @@ class Kernel:
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
-        cmd = ['icc'] + infiles + cflags + lflags + ['-o', outfile]
+        cmd = [compiler] + infiles + cflags + lflags + ['-o', outfile]
         if verbose:
             print(' '.join(cmd))
         try:
             subprocess.check_output(cmd)
+        except subprocess.CalledProcessError as e:
+            print("Build failed:", e, file=sys.stderr)
+            sys.exit(1)
         finally:
             source_file.close()
         

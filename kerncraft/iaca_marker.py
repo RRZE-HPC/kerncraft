@@ -29,14 +29,7 @@ def find_asm_blocks(asm_lines, with_nop=True):
     ymm_references = []
     gp_references = []
     last_incr = None
-    within_nop_region = False
     for i, line in enumerate(asm_lines):
-        if with_nop:
-            if line.strip().startswith("nop"):
-                within_nop_region = not within_nop_region
-            if not within_nop_region:
-                continue
-
         # Register access counts
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
@@ -69,7 +62,7 @@ def find_asm_blocks(asm_lines, with_nop=True):
             const_start = line.find('$')+1
             const_end = line[const_start+1:].find(',')+const_start+1
             last_incr = -int(line[const_start:const_end])
-        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s+', line.strip()):
+        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s*', line.strip()):
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
                            'lines': i-last_label_line,
@@ -133,6 +126,7 @@ def main():
 
     with open(sys.argv[1], 'r') as fp:
         lines = fp.readlines()
+    lines = map(str.strip, lines)
     blocks = find_asm_blocks(lines)
 
     # TODO check for already present markers
