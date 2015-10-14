@@ -694,7 +694,9 @@ class Kernel:
 
         if cflags is None:
             cflags = []
-        cflags += ['-std=c99', os.environ.get('LIKWID_INCLUDE', ''),
+        cflags += ['-std=c99', 
+                   '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
+                   os.environ.get('LIKWID_INCLUDE', ''),
                    os.environ.get('LIKWID_INC', '')]
 
         if lflags is None:
@@ -716,6 +718,8 @@ class Kernel:
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
         cmd = [compiler] + infiles + cflags + lflags + ['-o', outfile]
+        # remove empty arguments
+        cmd = filter(bool, cmd)
         if verbose:
             print(' '.join(cmd))
         try:

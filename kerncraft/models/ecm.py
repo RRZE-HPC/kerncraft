@@ -12,6 +12,8 @@ import subprocess
 import re
 import imp
 import math
+import sys
+
 
 try:
     import matplotlib

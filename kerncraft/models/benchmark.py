@@ -4,6 +4,7 @@ import subprocess
 import math
 from functools import reduce
 import operator
+import sys
 
 
 class Benchmark:

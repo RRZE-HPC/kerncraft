@@ -8,6 +8,7 @@ import operator
 import subprocess
 import re
 from copy import deepcopy
+import sys
 
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
