@@ -529,7 +529,11 @@ class RooflineIACA(Roofline):
         elements_per_block = abs(self.kernel.asm_block['pointer_increment']
                                  / self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
-        block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
+        try:
+            block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
+        except ZeroDivisionError as e:
+            print("Too small block_size / pointer_increment:", e, file=sys.stderr)
+            sys.exit(1)
 
         port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
         uops = uops*block_to_cl_ratio
