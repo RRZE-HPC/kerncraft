@@ -540,8 +540,12 @@ class ECMCPU:
             self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block)
 
         try:
-            iaca_output = subprocess.check_output(
-                ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name])
+            cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
+            iaca_output = subprocess.check_output(cmd)
+        except OSError as e:
+            print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)
+            print(e, file=sys.stderr)
+            sys.exit(1)
         except subprocess.CalledProcessError as e:
             print("IACA throughput analysis failed:", e, file=sys.stderr)
             sys.exit(1)
@@ -587,8 +591,9 @@ class ECMCPU:
         block_latency = float(match.groups()[0])
         
         # Normalize to cycles per cacheline
-        block_elements = abs(self.kernel.blocks[self.kernel.block_idx][1]['loop_increment'])
-        block_size = block_elements*self.kernel.datatypes_size[self.kernel.datatype]
+        elements_per_block = abs(self.kernel.asm_block['pointer_increment']
+                                 / self.kernel.datatypes_size[self.kernel.datatype])
+        block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
 
         port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))

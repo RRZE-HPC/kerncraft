@@ -126,8 +126,8 @@ class Kernel:
         self._constants = {} if constants is None else constants
         self._variables = {} if variables is None else variables
         self._flops = {}
-        self.blocks = {}
-        self.block_idx = None
+        self.asm_blocks = {}
+        self.asm_block_idx = None
         
         self.datatype = None
 
@@ -608,21 +608,27 @@ class Kernel:
         if iaca_markers:
             with open(in_filename, 'r') as in_file:
                 lines = in_file.readlines()
-            self.blocks = iaca.find_asm_blocks(lines)
+            blocks = iaca.find_asm_blocks(lines)
 
             # TODO check for already present markers
 
             # Choose best default block:
-            self.block_idx = iaca.select_best_block(self.blocks)
+            block_idx = iaca.select_best_block(blocks)
             if asm_block == 'manual':
-                self.block_idx = iaca.userselect_block(self.blocks, default=self.block_idx)
+                block_idx = iaca.userselect_block(blocks, default=block_idx)
             elif asm_block != 'auto':
-                self.block_idx = asm_block
+                block_idx = asm_block
 
-            block = self.blocks[self.block_idx][1]
+            self.asm_block = blocks[block_idx][1]
+            
+            # If block's pointer_increment is None, let user choose
+            # TODO make configurable by command line argument
+            if self.asm_block['pointer_increment'] is None:
+                iaca.userselect_increment(self.asm_block)
 
             # Insert markers:
-            lines = iaca.insert_markers(lines, block['first_line'], block['last_line'])
+            lines = iaca.insert_markers(
+                lines, self.asm_block['first_line'], self.asm_block['last_line'])
 
             # write back to file
             with open(in_filename, 'w') as in_file:

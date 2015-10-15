@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import re
 import sys
+from pprint import pprint
 
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
@@ -15,9 +16,9 @@ END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER 
               '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
 
 
-def find_asm_blocks(asm_lines, with_nop=True):
+def find_asm_blocks(asm_lines):
     '''
-    if with_nop is True, only blocks within nop markers will be considered
+    finds blocks probably corresponding to loops in assembly
     '''
     blocks = []
 
@@ -28,15 +29,20 @@ def find_asm_blocks(asm_lines, with_nop=True):
     xmm_references = []
     ymm_references = []
     gp_references = []
-    last_incr = None
+    mem_references = []
+    increments = {}
     for i, line in enumerate(asm_lines):
         # Register access counts
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
+        
+        # Strip comments and whitespaces
+        line = line.split('#')[0]
+        line = line.strip()
 
-        if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line.strip()):
-            if line.strip().startswith('v'):
+        if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line):
+            if line.startswith('v'):
                 avx_ctr += 1
             packed_ctr += 1
         elif re.match(r'^\S+:', line):
@@ -49,23 +55,57 @@ def find_asm_blocks(asm_lines, with_nop=True):
             xmm_references = []
             ymm_references = []
             gp_references = []
-            last_incr = None
-        elif re.match(r'^inc[bwlq]?', line.strip()):
-            last_incr = 1
-        elif re.match(r'^add[bwlq]?\s+\$[0-9]+,', line.strip()):
+            mem_references = []
+            increments = {}
+        elif re.match(r'^inc[bwlq]?\s+%\[a-z0-9]+', line):
+            reg_start = line.find('%')+1
+            increments[line[reg_start:]] = 1
+        elif re.match(r'^add[bwlq]?\s+\$[0-9]+,\s*%[a-z0-9]+', line):
             const_start = line.find('$')+1
             const_end = line[const_start+1:].find(',')+const_start+1
-            last_incr = int(line[const_start:const_end])
-        elif re.match(r'^dec[bwlq]?', line.strip()):
-            last_incr = -1
-        elif re.match(r'^sub[bwlq]?\s+\$[0-9]+,', line.strip()):
+            reg_start = line.find('%')+1
+            increments[line[reg_start:]] = int(line[const_start:const_end])
+        elif re.match(r'^dec[bwlq]?', line):
+            reg_start = line.find('%')+1
+            increments[line[reg_start:]] = -1
+        elif re.match(r'^sub[bwlq]?\s+\$[0-9]+,', line):
             const_start = line.find('$')+1
             const_end = line[const_start+1:].find(',')+const_start+1
-            last_incr = -int(line[const_start:const_end])
-        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s*', line.strip()):
+            reg_start = line.find('%')+1
+            increments[line[reg_start:]] = -int(line[const_start:const_end])
+        elif re.search(r'\d*\(%\w+,%\w+(,\d)?\)$', line):
+            m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)$',
+                          line)
+            mem_references.append((
+                int(m.group('off')) if m.group('off') else 0,
+                m.group('basep'),
+                m.group('idx'),
+                int(m.group('scale')) if m.group('scale') else 1))
+        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s*', line):
+            # End of block
+            # deduce loop increment from memory index register
+            pointer_increment = None  # default -> can not decide, let user choose
+            if mem_references:
+                # we found memory references to work with
+                possible_idx_regs = increments.keys()
+                for mref in mem_references:
+                    for reg in possible_idx_regs:
+                        if not (reg == mref[1] or reg == mref[2]):
+                            # reg can not be it
+                            possible_idx_regs.remove(reg)
+                            break
+                if len(possible_idx_regs) == 1:
+                    # good, exactly one register was found
+                    idx_reg = possible_idx_regs[0]
+                    
+                    mem_scales = [mref[3] for mref in mem_references]
+                    if mem_scales[1:] == mem_scales[:-1]:
+                        # good, all scales are equal
+                        pointer_increment = mem_scales[0]*increments[idx_reg]
+            
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
-                           'lines': i-last_label_line,
+                           'ops': i-last_label_line,
                            'label': last_label,
                            'packed_instr': packed_ctr,
                            'avx_instr': avx_ctr,
@@ -75,7 +115,8 @@ def find_asm_blocks(asm_lines, with_nop=True):
                            'regs': (len(xmm_references) + len(ymm_references) + len(gp_references),
                                     len(set(xmm_references)) + len(set(ymm_references)) +
                                     len(set(gp_references))),
-                           'loop_increment': last_incr, })
+                           'pointer_increment': pointer_increment,
+                           'lines': asm_lines[last_label_line:i+1],})
 
     return list(enumerate(blocks))
 
@@ -89,15 +130,32 @@ def select_best_block(blocks):
     return best_block[0]
 
 
+def userselect_increment(block):
+    print("Selected block:")
+    print('\n    '+('    '.join(block['lines'])))
+    print()
+    
+    increment = None
+    while increment is None:
+        increment = raw_input("Choose store pointer increment (number of bytes): ")
+        try:
+            block_idx = int(block_idx)
+        except ValueError:
+            block_idx = None
+    
+    block['pointer_increment'] = increment
+    return increment
+
+
 def userselect_block(blocks, default=None):
     print("Blocks found in assembly file:")
-    print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   || l.inc |\n"
+    print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
           "-----------+-----+------+-----++-----------+----------+----------+---------++-------|")
     for idx, b in blocks:
-        print('{:>2} {b[label]:>5} | {b[lines]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
+        print('{:>2} {b[label]:>7} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
               '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '
-              '{b[loop_increment]:>5} |'.format(idx, b=b))
+              '{b[pointer_increment]:>5} |'.format(idx, b=b))
 
     # Let user select block:
     block_idx = -1
