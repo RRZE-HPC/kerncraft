@@ -624,7 +624,6 @@ class Kernel:
             # If block's pointer_increment is None, let user choose
             # TODO make configurable by command line argument
             if self.asm_block['pointer_increment'] is None:
-                print(self.asm_block)
                 iaca.userselect_increment(self.asm_block)
 
             # Insert markers:
