@@ -94,11 +94,13 @@ def find_asm_blocks(asm_lines):
                             # reg can not be it
                             possible_idx_regs.remove(reg)
                             break
+                
                 if len(possible_idx_regs) == 1:
                     # good, exactly one register was found
                     idx_reg = possible_idx_regs[0]
                     
-                    mem_scales = [mref[3] for mref in mem_references]
+                    mem_scales = [mref[3] for mref in mem_references if idx_reg == mref[2]]
+                    pprint(mem_scales)
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
                         pointer_increment = mem_scales[0]*increments[idx_reg]
@@ -139,9 +141,9 @@ def userselect_increment(block):
     while increment is None:
         increment = raw_input("Choose store pointer increment (number of bytes): ")
         try:
-            block_idx = int(block_idx)
+            increment = int(increment)
         except ValueError:
-            block_idx = None
+            increment = None
     
     block['pointer_increment'] = increment
     return increment
