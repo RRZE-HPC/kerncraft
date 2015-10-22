@@ -421,7 +421,7 @@ class Roofline:
             print('    CPU |              | {:>15} |              |'.format(
                 self.conv_perf(max_flops, self._args.unit)))
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {:>15} |'
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {:>15} |'
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b))
             print()
@@ -439,7 +439,7 @@ class Roofline:
                 self.conv_perf(bottleneck['performance'], self._args.unit),
                 bottleneck['level'],
                 bottleneck['bw kernel']))
-            print('Arithmetic Intensity: {:.2f} FLOP/b'.format(bottleneck['arithmetic intensity']))
+            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']))
 
 class RooflineIACA(Roofline):
     """
@@ -573,7 +573,7 @@ class RooflineIACA(Roofline):
             print('    CPU |              | {:>15} |              |'.format(
                 self.conv_perf(cpu_flops, self._args.unit)))
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/b | {:>15} |'
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {:>15} |'
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b))
             print()
@@ -597,4 +597,4 @@ class RooflineIACA(Roofline):
                 self.conv_perf(bottleneck['performance'], self._args.unit),
                 bottleneck['level'],
                 bottleneck['bw kernel']))
-            print('Arithmetic Intensity: {:.2f} FLOP/b'.format(bottleneck['arithmetic intensity']))
+            print('Arithmetic Intensity: {:.2g} FLOP/B'.format(bottleneck['arithmetic intensity']))

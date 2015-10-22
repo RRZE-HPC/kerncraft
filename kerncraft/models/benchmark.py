@@ -115,20 +115,21 @@ class Benchmark:
         else:
             self.results['MEM BW [MByte/s]'] = float(result['Memory BW [MBytes/s]'][0])
         self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
-        self.results['Performance[MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
+        self.results['Performance [MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
     def report(self):
         if self._args.verbose > 0:
-            print('Runtime (per repetition) [s]:', self.results['Runtime (per repetition) [s]'])
+            print('Runtime (per repetition): {:.2g} s'.format(
+                self.results['Runtime (per repetition) [s]']))
         if self._args.verbose > 0:
             print('Iterations per repetition:', self.results['Iterations per repetition'])
-        print('Runtime (per cacheline update) [cy/CL]:',
-              self.results['Runtime (per cacheline update) [cy/CL]'])
-        print('MEM volume (per repetition) [B]:',
-              self.results['MEM volume (per repetition) [B]'])
-        print('Performance [MFLOP/s]', self.results['Performance [MFLOP/s]'])
-        print('Performance [MLUP/s]', self.results['Performance [MLUP/s]'])
-        print('Performance [It/s]', self.results['Performance[MIt/s]'])
+        print('Runtime (per cacheline update): {:.2g} cy/CL'.format(
+              self.results['Runtime (per cacheline update) [cy/CL]']))
+        print('MEM volume (per repetition): {:.2g} Byte'.format(
+              self.results['MEM volume (per repetition) [B]']))
+        print('Performance: {:.2g} MFLOP/s'.format(self.results['Performance [MFLOP/s]']))
+        print('Performance: {:.2g} MLUP/s'.format(self.results['Performance [MLUP/s]']))
+        print('Performance: {:.2g} It/s'.format(self.results['Performance [MIt/s]']))
         if self._args.verbose > 0:
-            print('MEM BW [MByte/s]:', self.results['MEM BW [MByte/s]'])
+            print('MEM bandwidth: {:.2g} MByte/s'.format(self.results['MEM BW [MByte/s]']))
         print()

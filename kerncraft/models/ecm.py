@@ -496,7 +496,7 @@ class ECMData:
                         r['memory bandwidth'], r['memory bandwidth kernel']))
 
         for level, cycles in self.results['cycles']:
-            print('{} = {} cy/CL'.format(level, cycles))
+            print('{} = {:.2g} cy/CL'.format(level, cycles))
 
 
 class ECMCPU:
@@ -662,14 +662,14 @@ class ECMCPU:
             print('Ports and cycles:', self.results['port cycles'])
             print('Uops:', self.results['uops'])
             
-            print('Throughput: {}'.format(
+            print('Throughput: {.2g}'.format(
                 self.conv_cy(self.results['cl throughput'], self._args.unit)))
             
-            print('Latency: {}'.format(
+            print('Latency: {.2g}'.format(
                 self.conv_cy(self.results['cl latency'], self._args.unit)))
         
-        print('T_nOL = {} cy/CL'.format(self.results['T_nOL']))
-        print('T_OL = {} cy/CL'.format(self.results['T_OL']))
+        print('T_nOL = {.2g} cy/CL'.format(self.results['T_nOL']))
+        print('T_OL = {.2g} cy/CL'.format(self.results['T_OL']))
 
 
 class ECM:
@@ -781,7 +781,7 @@ class ECM:
                 yticks.append(i)
                 i += 1
             xticks.append(sorted_overlapping_ports[-1][1])
-            xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
+            xticks_labels.append('{:.2g}'.format(sorted_overlapping_ports[-1][1]))
 
             # T_nOL + memory transfers
             y = 0
@@ -791,7 +791,7 @@ class ECM:
                 ax.barh(i, v, height, y, align='center', color=colors.pop())
                 ax.text(y+v/2.0, i, '$T_\mathrm{'+k+'}$', ha='center', va='center')
                 xticks.append(y+v)
-                xticks_labels.append('{:.1f}'.format(y+v))
+                xticks_labels.append('{:.2g}'.format(y+v))
                 y += v
             yticks_labels.append('LD')
             yticks.append(i)
