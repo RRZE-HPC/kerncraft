@@ -715,10 +715,14 @@ class ECM:
         # very simple approach. Assumptions are:
         #  - bottleneck is always LLC-MEM
         #  - all caches scale with number of cores (bw AND size(WRONG!))
-        self.results['scaling cores'] = int(math.ceil(
-                max(self.results['T_OL'],
-                self.results['T_nOL']+sum([c[1] for c in self.results['cycles']])) / \
-            self.results['cycles'][-1][1]))
+        if self.results['cycles'][-1][1] == 0.0:
+            # Full caching in higher cache level
+            self.results['scaling cores'] = float('inf')
+        else:
+            self.results['scaling cores'] = int(math.ceil(
+                    max(self.results['T_OL'],
+                    self.results['T_nOL']+sum([c[1] for c in self.results['cycles']])) / \
+                self.results['cycles'][-1][1]))
 
     def report(self):
         report = ''
