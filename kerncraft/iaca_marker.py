@@ -100,7 +100,7 @@ def find_asm_blocks(asm_lines):
                     idx_reg = possible_idx_regs[0]
                     
                     mem_scales = [mref[3] for mref in mem_references if idx_reg == mref[2]]
-                    pprint(mem_scales)
+
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
                         pointer_increment = mem_scales[0]*increments[idx_reg]

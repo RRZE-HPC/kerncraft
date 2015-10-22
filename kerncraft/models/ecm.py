@@ -662,14 +662,14 @@ class ECMCPU:
             print('Ports and cycles:', self.results['port cycles'])
             print('Uops:', self.results['uops'])
             
-            print('Throughput: {.2g}'.format(
+            print('Throughput: {}'.format(
                 self.conv_cy(self.results['cl throughput'], self._args.unit)))
             
-            print('Latency: {.2g}'.format(
+            print('Latency: {}'.format(
                 self.conv_cy(self.results['cl latency'], self._args.unit)))
         
-        print('T_nOL = {.2g} cy/CL'.format(self.results['T_nOL']))
-        print('T_OL = {.2g} cy/CL'.format(self.results['T_OL']))
+        print('T_nOL = {:.2g} cy/CL'.format(self.results['T_nOL']))
+        print('T_OL = {:.2g} cy/CL'.format(self.results['T_OL']))
 
 
 class ECM:
@@ -729,10 +729,10 @@ class ECM:
         total_cycles = max(
             self.results['T_OL'],
             sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']]))
-        report += '{{ {} || {} | {} }} = {:.2f} cy/CL'.format(
+        report += '{{ {:.2g} || {:.2g} | {} }} cy/CL'.format(
             self.results['T_OL'],
             self.results['T_nOL'],
-            ' | '.join([str(i[1]) for i in self.results['cycles']]),
+            ' | '.join(['{:.2g}'.format(i[1]) for i in self.results['cycles']]),
             total_cycles)
         
         if self._args.unit:
@@ -740,7 +740,7 @@ class ECM:
         
         report += '\n{{ {} \ {} }} cy/CL'.format(
             max(self.results['T_OL'], self.results['T_nOL']),
-            ' \ '.join(['{:.2f}'.format(max(sum(map(lambda x: x[1], self.results['cycles'][:i+1])) +
+            ' \ '.join(['{:.2g}'.format(max(sum(map(lambda x: x[1], self.results['cycles'][:i+1])) +
             self.results['T_nOL'], self.results['T_OL']))
                 for i in range(len(self.results['cycles']))]),
             total_cycles)
