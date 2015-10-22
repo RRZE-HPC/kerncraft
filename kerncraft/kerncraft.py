@@ -8,23 +8,78 @@ import sys
 import os.path
 import pickle
 import shutil
+import math
+import re
+import pprint
+import itertools
 
 import models
 from kernel import Kernel
 from machinemodel import MachineModel
 
 
-class AppendStringInteger(argparse.Action):
-    """Action to append a string and integer"""
+def space(start, stop, num, endpoint=True, log=False, base=10):
+    '''
+    Returns list of evenly spaced integers over an interval.
+
+    Numbers can either be evenlty distributed in a linear space (if *log* is False) or in a log 
+    space (if *log* is True). If *log* is True, base is used to define the log space basis.
+    
+    If *endpoint* is True, *stop* will be the last retruned value, as long as *num* >= 2.
+    '''
+    assert type(start) is int and type(stop) is int and type(num) is int, \
+        "start, stop and num need to be intergers"
+    assert num >= 2, "num has to be atleast 2"
+    
+    if log:
+        start = math.log(start, base)
+        stop = math.log(stop, base)
+    
+    if endpoint:
+        steplength = float((stop-start))/float(num-1)
+    else:
+        steplength = float((stop-start))/float(num-2)
+    
+    i = 0
+    while i < num:
+        if log:
+            yield int(base**(start + i*steplength))
+        else:
+            yield int(start + i*steplength)
+        i += 1
+    
+
+class AppendStringRange(argparse.Action):
+    """
+    Action to append a string and a range discription
+    
+    A range discription must have the following format: start[-stop[:num[log[base]]]]
+    if stop is given, a list of integers is compiled
+    if num is given, an evently spaced lsit of intergers from start to stop is compiled
+    if log is given, the integers are evenly spaced on a log space
+    if base is given, the integers are evently spaced on that base (default: 10)
+    """
     def __call__(self, parser, namespace, values, option_string=None):
         message = ''
         if len(values) != 2:
             message = 'requires 2 arguments'
         else:
-            try:
-                values[1] = int(values[1])
-            except ValueError:
-                message = ('second argument requires an integer')
+            m = re.match(r'(?P<start>\d+)(?:-(?P<stop>\d+)(?::(?P<num>\d+)'
+                         r'(:?(?P<log>log)(:?(?P<base>\d+))?)?)?)?',
+                         values[1])
+            if m:
+                gd = m.groupdict()
+                if gd['stop'] is None:
+                    values[1] = [int(gd['start'])]
+                elif gd['num'] is None:
+                    values[1] = range(int(gd['start']), int(gd['stop'])+1)
+                else:
+                    log = gd['log'] is not None
+                    base = int(gd['base']) if gd['base'] is not None else 10
+                    values[1] = space(
+                        int(gd['start']), int(gd['stop']), int(gd['num']), log=log, base=base)
+            else:
+                message = 'second argument must match: start[-stop[:num[log[base]]]]'
 
         if message:
             raise argparse.ArgumentError(self, message)
@@ -42,17 +97,13 @@ def main():
     parser.add_argument('--pmodel', '-p', choices=models.__all__, required=True, action='append',
                         default=[], help='Performance model to apply')
     parser.add_argument('-D', '--define', nargs=2, metavar=('KEY', 'VALUE'), default=[],
-                        action=AppendStringInteger,
-                        help='Define constant to be used in C code. Values must be integers. '
-                             'Overwrites constants from testcase file.')
-    parser.add_argument('--testcases', '-t', action='store_true',
-                        help='Use testcases file.')
-    parser.add_argument('--testcase-index', '-i', metavar='INDEX', type=int, default=0,
-                        help='Index of testcase in testcase file. If not given, all cases are '
-                             'executed.')
+                        action=AppendStringRange,
+                        help='Define constant to be used in C code. Values must be integer or '
+                             'match start-stop[:num[log[base]]]. If range is given, all '
+                             'permutation s will be tested. Overwrites constants from testcase '                                 'file.')
     parser.add_argument('--verbose', '-v', action='count',
                         help='Increases verbosity level.')
-    parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(), nargs='+',
+    parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(),
                         help='File with loop kernel C code')
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
@@ -81,45 +132,48 @@ def main():
             parser.error('--asm-block can only be "auto", "manual" or an integer')
 
     # Try loading results file (if requested)
+    result_storage = {}
     if args.store:
         args.store.seek(0)
         try:
             result_storage = pickle.load(args.store)
         except EOFError:
-            result_storage = {}
+            pass
         args.store.close()
     
     # machine information
     # Read machine description
     machine = MachineModel(args.machine.name)
 
-    # process kernels and testcases
-    for code_file in args.code_file:
-        code = code_file.read()
+    # process kernel
+    code = args.code_file.read()
+    kernel = Kernel(code, filename=args.code_file.name)
 
-        # Add constants from testcase file
-        if args.testcases:
-            testcases_file = open(os.path.splitext(code_file.name)[0]+'.testcases')
-            testcases = ast.literal_eval(testcases_file.read())
-            if args.testcase_index:
-                testcases = [testcases[args.testcase_index]]
-        else:
-            testcases = [{'constants': {}}]
+    # build defines permutations
+    define_dict = {}
+    for name, values in args.define:
+        if name not in define_dict:
+            define_dict[name] = [[name, v] for v in values]
+            continue
+        for v in values:
+            if v not in define_dict[name]:
+                define_dict[name].append([name, v])
+    define_product = list(itertools.product(*define_dict.values()))
 
-        for testcase in testcases:
-            print('='*80 + '\n{:^80}\n'.format(code_file.name) + '='*80)
+    for define in define_product:
+        # Add constants from define arguments
+        for k, v in define:
+            kernel.set_constant(k, v)
 
-            kernel = Kernel(code, filename=code_file.name)
+        kernel.process()
 
-            assert 'constants' in testcase, "Could not find key 'constants' in testcase file."
-            for k, v in testcase['constants']:
-                kernel.set_constant(k, v)
-
-            # Add constants from define arguments
-            for k, v in args.define:
-                kernel.set_constant(k, v)
-
-            kernel.process()
+        for model_name in set(args.pmodel):
+            # print header
+            print('{:=^80}'.format(' kerncraft '))
+            print('{:<40}{:>40}'.format(args.code_file.name, '-m '+args.machine.name))
+            print(' '.join(['-D {} {}'.format(k,v) for k,v in define]))
+            print('{:-^80}'.format(' '+model_name+' '))
+            
             if args.verbose > 1:
                 kernel.print_kernel_code()
                 print()
@@ -127,46 +181,29 @@ def main():
                 kernel.print_kernel_info()
             if args.verbose > 0:
                 kernel.print_constants_info()
-
-            for model_name in set(args.pmodel):
-                model = getattr(models, model_name)(kernel, machine, args, parser)
-
-                model.analyze()
-                model.report()
-                
-                # Add results to storage (if requested)
-                if args.store:
-                    kernel_name = os.path.split(code_file.name)[1]
-                    if kernel_name not in result_storage:
-                        result_storage[kernel_name] = {}
-                    if tuple(kernel._constants.items()) not in result_storage[kernel_name]:
-                        result_storage[kernel_name][tuple(kernel._constants.items())] = {}
-                    result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
-                        model.results
-
-                # TODO take care of different performance models
-                if 'results-to-compare' in testcase:
-                    failed = False
-                    for key, value in model.results.items():
-                        if key in testcase['results-to-compare']:
-                            correct_value = float(testcase['results-to-compare'][key])
-                            diff = abs(value - correct_value)
-                            if diff > correct_value*0.1:
-                                print("Test values did not match: {} should have been {}, but was "
-                                      "{}.".format(key, correct_value, value))
-                                failed = True
-                            elif diff:
-                                print("Small difference from theoretical value: {} should have "
-                                      "been {}, but was {}.".format(key, correct_value, value))
-                    if failed:
-                        sys.exit(1)
             
-            # Save new storage to file
-            if args.store:
-                tempname = args.store.name + '.tmp'
-                with open(tempname, 'w+') as f:
-                    pickle.dump(result_storage, f)
-                shutil.move(tempname, args.store.name)
+            model = getattr(models, model_name)(kernel, machine, args, parser)
+
+            model.analyze()
+            model.report()
+            
+            # Add results to storage
+            kernel_name = os.path.split(args.code_file.name)[1]
+            if kernel_name not in result_storage:
+                result_storage[kernel_name] = {}
+            if tuple(kernel._constants.items()) not in result_storage[kernel_name]:
+                result_storage[kernel_name][tuple(kernel._constants.items())] = {}
+            result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
+                model.results
+            
+            print()
+        
+        # Save storage to file (if requested)
+        if args.store:
+            tempname = args.store.name + '.tmp'
+            with open(tempname, 'w+') as f:
+                pickle.dump(result_storage, f)
+            shutil.move(tempname, args.store.name)
 
 if __name__ == '__main__':
     main()
