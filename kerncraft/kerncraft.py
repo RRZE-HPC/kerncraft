@@ -90,7 +90,7 @@ class AppendStringRange(argparse.Action):
             setattr(namespace, self.dest, [values])
 
 
-def main():
+def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--machine', '-m', type=file, required=True,
                         help='Path to machine description yaml file.')
@@ -120,17 +120,17 @@ def main():
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)
-
-    # BUSINESS LOGIC IS FOLLOWING
-    args = parser.parse_args()
     
-    # Checking arguments
+    return parser
+
+def check_arguments(args):
     if args.asm_block not in ['auto', 'manual']:
         try:
             args.asm_block = int(args.asm_block)
         except ValueError:
             parser.error('--asm-block can only be "auto", "manual" or an integer')
 
+def run(parser, args):
     # Try loading results file (if requested)
     result_storage = {}
     if args.store:
@@ -204,6 +204,19 @@ def main():
             with open(tempname, 'w+') as f:
                 pickle.dump(result_storage, f)
             shutil.move(tempname, args.store.name)
+
+def main():
+    # Create and populate parser
+    parser = create_parser()
+    
+    # Parse given arguments
+    args = parser.parse_args()
+    
+    # Checking arguments
+    check_arguments(args)
+    
+    # BUSINESS LOGIC IS FOLLOWING
+    run(parser, args)
 
 if __name__ == '__main__':
     main()
