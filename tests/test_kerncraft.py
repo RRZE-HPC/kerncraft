@@ -65,7 +65,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L2-L3'], 6)
         self.assertAlmostEqual(ecmd['L3-MEM'], 3.891891891891892)
 
-
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
         output_stream = StringIO()
@@ -99,7 +98,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(roofline['min performance'], 5220000000.0)
         self.assertEqual(roofline['bottleneck level'], 3)
 
-
     def test_sclar_product_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData.pickle')
         output_stream = StringIO()
@@ -121,7 +119,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L1-L2'], 4)
         self.assertAlmostEqual(ecmd['L2-L3'], 5.54)
         self.assertAlmostEqual(ecmd['L3-MEM'], 0.0)
-
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
