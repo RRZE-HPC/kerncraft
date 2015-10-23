@@ -61,9 +61,9 @@ class TestKerncraft(unittest.TestCase):
         self.assertItemsEqual(result.keys(), ['ECMData'])
         
         ecmd = result['ECMData']
-        self.assertAlmostEqual(ecmd['L1-L2'], 10)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 3.891891891891892)
+        self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 3.891891891891892, places=0)
 
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
@@ -95,7 +95,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertItemsEqual(result.keys(), ['Roofline'])
         
         roofline = result['Roofline']
-        self.assertAlmostEqual(roofline['min performance'], 5220000000.0)
+        self.assertAlmostEqual(roofline['min performance'], 5220000000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     def test_sclar_product_ECMData(self):
@@ -116,9 +116,9 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         ecmd = results['scalar_product.c'][(('N', 10000),)]['ECMData']
         
-        self.assertAlmostEqual(ecmd['L1-L2'], 4)
-        self.assertAlmostEqual(ecmd['L2-L3'], 5.54)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0)
+        self.assertAlmostEqual(ecmd['L1-L2'], 4, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 5.54, places=1)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
@@ -138,9 +138,9 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         ecmd = results['copy.c'][(('N', 1000000),)]['ECMData']
         
-        self.assertAlmostEqual(ecmd['L1-L2'], 6)
-        self.assertAlmostEqual(ecmd['L2-L3'], 8.31)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 16.63849765258216)
+        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 8.31, places=1)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 16.6, places=0)
 
     def test_space_linear(self):
         self.assertEqual(list(kc.space(1, 10, 10)), [1,2,3,4,5,6,7,8,9,10])
