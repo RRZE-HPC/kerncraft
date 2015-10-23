@@ -1,6 +1,10 @@
 language: python
 python:
   - "2.7"
-script: python tests/all_tests.py
+script: coverage run tests/all_tests.py
+before_install:
+  - pip install codecov
 install:
   - pip install .
+after_success:
+  - codecov
