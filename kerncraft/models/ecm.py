@@ -480,23 +480,28 @@ class ECMData:
                 'cy/CL': cy_cl,
                 'FLOP/s': performance}[unit]
 
-    def report(self):
+    def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
             for r in self.results['memory hierarchy']:
-                print('Trace legth per access in {}:'.format(r['level']), r['trace length'])
-                print('Hits in {}:'.format(r['level']), r['total hits'], r['hits'])
+                print('Trace legth per access in {}:'.format(r['level']), r['trace length'],
+                      file=output_file)
+                print('Hits in {}:'.format(r['level']), r['total hits'], r['hits'],
+                      file=output_file)
                 print('Misses in {}: {} ({}CL):'.format(
                     r['level'], r['total misses'], r['total lines misses']),
-                    r['misses'])
+                    r['misses'],
+                    file=output_file)
                 print('Evicts from {} {} ({}CL):'.format(
                     r['level'], r['total evicts'], r['total lines evicts']),
-                    r['evicts'])
+                    r['evicts'],
+                    file=output_file)
                 if 'memory bandwidth' in r:
                     print('memory bandwidth: {} (from {} kernel benchmark)'.format(
-                        r['memory bandwidth'], r['memory bandwidth kernel']))
+                              r['memory bandwidth'], r['memory bandwidth kernel']),
+                          file=output_file)
 
         for level, cycles in self.results['cycles']:
-            print('{} = {:.2g} cy/CL'.format(level, cycles))
+            print('{} = {:.2g} cy/CL'.format(level, cycles), file=output_file)
 
 
 class ECMCPU:
@@ -651,25 +656,27 @@ class ECMCPU:
                 'cy/CL': cy_cl,
                 'FLOP/s': performance}[unit]
 
-    def report(self):
+    def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 2:
-            print("IACA Output:")
-            print(self.results['IACA output'])
-            print(self.results['IACA latency output'])
-            print()
+            print("IACA Output:", file=output_file)
+            print(self.results['IACA output'], file=output_file)
+            print(self.results['IACA latency output'], file=output_file)
+            print(file=output_file)
         
         if self._args and self._args.verbose > 1:
-            print('Ports and cycles:', self.results['port cycles'])
-            print('Uops:', self.results['uops'])
+            print('Ports and cycles:', self.results['port cycles'], file=output_file)
+            print('Uops:', self.results['uops'], file=output_file)
             
             print('Throughput: {}'.format(
-                self.conv_cy(self.results['cl throughput'], self._args.unit)))
+                      self.conv_cy(self.results['cl throughput'], self._args.unit)),
+                  file=output_file)
             
             print('Latency: {}'.format(
-                self.conv_cy(self.results['cl latency'], self._args.unit)))
+                      self.conv_cy(self.results['cl latency'], self._args.unit)),
+                  file=output_file)
         
-        print('T_nOL = {:.2g} cy/CL'.format(self.results['T_nOL']))
-        print('T_OL = {:.2g} cy/CL'.format(self.results['T_OL']))
+        print('T_nOL = {:.2g} cy/CL'.format(self.results['T_nOL']), file=output_file)
+        print('T_OL = {:.2g} cy/CL'.format(self.results['T_OL']), file=output_file)
 
 
 class ECM:
@@ -724,7 +731,7 @@ class ECM:
                     self.results['T_nOL']+sum([c[1] for c in self.results['cycles']])) / \
                 self.results['cycles'][-1][1]))
 
-    def report(self):
+    def report(self, output_file=sys.stdout):
         report = ''
         if self._args and self._args.verbose > 1:
             self._CPU.report()
@@ -751,7 +758,7 @@ class ECM:
 
         report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 
-        print(report)
+        print(report, file=output_file)
 
         if self._args and self._args.ecm_plot:
             assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."

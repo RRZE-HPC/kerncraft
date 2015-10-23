@@ -409,37 +409,43 @@ class Roofline:
                 'cy/CL': cy_cl,
                 'FLOP/s': performance}[unit]
 
-    def report(self):
+    def report(self, output_file=sys.stdout):
         precision = 'DP' if self.kernel.datatype == 'double' else 'SP'
         max_flops = self.machine['clock']*self._args.cores*sum(
             self.machine['FLOPs per cycle'][precision].values())
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
-            print('Bottlnecks:')
-            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
-            print('--------+--------------+-----------------+--------------+-----------------')
+            print('Bottlnecks:', file=output_file)
+            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
+                  file=output_file)
+            print('--------+--------------+-----------------+--------------+-----------------',
+                  file=output_file)
             print('    CPU |              | {:>15} |              |'.format(
-                self.conv_perf(max_flops, self._args.unit)))
+                      self.conv_perf(max_flops, self._args.unit)),
+                  file=output_file)
             for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {:>15} |'
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
-                          self.conv_perf(b['performance'], self._args.unit), **b))
-            print()
+                          self.conv_perf(b['performance'], self._args.unit), **b),
+                      file=output_file)
+            print(file=output_file)
 
         if self.results['min performance'] > max_flops:
             # CPU bound
-            print('CPU bound with', self._args.cores, 'core(s)')
-            print('{!s} due to CPU max. FLOP/s'.format(max_flops))
+            print('CPU bound with', self._args.cores, 'core(s)', file=output_file)
+            print('{!s} due to CPU max. FLOP/s'.format(max_flops), file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with', self._args.cores, 'core(s)')
+            print('Cache or mem bound with', self._args.cores, 'core(s)', file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
-                self.conv_perf(bottleneck['performance'], self._args.unit),
-                bottleneck['level'],
-                bottleneck['bw kernel']))
-            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']))
+                    self.conv_perf(bottleneck['performance'], self._args.unit),
+                    bottleneck['level'],
+                    bottleneck['bw kernel']),
+                  file=output_file)
+            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
+                  file=output_file)
 
 class RooflineIACA(Roofline):
     """
@@ -559,7 +565,7 @@ class RooflineIACA(Roofline):
         self.results['cpu bottleneck']['performance throughput'].unit = 'FLOP/s'
         self.results['cpu bottleneck']['performance latency'].unit = 'FLOP/s'
 
-    def report(self):
+    def report(self, output_file=sys.stdout):
         if not self._args.latency:
             cpu_flops = PrefixedUnit(
                 self.results['cpu bottleneck']['performance throughput'], "FLOP/s")
@@ -567,34 +573,42 @@ class RooflineIACA(Roofline):
             cpu_flops = PrefixedUnit(
                 self.results['cpu bottleneck']['performance latency'], "FLOP/s")
         if self._args and self._args.verbose >= 1:
-            print('Bottlnecks:')
-            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel')
-            print('--------+--------------+-----------------+--------------+-----------------')
+            print('Bottlnecks:', file=output_file)
+            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
+                  file=output_file)
+            print('--------+--------------+-----------------+--------------+-----------------',
+                  file=output_file)
             print('    CPU |              | {:>15} |              |'.format(
-                self.conv_perf(cpu_flops, self._args.unit)))
+                      self.conv_perf(cpu_flops, self._args.unit)),
+                  file=output_file)
             for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {:>15} |'
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
-                          self.conv_perf(b['performance'], self._args.unit), **b))
-            print()
-            print('IACA analisys:')
+                          self.conv_perf(b['performance'], self._args.unit), **b),
+                      file=output_file)
+            print(file=output_file)
+            print('IACA analisys:', file=output_file)
             if self._args.verbose >= 3:
-                print(self.results['cpu bottleneck']['IACA output'])
-                print(self.results['cpu bottleneck']['IACA latency output'])
+                print(self.results['cpu bottleneck']['IACA output'], file=output_file)
+                print(self.results['cpu bottleneck']['IACA latency output'], file=output_file)
             print({k: v for k, v in self.results['cpu bottleneck'].items() if k not in 
-                ['IACA output', 'IACA latency output']})
+                   ['IACA output', 'IACA latency output']},
+                  file=output_file)
 
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
-            print('CPU bound with', self._args.cores, 'core(s)')
-            print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)))
+            print('CPU bound with', self._args.cores, 'core(s)', file=output_file)
+            print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)),
+                  file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with', self._args.cores, 'core(s)')
+            print('Cache or mem bound with', self._args.cores, 'core(s)', file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
-                self.conv_perf(bottleneck['performance'], self._args.unit),
-                bottleneck['level'],
-                bottleneck['bw kernel']))
-            print('Arithmetic Intensity: {:.2g} FLOP/B'.format(bottleneck['arithmetic intensity']))
+                      self.conv_perf(bottleneck['performance'], self._args.unit),
+                      bottleneck['level'],
+                      bottleneck['bw kernel']),
+                  file=output_file)
+            print('Arithmetic Intensity: {:.2g} FLOP/B'.format(bottleneck['arithmetic intensity']),
+                  file=output_file)

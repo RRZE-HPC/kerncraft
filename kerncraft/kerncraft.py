@@ -38,14 +38,14 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
     if endpoint:
         steplength = float((stop-start))/float(num-1)
     else:
-        steplength = float((stop-start))/float(num-2)
+        steplength = float((stop-start))/float(num)
     
     i = 0
     while i < num:
         if log:
-            yield int(base**(start + i*steplength))
+            yield int(round(base**(start + i*steplength)))
         else:
-            yield int(start + i*steplength)
+            yield int(round(start + i*steplength))
         i += 1
     
 
@@ -130,7 +130,7 @@ def check_arguments(args):
         except ValueError:
             parser.error('--asm-block can only be "auto", "manual" or an integer')
 
-def run(parser, args):
+def run(parser, args, output_file=sys.stdout):
     # Try loading results file (if requested)
     result_storage = {}
     if args.store:
@@ -169,14 +169,15 @@ def run(parser, args):
 
         for model_name in set(args.pmodel):
             # print header
-            print('{:=^80}'.format(' kerncraft '))
-            print('{:<40}{:>40}'.format(args.code_file.name, '-m '+args.machine.name))
-            print(' '.join(['-D {} {}'.format(k,v) for k,v in define]))
-            print('{:-^80}'.format(' '+model_name+' '))
+            print('{:=^80}'.format(' kerncraft '), file=output_file)
+            print('{:<40}{:>40}'.format(args.code_file.name, '-m '+args.machine.name),
+                  file=output_file)
+            print(' '.join(['-D {} {}'.format(k,v) for k,v in define]), file=output_file)
+            print('{:-^80}'.format(' '+model_name+' '), file=output_file)
             
             if args.verbose > 1:
                 kernel.print_kernel_code()
-                print()
+                print(file=output_file)
                 kernel.print_variables_info()
                 kernel.print_kernel_info()
             if args.verbose > 0:
@@ -185,7 +186,7 @@ def run(parser, args):
             model = getattr(models, model_name)(kernel, machine, args, parser)
 
             model.analyze()
-            model.report()
+            model.report(output_file=output_file)
             
             # Add results to storage
             kernel_name = os.path.split(args.code_file.name)[1]
@@ -196,7 +197,7 @@ def run(parser, args):
             result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
                 model.results
             
-            print()
+            print(file=output_file)
         
         # Save storage to file (if requested)
         if args.store:
