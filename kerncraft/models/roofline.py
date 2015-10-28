@@ -47,7 +47,7 @@ def flatten_dict(d):
     return e
 
 
-class Roofline:
+class Roofline(object):
     """
     class representation of the Roofline Model
 

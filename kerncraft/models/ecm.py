@@ -13,7 +13,6 @@ import re
 import imp
 import math
 
-
 try:
     import matplotlib
     matplotlib.use('Agg')
@@ -58,7 +57,7 @@ def flatten_dict(d):
     return e
 
 
-class ECMData:
+class ECMData(object):
     """
     class representation of the Execution-Cache-Memory Model (only the data part)
 
@@ -503,7 +502,7 @@ class ECMData:
             print('{} = {:.2g} cy/CL'.format(level, cycles), file=output_file)
 
 
-class ECMCPU:
+class ECMCPU(object):
     """
     class representation of the Execution-Cache-Memory Model (only the operation part)
 
@@ -678,7 +677,7 @@ class ECMCPU:
         print('T_OL = {:.2g} cy/CL'.format(self.results['T_OL']), file=output_file)
 
 
-class ECM:
+class ECM(object):
     """
     class representation of the Execution-Cache-Memory Model (data and operations)
 
