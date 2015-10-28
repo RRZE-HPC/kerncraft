@@ -3,7 +3,7 @@
 import yaml
 
 
-class MachineModel:
+class MachineModel(object):
     def __init__(self, path_to_yaml):
         self._path = path_to_yaml
         self._data = {}

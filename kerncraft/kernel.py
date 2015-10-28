@@ -108,7 +108,7 @@ def find_array_references(ast):
         return reduce(operator.add, map(lambda o: find_array_references(o[1]), ast.children()), [])
 
 
-class Kernel:
+class Kernel(object):
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
     

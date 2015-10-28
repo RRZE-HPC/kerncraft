@@ -7,7 +7,7 @@ import operator
 import sys
 
 
-class Benchmark:
+class Benchmark(object):
     """
     this will produce a benchmarkable binary to be used with likwid
     """
