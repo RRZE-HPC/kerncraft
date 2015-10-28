@@ -290,7 +290,7 @@ class Roofline:
                                 new_cache = Intervals(*new_cache, sane=True)
                                 cache[var_name][idx_order] &= new_cache
 
-                        trace_count += len(cache[var_name][idx_order]._data)
+                        trace_count += len(cache[var_name][idx_order].data)
                         cache_used_size += len(cache[var_name][idx_order])*element_size
                 
                 # Calculate new possible trace_length according to free space in cache

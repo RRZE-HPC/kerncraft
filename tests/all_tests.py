@@ -9,6 +9,7 @@ import unittest
 suite = unittest.TestLoader().loadTestsFromNames(
     [
         'test_kerncraft',
+        'test_intervals',
     ]
 )
 
