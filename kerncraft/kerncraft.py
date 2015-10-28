@@ -123,7 +123,7 @@ def create_parser():
     
     return parser
 
-def check_arguments(args):
+def check_arguments(args, parser):
     if args.asm_block not in ['auto', 'manual']:
         try:
             args.asm_block = int(args.asm_block)
@@ -214,7 +214,7 @@ def main():
     args = parser.parse_args()
     
     # Checking arguments
-    check_arguments(args)
+    check_arguments(args, parser)
     
     # BUSINESS LOGIC IS FOLLOWING
     run(parser, args)

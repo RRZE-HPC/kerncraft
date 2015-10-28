@@ -12,7 +12,6 @@ import subprocess
 import re
 import imp
 import math
-import sys
 
 
 try:
@@ -743,8 +742,7 @@ class ECM:
         report += '{{ {:.2g} || {:.2g} | {} }} cy/CL'.format(
             self.results['T_OL'],
             self.results['T_nOL'],
-            ' | '.join(['{:.2g}'.format(i[1]) for i in self.results['cycles']]),
-            total_cycles)
+            ' | '.join(['{:.2g}'.format(i[1]) for i in self.results['cycles']]))
         
         if self._args.unit:
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
@@ -753,8 +751,7 @@ class ECM:
             max(self.results['T_OL'], self.results['T_nOL']),
             ' \ '.join(['{:.2g}'.format(max(sum(map(lambda x: x[1], self.results['cycles'][:i+1])) +
             self.results['T_nOL'], self.results['T_OL']))
-                for i in range(len(self.results['cycles']))]),
-            total_cycles)
+                for i in range(len(self.results['cycles']))]))
 
         report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 
