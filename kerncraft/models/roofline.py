@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 
-from pprint import pprint
 from functools import reduce
 import operator
 import subprocess
@@ -136,7 +135,6 @@ class Roofline(object):
 
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
-        iteration_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
 
         # handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
@@ -199,13 +197,10 @@ class Roofline(object):
         # Check for layer condition towards all cache levels
         for cache_level, cache_info in list(enumerate(memory_hierarchy))[:-1]:
             cache_size = int(float(cache_info['size per group']))
-            cache_cycles = cache_info['cycles per cacheline transfer']
 
             trace_length = 0
             updated_length = True
-            x = 0
             while updated_length:
-                x += 1
                 updated_length = False
 
                 # Initialize cache, misses, hits and evicts for current level

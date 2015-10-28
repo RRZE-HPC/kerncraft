@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import re
 import sys
-from pprint import pprint
 
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'

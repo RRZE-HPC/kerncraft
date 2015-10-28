@@ -3,14 +3,12 @@
 
 from __future__ import print_function
 
-from pprint import pprint
 from functools import reduce as reduce_
 import operator
 import copy
 import sys
 import subprocess
 import re
-import imp
 import math
 
 try:
@@ -146,8 +144,7 @@ class ECMData(object):
 
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
-        iteration_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
-
+        
         # handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
@@ -235,9 +232,7 @@ class ECMData(object):
 
             trace_length = 0
             updated_length = True
-            x = 0
             while updated_length:
-                x += 1
                 updated_length = False
 
                 # Initialize cache, misses, hits and evicts for current level
@@ -427,7 +422,7 @@ class ECMData(object):
                     cycles += total_lines_misses[cache_level]*cache_cycles
 
             self.results['memory hierarchy'].append({
-                'index': i,
+                'index': len(self.results['memory hierarchy']),
                 'level': '{}'.format(cache_info['level']),
                 'total misses': total_misses[cache_level],
                 'total hits': total_hits[cache_level],

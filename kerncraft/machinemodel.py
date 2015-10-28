@@ -10,7 +10,8 @@ class MachineModel(object):
         with open(path_to_yaml, 'r') as f:
             self._data = yaml.load(f)
 
-        self.__getitem__ = self._data.__getitem__
+    def __getitem__(self, index):
+        return self._data[index]
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, repr(self._path))

@@ -1,7 +1,6 @@
 from __future__ import print_function, division
 
 import subprocess
-import math
 from functools import reduce
 import operator
 import sys
@@ -27,6 +26,7 @@ class Benchmark(object):
         self.kernel = kernel
         self.machine = machine
         self._args = args
+        self._parser = parser
 
         if args:
             # handle CLI info

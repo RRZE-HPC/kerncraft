@@ -3,14 +3,12 @@
 from __future__ import print_function
 
 import argparse
-import ast
 import sys
 import os.path
 import pickle
 import shutil
 import math
 import re
-import pprint
 import itertools
 
 import models

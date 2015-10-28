@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import matplotlib
+from pprint import pprint
+
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import yaml
-from pprint import pprint
 
 from prefixedunit import PrefixedUnit
 

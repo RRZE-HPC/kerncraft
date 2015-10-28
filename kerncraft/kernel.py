@@ -11,7 +11,7 @@ import os
 import os.path
 import sys
 
-from pycparser import CParser, c_ast, c_generator
+from pycparser import CParser, c_ast
 from pycparser.c_generator import CGenerator
 
 import iaca_marker as iaca
@@ -403,7 +403,7 @@ class Kernel(object):
 
         # add declarations for constants
         i = 1  # subscript for cli input
-        for k, v in self._constants.items():
+        for k in self._constants:
             # cont int N = atoi(argv[1])
             # TODO change subscript of argv depending on constant count
             type_decl = c_ast.TypeDecl(k, ['const'], c_ast.IdentifierType(['int']))

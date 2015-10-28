@@ -5,9 +5,7 @@ import subprocess
 import re
 import sys
 from pprint import pprint
-from itertools import chain
 from copy import copy
-from textwrap import dedent
 
 import yaml
 
@@ -81,7 +79,7 @@ def get_machine_topology():
 
 
 def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
-               sockets, iterations=1000):
+               sockets):
     """*size* is given in kilo bytes"""
     groups = []
     for s in range(sockets):
@@ -118,7 +116,6 @@ def cli():
 def main():
     machine = get_machine_topology()
 
-    total_threads = machine['threads per core'] * machine['cores per socket']
     benchmarks = {'kernels': {}, 'measurements': {}}
     machine['benchmarks'] = benchmarks
     benchmarks['kernels'] = {
@@ -192,8 +189,7 @@ def main():
                         threads_per_core,
                         machine['threads per core'],
                         measurement['cores'][i],
-                        1,  # Sockets
-                        iterations=1000))
+                        sockets=1))
 
                     print('.', end='', file=sys.stderr)
                     sys.stderr.flush()
