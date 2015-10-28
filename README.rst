@@ -16,6 +16,10 @@ For a detailed documentation see publications in `<doc/>`_.
 
 .. image:: https://codecov.io/github/RRZE-HPC/kerncraft/coverage.svg
     :target: https://codecov.io/github/RRZE-HPC/kerncraft
+    
+.. image:: https://landscape.io/github/RRZE-HPC/kerncraft/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/RRZE-HPC/kerncraft/master
+   :alt: Code Health
 
 Installation
 ============
