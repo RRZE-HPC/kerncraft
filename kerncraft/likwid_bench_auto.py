@@ -63,7 +63,7 @@ def get_machine_topology():
         mem_level['cycles per cacheline transfer'] = 'INFORMATION_REQUIRED'
         mem_level['bandwidth'] = 'INFORMATION_REQUIRED'
 
-        if len(mem_level) == 8:
+        if len(mem_level) == 7:
             machine['memory hierarchy'].append(mem_level)
             mem_level = {}
     machine['memory hierarchy'].append({
