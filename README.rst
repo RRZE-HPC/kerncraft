@@ -11,11 +11,11 @@ apply performance models.
 
 For a detailed documentation see publications in `<doc/>`_.
 
-.. image:: https://travis-ci.org/RRZE-HPC/kerncraft.svg
-    :target: https://travis-ci.org/RRZE-HPC/kerncraft
+.. image:: https://travis-ci.org/RRZE-HPC/kerncraft.svg?branch=master
+    :target: https://travis-ci.org/RRZE-HPC/kerncraft?branch=master
 
-.. image:: https://codecov.io/github/RRZE-HPC/kerncraft/coverage.svg
-    :target: https://codecov.io/github/RRZE-HPC/kerncraft
+.. image:: https://codecov.io/github/RRZE-HPC/kerncraft/coverage.svg?branch=master
+    :target: https://codecov.io/github/RRZE-HPC/kerncraft?branch=master
     
 .. image:: https://landscape.io/github/RRZE-HPC/kerncraft/master/landscape.svg?style=flat
    :target: https://landscape.io/github/RRZE-HPC/kerncraft/master
