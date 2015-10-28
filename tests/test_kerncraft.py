@@ -42,7 +42,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '1000-100000:3log10',
                                   '-D', 'M', '50',
                                   '--store', store_file])
-        kc.check_arguments(args)
+        kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
         results = pickle.load(open(store_file))
@@ -76,7 +76,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '1024-4096:3log2',
                                   '-D', 'M', '50',
                                   '--store', store_file])
-        kc.check_arguments(args)
+        kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
         results = pickle.load(open(store_file))
@@ -108,7 +108,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('scalar_product.c'),
                                   '-D', 'N', '10000',
                                   '--store', store_file])
-        kc.check_arguments(args)
+        kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
         results = pickle.load(open(store_file))
@@ -130,7 +130,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('copy.c'),
                                   '-D', 'N', '1000000',
                                   '--store', store_file])
-        kc.check_arguments(args)
+        kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
         results = pickle.load(open(store_file))
