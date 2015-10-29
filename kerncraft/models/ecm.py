@@ -535,7 +535,8 @@ class ECMCPU(object):
         asm_name = self.kernel.compile(
             self.machine['compiler'], compiler_args=self.machine['compiler flags'])
         bin_name = self.kernel.assemble(
-            self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block)
+            self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block,
+            asm_increment=self._args.asm_increment)
 
         try:
             cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]

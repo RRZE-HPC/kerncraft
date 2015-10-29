@@ -106,6 +106,10 @@ def create_parser():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
+    parser.add_argument('--asm-increment', metavar='INCR', default=0, type=int,
+                        help='Increment of stor pointer within one ASM block in bytes. If 0, '
+                             'automatic detetection will be used and can lead to user input being '
+                             'required.')
     parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
                         help='Addes results to PICKLE file for later processing.')
     parser.add_argument('--unit', '-u', choices=['cy/CL', 'It/s', 'FLOP/s'],
