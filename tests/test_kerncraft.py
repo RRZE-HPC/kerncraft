@@ -173,7 +173,7 @@ class TestKerncraft(unittest.TestCase):
         
         ecmd = result['ECMCPU']
         self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 6, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
 
     def test_2d5pt_RooflineIACA(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineIACA.pickle')
@@ -205,7 +205,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertItemsEqual(result.keys(), ['RooflineIACA'])
         
         roofline = result['RooflineIACA']
-        self.assertAlmostEqual(roofline['min performance'], 5220000000.0, places=0)
+        self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     def test_space_linear(self):
