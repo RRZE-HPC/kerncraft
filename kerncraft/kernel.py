@@ -579,7 +579,7 @@ class Kernel(object):
         return code
 
     def assemble(self, compiler, in_filename,
-                 out_filename=None, iaca_markers=True, asm_block='auto'):
+                 out_filename=None, iaca_markers=True, asm_block='auto', asm_increment=0):
         '''
         Assembles *in_filename* to *out_filename*.
 
@@ -592,6 +592,10 @@ class Kernel(object):
 
         *asm_block* controlls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
+        
+        *asm_increment* is the increment of the store pointer during each iteration of the ASM block
+        if it is 0 (default), automatic detection will be use and might lead to an interactive user
+        interface.
 
         Returns two-tuple (filepointer, filename) to temp binary file.
         '''
@@ -621,8 +625,11 @@ class Kernel(object):
 
             self.asm_block = blocks[block_idx][1]
             
+            # Use userinput for pointer_increment, if given
+            if asm_increment != 0:
+                self.asm_block['pointer_increment'] = asm_increment
+            
             # If block's pointer_increment is None, let user choose
-            # TODO make configurable by command line argument
             if self.asm_block['pointer_increment'] is None:
                 iaca.userselect_increment(self.asm_block)
 
