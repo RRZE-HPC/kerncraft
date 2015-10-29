@@ -3,9 +3,10 @@ python:
   - "2.7"
 before_install:
   - pip install codecov
+  - pip install mechanize
 install:
   - pip install .
-  - python get-iaca.sh
+  - python RRZE-HPC/kerncraft/get-iaca.sh
 before_script:
   - export PATH=$PATH:$PWD/iaca-lin64/bin/
 script: 
