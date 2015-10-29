@@ -11,6 +11,6 @@ before_script:
   - export PATH=$PATH:$PWD/iaca-lin64/bin/
 script: 
     - coverage run tests/all_tests.py
-    - kerncraft -m examples/machine-files/phinally.yaml examples/kernels/2d-5pt.c -D N 2000 -D M 2000 -p ECM -p ECMCPU -p ECMData -p RooflineIACA -p Roofline
+    - kerncraft -m examples/machine-files/phinally_gcc.yaml examples/kernels/2d-5pt.c -D N 2000 -D M 2000 -p ECM -p ECMCPU -p ECMData -p RooflineIACA -p Roofline
 after_success:
   - codecov
