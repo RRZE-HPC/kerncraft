@@ -152,6 +152,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '2000',
                                   '-D', 'M', '1000',
+                                  '--asm-block', 'manual',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -185,6 +186,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '4000',
                                   '-D', 'M', '1000',
+                                  '--asm-block', 'manual',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
