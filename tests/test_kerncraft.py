@@ -36,7 +36,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
         
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally.yaml'),
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                   '-p', 'ECMData',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1000-100000:3log10',
@@ -70,7 +70,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
         
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally.yaml'),
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                   '-p', 'Roofline',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1024-4096:3log2',
@@ -141,6 +141,72 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 8.31, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 16.6, places=0)
+    
+    def test_2d5pt_ECMCPU(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMCPU.pickle')
+        output_stream = StringIO()
+        
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'ECMCPU',
+                                  self._find_file('2d-5pt.c'),
+                                  '-D', 'N', '2000',
+                                  '-D', 'M', '1000',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+        
+        results = pickle.load(open(store_file))
+        
+        # Check if results contains correct kernel
+        self.assertEqual(results.keys(), ['2d-5pt.c'])
+        
+        # Check for correct variations of constants
+        self.assertItemsEqual(
+            results['2d-5pt.c'].keys(), 
+            [(('M', 1000), ('N', 2000))])
+        
+        # Output of first result:
+        result = results['2d-5pt.c'][(('M', 1000), ('N', 2000))]
+        
+        self.assertItemsEqual(result.keys(), ['ECMCPU'])
+        
+        ecmd = result['ECMCPU']
+        self.assertAlmostEqual(ecmd['T_OL'], 10, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 6, places=1)
+
+    def test_2d5pt_RooflineIACA(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineIACA.pickle')
+        output_stream = StringIO()
+        
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'RooflineIACA',
+                                  self._find_file('2d-5pt.c'),
+                                  '-D', 'N', '4000',
+                                  '-D', 'M', '1000',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+        
+        results = pickle.load(open(store_file))
+        
+        # Check if results contains correct kernel
+        self.assertEqual(results.keys(), ['2d-5pt.c'])
+        
+        # Check for correct variations of constants
+        self.assertItemsEqual(
+            results['2d-5pt.c'].keys(), 
+            [(('M', 1000), ('N', 4000))])
+        
+        # Output of first result:
+        result = results['2d-5pt.c'][(('M', 1000), ('N', 4000))]
+        
+        self.assertItemsEqual(result.keys(), ['Roofline'])
+        
+        roofline = result['RooflineIACA']
+        self.assertAlmostEqual(roofline['min performance'], 5220000000.0, places=0)
+        self.assertEqual(roofline['bottleneck level'], 3)
 
     def test_space_linear(self):
         self.assertEqual(list(kc.space(1, 10, 10)), [1,2,3,4,5,6,7,8,9,10])
