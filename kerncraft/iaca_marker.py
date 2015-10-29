@@ -126,7 +126,7 @@ def select_best_block(blocks):
     # TODO make this cleverer with more stats
     best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
     if best_block[1]['packed_instr'] == 0:
-        best_block = max(blocks, key=lambda b: b[1]['lines'])
+        best_block = max(blocks, key=lambda b: b[1]['ops']+b[1]['packed_instr']+b[1]['avx_instr'])
 
     return best_block[0]
 
