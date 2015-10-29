@@ -206,7 +206,7 @@ class TestKerncraft(unittest.TestCase):
         
         roofline = result['RooflineIACA']
         self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
-        self.assertEqual(roofline['bottleneck level'], 3)
+        self.assertEqual(roofline['bottleneck level'], 2)
 
     def test_space_linear(self):
         self.assertEqual(list(kc.space(1, 10, 10)), [1,2,3,4,5,6,7,8,9,10])
