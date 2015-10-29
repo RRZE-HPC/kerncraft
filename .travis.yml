@@ -6,7 +6,7 @@ before_install:
   - pip install mechanize
 install:
   - pip install .
-  - python RRZE-HPC/kerncraft/get-iaca.py
+  - python get-iaca.py
 before_script:
   - export PATH=$PATH:$PWD/iaca-lin64/bin/
 script: 
