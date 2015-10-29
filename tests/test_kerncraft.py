@@ -172,7 +172,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertItemsEqual(result.keys(), ['ECMCPU'])
         
         ecmd = result['ECMCPU']
-        self.assertAlmostEqual(ecmd['T_OL'], 10, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
         self.assertAlmostEqual(ecmd['T_nOL'], 6, places=1)
 
     def test_2d5pt_RooflineIACA(self):
@@ -202,7 +202,7 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         result = results['2d-5pt.c'][(('M', 1000), ('N', 4000))]
         
-        self.assertItemsEqual(result.keys(), ['Roofline'])
+        self.assertItemsEqual(result.keys(), ['RooflineIACA'])
         
         roofline = result['RooflineIACA']
         self.assertAlmostEqual(roofline['min performance'], 5220000000.0, places=0)
