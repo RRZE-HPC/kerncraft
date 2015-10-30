@@ -1,10 +1,22 @@
 language: python
 python:
   - "2.7"
-script: coverage run tests/all_tests.py
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-4.8
+    - g++-4.8
 before_install:
   - pip install codecov
+  - pip install mechanize
 install:
   - pip install .
+  - python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul lin64
+before_script:
+  - export PATH=$PATH:$PWD/iaca-lin64/bin/
+script: 
+    - coverage run tests/all_tests.py
 after_success:
   - codecov
