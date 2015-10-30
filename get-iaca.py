@@ -30,10 +30,8 @@ if __name__ == '__main__':
     br.submit()
     link = br.find_link(text_regex='iaca-{:}\.zip'.format(version))
     filename, headers = br.retrieve(link.absolute_url)
-    #shutil.move(filename, 'iaca-lin64.zip')
-    #filename = 'iaca-lin64.zip'
     zfile = zipfile.ZipFile(filename)
-    members = [n for n in zfile.namelist() if '/.' not in n and n.startswith('iaca-lin64/')]
+    members = [n for n in zfile.namelist() if '/.' not in n and n.startswith('iaca-{:}/'.format(version))]
     zfile.extractall(members=members)
     
     st = os.stat('iaca-{:}/bin/iaca'.format(version))
