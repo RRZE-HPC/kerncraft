@@ -5,7 +5,6 @@ import os
 import sys
 import stat
 import mechanize
-import shutil
 import zipfile
 
 

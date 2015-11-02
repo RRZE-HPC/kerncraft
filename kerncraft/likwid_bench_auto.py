@@ -4,7 +4,6 @@ from __future__ import print_function
 import subprocess
 import re
 import sys
-from pprint import pprint
 from copy import copy
 
 import yaml

@@ -44,17 +44,6 @@ def blocking(indices, block_size, initial_boundary=0):
     return blocks
 
 
-def flatten_dict(d):
-    '''
-    transforms 2d-dict d[i][k] into a new 1d-dict e[(i,k)] with 2-tuple keys
-    '''
-    e = {}
-    for k in d.keys():
-        for l in d[k].keys():
-            e[(k, l)] = d[k][l]
-    return e
-
-
 class ECMData(object):
     """
     class representation of the Execution-Cache-Memory Model (only the data part)

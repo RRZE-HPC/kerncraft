@@ -13,39 +13,6 @@ from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
 
 
-def blocking(indices, block_size, initial_boundary=0):
-    '''
-    splits list of integers into blocks of block_size. returns block indices.
-
-    first block element is located at initial_boundary (default 0).
-
-    >>> blocking([0, -1, -2, -3, -4, -5, -6, -7, -8, -9], 8)
-    [0,-1]
-    >>> blocking([0], 8)
-    [0]
-    '''
-    blocks = []
-
-    for idx in indices:
-        bl_idx = (idx-initial_boundary)/block_size
-        if bl_idx not in blocks:
-            blocks.append(bl_idx)
-    blocks.sort()
-
-    return blocks
-
-
-def flatten_dict(d):
-    '''
-    transforms 2d-dict d[i][k] into a new 1d-dict e[(i,k)] with 2-tuple keys
-    '''
-    e = {}
-    for k in d.keys():
-        for l in d[k].keys():
-            e[(k, l)] = d[k][l]
-    return e
-
-
 class Roofline(object):
     """
     class representation of the Roofline Model
@@ -131,7 +98,7 @@ class Roofline(object):
         return self._expand_to_cacheline_blocks_cache[(first,last)]
 
     def calculate_cache_access(self, CPUL1=True):
-        results = {'bottleneck level': None, 'mem bottlenecks': []}
+        results = {'bottleneck level': 0, 'mem bottlenecks': []}
 
         read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
         write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}

@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 
-from copy import copy, deepcopy
+from copy import deepcopy
 import operator
 import tempfile
 import subprocess
