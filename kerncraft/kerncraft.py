@@ -178,12 +178,12 @@ def run(parser, args, output_file=sys.stdout):
             print('{:-^80}'.format(' '+model_name+' '), file=output_file)
             
             if args.verbose > 1:
-                kernel.print_kernel_code()
+                kernel.print_kernel_code(output_file=output_file)
                 print(file=output_file)
-                kernel.print_variables_info()
-                kernel.print_kernel_info()
+                kernel.print_variables_info(output_file=output_file)
+                kernel.print_kernel_info(output_file=output_file)
             if args.verbose > 0:
-                kernel.print_constants_info()
+                kernel.print_constants_info(output_file=output_file)
             
             model = getattr(models, model_name)(kernel, machine, args, parser)
 

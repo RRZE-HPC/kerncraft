@@ -745,12 +745,12 @@ class Kernel(object):
         
         return outfile
 
-    def print_kernel_info(self):
+    def print_kernel_info(self, output_file=sys.stdout):
         table = ('     idx |        min        max       step\n' +
                  '---------+---------------------------------\n')
         for l in self._loop_stack:
             table += '{:>8} | {:>10} {:>10} {:>+10}\n'.format(*l)
-        print(prefix_indent('loop stack:        ', table))
+        print(prefix_indent('loop stack:        ', table), file=output_file)
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
@@ -758,7 +758,7 @@ class Kernel(object):
             prefix = '{:>8} | '.format(name)
             right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
-        print(prefix_indent('data sources:      ', table))
+        print(prefix_indent('data sources:      ', table), file=output_file)
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
@@ -766,7 +766,7 @@ class Kernel(object):
             prefix = '{:>8} | '.format(name)
             right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
-        print(prefix_indent('data destinations: ', table))
+        print(prefix_indent('data destinations: ', table), file=output_file)
 
         table = (' op | count \n' +
                  '----+-------\n')
@@ -774,21 +774,21 @@ class Kernel(object):
             table += '{:>3} | {:>4}\n'.format(op, count)
         table += '     =======\n'
         table += '      {:>4}'.format(sum(self._flops.values()))
-        print(prefix_indent('FLOPs:     ', table))
+        print(prefix_indent('FLOPs:     ', table), file=output_file)
 
-    def print_kernel_code(self):
-        print(self.kernel_code)
+    def print_kernel_code(self, output_file=sys.stdout):
+        print(self.kernel_code, file=output_file)
 
-    def print_variables_info(self):
+    def print_variables_info(self, output_file=sys.stdout):
         table = ('    name |   type size             \n' +
                  '---------+-------------------------\n')
         for name, var_info in self._variables.items():
             table += '{:>8} | {:>6} {:<10}\n'.format(name, var_info[0], var_info[1])
-        print(prefix_indent('variables: ', table))
+        print(prefix_indent('variables: ', table), file=output_file)
 
-    def print_constants_info(self):
+    def print_constants_info(self, output_file=sys.stdout):
         table = ('    name | value     \n' +
                  '---------+-----------\n')
         for name, value in self._constants.items():
             table += '{:>8} | {:<10}\n'.format(name, value)
-        print(prefix_indent('constants: ', table))
+        print(prefix_indent('constants: ', table), file=output_file)

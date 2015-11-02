@@ -41,6 +41,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1000-100000:3log10',
                                   '-D', 'M', '50',
+                                  '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -75,6 +76,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1024-4096:3log2',
                                   '-D', 'M', '50',
+                                  '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -107,6 +109,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'ECMData',
                                   self._find_file('scalar_product.c'),
                                   '-D', 'N', '10000',
+                                  '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -129,6 +132,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'ECMData',
                                   self._find_file('copy.c'),
                                   '-D', 'N', '1000000',
+                                  '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -152,6 +156,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '2000',
                                   '-D', 'M', '1000',
+                                  '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -185,6 +190,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '4000',
                                   '-D', 'M', '1000',
+                                  '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
