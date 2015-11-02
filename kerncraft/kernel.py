@@ -2,6 +2,7 @@
 # pylint: disable=W0142
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 from copy import deepcopy
 import operator
@@ -647,7 +648,7 @@ class Kernel(object):
                 [compiler, os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
         except subprocess.CalledProcessError as e:
-            print("Assemblation failed:", e, file=sys.stderr)
+            print(u"Assemblation failed:", e, file=sys.stderr)
             sys.exit(1)
         finally:
             in_file.close()
@@ -687,7 +688,7 @@ class Kernel(object):
                     '-S'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
         except subprocess.CalledProcessError as e:
-            print("Compilation failed:", e, file=sys.stderr)
+            print(u"Compilation failed:", e, file=sys.stderr)
             sys.exit(1)
         finally:
             in_file.close()

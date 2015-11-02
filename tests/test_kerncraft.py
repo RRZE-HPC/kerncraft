@@ -10,7 +10,7 @@ import tempfile
 import shutil
 import pickle
 from pprint import pprint
-from StringIO import StringIO
+from io import StringIO
 
 sys.path.insert(0, '..')
 from kerncraft import kerncraft as kc
