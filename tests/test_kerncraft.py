@@ -157,6 +157,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '2000',
                                   '-D', 'M', '1000',
                                   '-vvv',
+                                  '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -191,6 +192,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '4000',
                                   '-D', 'M', '1000',
                                   '-vvv',
+                                  '--unit=FLOP/s',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
