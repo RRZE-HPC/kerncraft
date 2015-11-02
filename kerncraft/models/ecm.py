@@ -2,6 +2,7 @@
 # pylint: disable=W0142
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 from functools import reduce as reduce_
 import operator
@@ -465,17 +466,15 @@ class ECMData(object):
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
             for r in self.results['memory hierarchy']:
-                print('Trace legth per access in {}:'.format(r['level']), r['trace length'],
+                print('Trace legth per access in {}: {}'.format(r['level'], r['trace length']),
                       file=output_file)
-                print('Hits in {}:'.format(r['level']), r['total hits'], r['hits'],
+                print('Hits in {}: {} {}'.format(r['level'], r['total hits'], r['hits']),
                       file=output_file)
-                print('Misses in {}: {} ({}CL):'.format(
-                    r['level'], r['total misses'], r['total lines misses']),
-                    r['misses'],
+                print('Misses in {}: {} ({}CL): {}'.format(
+                    r['level'], r['total misses'], r['total lines misses'], r['misses']),
                     file=output_file)
-                print('Evicts from {} {} ({}CL):'.format(
-                    r['level'], r['total evicts'], r['total lines evicts']),
-                    r['evicts'],
+                print('Evicts from {} {} ({}CL): {}'.format(
+                    r['level'], r['total evicts'], r['total lines evicts'], r['evicts']),
                     file=output_file)
                 if 'memory bandwidth' in r:
                     print('memory bandwidth: {} (from {} kernel benchmark)'.format(
@@ -529,7 +528,7 @@ class ECMCPU(object):
 
         try:
             cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
-            iaca_output = subprocess.check_output(cmd)
+            iaca_output = unicode(subprocess.check_output(cmd))
         except OSError as e:
             print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)
             print(e, file=sys.stderr)
@@ -548,12 +547,12 @@ class ECMCPU(object):
         ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
         cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
         assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-        ports = map(str.strip, ports[0].split('|'))[2:]
-        cycles = map(str.strip, cycles[0].split('|'))[2:]
+        ports = map(unicode.strip, ports[0].split('|'))[2:]
+        cycles = map(unicode.strip, cycles[0].split('|'))[2:]
         port_cycles = []
         for i in range(len(ports)):
             if '-' in ports[i] and ' ' in cycles[i]:
-                subports = map(str.strip, ports[i].split('-'))
+                subports = map(unicode.strip, ports[i].split('-'))
                 subcycles = filter(bool, cycles[i].split(' '))
                 port_cycles.append((subports[0], float(subcycles[0])))
                 port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
@@ -567,9 +566,9 @@ class ECMCPU(object):
         
         # Get latency prediction from IACA
         try:
-            iaca_latency_output = subprocess.check_output(
+            iaca_latency_output = unicode(subprocess.check_output(
                 ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
-                 self.machine['micro-architecture'], bin_name])
+                 self.machine['micro-architecture'], bin_name]))
         except subprocess.CalledProcessError as e:
             print("IACA latency analysis failed:", e, file=sys.stderr)
             sys.exit(1)
@@ -644,11 +643,11 @@ class ECMCPU(object):
             print("IACA Output:", file=output_file)
             print(self.results['IACA output'], file=output_file)
             print(self.results['IACA latency output'], file=output_file)
-            print(file=output_file)
+            print('', file=output_file)
         
         if self._args and self._args.verbose > 1:
-            print('Ports and cycles:', self.results['port cycles'], file=output_file)
-            print('Uops:', self.results['uops'], file=output_file)
+            print('Ports and cycles:', unicode(self.results['port cycles']), file=output_file)
+            print('Uops:', unicode(self.results['uops']), file=output_file)
             
             print('Throughput: {}'.format(
                       self.conv_cy(self.results['cl throughput'], self._args.unit)),

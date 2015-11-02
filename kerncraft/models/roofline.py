@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 from functools import reduce
 import operator
@@ -390,15 +391,15 @@ class Roofline(object):
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
                       file=output_file)
-            print(file=output_file)
+            print('', file=output_file)
 
         if self.results['min performance'] > max_flops:
             # CPU bound
-            print('CPU bound with', self._args.cores, 'core(s)', file=output_file)
+            print('CPU bound with {} cores(s)'.format(self._args.cores), file=output_file)
             print('{!s} due to CPU max. FLOP/s'.format(max_flops), file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with', self._args.cores, 'core(s)', file=output_file)
+            print('Cache or mem bound with {} core(s)'.format(self._args.cores), file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
@@ -444,7 +445,7 @@ class RooflineIACA(Roofline):
         # Get total cycles per loop iteration
         try:
             cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
-            iaca_output = subprocess.check_output(cmd)
+            iaca_output = unicode(subprocess.check_output(cmd))
         except OSError as e:
             print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)
             print(e, file=sys.stderr)
@@ -462,12 +463,12 @@ class RooflineIACA(Roofline):
         ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
         cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
         assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-        ports = map(str.strip, ports[0].split('|'))[2:]
-        cycles = map(str.strip, cycles[0].split('|'))[2:]
+        ports = map(unicode.strip, ports[0].split('|'))[2:]
+        cycles = map(unicode.strip, cycles[0].split('|'))[2:]
         port_cycles = []
         for i in range(len(ports)):
             if '-' in ports[i] and ' ' in cycles[i]:
-                subports = map(str.strip, ports[i].split('-'))
+                subports = map(unicode.strip, ports[i].split('-'))
                 subcycles = filter(bool, cycles[i].split(' '))
                 port_cycles.append((subports[0], float(subcycles[0])))
                 port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
@@ -481,9 +482,9 @@ class RooflineIACA(Roofline):
         
         # Get latency prediction from IACA
         try:
-            iaca_latency_output = subprocess.check_output(
+            iaca_latency_output = unicode(subprocess.check_output(
                 ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
-                 self.machine['micro-architecture'], bin_name])
+                 self.machine['micro-architecture'], bin_name]))
         except subprocess.CalledProcessError as e:
             print("IACA latency analysis failed:", e, file=sys.stderr)
             sys.exit(1)
@@ -549,23 +550,24 @@ class RooflineIACA(Roofline):
                       ' {bandwidth:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
                       file=output_file)
-            print(file=output_file)
+            print('', file=output_file)
             print('IACA analisys:', file=output_file)
             if self._args.verbose >= 3:
                 print(self.results['cpu bottleneck']['IACA output'], file=output_file)
                 print(self.results['cpu bottleneck']['IACA latency output'], file=output_file)
-            print({k: v for k, v in self.results['cpu bottleneck'].items() if k not in 
-                   ['IACA output', 'IACA latency output']},
+            print('{!s}'.format(
+                     {k: v for k, v in self.results['cpu bottleneck'].items() if k not in 
+                     ['IACA output', 'IACA latency output']}),
                   file=output_file)
 
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
-            print('CPU bound with', self._args.cores, 'core(s)', file=output_file)
+            print('CPU bound with {} core(s)'.format(self._args.cores), file=output_file)
             print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)),
                   file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with', self._args.cores, 'core(s)', file=output_file)
+            print('Cache or mem bound with {} core(s)'.format(self._args.cores), file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(

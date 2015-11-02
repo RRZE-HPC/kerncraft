@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import argparse
 import sys
@@ -148,7 +149,7 @@ def run(parser, args, output_file=sys.stdout):
     machine = MachineModel(args.machine.name)
 
     # process kernel
-    code = args.code_file.read()
+    code = unicode(args.code_file.read())
     kernel = Kernel(code, filename=args.code_file.name)
 
     # build defines permutations
@@ -179,7 +180,7 @@ def run(parser, args, output_file=sys.stdout):
             
             if args.verbose > 1:
                 kernel.print_kernel_code(output_file=output_file)
-                print(file=output_file)
+                print('', file=output_file)
                 kernel.print_variables_info(output_file=output_file)
                 kernel.print_kernel_info(output_file=output_file)
             if args.verbose > 0:
@@ -199,7 +200,7 @@ def run(parser, args, output_file=sys.stdout):
             result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
                 model.results
             
-            print(file=output_file)
+            print('', file=output_file)
         
         # Save storage to file (if requested)
         if args.store:
