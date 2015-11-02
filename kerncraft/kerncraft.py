@@ -11,6 +11,8 @@ import math
 import re
 import itertools
 
+from pycparser import clean_code
+
 import models
 from kernel import Kernel
 from machinemodel import MachineModel
@@ -149,6 +151,7 @@ def run(parser, args, output_file=sys.stdout):
 
     # process kernel
     code = args.code_file.read()
+    code = clean_code(code)
     kernel = Kernel(code, filename=args.code_file.name)
 
     # build defines permutations
