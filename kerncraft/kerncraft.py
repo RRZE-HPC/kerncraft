@@ -151,12 +151,8 @@ def run(parser, args, output_file=sys.stdout):
     machine = MachineModel(args.machine.name)
 
     # process kernel
-<<<<<<< HEAD
-    code = args.code_file.read()
-    code = clean_code(code)
-=======
     code = unicode(args.code_file.read())
->>>>>>> switching to unicode
+    code = clean_code(code)
     kernel = Kernel(code, filename=args.code_file.name)
 
     # build defines permutations
