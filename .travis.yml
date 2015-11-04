@@ -11,10 +11,10 @@ addons:
     - g++-4.8
 before_install:
   - pip install codecov
-  - pip2 install mechanize
+  - pip install requests
 install:
   - pip install .
-  - python2 get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul lin64
+  - python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul lin64
 before_script:
   - export PATH=$PATH:$PWD/iaca-lin64/bin/
 script: 
