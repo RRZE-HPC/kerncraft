@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import absolute_import
 
 import subprocess
 import re
@@ -8,7 +9,8 @@ from copy import copy
 
 import yaml
 
-from prefixedunit import PrefixedUnit
+from .prefixedunit import PrefixedUnit
+from six.moves import range
 
 
 def get_match_or_break(regex, haystack, flags=re.MULTILINE):
@@ -146,7 +148,7 @@ def main():
 
     USAGE_FACTOR = 0.5
 
-    cores = range(1, machine['cores per socket']+1)
+    cores = list(range(1, machine['cores per socket']+1))
     for mem in machine['memory hierarchy']:
         measurement = {}
         machine['benchmarks']['measurements'][mem['level']] = measurement
@@ -175,11 +177,11 @@ def main():
 
     print('Progress: ', end='', file=sys.stderr)
     sys.stderr.flush()
-    for mem_level in machine['benchmarks']['measurements'].keys():
-        for threads_per_core in machine['benchmarks']['measurements'][mem_level].keys():
+    for mem_level in list(machine['benchmarks']['measurements'].keys()):
+        for threads_per_core in list(machine['benchmarks']['measurements'][mem_level].keys()):
             measurement = machine['benchmarks']['measurements'][mem_level][threads_per_core]
             measurement['results'] = {}
-            for kernel in machine['benchmarks']['kernels'].keys():
+            for kernel in list(machine['benchmarks']['kernels'].keys()):
                 measurement['results'][kernel] = []
                 for i, total_size in enumerate(measurement['total size']):
                     measurement['results'][kernel].append(measure_bw(

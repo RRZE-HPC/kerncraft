@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 #!/usr/bin/env python
 
 from pprint import pprint
@@ -6,7 +7,8 @@ from pprint import pprint
 import matplotlib.pyplot as plt
 import yaml
 
-from prefixedunit import PrefixedUnit
+from .prefixedunit import PrefixedUnit
+from six.moves import range
 
 
 def frange(start, stop, step=1.0):
@@ -52,7 +54,7 @@ ax.set_ylabel('performance [FLOP/s]')
 # Upper bound
 x = list(frange(min(xticks), max(xticks), 0.01))
 bw = float(result['mem bottlenecks'][result['bottleneck level']]['bandwidth'])
-ax.plot(x, map(lambda x: min(bw*x, float(max_flops)), x))
+ax.plot(x, [min(bw*x, float(max_flops)) for x in x])
 
 # Code location
 perf = min(

@@ -3,6 +3,8 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 
 from copy import deepcopy
 import operator
@@ -12,17 +14,23 @@ import os
 import os.path
 import sys
 
-from pycparser import CParser, c_ast
-from pycparser.c_generator import CGenerator
+from six.moves import filter
+from six.moves import map
+from functools import reduce
+import six
 
-import iaca_marker as iaca
+from .pycparser import CParser, c_ast
+from .pycparser.c_generator import CGenerator
+
+from . import iaca_marker as iaca
+
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
     textblock = textblock.split('\n')
     s = prefix + textblock[0] + '\n'
     if len(later_prefix) == 1:
         later_prefix = ' '*len(prefix)
-    s = s+'\n'.join(map(lambda x: later_prefix+x, textblock[1:]))
+    s = s+'\n'.join([later_prefix+x for x in textblock[1:]])
     if s[-1] != '\n':
         return s + '\n'
     else:
@@ -102,11 +110,11 @@ def find_array_references(ast):
     if type(ast) is c_ast.ArrayRef:
         return [ast]
     elif type(ast) is list:
-        return map(find_array_references, ast)
+        return list(map(find_array_references, ast))
     elif ast is None:
         return []
     else:
-        return reduce(operator.add, map(lambda o: find_array_references(o[1]), ast.children()), [])
+        return reduce(operator.add, [find_array_references(o[1]) for o in ast.children()], [])
 
 
 class Kernel(object):
@@ -136,7 +144,7 @@ class Kernel(object):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
 
     def set_constant(self, name, value):
-        assert type(name) is str, "constant name needs to be of type str"
+        assert type(name) is six.text_type, "constant name needs to be of type str"
         assert type(value) is int, "constant value needs to be of type int"
         self._constants[name] = value
 
@@ -151,7 +159,7 @@ class Kernel(object):
 
     def process(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
-        assert all(map(lambda s: type(s) is c_ast.Decl, self.kernel_ast.block_items[:-1])), \
+        assert all([type(s) is c_ast.Decl for s in self.kernel_ast.block_items[:-1]]), \
             'all statments befor the for loop need to be declarations'
         assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
             'last statment in kernel code must be a loop'
@@ -219,7 +227,7 @@ class Kernel(object):
             assert (type(aref.subscript.left) is c_ast.ID and
                     type(aref.subscript.right) is c_ast.Constant), \
                 'binary operation in array subscript may only have form "variable +- constant"'
-            assert aref.subscript.left.name in map(lambda l: l[0], self._loop_stack), \
+            assert aref.subscript.left.name in [l[0] for l in self._loop_stack], \
                 'varialbes used in array indices has to be a loop counter'
 
             sign = 1 if aref.subscript.op == '+' else -1
@@ -227,7 +235,7 @@ class Kernel(object):
 
             idxs.append(('rel', aref.subscript.left.name, offset))
         elif type(aref.subscript) is c_ast.ID:
-            assert aref.subscript.name in map(lambda l: l[0], self._loop_stack), \
+            assert aref.subscript.name in [l[0] for l in self._loop_stack], \
                 'varialbes used in array indices has to be a loop counter'
             idxs.append(('rel', aref.subscript.name, 0))
         else:  # type(aref.subscript) is c_ast.Constant
@@ -395,12 +403,12 @@ class Kernel(object):
         *type* can be iaca or likwid.
         '''
         ast = deepcopy(self.kernel_ast)
-        declarations = filter(lambda d: type(d) is c_ast.Decl, ast.block_items)
+        declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
 
         # transform multi-dimensional declarations to one dimensional references
-        array_dimensions = dict(map(trasform_multidim_to_1d_decl, declarations))
+        array_dimensions = dict(list(map(trasform_multidim_to_1d_decl, declarations)))
         # transform to pointer and malloc notation (stack can be too small)
-        map(transform_array_decl_to_malloc, declarations)
+        list(map(transform_array_decl_to_malloc, declarations))
 
         # add declarations for constants
         i = 1  # subscript for cli input
@@ -490,8 +498,8 @@ class Kernel(object):
                         iffalse=None))
 
         # transform multi-dimensional array references to one dimensional references
-        map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
-            find_array_references(ast))
+        list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
+            find_array_references(ast)))
         
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
@@ -733,7 +741,7 @@ class Kernel(object):
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
         cmd = [compiler] + infiles + cflags + lflags + ['-o', outfile]
         # remove empty arguments
-        cmd = filter(bool, cmd)
+        cmd = list(filter(bool, cmd))
         if verbose:
             print(' '.join(cmd))
         try:
@@ -755,23 +763,23 @@ class Kernel(object):
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
-        for name, offsets in self._sources.items():
+        for name, offsets in list(self._sources.items()):
             prefix = '{:>8} | '.format(name)
-            right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
+            right_side = '\n'.join([', '.join(map(tuple.__repr__, o)) for o in offsets])
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data sources:      ', table), file=output_file)
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
-        for name, offsets in self._destinations.items():
+        for name, offsets in list(self._destinations.items()):
             prefix = '{:>8} | '.format(name)
-            right_side = '\n'.join(map(lambda o: ', '.join(map(tuple.__repr__, o)), offsets))
+            right_side = '\n'.join([', '.join(map(tuple.__repr__, o)) for o in offsets])
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data destinations: ', table), file=output_file)
 
         table = (' op | count \n' +
                  '----+-------\n')
-        for op, count in self._flops.items():
+        for op, count in list(self._flops.items()):
             table += '{:>3} | {:>4}\n'.format(op, count)
         table += '     =======\n'
         table += '      {:>4}'.format(sum(self._flops.values()))
@@ -783,13 +791,13 @@ class Kernel(object):
     def print_variables_info(self, output_file=sys.stdout):
         table = ('    name |   type size             \n' +
                  '---------+-------------------------\n')
-        for name, var_info in self._variables.items():
-            table += '{:>8} | {:>6} {:<10}\n'.format(name, var_info[0], var_info[1])
+        for name, var_info in list(self._variables.items()):
+            table += '{:>8} | {:>6} {!s:<10}\n'.format(name, var_info[0], var_info[1])
         print(prefix_indent('variables: ', table), file=output_file)
 
     def print_constants_info(self, output_file=sys.stdout):
         table = ('    name | value     \n' +
                  '---------+-----------\n')
-        for name, value in self._constants.items():
+        for name, value in list(self._constants.items()):
             table += '{:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table), file=output_file)

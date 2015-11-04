@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import absolute_import
 
 import argparse
 import os.path
 import pickle
 import collections
+import six
 
 
 def update(d, u):
@@ -14,7 +16,7 @@ def update(d, u):
     Origin:
     http://stackoverflow.com/a/3233356/2754040
     '''
-    for k, v in u.iteritems():
+    for k, v in six.iteritems(u):
         if isinstance(v, collections.Mapping):
             r = update(d.get(k, {}), v)
             d[k] = r

@@ -2,6 +2,9 @@
 High-level tests for the overall functionallity and things in kc.py
 '''
 from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 
 import sys
 import os
@@ -11,6 +14,8 @@ import shutil
 import pickle
 from pprint import pprint
 from io import StringIO
+
+import six
 
 sys.path.insert(0, '..')
 from kerncraft import kerncraft as kc
@@ -46,20 +51,20 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
-        results = pickle.load(open(store_file))
+        results = pickle.load(open(store_file, 'rb'))
         
         # Check if results contains correct kernel
-        self.assertEqual(results.keys(), ['2d-5pt.c'])
+        self.assertEqual(list(results), ['2d-5pt.c'])
         
         # Check for correct variations of constants
-        self.assertItemsEqual(
-            results['2d-5pt.c'].keys(), 
+        six.assertCountEqual(self, 
+            results['2d-5pt.c'],
             [(('M', 50), ('N', 1000)), (('M', 50), ('N', 10000)), (('M', 50), ('N', 100000))])
         
         # Output of first result:
         result = results['2d-5pt.c'][(('M', 50), ('N', 1000))]
         
-        self.assertItemsEqual(result.keys(), ['ECMData'])
+        six.assertCountEqual(self, result, ['ECMData'])
         
         ecmd = result['ECMData']
         self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
@@ -81,20 +86,20 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
-        results = pickle.load(open(store_file))
+        results = pickle.load(open(store_file, 'rb'))
         
         # Check if results contains correct kernel
-        self.assertEqual(results.keys(), ['2d-5pt.c'])
+        self.assertEqual(list(results), ['2d-5pt.c'])
         
         # Check for correct variations of constants
-        self.assertItemsEqual(
-            results['2d-5pt.c'].keys(), 
+        six.assertCountEqual(self, 
+            results['2d-5pt.c'], 
             [(('M', 50), ('N', 1024)), (('M', 50), ('N', 2048)), (('M', 50), ('N', 4096))])
         
         # Output of first result:
         result = results['2d-5pt.c'][(('M', 50), ('N', 4096))]
         
-        self.assertItemsEqual(result.keys(), ['Roofline'])
+        six.assertCountEqual(self, result, ['Roofline'])
         
         roofline = result['Roofline']
         self.assertAlmostEqual(roofline['min performance'], 5220000000.0, places=0)
@@ -114,7 +119,7 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
-        results = pickle.load(open(store_file))
+        results = pickle.load(open(store_file, 'rb'))
         
         # Output of first result:
         ecmd = results['scalar_product.c'][(('N', 10000),)]['ECMData']
@@ -137,7 +142,7 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
-        results = pickle.load(open(store_file))
+        results = pickle.load(open(store_file, 'rb'))
         
         # Output of first result:
         ecmd = results['copy.c'][(('N', 1000000),)]['ECMData']
@@ -162,20 +167,20 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
-        results = pickle.load(open(store_file))
+        results = pickle.load(open(store_file, 'rb'))
         
         # Check if results contains correct kernel
-        self.assertEqual(results.keys(), ['2d-5pt.c'])
+        self.assertEqual(list(results), ['2d-5pt.c'])
         
         # Check for correct variations of constants
-        self.assertItemsEqual(
-            results['2d-5pt.c'].keys(), 
+        six.assertCountEqual(self, 
+            results['2d-5pt.c'], 
             [(('M', 1000), ('N', 2000))])
         
         # Output of first result:
         result = results['2d-5pt.c'][(('M', 1000), ('N', 2000))]
         
-        self.assertItemsEqual(result.keys(), ['ECMCPU'])
+        six.assertCountEqual(self, result, ['ECMCPU'])
         
         ecmd = result['ECMCPU']
         self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
@@ -197,20 +202,20 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         
-        results = pickle.load(open(store_file))
+        results = pickle.load(open(store_file, 'rb'))
         
         # Check if results contains correct kernel
-        self.assertEqual(results.keys(), ['2d-5pt.c'])
+        self.assertEqual(list(results), ['2d-5pt.c'])
         
         # Check for correct variations of constants
-        self.assertItemsEqual(
-            results['2d-5pt.c'].keys(), 
+        six.assertCountEqual(self, 
+            results['2d-5pt.c'], 
             [(('M', 1000), ('N', 4000))])
         
         # Output of first result:
         result = results['2d-5pt.c'][(('M', 1000), ('N', 4000))]
         
-        self.assertItemsEqual(result.keys(), ['RooflineIACA'])
+        six.assertCountEqual(self, result, ['RooflineIACA'])
         
         roofline = result['RooflineIACA']
         self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)

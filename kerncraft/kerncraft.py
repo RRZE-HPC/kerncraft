@@ -2,6 +2,8 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 
 import argparse
 import sys
@@ -12,11 +14,13 @@ import math
 import re
 import itertools
 
-from pycparser import clean_code
+from .pycparser import clean_code
 
-import models
-from kernel import Kernel
-from machinemodel import MachineModel
+from . import models
+from .kernel import Kernel
+from .machinemodel import MachineModel
+import six
+from six.moves import range
 
 
 def space(start, stop, num, endpoint=True, log=False, base=10):
@@ -73,7 +77,7 @@ class AppendStringRange(argparse.Action):
                 if gd['stop'] is None:
                     values[1] = [int(gd['start'])]
                 elif gd['num'] is None:
-                    values[1] = range(int(gd['start']), int(gd['stop'])+1)
+                    values[1] = list(range(int(gd['start']), int(gd['stop'])+1))
                 else:
                     log = gd['log'] is not None
                     base = int(gd['base']) if gd['base'] is not None else 10
@@ -93,7 +97,7 @@ class AppendStringRange(argparse.Action):
 
 def create_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--machine', '-m', type=file, required=True,
+    parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=True,
                         help='Path to machine description yaml file.')
     parser.add_argument('--pmodel', '-p', choices=models.__all__, required=True, action='append',
                         default=[], help='Performance model to apply')
@@ -102,7 +106,7 @@ def create_parser():
                         help='Define constant to be used in C code. Values must be integer or '
                              'match start-stop[:num[log[base]]]. If range is given, all '
                              'permutation s will be tested. Overwrites constants from testcase '                                 'file.')
-    parser.add_argument('--verbose', '-v', action='count',
+    parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity level.')
     parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(),
                         help='File with loop kernel C code')
@@ -151,7 +155,7 @@ def run(parser, args, output_file=sys.stdout):
     machine = MachineModel(args.machine.name)
 
     # process kernel
-    code = unicode(args.code_file.read())
+    code = six.text_type(args.code_file.read())
     code = clean_code(code)
     kernel = Kernel(code, filename=args.code_file.name)
 
@@ -164,7 +168,7 @@ def run(parser, args, output_file=sys.stdout):
         for v in values:
             if v not in define_dict[name]:
                 define_dict[name].append([name, v])
-    define_product = list(itertools.product(*define_dict.values()))
+    define_product = list(itertools.product(*list(define_dict.values())))
 
     for define in define_product:
         # Add constants from define arguments
@@ -208,7 +212,7 @@ def run(parser, args, output_file=sys.stdout):
         # Save storage to file (if requested)
         if args.store:
             tempname = args.store.name + '.tmp'
-            with open(tempname, 'w+') as f:
+            with open(tempname, 'wb+') as f:
                 pickle.dump(result_storage, f)
             shutil.move(tempname, args.store.name)
 

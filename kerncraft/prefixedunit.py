@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 
 import yaml
 import re
+import six
 
 
 class PrefixedUnit(yaml.YAMLObject):
@@ -22,11 +26,11 @@ class PrefixedUnit(yaml.YAMLObject):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar(cls.yaml_tag, unicode(data))
+        return dumper.represent_scalar(cls.yaml_tag, six.text_type(data))
 
     def __init__(self, *args):
         if len(args) == 1:
-            if isinstance(args[0], basestring):
+            if isinstance(args[0], six.string_types):
                 m = re.match(
                     r'^(?P<value>[0-9]+(?:\.[0-9]+)?) (?P<prefix>[kMGTP])?(?P<unit>.*)$', args[0])
                 assert m, "Could not parse unit parameter "+repr(args[0])
@@ -52,6 +56,9 @@ class PrefixedUnit(yaml.YAMLObject):
         return self.value*self.PREFIXES[self.prefix]
 
     __float__ = base_value
+    
+    def __int__(self):
+        return int(self.base_value())
 
     def good_prefix(self, max_error=0.01, round_length=2, min_prefix='', max_prefix=None):
         '''
@@ -66,7 +73,7 @@ class PrefixedUnit(yaml.YAMLObject):
         good_prefix = min_prefix
         base_value = self.base_value()
 
-        for k, v in self.PREFIXES.items():
+        for k, v in list(self.PREFIXES.items()):
             # Ignoring to large prefixes
             if max_prefix is not None and v > self.PREFIXES[max_prefix]:
                 continue
@@ -115,7 +122,7 @@ class PrefixedUnit(yaml.YAMLObject):
         v = self.__class__(float(self)*float(other), unit)
         return v.reduced()
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         if isinstance(other, self.__class__):
             unit = self.unit+'/'+other.unit
         else:
@@ -123,6 +130,33 @@ class PrefixedUnit(yaml.YAMLObject):
 
         v = self.__class__(float(self)/float(other), unit)
         return v.reduced()
+    
+    def __floordiv__(self, other):
+        if isinstance(other, self.__class__):
+            unit = self.unit+'/'+other.unit
+        else:
+            unit = self.unit
+
+        v = self.__class__(float(self)//float(other), unit)
+        return v.reduced()
+    
+    def __lt__(self, other):
+        return float(self) < float(other)
+    
+    def __gt__(self, other):
+        return float(self) > float(other)
+    
+    def __eq__(self, other):
+        return float(self) == float(other)
+    
+    def __le__(self, other):
+        return float(self) <= float(other)
+    
+    def __ge__(self, other):
+        return float(self) >= float(other)
+    
+    def __ne__(self, other):
+        return float(self) != float(other)
 
 # Make this tag automatic
 yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)
