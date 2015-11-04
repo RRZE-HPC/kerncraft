@@ -57,12 +57,13 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
         
         # Check for correct variations of constants
-        six.assertCountEqual(self, 
-            results['2d-5pt.c'],
-            [(('M', 50), ('N', 1000)), (('M', 50), ('N', 10000)), (('M', 50), ('N', 100000))])
+        six.assertCountEqual(self,
+            [sorted(r) for r in results['2d-5pt.c']],
+            [sorted(r) for r in [
+                (('M', 50), ('N', 1000)), (('M', 50), ('N', 10000)), (('M', 50), ('N', 100000))]])
         
         # Output of first result:
-        result = results['2d-5pt.c'][(('M', 50), ('N', 1000))]
+        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if ('N', 1000) in k][0]]
         
         six.assertCountEqual(self, result, ['ECMData'])
         
@@ -93,11 +94,12 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            results['2d-5pt.c'], 
-            [(('M', 50), ('N', 1024)), (('M', 50), ('N', 2048)), (('M', 50), ('N', 4096))])
+            [sorted(r) for r in results['2d-5pt.c']],
+            [sorted(r) for r in [
+                (('M', 50), ('N', 1024)), (('M', 50), ('N', 2048)), (('M', 50), ('N', 4096))]])
         
         # Output of first result:
-        result = results['2d-5pt.c'][(('M', 50), ('N', 4096))]
+        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if ('N', 4096) in k][0]]
         
         six.assertCountEqual(self, result, ['Roofline'])
         
@@ -174,11 +176,11 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            results['2d-5pt.c'], 
-            [(('M', 1000), ('N', 2000))])
+            [sorted(r) for r in results['2d-5pt.c']],
+            [sorted(r) for r in [(('M', 1000), ('N', 2000))]])
         
         # Output of first result:
-        result = results['2d-5pt.c'][(('M', 1000), ('N', 2000))]
+        result = list(results['2d-5pt.c'].values())[0]
         
         six.assertCountEqual(self, result, ['ECMCPU'])
         
@@ -209,11 +211,11 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            results['2d-5pt.c'], 
-            [(('M', 1000), ('N', 4000))])
+            [sorted(r) for r in results['2d-5pt.c']],
+            [sorted(r) for r in [(('M', 1000), ('N', 4000))]])
         
         # Output of first result:
-        result = results['2d-5pt.c'][(('M', 1000), ('N', 4000))]
+        result = list(results['2d-5pt.c'].values())[0]
         
         six.assertCountEqual(self, result, ['RooflineIACA'])
         
