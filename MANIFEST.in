@@ -1,4 +1,4 @@
 recursive-include examples/machine-files *.yaml
 recursive-include examples/kernels *.c *.testcases
 recursive-include tests *.py
-recursice-include tests/test_files *.c *.yaml
+recursive-include tests/test_files *.c *.yaml

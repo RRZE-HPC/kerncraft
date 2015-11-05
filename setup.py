@@ -15,7 +15,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.2.dev1',
+    version='0.2.0',
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
@@ -36,7 +36,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
@@ -52,10 +52,12 @@ setup(
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
     ],
 
     # What does your project relate to?
-    keywords='hpc performance',
+    keywords='hpc performance benchmark analysis',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
@@ -75,6 +77,7 @@ setup(
     # $ pip install -e .[dev,test]
     extras_require={
         'plot': ['matplotlib'],
+        'test': ['requests'],
     },
 
     # If there are data files included in your packages that need to be
