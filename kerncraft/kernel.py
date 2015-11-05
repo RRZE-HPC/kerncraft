@@ -727,7 +727,7 @@ class Kernel(object):
 
         if lflags is None:
             lflags = []
-        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread', '-llikwid']
+        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(suffix='_compilable.c')

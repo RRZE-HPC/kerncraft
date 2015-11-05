@@ -223,6 +223,54 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 2)
 
+    def test_2d5pt_Benchmark(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_Benchmark.pickle')
+        output_stream = StringIO()
+
+        os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
+        os.environ['LIKWID_LIB'] = '-L'+self._find_file('dummy_likwid/lib')
+        os.environ['LIKWID_INCLUDE'] = '-I'+self._find_file('dummy_likwid/include')
+
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '-D', 'N', '1000',
+                                  '-D', 'M', '1000',
+                                  '-vvv',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+
+        results = pickle.load(open(store_file, 'rb'))
+
+        # Check if results contains correct kernel
+        self.assertEqual(list(results), ['2d-5pt.c'])
+
+        # Check for correct variations of constants
+        six.assertCountEqual(self,
+            [sorted(r) for r in results['2d-5pt.c']],
+            [sorted(r) for r in [(('M', 1000), ('N', 1000))]])
+
+        # Output of first result:
+        result = list(results['2d-5pt.c'].values())[0]
+
+        six.assertCountEqual(self, result, ['Benchmark'])
+
+        roofline = result['Benchmark']
+        correct_results = {
+            'Iterations per repetition': 996004,
+            'MEM BW [MByte/s]': 272.7272,
+            'MEM volume (per repetition) [B]': 252525.2,
+            'Performance [MFLOP/s]': 32.27,
+            'Performance [MIt/s]': 8.07,
+            'Performance [MLUP/s]': 8.07,
+            'Runtime (per cacheline update) [cy/CL]': 2677.34,
+            'Runtime (per repetition) [s]': 0.123456}
+
+        for k, v in correct_results.items():
+            self.assertAlmostEqual(roofline[k], v, places=1)
+
     def test_space_linear(self):
         self.assertEqual(list(kc.space(1, 10, 10)), [1,2,3,4,5,6,7,8,9,10])
         self.assertEqual(list(kc.space(1, 10, 3)), [1, 6, 10])
