@@ -188,6 +188,44 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
         self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
 
+    def test_2d5pt_ECM(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECM.pickle')
+        output_stream = StringIO()
+        
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'ECM',
+                                  self._find_file('2d-5pt.c'),
+                                  '-D', 'N', '2000',
+                                  '-D', 'M', '1000',
+                                  '-vvv',
+                                  '--unit=cy/CL',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+        
+        results = pickle.load(open(store_file, 'rb'))
+        
+        # Check if results contains correct kernel
+        self.assertEqual(list(results), ['2d-5pt.c'])
+        
+        # Check for correct variations of constants
+        six.assertCountEqual(self, 
+            [sorted(r) for r in results['2d-5pt.c']],
+            [sorted(r) for r in [(('M', 1000), ('N', 2000))]])
+        
+        # Output of first result:
+        result = list(results['2d-5pt.c'].values())[0]
+        
+        six.assertCountEqual(self, result, ['ECM'])
+        
+        ecmd = result['ECM']
+        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
+        self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 12.580, places=0)
+
     def test_2d5pt_RooflineIACA(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineIACA.pickle')
         output_stream = StringIO()
