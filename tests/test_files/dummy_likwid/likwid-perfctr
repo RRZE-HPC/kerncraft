@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+from __future__ import print_function
+
+import sys
+import re
+
+def remove_find(regex, s):
+    '''removes content in *match* object from string *s*
+    
+    returns string without find'''
+    m = re.search(regex, s)
+    if m:
+        start,end = m.span()
+        return (s[:start]+s[end:]).strip()
+    return s.strip()
+
+if __name__ == '__main__':
+    # 1. test arguments
+    args = ' '.join(sys.argv[1:])
+    
+    args = remove_find(r'-O -g (:?CLOCK|MEM) -[cC] S0:0', args)
+    args = remove_find(r'-m', args)
+    args = remove_find(r'[a-zA-Z\-0-9/\._]+\.likwid_marked(:? [0-9]+(:?\.[0-9]+)?)+$', args)
+    
+    if len(args) > 0:
+        print('Could not remove all arguments. Remaining:', args)
+        sys.exit(1)
+    
+    # 2. return static output
+    # From phinally$ likwid-perfctr -f -O -g MEM -C S0:0 -m 
+    #                examples/kernels/2d-5pt.likwid_marked 1000 1000 10.0
+    print('''STATIC DUMMY STATIC DUMMY STATIC DUMMY
+--------------------------------------------------------------------------------
+CPU name:       Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz
+CPU type:       Intel Xeon SandyBridge EN/EP processor
+CPU clock:      2.70 GHz
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+STRUCT,Info,5
+1,MEM,loop
+Region Info,Core 0,
+RDTSC Runtime [s],1.23456,
+call count,1,
+CPU clock,2.700118 MHz,
+TABLE,Group 1 Raw,MEM,11
+Event,Counter,Core 0
+INSTR_RETIRED_ANY,FIXC0,3.574329e+07
+CPU_CLK_UNHALTED_CORE,FIXC1,2.494123e+07
+CPU_CLK_UNHALTED_REF,FIXC2,2.494122e+07
+CAS_COUNT_RD,MBOX0C0,5.642000e+03
+CAS_COUNT_WR,MBOX0C1,3.698000e+03
+CAS_COUNT_RD,MBOX1C0,5.446000e+03
+CAS_COUNT_WR,MBOX1C1,3.583000e+03
+CAS_COUNT_RD,MBOX2C0,6.895000e+03
+CAS_COUNT_WR,MBOX2C1,4.874000e+03
+CAS_COUNT_RD,MBOX3C0,5.763000e+03
+CAS_COUNT_WR,MBOX3C1,3.710000e+03
+TABLE,Group 1 Metric,MEM,10
+Metric,Core 0,
+Runtime (RDTSC) [s],1.23456,
+Runtime unhalted [s],1.23456,
+Clock [MHz],2.700119e+03,
+CPI,6.977878e-01,
+Memory read bandwidth [MBytes/s],2.342234e+02,
+Memory read data volume [GBytes],0.0013371337,
+Memory write bandwidth [MBytes/s],1.111111e+02,
+Memory write data volume [GBytes],0.00111111,
+Memory bandwidth [MBytes/s],2.727272e+02,
+Memory data volume [GBytes],0.002525252,
+STATIC DUMMY STATIC DUMMY STATIC DUMMY''')
+
+    # 3. exit with 0
+    sys.exit(0)

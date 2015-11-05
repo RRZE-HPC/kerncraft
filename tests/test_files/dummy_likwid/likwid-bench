@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+from __future__ import print_function
+
+import sys
+import re
+
+def remove_find(regex, s):
+    '''removes content in *match* object from string *s*
+    
+    returns string without find'''
+    m = re.search(regex, s)
+    if m:
+        start,end = match.span()
+        return (s[:start]+s[end:]).strip()
+    return s.strip()
+
+if __name__ == '__main__':
+    # 1. test arguments
+    args = ' '.join(sys.argv[1:])
+    
+    remove_find(r'-O', args)
+    
+    
+    if len(args) > 0:
+        print('Could not remove all arguments. Remaining:', args)
+        sys.exit(1)
+    
+    # 2. return static output
+    # 3. exit with 0
+    sys.exit(0)
