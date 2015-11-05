@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from setuptools import setup, find_packages  # Always prefer setuptools over distutils
 from codecs import open  # To use a consistent encoding
 from os import path
@@ -66,6 +67,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'PyYAML',
+        'six',
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
@@ -84,6 +86,7 @@ setup(
             'machine-files/*.yaml',
             'kernels/*.c',
             'kernels/*.testcases'],
+        'tests': ['test_files/*.c', 'test_files/*.yaml', '*.py'],
     },
     include_package_data=True,
 

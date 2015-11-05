@@ -11,8 +11,8 @@ The exported classes must have the following class level attributes:
   * report() return a readable text output with analysis report
   * results (dict) must be available after analyze has been called
 '''
-from ecm import ECM, ECMData, ECMCPU
-from roofline import Roofline, RooflineIACA
-from benchmark import Benchmark
+from .ecm import ECM, ECMData, ECMCPU
+from .roofline import Roofline, RooflineIACA
+from .benchmark import Benchmark
 
 __all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA', 'Benchmark']

@@ -38,7 +38,7 @@ class Intervals(object):
 
     def __len__(self):
         '''Returns sum of range lengths'''
-        return sum(upper-lower for (lower, upper) in self.data)
+        return int(sum(upper-lower for (lower, upper) in self.data))
 
     def __contains__(self, needle):
         return any(lower <= needle < upper for (lower, upper) in self.data)
@@ -46,11 +46,8 @@ class Intervals(object):
     def __repr__(self):
         return str(self.__class__) + '(' + ', '.join([list.__repr__(d) for d in self.data]) + ')'
 
-    def __cmp__(self, other):
-        if self.data == other.data:
-            return 0
-        else:
-            return 1
+    def __eq__(self, other):
+        return self.data == other.data
 
 if __name__ == '__main__':
     assert Intervals([0, 10]).data == [[0, 10]]

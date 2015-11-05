@@ -1,9 +1,13 @@
-from __future__ import print_function, division
+from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
 
 import subprocess
 from functools import reduce
 import operator
 import sys
+import six
 
 
 class Benchmark(object):
@@ -51,9 +55,9 @@ class Benchmark(object):
         if self._args.verbose > 1:
             print(' '.join(perf_cmd))
         try:
-            output = subprocess.check_output(perf_cmd).split('\n')
+            output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
         except subprocess.CalledProcessError as e:
-            print("Executing benchmark failed:", e, file=sys.stderr)
+            print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
             sys.exit(1)
         
         results = {}
@@ -75,7 +79,7 @@ class Benchmark(object):
                                   verbose=self._args.verbose > 1)
         
         # Build arguments to pass to command:
-        args = [bench] + [str(s) for s in self.kernel._constants.values()]
+        args = [bench] + [six.text_type(s) for s in list(self.kernel._constants.values())]
         
         # Determan base runtime with 100 iterations
         runtime = 0.0
@@ -88,7 +92,7 @@ class Benchmark(object):
             else:
                 repetitions *= 10
             
-            result = self.perfctr(args+[str(repetitions)])
+            result = self.perfctr(args+[six.text_type(repetitions)])
             runtime = float(result['Runtime (RDTSC) [s]'][0])
             time_per_repetition = runtime/float(repetitions)
         
@@ -140,4 +144,4 @@ class Benchmark(object):
         if self._args.verbose > 0:
             print('MEM bandwidth: {:.2g} MByte/s'.format(self.results['MEM BW [MByte/s]']),
                   file=output_file)
-        print(file=output_file)
+        print('', file=output_file)

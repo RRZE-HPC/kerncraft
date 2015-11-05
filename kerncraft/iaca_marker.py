@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import absolute_import
 
 import re
 import sys
+from six.moves import map
+from six.moves import input
 
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
@@ -86,7 +89,7 @@ def find_asm_blocks(asm_lines):
             pointer_increment = None  # default -> can not decide, let user choose
             if mem_references:
                 # we found memory references to work with
-                possible_idx_regs = increments.keys()
+                possible_idx_regs = list(increments.keys())
                 for mref in mem_references:
                     for reg in possible_idx_regs:
                         if not (reg == mref[1] or reg == mref[2]):
@@ -138,7 +141,7 @@ def userselect_increment(block):
     
     increment = None
     while increment is None:
-        increment = raw_input("Choose store pointer increment (number of bytes): ")
+        increment = input("Choose store pointer increment (number of bytes): ")
         try:
             increment = int(increment)
         except ValueError:
@@ -161,7 +164,7 @@ def userselect_block(blocks, default=None):
     # Let user select block:
     block_idx = -1
     while not (0 <= block_idx < len(blocks)):
-        block_idx = raw_input("Choose block to be marked ["+str(default)+"]: ") or default
+        block_idx = input("Choose block to be marked ["+str(default)+"]: ") or default
         try:
             block_idx = int(block_idx)
         except ValueError:
@@ -185,7 +188,7 @@ def main():
 
     with open(sys.argv[1], 'r') as fp:
         lines = fp.readlines()
-    lines = map(str.strip, lines)
+    lines = list(map(str.strip, lines))
     blocks = find_asm_blocks(lines)
 
     # TODO check for already present markers

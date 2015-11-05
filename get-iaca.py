@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import absolute_import
 
 import os
 import sys
 import stat
-import mechanize
 import zipfile
+import re
+from io import BytesIO
+
+import requests
 
 
 if __name__ == '__main__':
@@ -21,16 +25,23 @@ if __name__ == '__main__':
     
     assert sys.argv[2] in ['lin64', 'lin32', 'mac32', 'mac64']
     version = sys.argv[2]
+    
+    URL = "https://software.intel.com/protected-download/267266/157552"
         
-    br = mechanize.Browser()
-    br.open("https://software.intel.com/protected-download/267266/157552")
-    br.select_form(nr=1)
-    br['accept_license'] = ['1']
-    br.submit()
-    link = br.find_link(text_regex='iaca-{:}\.zip'.format(version))
-    filename, headers = br.retrieve(link.absolute_url)
-    zfile = zipfile.ZipFile(filename)
-    members = [n for n in zfile.namelist() if '/.' not in n and n.startswith('iaca-{:}/'.format(version))]
+    s = requests.Session()
+    r = s.get(URL)
+    response_data = {
+        'accept_license': 1,
+        'form_build_id': re.search(r'name="form_build_id" value="([^"]+)" />', r.text).group(1),
+        'form_id': 'intel_licensed_dls_step_1'}
+    r = s.post(URL, data=response_data)
+    download_url = re.search(
+        r'"(https://software.intel.com/[^"]*iaca-'+version+'[^"]*\.zip)"', r.text).group(1)
+    r = s.get(download_url, stream=True)
+    zfile = zipfile.ZipFile(BytesIO(r.content))
+    members = [n 
+               for n in zfile.namelist() 
+               if '/.' not in n and n.startswith('iaca-{:}/'.format(version))]
     zfile.extractall(members=members)
     
     st = os.stat('iaca-{:}/bin/iaca'.format(version))

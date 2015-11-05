@@ -2,14 +2,19 @@
 # pylint: disable=W0142
 
 from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import division
 
-from functools import reduce as reduce_
 import operator
 import copy
 import sys
 import subprocess
 import re
 import math
+import six
+from functools import reduce
+from itertools import chain
 
 try:
     import matplotlib
@@ -36,7 +41,7 @@ def blocking(indices, block_size, initial_boundary=0):
     blocks = []
 
     for idx in indices:
-        bl_idx = (idx-initial_boundary)/block_size
+        bl_idx = (idx-initial_boundary)//float(block_size)
         if bl_idx not in blocks:
             blocks.append(bl_idx)
     blocks.sort()
@@ -86,7 +91,7 @@ class ECMData(object):
             assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
 
             if offset_type == 'rel':
-                offset += dim_offset*reduce_(operator.mul, base_dims[dim+1:], 1)
+                offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
             else:
                 # should not happen
                 pass
@@ -105,13 +110,13 @@ class ECMData(object):
 
         for dim, index_name in enumerate(index_order):
             if loop_index == index_name:
-                offset += reduce_(operator.mul, base_dims[dim+1:], 1)
+                offset += reduce(operator.mul, base_dims[dim+1:], 1)
 
         return offset
 
     def _get_index_order(self, access_dimensions):
         '''Returns the order of indices used in *access_dimensions*.'''
-        return ''.join(map(lambda d: d[1], access_dimensions))
+        return ''.join([d[1] for d in access_dimensions])
 
     def _expand_to_cacheline_blocks(self, first, last):
         '''
@@ -131,16 +136,17 @@ class ECMData(object):
     def calculate_cache_access(self):
         results = {}
 
-        read_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
-        write_offsets = {var_name: dict() for var_name in self.kernel._variables.keys()}
+        read_offsets = {var_name: dict() for var_name in list(self.kernel._variables.keys())}
+        write_offsets = {var_name: dict() for var_name in list(self.kernel._variables.keys())}
         
         # handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        elements_per_cacheline = self.machine['cacheline size'] // element_size
+        
 
-        loop_order = ''.join(map(lambda l: l[0], self.kernel._loop_stack))
+        loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
 
-        for var_name in self.kernel._variables.keys():
+        for var_name in list(self.kernel._variables.keys()):
             var_type, var_dims = self.kernel._variables[var_name]
 
             # Skip the following access: (they are hopefully kept in registers)
@@ -149,12 +155,8 @@ class ECMData(object):
                 continue
             #   - access does not change with inner-most loop index (they are hopefully kept in 
             #     registers)
-            writes = filter(
-                lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
-                self.kernel._destinations.get(var_name, []))
-            reads = filter(
-                lambda acs: loop_order[-1] in map(lambda a: a[1], acs),
-                self.kernel._sources.get(var_name, []))
+            writes = [acs for acs in self.kernel._destinations.get(var_name, []) if loop_order[-1] in [a[1] for a in acs]]
+            reads = [acs for acs in self.kernel._sources.get(var_name, []) if loop_order[-1] in [a[1] for a in acs]]
 
             # Compile access pattern
             for r in reads:
@@ -170,7 +172,7 @@ class ECMData(object):
 
             # Do unrolling so that one iteration equals one cacheline worth of workload:
             # unrolling is done on inner-most loop only!
-            for i in range(1, elements_per_cacheline):
+            for i in range(1, int(elements_per_cacheline)):
                 for r in reads:
                     idx_order = self._get_index_order(r)
                     offset = self._calculate_relative_offset(var_name, r)
@@ -233,12 +235,12 @@ class ECMData(object):
                 # We consider everythin a miss in the beginning, unless it is completly cached
                 # TODO here read and writes are treated the same, this implies write-allocate
                 #      to support nontemporal stores, this needs to be changed
-                for name in read_offsets.keys()+write_offsets.keys():
+                for name in list(read_offsets.keys())+list(write_offsets.keys()):
                     cache[name] = {}
                     misses[cache_level][name] = {}
                     hits[cache_level][name] = {}
 
-                    for idx_order in read_offsets[name].keys()+write_offsets[name].keys():
+                    for idx_order in chain(read_offsets[name].keys(), write_offsets[name].keys()):
                         cache[name][idx_order] = Intervals()
                         
                         # Check for complete caching/in-cache
@@ -275,8 +277,8 @@ class ECMData(object):
                 cache_used_size = 0
 
                 # Now we trace the cache access backwards (in time/iterations) and check for hits
-                for var_name in misses[cache_level].keys():
-                    for idx_order in misses[cache_level][var_name].keys():
+                for var_name in list(misses[cache_level].keys()):
+                    for idx_order in list(misses[cache_level][var_name].keys()):
                         iter_offset = self._calculate_iteration_offset(
                             var_name, idx_order, loop_order[-1])
 
@@ -327,25 +329,28 @@ class ECMData(object):
                     var_name: dict() for var_name in self.kernel._variables.keys()}
                 for name in write_offsets.keys():
                     for idx_order in write_offsets[name].keys():
-                        evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
+                        evicts[cache_level][name][idx_order] = write_offsets[name][idx_order]
             
             # Compiling stats
-            total_misses[cache_level] = sum(map(
-                lambda l: sum(map(len, l.values())), misses[cache_level].values()))
-            total_hits[cache_level] = sum(map(
-                lambda l: sum(map(len, l.values())), hits[cache_level].values()))
-            total_evicts[cache_level] = sum(map(
-                lambda l: sum(map(len, l.values())), evicts[cache_level].values()))
-
-            total_lines_misses[cache_level] = sum(map(
-                lambda o: sum(map(lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
-                misses[cache_level].values()))
-            total_lines_hits[cache_level] = sum(map(lambda o: sum(map(
-                lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
-                hits[cache_level].values()))
-            total_lines_evicts[cache_level] = sum(map(lambda o: sum(map(
-                lambda n: len(blocking(n, elements_per_cacheline)), o.values())),
-                evicts[cache_level].values()))
+            total_misses[cache_level] = sum([
+                sum([len(v) for v in l.values()])
+                for l in misses[cache_level].values()])
+            total_hits[cache_level] = sum([
+                sum([len(v) for v in l.values()])
+                for l in hits[cache_level].values()])
+            total_evicts[cache_level] = sum([
+                sum([len(v) for v in l.values()])
+                for l in evicts[cache_level].values()])
+            
+            total_lines_misses[cache_level] = sum([
+                sum([len(blocking(n, elements_per_cacheline)) for n in list(o.values())])
+                for o in misses[cache_level].values()])
+            total_lines_hits[cache_level] = sum([
+                sum([len(blocking(n, elements_per_cacheline)) for n in list(o.values())])
+                for o in hits[cache_level].values()])
+            total_lines_evicts[cache_level] = sum([
+                sum([len(blocking(n, elements_per_cacheline)) for n in list(o.values())])
+                for o in evicts[cache_level].values()])
 
             if not bandwidth:
                 # only cache cycles count
@@ -359,11 +364,11 @@ class ECMData(object):
                 # first, compile stream counts at current cache level
                 # write-allocate is allready resolved above
                 read_streams = 0
-                for var_name in misses[cache_level].keys():
+                for var_name in list(misses[cache_level].keys()):
                     for idx_order in misses[cache_level][var_name]:
                         read_streams += len(misses[cache_level][var_name][idx_order])
                 write_streams = 0
-                for var_name in evicts[cache_level].keys():
+                for var_name in list(evicts[cache_level].keys()):
                     for idx_order in evicts[cache_level][var_name]:
                         write_streams += len(evicts[cache_level][var_name][idx_order])
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
@@ -371,7 +376,8 @@ class ECMData(object):
                 # TODO support for non-write-allocate architectures
                 measurement_kernel = 'load'
                 measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
-                for kernel_name, kernel_info in self.machine['benchmarks']['kernels'].items():
+                for kernel_name, kernel_info in sorted(
+                        self.machine['benchmarks']['kernels'].items()):
                     if (read_streams >= (kernel_info['read streams']['streams'] +
                                          kernel_info['write streams']['streams'] -
                                          kernel_info['read+write streams']['streams']) >
@@ -403,8 +409,8 @@ class ECMData(object):
                 bw = bw * factor
                 
                 # calculate cycles
-                cycles = (total_lines_misses[cache_level] + total_lines_evicts[cache_level]) * \
-                    elements_per_cacheline * element_size * \
+                cycles = float(total_lines_misses[cache_level] + total_lines_evicts[cache_level]) *\
+                    float(elements_per_cacheline) * float(element_size) * \
                     float(self.machine['clock']) / float(bw)
                 # add penalty cycles for each read stream
                 if cache_cycles:
@@ -451,7 +457,7 @@ class ECMData(object):
         
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        elements_per_cacheline = float(self.machine['cacheline size']) // element_size
         it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
         flops_per_it = sum(self.kernel._flops.values())
@@ -465,17 +471,15 @@ class ECMData(object):
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
             for r in self.results['memory hierarchy']:
-                print('Trace legth per access in {}:'.format(r['level']), r['trace length'],
+                print('Trace legth per access in {}: {}'.format(r['level'], r['trace length']),
                       file=output_file)
-                print('Hits in {}:'.format(r['level']), r['total hits'], r['hits'],
+                print('Hits in {}: {} {}'.format(r['level'], r['total hits'], r['hits']),
                       file=output_file)
-                print('Misses in {}: {} ({}CL):'.format(
-                    r['level'], r['total misses'], r['total lines misses']),
-                    r['misses'],
+                print('Misses in {}: {} ({}CL): {}'.format(
+                    r['level'], r['total misses'], r['total lines misses'], r['misses']),
                     file=output_file)
-                print('Evicts from {} {} ({}CL):'.format(
-                    r['level'], r['total evicts'], r['total lines evicts']),
-                    r['evicts'],
+                print('Evicts from {} {} ({}CL): {}'.format(
+                    r['level'], r['total evicts'], r['total lines evicts'], r['evicts']),
                     file=output_file)
                 if 'memory bandwidth' in r:
                     print('memory bandwidth: {} (from {} kernel benchmark)'.format(
@@ -529,7 +533,7 @@ class ECMCPU(object):
 
         try:
             cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
-            iaca_output = subprocess.check_output(cmd)
+            iaca_output = subprocess.check_output(cmd).decode('utf-8')
         except OSError as e:
             print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)
             print(e, file=sys.stderr)
@@ -545,16 +549,16 @@ class ECMCPU(object):
         block_throughput = float(match.groups()[0])
 
         # Find ports and cyles per port
-        ports = filter(lambda l: l.startswith('|  Port  |'), iaca_output.split('\n'))
-        cycles = filter(lambda l: l.startswith('| Cycles |'), iaca_output.split('\n'))
+        ports = [l for l in iaca_output.split('\n') if l.startswith('|  Port  |')]
+        cycles = [l for l in iaca_output.split('\n') if l.startswith('| Cycles |')]
         assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-        ports = map(str.strip, ports[0].split('|'))[2:]
-        cycles = map(str.strip, cycles[0].split('|'))[2:]
+        ports = [p.strip() for p in ports[0].split('|')][2:]
+        cycles = [c.strip() for c in cycles[0].split('|')][2:]
         port_cycles = []
         for i in range(len(ports)):
             if '-' in ports[i] and ' ' in cycles[i]:
-                subports = map(str.strip, ports[i].split('-'))
-                subcycles = filter(bool, cycles[i].split(' '))
+                subports = [p.strip() for p in ports[i].split('-')]
+                subcycles = [c for c in cycles[i].split(' ') if bool(c)]
                 port_cycles.append((subports[0], float(subcycles[0])))
                 port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
             elif ports[i] and cycles[i]:
@@ -569,7 +573,7 @@ class ECMCPU(object):
         try:
             iaca_latency_output = subprocess.check_output(
                 ['iaca.sh', '-64', '-analysis', 'LATENCY', '-arch',
-                 self.machine['micro-architecture'], bin_name])
+                 self.machine['micro-architecture'], bin_name]).decode('utf-8')
         except subprocess.CalledProcessError as e:
             print("IACA latency analysis failed:", e, file=sys.stderr)
             sys.exit(1)
@@ -580,7 +584,7 @@ class ECMCPU(object):
         
         # Normalize to cycles per cacheline
         elements_per_block = abs(self.kernel.asm_block['pointer_increment']
-                                 / self.kernel.datatypes_size[self.kernel.datatype])
+                                 // self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         try:
             block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
@@ -588,16 +592,16 @@ class ECMCPU(object):
             print("Too small block_size / pointer_increment:", e, file=sys.stderr)
             sys.exit(1)
 
-        port_cycles = dict(map(lambda i: (i[0], i[1]*block_to_cl_ratio), port_cycles.items()))
+        port_cycles = dict([(i[0], i[1]*block_to_cl_ratio) for i in list(port_cycles.items())])
         uops = uops*block_to_cl_ratio
         cl_throughput = block_throughput*block_to_cl_ratio
         cl_latency = block_latency*block_to_cl_ratio
 
         # Compile most relevant information
         T_OL = max(
-            [v for k, v in port_cycles.items() if k in self.machine['overlapping ports']])
+            [v for k, v in list(port_cycles.items()) if k in self.machine['overlapping ports']])
         T_nOL = max(
-            [v for k, v in port_cycles.items() if k in self.machine['non-overlapping ports']])
+            [v for k, v in list(port_cycles.items()) if k in self.machine['non-overlapping ports']])
         
         # Use IACA throughput prediction if it is slower then T_nOL
         if T_nOL < cl_throughput:
@@ -628,7 +632,7 @@ class ECMCPU(object):
         
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        elements_per_cacheline = int(self.machine['cacheline size']) / element_size
         it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
         flops_per_it = sum(self.kernel._flops.values())
@@ -644,11 +648,11 @@ class ECMCPU(object):
             print("IACA Output:", file=output_file)
             print(self.results['IACA output'], file=output_file)
             print(self.results['IACA latency output'], file=output_file)
-            print(file=output_file)
+            print('', file=output_file)
         
         if self._args and self._args.verbose > 1:
-            print('Ports and cycles:', self.results['port cycles'], file=output_file)
-            print('Uops:', self.results['uops'], file=output_file)
+            print('Ports and cycles:', six.text_type(self.results['port cycles']), file=output_file)
+            print('Uops:', six.text_type(self.results['uops']), file=output_file)
             
             print('Throughput: {}'.format(
                       self.conv_cy(self.results['cl throughput'], self._args.unit)),
@@ -733,7 +737,7 @@ class ECM(object):
         
         report += '\n{{ {} \ {} }} cy/CL'.format(
             max(self.results['T_OL'], self.results['T_nOL']),
-            ' \ '.join(['{:.2g}'.format(max(sum(map(lambda x: x[1], self.results['cycles'][:i+1])) +
+            ' \ '.join(['{:.2g}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
             self.results['T_nOL'], self.results['T_OL']))
                 for i in range(len(self.results['cycles']))]))
 
@@ -749,8 +753,7 @@ class ECM(object):
             ax = fig.add_subplot(1, 1, 1)
 
             sorted_overlapping_ports = sorted(
-                map(lambda p: (p, self.results['port cycles'][p]),
-                    self.machine['overlapping ports']),
+                [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
                 key=lambda x: x[1])
 
             yticks_labels = []
