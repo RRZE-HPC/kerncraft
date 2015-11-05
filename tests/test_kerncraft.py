@@ -228,7 +228,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
-        os.environ['LIKWID_LIB'] = '-L'+self._find_file('dummy_likwid/lib')
+        os.environ['LIKWID_LIB'] = ''
         os.environ['LIKWID_INCLUDE'] = '-I'+self._find_file('dummy_likwid/include')
 
         parser = kc.create_parser()
