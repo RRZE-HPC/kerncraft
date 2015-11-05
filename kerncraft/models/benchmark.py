@@ -127,7 +127,8 @@ class Benchmark(object):
                       self.results['Runtime (per repetition) [s]']),
                   file=output_file)
         if self._args.verbose > 0:
-            print('Iterations per repetition:', self.results['Iterations per repetition'], 
+            print('Iterations per repetition: {!s}'.format(
+                     self.results['Iterations per repetition']), 
                   file=output_file)
         print('Runtime (per cacheline update): {:.2g} cy/CL'.format(
                   self.results['Runtime (per cacheline update) [cy/CL]']),
