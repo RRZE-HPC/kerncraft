@@ -121,7 +121,7 @@ class Kernel(object):
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
     
-    def __init__(self, kernel_code, constants=None, variables=None, filename=None):
+    def __init__(self, kernel_code, filename=None):
         '''This class captures the DSL kernel code, analyzes it and reports access pattern'''
         self.kernel_code = kernel_code
         self._filename = filename
@@ -129,16 +129,7 @@ class Kernel(object):
         parser = CParser()
         self.kernel_ast = parser.parse(self.as_function()).ext[0].body
 
-        self._loop_stack = []
-        self._sources = {}
-        self._destinations = {}
-        self._constants = {} if constants is None else constants
-        self._variables = {} if variables is None else variables
-        self._flops = {}
-        self.asm_blocks = {}
-        self.asm_block_idx = None
-        
-        self.datatype = None
+        self.clear_state()
 
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -156,14 +147,27 @@ class Kernel(object):
             assert type_ == self.datatype, 'mixing of datatypes within a kernel is not supported.'
         assert type(size) in [tuple, type(None)], 'size has to be defined as tuple'
         self._variables[name] = (type_, size)
-
+    
+    def clear_state(self):
+        '''Clears all internal states, except for kernel_ast, kernel_code and _filename'''
+        self._loop_stack = []
+        self._sources = {}
+        self._destinations = {}
+        self._constants = {}
+        self._variables = {}
+        self._flops = {}
+        self.asm_blocks = {}
+        self.asm_block_idx = None
+        
+        self.datatype = None
+    
     def process(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
         assert all([type(s) is c_ast.Decl for s in self.kernel_ast.block_items[:-1]]), \
             'all statments befor the for loop need to be declarations'
         assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
             'last statment in kernel code must be a loop'
-
+        
         for item in self.kernel_ast.block_items[:-1]:
             array = type(item.type) is c_ast.ArrayDecl
 

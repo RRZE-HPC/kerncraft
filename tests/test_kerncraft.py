@@ -104,7 +104,7 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['Roofline'])
         
         roofline = result['Roofline']
-        self.assertAlmostEqual(roofline['min performance'], 5220000000.0, places=0)
+        self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     def test_sclar_product_ECMData(self):
