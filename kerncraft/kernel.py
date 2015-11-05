@@ -135,7 +135,7 @@ class Kernel(object):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
 
     def set_constant(self, name, value):
-        assert type(name) is six.text_type, "constant name needs to be of type str"
+        assert isinstance(name, six.string_types), "constant name needs to be of type str"
         assert type(value) is int, "constant value needs to be of type int"
         self._constants[name] = value
 
