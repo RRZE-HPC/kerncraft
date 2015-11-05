@@ -376,7 +376,8 @@ class ECMData(object):
                 # TODO support for non-write-allocate architectures
                 measurement_kernel = 'load'
                 measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
-                for kernel_name, kernel_info in list(self.machine['benchmarks']['kernels'].items()):
+                for kernel_name, kernel_info in sorted(
+                        self.machine['benchmarks']['kernels'].items()):
                     if (read_streams >= (kernel_info['read streams']['streams'] +
                                          kernel_info['write streams']['streams'] -
                                          kernel_info['read+write streams']['streams']) >
