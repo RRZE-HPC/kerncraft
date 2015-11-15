@@ -140,6 +140,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('copy.c'),
                                   '-D', 'N', '1000000',
                                   '-vvv',
+                                  '--unit=cy/CL'
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
