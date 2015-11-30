@@ -310,6 +310,125 @@ class TestKerncraft(unittest.TestCase):
 
         for k, v in correct_results.items():
             self.assertAlmostEqual(roofline[k], v, places=1)
+    
+    def test_argument_parser_asm_block(self):
+        # valid --asm-block
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--asm-block', 'auto'])
+        kc.check_arguments(args, parser)
+        
+        # valid --asm-block
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--asm-block', 'manual'])
+        kc.check_arguments(args, parser)
+        
+        # valid --asm-block
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--asm-block', '23'])
+        kc.check_arguments(args, parser)
+        
+        # invalid --asm-block
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--asm-block', 'foobar'])
+        with self.assertRaises(SystemExit) as cm:
+            kc.check_arguments(args, parser)
+        self.assertEqual(cm.exception.code, 2)
+    
+    
+    def test_argument_parser_define(self):
+        # invalid --define
+        parser = kc.create_parser()
+        with self.assertRaises(SystemExit) as cm:
+            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                      '-p', 'Benchmark',
+                                      self._find_file('2d-5pt.c'),
+                                      '--define', 'N',
+                                      '--define', 'M', '1000', '23'])
+            kc.check_arguments(args, parser)
+        self.assertEqual(cm.exception.code, 2)
+        
+        # invalid --define
+        parser = kc.create_parser()
+        with self.assertRaises(SystemExit) as cm:
+            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                      '-p', 'Benchmark',
+                                      self._find_file('2d-5pt.c'),
+                                      '--define', 'M', '1000', '23'])
+        self.assertEqual(cm.exception.code, 2)
+        
+        # invalid --define
+        parser = kc.create_parser()
+        with self.assertRaises(SystemExit) as cm:
+            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                      '-p', 'Benchmark',
+                                      self._find_file('2d-5pt.c'),
+                                      '--define', 'M'])
+        self.assertEqual(cm.exception.code, 2)
+        
+        # invalid --define
+        parser = kc.create_parser()
+        with self.assertRaises(SystemExit) as cm:
+            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                      '-p', 'Benchmark',
+                                      self._find_file('2d-5pt.c'),
+                                      '--define', 'M', 'foobar'])
+        self.assertEqual(cm.exception.code, 2)
+        
+        # valid --define
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--define', 'M', '23'])
+        self.assertEqual(cm.exception.code, 2)
+        
+        # valid --define
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--define', 'M', '23-42'])
+        self.assertEqual(args.define[0][0], 'M')
+        self.assertEqual(list(args.define[0][1]), list(range(23, 43)))
+        
+        # valid --define
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--define', 'M', '23-42:5'])
+        self.assertEqual(args.define[0][0], 'M')
+        self.assertEqual(list(args.define[0][1]), [23, 28, 33, 37, 42])
+    
+        # valid --define
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--define', 'M', '1-8:4log2'])
+        self.assertEqual(args.define[0][0], 'M')
+        self.assertEqual(list(args.define[0][1]), [1, 2, 4, 8])
+     
+        # valid --define
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'Benchmark',
+                                  self._find_file('2d-5pt.c'),
+                                  '--define', 'M', '10-1000:3log10'])
+        self.assertEqual(args.define[0][0], 'M')
+        self.assertEqual(list(args.define[0][1]), [10, 100, 1000])
 
     def test_space_linear(self):
         self.assertEqual(list(kc.space(1, 10, 10)), [1,2,3,4,5,6,7,8,9,10])
