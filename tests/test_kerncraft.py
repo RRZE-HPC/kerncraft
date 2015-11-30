@@ -408,9 +408,9 @@ class TestKerncraft(unittest.TestCase):
         args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
-                                  '--define', 'M', '23-42:5'])
+                                  '--define', 'M', '23-42:4'])
         self.assertEqual(args.define[0][0], 'M')
-        self.assertEqual(list(args.define[0][1]), [23, 28, 33, 37, 42])
+        self.assertEqual(list(args.define[0][1]), [23, 29, 36, 42])
     
         # valid --define
         parser = kc.create_parser()
