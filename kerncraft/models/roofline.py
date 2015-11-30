@@ -279,9 +279,12 @@ class Roofline(object):
                         evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
             
             # Compiling stats
-            total_misses[cache_level] = sum([sum(map(len, list(l.values()))) for l in list(misses[cache_level].values())])
-            total_hits[cache_level] = sum([sum(map(len, list(l.values()))) for l in list(hits[cache_level].values())])
-            total_evicts[cache_level] = sum([sum(map(len, list(l.values()))) for l in list(evicts[cache_level].values())])
+            total_misses[cache_level] = sum([sum(
+                map(len, list(l.values()))) for l in list(misses[cache_level].values())])
+            total_hits[cache_level] = sum([sum(
+                map(len, list(l.values()))) for l in list(hits[cache_level].values())])
+            total_evicts[cache_level] = sum([sum(
+                map(len, list(l.values()))) for l in list(evicts[cache_level].values())])
 
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
