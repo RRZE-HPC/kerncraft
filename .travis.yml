@@ -18,6 +18,8 @@ install:
 before_script:
   - export PATH=$PATH:$PWD/iaca-lin64/bin/
 script: 
-    - coverage run tests/all_tests.py
+    - coverage run -p tests/all_tests.py
+    - coverage run -p `which kerncraft` --help
 after_success:
-  - codecov
+    - coverage combine
+    - codecov
