@@ -48,16 +48,3 @@ class Intervals(object):
 
     def __eq__(self, other):
         return self.data == other.data
-
-if __name__ == '__main__':
-    assert Intervals([0, 10]).data == [[0, 10]]
-    assert Intervals([0, 10], [1, 9]).data == [[0, 10]]
-    assert Intervals([0, 10], [5, 15]).data == [[0, 15]]
-    assert Intervals([-5, 5], [0, 10]).data == [[-5, 10]]
-    assert Intervals([0, 9], [10, 11]).data == [[0, 9], [10, 11]]
-    assert Intervals([0, 10], [10, 11]).data == [[0, 11]]
-    assert Intervals([0, 5]) & Intervals([1, 9]) == Intervals([0, 9])
-    assert Intervals([0, 5]) & Intervals([5, 9]) == Intervals([0, 9])
-    assert Intervals([2, 4]) & Intervals([0, 9]) == Intervals([0, 9])
-    assert len(Intervals([1, 2])) == 1
-    assert 10 not in Intervals([0, 10]) and 0 in Intervals([0, 10])
