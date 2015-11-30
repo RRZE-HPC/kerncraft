@@ -44,7 +44,8 @@ class TestKerncraft(unittest.TestCase):
         args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                   '-p', 'ECMData',
                                   self._find_file('2d-5pt.c'),
-                                  '-D', 'N', '1000-100000:3log10',
+                                  '-D', 'N', '10000-100000:2log10',
+                                  '-D', 'N', '1000',
                                   '-D', 'M', '50',
                                   '-vvv',
                                   '--store', store_file])
