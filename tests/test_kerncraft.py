@@ -354,8 +354,17 @@ class TestKerncraft(unittest.TestCase):
             args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
-                                      '--define', 'N',
                                       '--define', 'M', '1000', '23'])
+            kc.check_arguments(args, parser)
+        self.assertEqual(cm.exception.code, 2)
+        
+        # invalid --define
+        parser = kc.create_parser()
+        with self.assertRaises(SystemExit) as cm:
+            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                      '-p', 'Benchmark',
+                                      self._find_file('2d-5pt.c'),
+                                      '--define', 'N'])
             kc.check_arguments(args, parser)
         self.assertEqual(cm.exception.code, 2)
         
