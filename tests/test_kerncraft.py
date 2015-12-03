@@ -16,6 +16,7 @@ from pprint import pprint
 from io import StringIO
 
 import six
+import sympy
 
 sys.path.insert(0, '..')
 from kerncraft import kerncraft as kc
@@ -59,12 +60,12 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self,
-            [sorted(r) for r in results['2d-5pt.c']],
-            [sorted(r) for r in [
-                (('M', 50), ('N', 1000)), (('M', 50), ('N', 10000)), (('M', 50), ('N', 100000))]])
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [
+                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50), (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
         
         # Output of first result:
-        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if ('N', 1000) in k][0]]
+        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
         
         six.assertCountEqual(self, result, ['ECMData'])
         
@@ -95,12 +96,12 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            [sorted(r) for r in results['2d-5pt.c']],
-            [sorted(r) for r in [
-                (('M', 50), ('N', 1024)), (('M', 50), ('N', 2048)), (('M', 50), ('N', 4096))]])
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [
+                ((sympy.var('M'), 50), (sympy.var('N'), 1024)), ((sympy.var('M'), 50), (sympy.var('N'), 2048)), ((sympy.var('M'), 50), (sympy.var('N'), 4096))]])
         
         # Output of first result:
-        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if ('N', 4096) in k][0]]
+        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 4096) in k][0]]
         
         six.assertCountEqual(self, result, ['Roofline'])
         
@@ -125,7 +126,7 @@ class TestKerncraft(unittest.TestCase):
         results = pickle.load(open(store_file, 'rb'))
         
         # Output of first result:
-        ecmd = results['scalar_product.c'][(('N', 10000),)]['ECMData']
+        ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
         
         self.assertAlmostEqual(ecmd['L1-L2'], 4, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 5.54, places=1)
@@ -149,7 +150,7 @@ class TestKerncraft(unittest.TestCase):
         results = pickle.load(open(store_file, 'rb'))
         
         # Output of first result:
-        ecmd = results['copy.c'][(('N', 1000000),)]['ECMData']
+        ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
         
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 8.31, places=1)
@@ -178,8 +179,8 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            [sorted(r) for r in results['2d-5pt.c']],
-            [sorted(r) for r in [(('M', 1000), ('N', 2000))]])
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
         
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
@@ -213,8 +214,8 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            [sorted(r) for r in results['2d-5pt.c']],
-            [sorted(r) for r in [(('M', 1000), ('N', 2000))]])
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
         
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
@@ -251,8 +252,8 @@ class TestKerncraft(unittest.TestCase):
         
         # Check for correct variations of constants
         six.assertCountEqual(self, 
-            [sorted(r) for r in results['2d-5pt.c']],
-            [sorted(r) for r in [(('M', 1000), ('N', 4000))]])
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 4000))]])
         
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
@@ -289,8 +290,8 @@ class TestKerncraft(unittest.TestCase):
 
         # Check for correct variations of constants
         six.assertCountEqual(self,
-            [sorted(r) for r in results['2d-5pt.c']],
-            [sorted(r) for r in [(('M', 1000), ('N', 1000))]])
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 1000))]])
 
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]

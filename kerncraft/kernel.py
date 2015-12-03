@@ -13,7 +13,9 @@ import subprocess
 import os
 import os.path
 import sys
+import numbers
 
+import sympy
 from six.moves import filter
 from six.moves import map
 from functools import reduce
@@ -129,7 +131,15 @@ class Kernel(object):
         parser = CParser()
         self.kernel_ast = parser.parse(self.as_function()).ext[0].body
 
+        self._loop_stack = []
+        self._variables = {}
+        self._sources = {}
+        self._destinations = {}
+        self._flops = {}
+        self.datatype = None
+        
         self.clear_state()
+        self._process_code()
 
     def as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -137,7 +147,7 @@ class Kernel(object):
     def set_constant(self, name, value):
         assert isinstance(name, six.string_types), "constant name needs to be of type str"
         assert type(value) is int, "constant value needs to be of type int"
-        self._constants[name] = value
+        self._constants[sympy.var(name)] = value
 
     def set_variable(self, name, type_, size):
         assert type_ in self.datatypes_size, 'only float and double variables are supported'
@@ -149,25 +159,19 @@ class Kernel(object):
         self._variables[name] = (type_, size)
     
     def clear_state(self):
-        '''Clears all internal states, except for kernel_ast, kernel_code and _filename'''
-        self._loop_stack = []
-        self._sources = {}
-        self._destinations = {}
+        '''Clears changable internal states
+        (_constants, asm_blocks and asm_block_idx)'''
         self._constants = {}
-        self._variables = {}
-        self._flops = {}
         self.asm_blocks = {}
         self.asm_block_idx = None
-        
-        self.datatype = None
     
-    def process(self):
+    def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
         assert all([type(s) is c_ast.Decl for s in self.kernel_ast.block_items[:-1]]), \
             'all statments befor the for loop need to be declarations'
         assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
             'last statment in kernel code must be a loop'
-        
+
         for item in self.kernel_ast.block_items[:-1]:
             array = type(item.type) is c_ast.ArrayDecl
 
@@ -175,7 +179,7 @@ class Kernel(object):
                 dims = []
                 t = item.type
                 while type(t) is c_ast.ArrayDecl:
-                    dims.append(self.conv_ast_to_int(t.dim))
+                    dims.append(self.conv_ast_to_sym(t.dim))
                     t = t.type
 
                 assert len(t.type.names) == 1, "only single types are supported"
@@ -188,15 +192,15 @@ class Kernel(object):
         floop = self.kernel_ast.block_items[-1]
         self._p_for(floop)
 
-    def conv_ast_to_int(self, math_ast):
+    def conv_ast_to_sym(self, math_ast):
         '''
         converts mathematical expressions containing paranthesis, addition, subtraction and
-        multiplication from AST to int.
+        multiplication from AST to a sympy representation.
         '''
         if type(math_ast) is c_ast.ID:
-            return self._constants[math_ast.name]
+            return sympy.var(math_ast.name)
         elif type(math_ast) is c_ast.Constant:
-            return int(math_ast.value)
+            return sympy.Integer(math_ast.value)
         else:  # elif type(dim) is c_ast.BinaryOp:
             op = {
                 '*': operator.mul,
@@ -204,9 +208,9 @@ class Kernel(object):
                 '-': operator.sub
             }
 
-            return int(op[math_ast.op](
-                self.conv_ast_to_int(math_ast.left),
-                self.conv_ast_to_int(math_ast.right)))
+            return op[math_ast.op](
+                self.conv_ast_to_sym(math_ast.left),
+                self.conv_ast_to_sym(math_ast.right))
 
     def _get_offsets(self, aref, dim=0):
         '''
@@ -286,19 +290,17 @@ class Kernel(object):
 
         if type(floop.cond.right) is c_ast.ID:
             const_name = floop.cond.right.name
-            assert const_name in self._constants, \
-                'loop right operand has to be defined as a constant in ECM object'
-            iter_max = self._constants[const_name]
+            iter_max = sympy.var(const_name)
         elif type(floop.cond.right) is c_ast.Constant:
-            iter_max = int(floop.cond.right.value)
+            iter_max = sympy.Integer(floop.cond.right.value)
         else:  # type(floop.cond.right) is c_ast.BinaryOp
             bop = floop.cond.right
             assert type(bop.left) is c_ast.ID, 'left of operator has to be a variable'
             assert type(bop.right) is c_ast.Constant, 'right of operator has to be a constant'
             assert bop.op in '+-', 'only plus (+) and minus (-) are accepted operators'
+            iter_max = self.conv_ast_to_sym(bop)
 
-            sign = 1 if bop.op == '+' else -1
-            iter_max = self._constants[bop.left.name]+sign*int(bop.right.value)
+        iter_min = self.conv_ast_to_sym(floop.init.decls[0].init)
 
         if type(floop.next) is c_ast.Assignment:
             assert type(floop.next.lvalue) is c_ast.ID, \
@@ -318,7 +320,7 @@ class Kernel(object):
         # Document for loop stack
         self._loop_stack.append(
             # (index name, min, max, step size)
-            (floop.init.decls[0].name, floop.init.decls[0].init.value, iter_max, step_size)
+            (floop.init.decls[0].name, iter_min, iter_max, step_size)
         )
         # TODO add support for other stepsizes (even negative/reverse steps?)
 
@@ -400,6 +402,15 @@ class Kernel(object):
 
         return sources
 
+    def subs_consts(self, expr):
+        '''
+        Substitutes constants in expression unless it is already a number
+        '''
+        if isinstance(expr, numbers.Number):
+            return expr
+        else:
+            return expr.subs(self._constants)
+
     def as_code(self, type_='iaca'):
         '''
         generates compilable source code from AST
@@ -419,13 +430,13 @@ class Kernel(object):
         for k in self._constants:
             # cont int N = atoi(argv[1])
             # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k, ['const'], c_ast.IdentifierType(['int']))
+            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
             init = c_ast.FuncCall(
                 c_ast.ID('atoi'),
                 c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
             i += 1
             ast.block_items.insert(0, c_ast.Decl(
-                k, ['const'], [], [],
+                k.name, ['const'], [], [],
                 type_decl, init, None))
 
         if type_ == 'likwid':
@@ -762,7 +773,7 @@ class Kernel(object):
         table = ('     idx |        min        max       step\n' +
                  '---------+---------------------------------\n')
         for l in self._loop_stack:
-            table += '{:>8} | {:>10} {:>10} {:>+10}\n'.format(*l)
+            table += '{:>8} | {!s:>10} {!s:>10} {:>+10}\n'.format(*l)
         print(prefix_indent('loop stack:        ', table), file=output_file)
 
         table = ('    name |  offsets   ...\n' +
@@ -803,5 +814,5 @@ class Kernel(object):
         table = ('    name | value     \n' +
                  '---------+-----------\n')
         for name, value in list(self._constants.items()):
-            table += '{:>8} | {:<10}\n'.format(name, value)
+            table += '{!s:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table), file=output_file)

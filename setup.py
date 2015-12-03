@@ -70,6 +70,7 @@ setup(
     install_requires=[
         'PyYAML',
         'six',
+        'sympy',
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
