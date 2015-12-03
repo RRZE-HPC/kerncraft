@@ -173,12 +173,10 @@ def run(parser, args, output_file=sys.stdout):
     for define in define_product:
         # Reset state of kernel
         kernel.clear_state()
-        
+
         # Add constants from define arguments
         for k, v in define:
             kernel.set_constant(k, v)
-        
-        kernel.process()
 
         for model_name in set(args.pmodel):
             # print header

@@ -11,13 +11,16 @@ import subprocess
 import re
 from copy import deepcopy
 import sys
+from itertools import chain
+
+import sympy
+import six
+from six.moves import filter
+from six.moves import map
+from six.moves import range
 
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
-from six.moves import filter
-from six.moves import map
-import six
-from six.moves import range
 
 
 class Roofline(object):
@@ -62,7 +65,8 @@ class Roofline(object):
             assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
 
             if offset_type == 'rel':
-                offset += dim_offset*reduce(operator.mul, base_dims[dim+1:], 1)
+                offset += self.kernel.subs_consts(
+                    dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
             else:
                 # should not happen
                 pass
@@ -81,7 +85,8 @@ class Roofline(object):
 
         for dim, index_name in enumerate(index_order):
             if loop_index == index_name:
-                offset += reduce(operator.mul, base_dims[dim+1:], 1)
+                offset += self.kernel.subs_consts(
+                    reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
 
         return offset
 
@@ -182,19 +187,19 @@ class Roofline(object):
                 # We consider everythin a miss in the beginning, unless it is completly cached
                 # TODO here read and writes are treated the same, this implies write-allocate
                 #      to support nontemporal stores, this needs to be changed
-                for name in list(read_offsets.keys())+list(write_offsets.keys()):
+                for name in chain(read_offsets.keys(), write_offsets.keys()):
                     cache[name] = {}
                     misses[cache_level][name] = {}
                     hits[cache_level][name] = {}
 
-                    for idx_order in list(read_offsets[name].keys())+list(write_offsets[name].keys()):
+                    for idx_order in chain(read_offsets[name].keys(), write_offsets[name].keys()):
                         cache[name][idx_order] = Intervals()
                         
                         # Check for complete caching/in-cache
                         # TODO change from pessimistic to more realistic approach (different 
                         #      indexes are treasted as individual arrays)
-                        total_array_size = reduce(
-                            operator.mul, self.kernel._variables[name][1])*element_size
+                        total_array_size = self.kernel.subs_consts(
+                            element_size*reduce(operator.mul, self.kernel._variables[name][1]))
                         if total_array_size < trace_length:
                             # all hits no misses
                             misses[cache_level][name][idx_order] = []
