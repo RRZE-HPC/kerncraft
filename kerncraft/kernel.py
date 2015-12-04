@@ -145,9 +145,13 @@ class Kernel(object):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
 
     def set_constant(self, name, value):
-        assert isinstance(name, six.string_types), "constant name needs to be of type str"
+        assert isinstance(name, six.string_types) or isinstance(name, sympy.Symbol), \
+            "constant name needs to be of type str, unicode or a sympy.Symbol"
         assert type(value) is int, "constant value needs to be of type int"
-        self._constants[sympy.var(name)] = value
+        if isinstance(name, sympy.Symbol):
+            self._constants[name] = value
+        else:
+            self._constants[sympy.var(name)] = value
 
     def set_variable(self, name, type_, size):
         assert type_ in self.datatypes_size, 'only float and double variables are supported'
