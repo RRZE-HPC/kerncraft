@@ -162,7 +162,9 @@ def run(parser, args, output_file=sys.stdout):
     kernel = Kernel(code, filename=args.code_file.name)
 
     # if no defines were given, guess suitable defines in-mem
-    # TODO support in-cache aswell
+    # TODO support in-cache
+    # TODO broaden cases to n-dimensions
+    # TODO make configurable (no hardcoded 512MB/1GB/min. 3 iteration ...)
     # works only for up to 3 dimensions
     if not args.define:
         required_consts = [v[1] for v in kernel._variables.itervalues() if v[1] is not None]
