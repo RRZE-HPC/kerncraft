@@ -1,7 +1,9 @@
-from __future__ import absolute_import
 #!/usr/bin/env python
+from __future__ import absolute_import
 
 import yaml
+
+from . import prefixedunit
 
 
 class MachineModel(object):
