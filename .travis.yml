@@ -1,7 +1,7 @@
 language: python
 python:
-  - "2.7"
-  - "3.4"
+- '2.7'
+- '3.4'
 addons:
   apt:
     sources:
@@ -10,16 +10,25 @@ addons:
     - gcc-4.8
     - g++-4.8
 before_install:
-  - pip install codecov
-  - pip install requests
+- pip install codecov
+- pip install requests
 install:
-  - pip install .
-  - python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul lin64
+- pip install .
+- python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
+  lin64
 before_script:
-  - export PATH=$PATH:$PWD/iaca-lin64/bin/
-script: 
-    - coverage run -p tests/all_tests.py
-    - coverage run -p `which kerncraft` --help
+- export PATH=$PATH:$PWD/iaca-lin64/bin/
+script:
+- coverage run -p tests/all_tests.py
+- coverage run -p `which kerncraft` --help
 after_success:
-    - coverage combine
-    - codecov
+- coverage combine
+- codecov
+deploy:
+  provider: pypi
+  user: travis.rrze-hpc
+  password:
+    secure: FTKYOU14mpTagYW/tEDhXHlBX9hhTo7AuuOM5dw0rbA1c8A9QS8d4/Xsg4hkq+61bnYl6Fxl+vz9aUXFX7QES2xMLWTMvMapF0Jigbdp6bBEqqkAxUANgtU7xStdpS/D5ys3poEp2VyPqasN3rhPzUi517vxn+fqwCUs3UnMIaa1dAcQcAAXH5bbQ+ZUR+psvkJk0jmad4NWhIemKlj8/dqqOQ5XceJNN70MvmQN93jxBzdu1uBsK+luDFE/fhwOrz0h/ztzQOZVCcfgtwow1Ze0VLjKjPJWDj9g8QfR2imeluLoy/CctaGZ0ZG72zgDYfbxamKYjXCNPhBqgyURrETJJ+pdXWGGbIcNnUAheO5h5m/UUF7Ei/ugp54Sn66fp5phjwdZfq0xCyTfHiQH1l5fYx5NwOzaLj2VixseRRPTZzaUhBskaCsPYmGp7M8G7Cpm/mHYhZcOTmTEovfajpfOp9iptvZerbWrf/a4zNBPIFsmBVtc0zTB25p9cu/wM8Ud3r0srUobJc3bLiTbb+uGB+nyWsy/IHCJd2Q/wdXGP99lr/cSLBQCjfZo0Q63LIpNXC+sJqXWnrsFsVrA8Tb1mwfOHvPUBHQYmt8hSCqRw1uX4jufE7h/ePkZW+tkG78Kj+kvTREx9PDg0s6GCkWPERtjCnhFCUvVyT4u7v4=
+  distributions: "sdist bdist_wheel"
+  on:
+    repo: RRZE-HPC/kerncraft
