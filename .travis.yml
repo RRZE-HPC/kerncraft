@@ -13,6 +13,8 @@ before_install:
 - pip install codecov
 - pip install requests
 install:
+# temporaryly until sympy>0.7.6.1 is coming out
+- pip install git+git://github.com/sympy/sympy.git
 - pip install .
 - python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
   lin64

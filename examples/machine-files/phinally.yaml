@@ -13,16 +13,17 @@ FLOPs per cycle:
     DP: {total: 8, ADD: 4, MUL: 4}
 overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
 non-overlapping ports: ["2D", "3D"]
+write-allocate: True
 memory hierarchy:
 - {cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 16, level: L1, bandwidth: null, size per group: 32.00
-    kB, threads per group: 2}
+  groups: 16, level: L1, bandwidth: null, size per group: 32768 B,
+  threads per group: 2, ways: 8, replacement strategy: LRU}
 - {cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 16, level: L2, bandwidth: null, size per group: 256.00
-    kB, threads per group: 2}
+  groups: 16, level: L2, bandwidth: null, size per group: 262144 B,
+  threads per group: 2, ways: 8, replacement strategy: LRU}
 - {bandwidth per core: 18 GB/s, cores per group: 8, cycles per cacheline transfer: null,
-  groups: 2, level: L3, bandwidth: 40 GB/s, size per group: 20.00
-    MB, threads per group: 16}
+  groups: 2, level: L3, bandwidth: 40 GB/s, size per group: 20971520 B,
+  threads per group: 16, ways: 16, replacement strategy: LRU}
 - {cores per group: 8, cycles per cacheline transfer: null,
   level: MEM, bandwidth: null, size per group: null, threads per group: 16}
 benchmarks:

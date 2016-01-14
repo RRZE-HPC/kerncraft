@@ -58,7 +58,7 @@ class Roofline(object):
         used in access.
         '''
         offset = 0
-        base_dims = self.kernel._variables[name][1]
+        base_dims = self.kernel.variables[name][1]
 
         for dim, offset_info in enumerate(access_dimensions):
             offset_type, idx_name, dim_offset = offset_info
@@ -81,7 +81,7 @@ class Roofline(object):
         moste one)
         '''
         offset = 0
-        base_dims = self.kernel._variables[name][1]
+        base_dims = self.kernel.variables[name][1]
 
         for dim, index_name in enumerate(index_order):
             if loop_index == index_name:
@@ -112,8 +112,8 @@ class Roofline(object):
     def calculate_cache_access(self, CPUL1=True):
         results = {'bottleneck level': 0, 'mem bottlenecks': []}
 
-        read_offsets = {var_name: dict() for var_name in list(self.kernel._variables.keys())}
-        write_offsets = {var_name: dict() for var_name in list(self.kernel._variables.keys())}
+        read_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
+        write_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
 
         # handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
@@ -121,8 +121,8 @@ class Roofline(object):
 
         loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
 
-        for var_name in list(self.kernel._variables.keys()):
-            var_type, var_dims = self.kernel._variables[var_name]
+        for var_name in list(self.kernel.variables.keys()):
+            var_type, var_dims = self.kernel.variables[var_name]
 
             # Skip the following access: (they are hopefully kept in registers)
             #   - scalar values
@@ -199,7 +199,7 @@ class Roofline(object):
                         # TODO change from pessimistic to more realistic approach (different 
                         #      indexes are treasted as individual arrays)
                         total_array_size = self.kernel.subs_consts(
-                            element_size*reduce(operator.mul, self.kernel._variables[name][1]))
+                            element_size*reduce(operator.mul, self.kernel.variables[name][1]))
                         if total_array_size < trace_length:
                             # all hits no misses
                             misses[cache_level][name][idx_order] = []
@@ -278,7 +278,7 @@ class Roofline(object):
 
                 # All writes to require the data to be evicted eventually
                 evicts[cache_level] = {
-                    var_name: dict() for var_name in list(self.kernel._variables.keys())}
+                    var_name: dict() for var_name in list(self.kernel.variables.keys())}
                 for name in list(write_offsets.keys()):
                     for idx_order in list(write_offsets[name].keys()):
                         evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])

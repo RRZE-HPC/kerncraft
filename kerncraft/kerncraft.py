@@ -167,7 +167,7 @@ def run(parser, args, output_file=sys.stdout):
     # TODO make configurable (no hardcoded 512MB/1GB/min. 3 iteration ...)
     # works only for up to 3 dimensions
     if not args.define:
-        required_consts = [v[1] for v in kernel._variables.itervalues() if v[1] is not None]
+        required_consts = [v[1] for v in kernel.variables.itervalues() if v[1] is not None]
         assert all([1 <= len(rc) <= 3 for rc in required_consts]), "Automatic selection of " + \
             "defines only works with up to 3 dimensions."
         inner_loop_syms = kernel._loop_stack[-1][2].free_symbols
@@ -240,9 +240,9 @@ def run(parser, args, output_file=sys.stdout):
             kernel_name = os.path.split(args.code_file.name)[1]
             if kernel_name not in result_storage:
                 result_storage[kernel_name] = {}
-            if tuple(kernel._constants.items()) not in result_storage[kernel_name]:
-                result_storage[kernel_name][tuple(kernel._constants.items())] = {}
-            result_storage[kernel_name][tuple(kernel._constants.items())][model_name] = \
+            if tuple(kernel.constants.items()) not in result_storage[kernel_name]:
+                result_storage[kernel_name][tuple(kernel.constants.items())] = {}
+            result_storage[kernel_name][tuple(kernel.constants.items())][model_name] = \
                 model.results
             
             print('', file=output_file)

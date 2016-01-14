@@ -264,13 +264,13 @@ compiler flags: [-O3, -xAVX, -fno-alias]
 memory hierarchy:
 - {cores per group: 1, cycles per cacheline transfer: 2,
   groups: 28, level: L1, bandwidth: null, size per group: 32.00
-    kB, threads per group: 2}
+    kB, ways: 8, threads per group: 2, replacement strategy: LRU}
 - {cores per group: 1, cycles per cacheline transfer: 2.77,
   groups: 28, level: L2, bandwidth: null, size per group: 256.00
-    kB, threads per group: 2}
+    kB, ways: 8, threads per group: 2, replacement strategy: LRU}
 - {cores per group: 14, cycles per cacheline transfer: 4,
   groups: 2, level: L3, bandwidth: 54 GB/s, size per group: 35.00
-    MB, threads per group: 28}
+    MB, ways: 16, threads per group: 28, replacement strategy: LRU}
 - {bandwidth: null, cores per group: 14, cycles per cacheline transfer: null,
   level: MEM, size per group: null, threads per group: 28}
 micro-architecture: HSW
@@ -280,4 +280,5 @@ overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
 non-overlapping ports: ["2D", "3D"]
 sockets: 2
 threads per core: 2
+write-allocate: True
 

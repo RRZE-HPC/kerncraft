@@ -79,7 +79,7 @@ class Benchmark(object):
                                   verbose=self._args.verbose > 1)
         
         # Build arguments to pass to command:
-        args = [bench] + [six.text_type(s) for s in list(self.kernel._constants.values())]
+        args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
         
         # Determan base runtime with 100 iterations
         runtime = 0.0
