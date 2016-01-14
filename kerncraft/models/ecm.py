@@ -194,276 +194,34 @@ class ECMData(object):
 
         # use stats to build results
         stats = list(csim.stats())
+        
+        # Transfrom L1 Hits from byte to to cacheline units:
+        stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
+            (int(element_size)-1))//int(cacheline_size)
+        
         # pprint(stats)
-        #print(csim.first_level.parent.cached)
         # TODO csim: evicts are not yet based on cachelines (require dirty bits)
-        # TODO support full-caching
-        # TODO use csim stats to generate results dict
+        # TODO verify full-caching support
         
-        # print("Hits in L1: {} elements".format(stats[0]['HIT']//element_size))
-        # print("Misses in L1: {} CL".format(stats[0]['MISS']))
-        # print("Evicts from L1: {} elements".format(stats[0]['STORE']//element_size))
-        # print()
-        # print("Hits in L2: {} CL".format(stats[1]['HIT']))
-        # print("Misses in L2: {} CL".format(stats[1]['MISS']))
-        # print("Evicts from L2: {} elements".format(stats[1]['STORE']//element_size))
-        # print()
-        # print("Hits in L3: {} CL".format(stats[2]['HIT']))
-        # print("Misses in L3: {} CL".format(stats[2]['MISS']))
-        # print("Evicts from L3: {} elements".format(stats[2]['STORE']//element_size))
-        #
-        # print("+"*30)
-        
-        for var_name in list(self.kernel.variables.keys()):
-            var_type, var_dims = self.kernel.variables[var_name]
-
-            # Skip the following access: (they are hopefully kept in registers)
-            #   - scalar values
-            if var_dims is None:
-                continue
-            #   - accesses that do not change with inner-most loop index (they are hopefully kept 
-            #     in registers)
-            writes = [acs for acs in self.kernel._destinations.get(var_name, [])
-                      if loop_order[-1] in [a[1] for a in acs]]
-            reads = [acs for acs in self.kernel._sources.get(var_name, [])
-                     if loop_order[-1] in [a[1] for a in acs]]
-            
-            # Compile access pattern
-            for r in reads:
-                offset = self._calculate_relative_offset(var_name, r)
-                idx_order = self._get_index_order(r)
-                read_offsets[var_name].setdefault(idx_order, [])
-                read_offsets[var_name][idx_order].append(offset)
-            for w in writes:
-                offset = self._calculate_relative_offset(var_name, w)
-                idx_order = self._get_index_order(w)
-                write_offsets[var_name].setdefault(idx_order, [])
-                write_offsets[var_name][idx_order].append(offset)
-
-            # Do unrolling so that one iteration equals one cacheline worth of workload:
-            # unrolling is done on inner-most loop only!
-            for i in range(1, int(elements_per_cacheline)):
-                for r in reads:
-                    idx_order = self._get_index_order(r)
-                    offset = self._calculate_relative_offset(var_name, r)
-                    offset += i * self._calculate_iteration_offset(
-                        var_name, idx_order, loop_order[-1])
-                    read_offsets[var_name][idx_order].append(offset)
-
-                    # Remove multiple access to same offsets
-                    read_offsets[var_name][idx_order] = \
-                        sorted(list(set(read_offsets[var_name][idx_order])), reverse=True)
-
-                for w in writes:
-                    idx_order = self._get_index_order(w)
-                    offset = self._calculate_relative_offset(var_name, w)
-                    offset += i * self._calculate_iteration_offset(
-                        var_name, idx_order, loop_order[-1])
-                    write_offsets[var_name][idx_order].append(offset)
-
-                    # Remove multiple access to same offsets
-                    write_offsets[var_name][idx_order] = \
-                        sorted(list(set(write_offsets[var_name][idx_order])), reverse=True)
-
-        # initialize misses and hits
-        misses = {}
-        hits = {}
-        evicts = {}
-        total_misses = {}
-        total_hits = {}
-        total_evicts = {}
-        total_lines_misses = {}
-        total_lines_hits = {}
-        total_lines_evicts = {}
-
         self.results = {'memory hierarchy': [], 'cycles': []}
 
         # Check for layer condition towards all cache levels (except main memory/last level)
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
-            cache_size = int(float(cache_info['size per group']))
-            # reduce cache size in parallel execution
-            if self._args.cores > 1 and cache_info['cores per group'] is not None and \
-                    cache_info['cores per group'] > 1:
-                if self._args.cores < cache_info['cores per group']:
-                    cache_size /= self._args.cores
-                else:
-                    cache_size /= cache_info['cores per group']
-
-            trace_length = 0
-            updated_length = True
-            while updated_length:
-                updated_length = False
-
-                # Initialize cache, misses, hits and evicts for current level
-                cache = {}
-                misses[cache_level] = {}
-                hits[cache_level] = {}
-                evicts[cache_level] = {}
-
-                # We consider everythin a miss in the beginning, unless it is completly cached
-                # TODO here read and writes are treated the same, this implies write-allocate
-                #      to support nontemporal stores, this needs to be changed
-                for name in chain(read_offsets.keys(), write_offsets.keys()):
-                    cache[name] = {}
-                    misses[cache_level][name] = {}
-                    hits[cache_level][name] = {}
-
-                    for idx_order in chain(read_offsets[name].keys(), write_offsets[name].keys()):
-                        cache[name][idx_order] = Intervals()
-                        
-                        # Check for complete caching/in-cache
-                        # TODO change from pessimistic to more realistic approach (different 
-                        #      indexes are treasted as individual arrays)
-                        total_array_size = self.kernel.subs_consts(
-                            element_size*reduce(operator.mul, self.kernel.variables[name][1]))
-                        if total_array_size < trace_length:
-                            # all hits no misses
-                            misses[cache_level][name][idx_order] = []
-                            if cache_level-1 not in misses:
-                                hits[cache_level][name][idx_order] = sorted(
-                                    read_offsets.get(name, {}).get(idx_order, []) +
-                                    write_offsets.get(name, {}).get(idx_order, []),
-                                    reverse=True)
-                            else:
-                                hits[cache_level][name][idx_order] = list(
-                                    misses[cache_level-1][name][idx_order])
-                          
-                        # partial caching (default case) 
-                        else:
-                            if cache_level-1 not in misses:
-                                misses[cache_level][name][idx_order] = sorted(
-                                    read_offsets.get(name, {}).get(idx_order, []) +
-                                    write_offsets.get(name, {}).get(idx_order, []),
-                                    reverse=True)
-                            else:
-                                misses[cache_level][name][idx_order] = list(
-                                    misses[cache_level-1][name][idx_order])
-                            hits[cache_level][name][idx_order] = []
-
-                # Caches are still empty (thus only misses)
-                trace_count = 0
-                cache_used_size = 0
-
-                # Now we trace the cache access backwards (in time/iterations) and check for hits
-                for var_name in list(misses[cache_level].keys()):
-                    for idx_order in list(misses[cache_level][var_name].keys()):
-                        iter_offset = self._calculate_iteration_offset(
-                            var_name, idx_order, loop_order[-1])
-
-                        # Add cache trace
-                        for offset in list(misses[cache_level][var_name][idx_order]):
-                            # If already present in cache add to hits
-                            if offset in cache[var_name][idx_order]:
-                                misses[cache_level][var_name][idx_order].remove(offset)
-
-                                # We might have multiple hits on the same offset (e.g in DAXPY)
-                                if offset not in hits[cache_level][var_name][idx_order]:
-                                    hits[cache_level][var_name][idx_order].append(offset)
-
-                            # Add cache, we can do this since misses are sorted in reverse order of
-                            # access and we assume LRU cache replacement policy
-                            if iter_offset <= elements_per_cacheline:
-                                # iterations overlap, thus we can savely add the whole range
-                                cached_first, cached_last = self._expand_to_cacheline_blocks(
-                                    offset-iter_offset*trace_length, offset+1)
-                                cache[var_name][idx_order] &= Intervals(
-                                    [cached_first, cached_last+1], sane=True)
-                            else:
-                                # There is no overlap, we can append the ranges onto one another
-                                # TODO optimize this code section (and maybe merge with above)
-                                new_cache = [self._expand_to_cacheline_blocks(o, o) for o in range(
-                                    offset-iter_offset*trace_length, offset+1, iter_offset)]
-                                new_cache = Intervals(*new_cache, sane=True)
-                                cache[var_name][idx_order] &= new_cache
-
-                        trace_count += len(cache[var_name][idx_order].data)
-                        cache_used_size += len(cache[var_name][idx_order])*element_size
-                
-                # Calculate new possible trace_length according to free space in cache
-                # TODO take CL blocked access into account
-                # TODO make /2 customizable
-                #new_trace_length = trace_length + \
-                #    ((cache_size/2 - cache_used_size)/trace_count)/element_size
-                if trace_count > 0:  # to catch complete caching
-                    new_trace_length = trace_length + \
-                        ((cache_size - cache_used_size)/trace_count)/element_size
-
-                if new_trace_length > trace_length:
-                    trace_length = new_trace_length
-                    updated_length = True
-
-                # All writes to require the data to be evicted eventually
-                evicts[cache_level] = {
-                    var_name: dict() for var_name in self.kernel.variables.keys()}
-                for name in write_offsets.keys():
-                    for idx_order in write_offsets[name].keys():
-                        evicts[cache_level][name][idx_order] = write_offsets[name][idx_order]
-            
-            # Compiling stats
-            total_misses[cache_level] = sum([
-                sum([len(v) for v in l.values()])
-                for l in misses[cache_level].values()])
-            total_hits[cache_level] = sum([
-                sum([len(v) for v in l.values()])
-                for l in hits[cache_level].values()])
-            total_evicts[cache_level] = sum([
-                sum([len(v) for v in l.values()])
-                for l in evicts[cache_level].values()])
-            
-            total_lines_misses[cache_level] = sum([
-                sum([len(blocking(n, elements_per_cacheline)) for n in list(o.values())])
-                for o in misses[cache_level].values()])
-            total_lines_hits[cache_level] = sum([
-                sum([len(blocking(n, elements_per_cacheline)) for n in list(o.values())])
-                for o in hits[cache_level].values()])
-            total_lines_evicts[cache_level] = sum([
-                sum([len(blocking(n, elements_per_cacheline)) for n in list(o.values())])
-                for o in evicts[cache_level].values()])
-
             self.results['memory hierarchy'].append({
                 'index': len(self.results['memory hierarchy']),
                 'level': '{}'.format(cache_info['level']),
-                'total misses': total_misses[cache_level],
-                'total hits': total_hits[cache_level],
-                'total evicts': total_evicts[cache_level],
-                'total lines misses': total_lines_misses[cache_level],
-                'total lines hits': total_lines_hits[cache_level],
-                'total lines evicts': total_lines_evicts[cache_level],
-                'trace length': trace_length,
-                'misses': misses[cache_level],
-                'hits': hits[cache_level],
-                'evicts': evicts[cache_level],
+                'total misses': stats[cache_level]['MISS']*int(cacheline_size),
+                'total hits': stats[cache_level]['HIT']*int(cacheline_size),
+                'total evicts': stats[cache_level]['STORE'],
+                'total lines misses': stats[cache_level]['MISS'],
+                'total lines hits': stats[cache_level]['HIT'],
+                # FIXME assumption for line evicts: all stores are consecutive
+                'total lines evicts': stats[cache_level]['STORE']//int(cacheline_size),
+                'trace length': None,
+                'misses': None,
+                'hits': None,
+                'evicts': None,
                 'cycles': None})
-                
-        STATUS = ['\033[91m\033[1mBAD\033[0m', '\033[92m OK\033[0m']
-        print("Cache ||  Hit  |  Miss | Evict")
-        print("======++=======+=======+======")
-        new = (stats[0]['HIT']//element_size, stats[0]['MISS'], stats[0]['STORE']//element_size)
-        old = (self.results['memory hierarchy'][0]['total hits'],
-               self.results['memory hierarchy'][0]['total lines misses'],
-               self.results['memory hierarchy'][0]['total evicts'])
-        check = [n == o for n,o in zip(new,old)]
-        print("      ||  {:}  |  {}  |  {}   ".format(*[STATUS[c] for c in check]))
-        print("L1new || {:>3}e  | {:>3}cl | {:>3}e".format(*new))
-        print("L1old || {:>3}e  | {:>3}cl | {:>3}e".format(*old))
-        print("------++-------+-------+------")
-        new = (stats[1]['HIT'], stats[1]['MISS'], stats[1]['STORE']//element_size)
-        old = (self.results['memory hierarchy'][1]['total lines hits'],
-               self.results['memory hierarchy'][1]['total lines misses'],
-               self.results['memory hierarchy'][1]['total evicts'])
-        check = [n == o for n,o in zip(new,old)]
-        print("      ||  {:}  |  {}  |  {}   ".format(*[STATUS[c] for c in check]))
-        print("L2new || {:>3}cl | {:>3}cl | {:>3}e".format(*new))
-        print("L2old || {:>3}cl | {:>3}cl | {:>3}e".format(*old))
-        print("------++-------+-------+------")
-        new = (stats[2]['HIT'], stats[2]['MISS'], stats[2]['STORE']//element_size)
-        old = (self.results['memory hierarchy'][2]['total lines hits'],
-               self.results['memory hierarchy'][2]['total lines misses'],
-               self.results['memory hierarchy'][2]['total evicts'])
-        check = [n == o for n,o in zip(new,old)]
-        print("      ||  {:}  |  {}  |  {}   ".format(*[STATUS[c] for c in check]))
-        print("L3new || {:>3}cl | {:>3}cl | {:>3}e".format(*new))
-        print("L3old || {:>3}cl | {:>3}cl | {:>3}e".format(*old))
 
     def calculate_cycles(self):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
@@ -486,14 +244,8 @@ class ECMData(object):
                 # choose bw according to cache level and problem
                 # first, compile stream counts at current cache level
                 # write-allocate is allready resolved above
-                read_streams = 0
-                for var_name in list(cache_results['misses'].keys()):
-                    for idx_order in cache_results['misses'][var_name]:
-                        read_streams += len(cache_results['misses'][var_name][idx_order])
-                write_streams = 0
-                for var_name in list(cache_results['evicts'].keys()):
-                    for idx_order in cache_results['evicts'][var_name]:
-                        write_streams += len(cache_results['evicts'][var_name][idx_order])
+                read_streams = cache_results['total lines misses']
+                write_streams = cache_results['total lines evicts']
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
                 threads_per_core = 1
                 bw, measurement_kernel = self.machine.get_bandwidth(
