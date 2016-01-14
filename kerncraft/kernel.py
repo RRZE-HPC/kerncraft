@@ -917,7 +917,8 @@ class Kernel(object):
         var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
         base_offsets = {}
         base = 0
-        for var_name, var_size in var_sizes.items():
+        # Always arange arrays in alphabetical order in memory, for reproducability
+        for var_name, var_size in sorted(var_sizes.items(), key=lambda v: v[0]):
             base_offsets[var_name] = base
             array_total_size = self.subs_consts(var_size + spacing)
             # Add bytes to align by 64 byte (typical cacheline size):
