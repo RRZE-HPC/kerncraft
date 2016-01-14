@@ -57,16 +57,17 @@ class TestKernel(unittest.TestCase):
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
-        read_offsets, write_offsets = k.compile_global_offsets(iteration=0, spacing=0)
+        offsets = k.compile_global_offsets(iteration=0, spacing=0)
+        read_offsets, write_offsets = list(offsets)[0]
         # read access to a[j][i-1], a[j][i+1], a[j-1][i], a[j+1][i]
         six.assertCountEqual(
             self,
-            [1*10+0, 1*10+2, 0*10+1, 2*10+1],
+            [(1*10+0)*8, (1*10+2)*8, (0*10+1)*8, (2*10+1)*8],
             read_offsets)
         # write access to b[i][j]
         six.assertCountEqual(
             self,
-            chain.from_iterable([sizes['a']+1*10+1]),
+            [sizes['a']+(1*10+1)*8],
             write_offsets)
         
     def test_global_offsets_3d(self):
@@ -74,15 +75,17 @@ class TestKernel(unittest.TestCase):
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
-        read_offsets, write_offsets = k.compile_global_offsets(iteration=0, spacing=0)
+        offsets = k.compile_global_offsets(iteration=0, spacing=0)
+        read_offsets, write_offsets = list(offsets)[0]
         # read access to a[k][j][i], a[k][j][i-1], a[k][j][i+1], a[k][j-1][i],
         #                a[k][j+1][i], a[k+1][j][i], a[k-1][j][i]
         six.assertCountEqual(self,
-                             [1*10*10+1*10+1, 1*10*10+1*10+0, 1*10*10+1*10+2, 1*10*10+0*10+1, 
-                              1*10*10+2*10+1, 2*10*10+1*10+1, 0*10*10+1*10+1],
+                             [(1*10*10+1*10+1)*8, (1*10*10+1*10+0)*8, (1*10*10+1*10+2)*8,
+                              (1*10*10+0*10+1)*8, (1*10*10+2*10+1)*8, (2*10*10+1*10+1)*8,
+                              (0*10*10+1*10+1)*8],
                              read_offsets)
         # write access to b[i][j]
-        six.assertCountEqual(self, [sizes['a']+1*10*10+1*10+1], write_offsets)
+        six.assertCountEqual(self, [sizes['a']+(1*10*10+1*10+1)*8], write_offsets)
 
 if __name__ == '__main__':
     #unittest.main()

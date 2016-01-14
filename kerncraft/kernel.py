@@ -882,7 +882,7 @@ class Kernel(object):
         
         Accesses to scalars are ignored.
         
-        Returned are load and store offset paris for each iteration.
+        Returned are load and store byte-offset paris for each iteration.
         '''
         global_load_offsets = []
         global_store_offsets = []

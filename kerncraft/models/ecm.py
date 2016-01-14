@@ -163,8 +163,8 @@ class ECMData(object):
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
         if max_array_size < max_cache_size:
             warmup_iteration_count = self.kernel.iteration_length()//3
-            offsets = self.kernel.compile_global_offsets(
-                iteration=range(self.kernel.iteration_length())+range(warmup_iteration_count))
+            offsets = self.kernel.compile_global_offsets(iteration=list(chain(
+                range(self.kernel.iteration_length()),range(warmup_iteration_count))))
         else:
             warmup_iteration_count = min(2*max_array_size//element_size//3, 
                                          2*max_cache_size//element_size//3)
@@ -519,6 +519,11 @@ class ECMData(object):
                 '{}-{}'.format(
                     cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level']),
                 cycles))
+            
+            # TODO remove the following by makeing testcases more versatile:
+            self.results['{}-{}'.format(
+                cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level'])
+                ] = cycles
         
         return self.results
 
