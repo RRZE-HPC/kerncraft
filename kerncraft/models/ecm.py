@@ -201,7 +201,6 @@ class ECMData(object):
         
         # pprint(stats)
         # TODO csim: evicts are not yet based on cachelines (require dirty bits)
-        # TODO verify full-caching support
         
         self.results = {'memory hierarchy': [], 'cycles': []}
 

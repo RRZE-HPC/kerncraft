@@ -889,6 +889,7 @@ class Kernel(object):
 
         if not isinstance(iteration, collections.Sequence):
             iteration = [iteration]
+        iteration = numpy.array(iteration)
         # print(iteration)
         # loop indices based on iteration
         # unwind global iteration count into loop counters:
@@ -908,7 +909,7 @@ class Kernel(object):
             
             base_loop_counters[loop_var] = sympy.lambdify(
                 global_iterator,
-                self.subs_consts(counter))
+                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
         
         assert max(iteration) < self.subs_consts(total_length), \
             "Iterations go beyond what is possible in the original code."
@@ -935,7 +936,7 @@ class Kernel(object):
                     base_loop_counters.keys(),
                     self.subs_consts(
                         offset_expr*element_size
-                        + base_offsets[var_name]))
+                        + base_offsets[var_name]), numpy)
                 # TODO possibly differentiate between index order
                 global_load_offsets.append(offset)
             for w in self._destinations.get(var_name, []):
@@ -944,7 +945,7 @@ class Kernel(object):
                     base_loop_counters.keys(),
                     self.subs_consts(
                         offset_expr*element_size
-                        + base_offsets[var_name]))
+                        + base_offsets[var_name]), numpy)
                 # TODO possibly differentiate between index order
                 global_store_offsets.append(offset)
                 # TODO take element sizes into account, return in bytes
@@ -952,17 +953,12 @@ class Kernel(object):
         global_load_offsets_iterations = []
         global_store_offsets_iterations = []
         
-        counter_per_it = [[v(i) for k,v in base_loop_counters.items()] for i in iteration]
-        
-        # Data access as they appear with iteration order
-        return zip([[o(*ctrs) for o in global_load_offsets] for ctrs in counter_per_it],
-                   [[o(*ctrs) for o in global_store_offsets] for ctrs in counter_per_it])
-        global_load_offsets_iterations = numpy.concatenate(
-            [[o(*ctrs) for o in global_load_offsets] for ctrs in counter_per_it])
-        global_store_offsets_iterations = numpy.concatenate(
-            [[o(*ctrs) for o in global_store_offsets] for ctrs in counter_per_it])
-        
-        return (global_load_offsets_iterations, global_store_offsets_iterations)
+        # Generate numpy.array for each counter
+        counter_per_it = [v(iteration) for v in base_loop_counters.values()]
+        #
+        ## Data access as they appear with iteration order
+        return zip(zip(*[o(*counter_per_it) for o in global_load_offsets]),
+                   zip(*[o(*counter_per_it) for o in global_store_offsets]))
 
     def print_kernel_info(self, output_file=sys.stdout):
         table = ('     idx |        min        max       step\n' +
