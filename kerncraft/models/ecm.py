@@ -194,7 +194,7 @@ class ECMData(object):
 
         # use stats to build results
         stats = list(csim.stats())
-        
+
         # Transfrom L1 Hits from byte to to cacheline units:
         stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
             (int(element_size)-1))//int(cacheline_size)

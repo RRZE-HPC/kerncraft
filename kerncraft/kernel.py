@@ -16,13 +16,14 @@ import sys
 import numbers
 import collections
 from collections import defaultdict
+from functools import reduce
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
 import numpy
 from six.moves import filter
 from six.moves import map
-from functools import reduce
+from six.moves import zip_longest
 import six
 from pylru import lrudecorator
 
@@ -912,7 +913,8 @@ class Kernel(object):
                 self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
         
         assert max(iteration) < self.subs_consts(total_length), \
-            "Iterations go beyond what is possible in the original code."
+            "Iterations go beyond what is possible in the original code. One common reason is, " + \
+            "that the iteration length are unrealistically small."
         
         # Get sizes of arrays and base offsets for each array
         var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
@@ -955,10 +957,11 @@ class Kernel(object):
         
         # Generate numpy.array for each counter
         counter_per_it = [v(iteration) for v in base_loop_counters.values()]
-        #
-        ## Data access as they appear with iteration order
-        return zip(zip(*[o(*counter_per_it) for o in global_load_offsets]),
-                   zip(*[o(*counter_per_it) for o in global_store_offsets]))
+
+        # Data access as they appear with iteration order
+        return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
+                           zip(*[o(*counter_per_it) for o in global_store_offsets]),
+                           fillvalue=None)
 
     def print_kernel_info(self, output_file=sys.stdout):
         table = ('     idx |        min        max       step\n' +
