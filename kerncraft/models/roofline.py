@@ -110,246 +110,100 @@ class Roofline(object):
         return self._expand_to_cacheline_blocks_cache[(first,last)]
 
     def calculate_cache_access(self, CPUL1=True):
-        results = {'bottleneck level': 0, 'mem bottlenecks': []}
-
         read_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
         write_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
 
-        # handle multiple datatypes
+        # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
+        cacheline_size = self.machine['cacheline size']
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
 
         loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
 
-        for var_name in list(self.kernel.variables.keys()):
-            var_type, var_dims = self.kernel.variables[var_name]
+        # Get the machine's cache model and simulator
+        csim = self.machine.get_cachesim()
 
-            # Skip the following access: (they are hopefully kept in registers)
-            #   - scalar values
-            if var_dims is None:
-                continue
-            #   - access does not change with inner-most loop index (they are hopefully kept in 
-            #     registers)
-            writes = [acs for acs in self.kernel._destinations.get(var_name, []) if loop_order[-1] in [a[1] for a in acs]]
-            reads = [acs for acs in self.kernel._sources.get(var_name, []) if loop_order[-1] in [a[1] for a in acs]]
-
-            # Compile access pattern
-            for r in reads:
-                offset = self._calculate_relative_offset(var_name, r)
-                idx_order = self._get_index_order(r)
-                read_offsets[var_name].setdefault(idx_order, [])
-                read_offsets[var_name][idx_order].append(offset)
-            for w in writes:
-                offset = self._calculate_relative_offset(var_name, w)
-                idx_order = self._get_index_order(w)
-                write_offsets[var_name].setdefault(idx_order, [])
-                write_offsets[var_name][idx_order].append(offset)
-
-            # With ECM we would do unrolling, but not with roofline
-
-        # initialize misses and hits
-        misses = {}
-        hits = {}
-        evicts = {}
-        total_misses = {}
-        total_hits = {}
-        total_evicts = {}
+        # Calculate the number of iterations necessary for warm-up
+        max_cache_size = max(map(lambda c: c.size(), csim.levels()))
+        max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
+        if max_array_size < max_cache_size:
+            warmup_iteration_count = self.kernel.iteration_length()//3
+            offsets = self.kernel.compile_global_offsets(iteration=list(chain(
+                range(self.kernel.iteration_length()),range(warmup_iteration_count))))
+        else:
+            warmup_iteration_count = min(2*max_array_size//element_size//3, 
+                                         2*max_cache_size//element_size//3)
+            offsets = self.kernel.compile_global_offsets(
+                iteration=range(0, warmup_iteration_count))
+        elements_per_cacheline = int(elements_per_cacheline)
         
-        memory_hierarchy = deepcopy(self.machine['memory hierarchy'])
+        # Do the warm-up
+        csim.loadstore(offsets, length=element_size)
+        # FIXME compile_global_offsets should already expand to element_size
         
-        # L1-CPU level is special, because everything is a miss here
-        if CPUL1:
-            memory_hierarchy.insert(0, {
-                'cores per group': 1,
-                'cycles per cacheline transfer': None,
-                'groups': 16,
-                'level': 'CPU',
-                'bandwidth': None,
-                'size per group': 0,
-                'threads per group': 2,
-            })
+        # Reset stats to conclude warm-up phase
+        csim.reset_stats()
+        
+        # Benchmark iterations:
+        bench_iteration_start = warmup_iteration_count
+        bench_iteration_end = bench_iteration_start+elements_per_cacheline
+        
+        # compile access needed for one cache-line
+        offsets = self.kernel.compile_global_offsets(
+            iteration=range(bench_iteration_start, bench_iteration_end))
+        # simulate
+        csim.loadstore(offsets, length=element_size)
+        # FIXME compile_global_offsets should already expand to element_size
 
-        # Check for layer condition towards all cache levels
-        for cache_level, cache_info in list(enumerate(memory_hierarchy))[:-1]:
+        # use stats to build results
+        stats = list(csim.stats())
+
+        # Transfrom L1 Hits and Loads from byte to to cacheline units:
+        stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
+            (int(element_size)-1))//int(cacheline_size)
+        stats[0]['LOAD'] = stats[0]['LOAD']//int(cacheline_size)
+        
+        total_flops = sum(self.kernel._flops.values())*elements_per_cacheline
+        
+        results = {'bottleneck level': 0, 'mem bottlenecks': []}
+        
+        # Compile relevant information
+        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_size = int(float(cache_info['size per group']))
+            cache_stats = stats[cache_level]
 
-            trace_length = 0
-            updated_length = True
-            while updated_length:
-                updated_length = False
-
-                # Initialize cache, misses, hits and evicts for current level
-                cache = {}
-                misses[cache_level] = {}
-                hits[cache_level] = {}
-                evicts[cache_level] = {}
-
-                # We consider everythin a miss in the beginning, unless it is completly cached
-                # TODO here read and writes are treated the same, this implies write-allocate
-                #      to support nontemporal stores, this needs to be changed
-                for name in chain(read_offsets.keys(), write_offsets.keys()):
-                    cache[name] = {}
-                    misses[cache_level][name] = {}
-                    hits[cache_level][name] = {}
-
-                    for idx_order in chain(read_offsets[name].keys(), write_offsets[name].keys()):
-                        cache[name][idx_order] = Intervals()
-                        
-                        # Check for complete caching/in-cache
-                        # TODO change from pessimistic to more realistic approach (different 
-                        #      indexes are treasted as individual arrays)
-                        total_array_size = self.kernel.subs_consts(
-                            element_size*reduce(operator.mul, self.kernel.variables[name][1]))
-                        if total_array_size < trace_length:
-                            # all hits no misses
-                            misses[cache_level][name][idx_order] = []
-                            if cache_level-1 not in misses:
-                                hits[cache_level][name][idx_order] = sorted(
-                                    read_offsets.get(name, {}).get(idx_order, []) +
-                                    write_offsets.get(name, {}).get(idx_order, []),
-                                    reverse=True)
-                            else:
-                                hits[cache_level][name][idx_order] = list(
-                                    misses[cache_level-1][name][idx_order])
-                          
-                        # partial caching (default case) 
-                        else:
-                            if cache_level-1 not in misses:
-                                misses[cache_level][name][idx_order] = sorted(
-                                    read_offsets.get(name, {}).get(idx_order, []) +
-                                    write_offsets.get(name, {}).get(idx_order, []),
-                                    reverse=True)
-                            else:
-                                misses[cache_level][name][idx_order] = list(
-                                    misses[cache_level-1][name][idx_order])
-                            hits[cache_level][name][idx_order] = []
-
-                # Caches are still empty (thus only misses)
-                trace_count = 0
-                cache_used_size = 0
-
-                # Now we trace the cache access backwards (in time/iterations) and check for hits
-                for var_name in list(misses[cache_level].keys()):
-                    for idx_order in list(misses[cache_level][var_name].keys()):
-                        iter_offset = self._calculate_iteration_offset(
-                            var_name, idx_order, loop_order[-1])
-
-                        # Add cache trace
-                        for offset in list(misses[cache_level][var_name][idx_order]):
-                            # If already present in cache add to hits
-                            if offset in cache[var_name][idx_order]:
-                                misses[cache_level][var_name][idx_order].remove(offset)
-
-                                # We might have multiple hits on the same offset (e.g in DAXPY)
-                                if offset not in hits[cache_level][var_name][idx_order]:
-                                    hits[cache_level][var_name][idx_order].append(offset)
-
-                            # Add cache, we can do this since misses are sorted in reverse order of
-                            # access and we assume LRU cache replacement policy
-                            if iter_offset <= elements_per_cacheline:
-                                # iterations overlap, thus we can savely add the whole range
-                                cached_first, cached_last = self._expand_to_cacheline_blocks(
-                                    offset-iter_offset*trace_length, offset+1)
-                                cache[var_name][idx_order] &= Intervals(
-                                    [cached_first, cached_last+1], sane=True)
-                            else:
-                                # There is no overlap, we can append the ranges onto one another
-                                # TODO optimize this code section (and maybe merge with above)
-                                new_cache = [self._expand_to_cacheline_blocks(o, o) for o in range(
-                                    offset-iter_offset*trace_length, offset+1, iter_offset)]
-                                new_cache = Intervals(*new_cache, sane=True)
-                                cache[var_name][idx_order] &= new_cache
-
-                        trace_count += len(cache[var_name][idx_order].data)
-                        cache_used_size += len(cache[var_name][idx_order])*element_size
-                
-                # Calculate new possible trace_length according to free space in cache
-                # TODO take CL blocked access into account
-                # TODO make /2 customizable
-                #new_trace_length = trace_length + \
-                #    ((cache_size/2 - cache_used_size)/trace_count)/element_size
-                if trace_count > 0:  # to catch complete caching
-                    new_trace_length = trace_length + \
-                        ((cache_size - cache_used_size)/trace_count)/element_size
-
-                if new_trace_length > trace_length:
-                    trace_length = new_trace_length
-                    updated_length = True
-
-                # All writes to require the data to be evicted eventually
-                evicts[cache_level] = {
-                    var_name: dict() for var_name in list(self.kernel.variables.keys())}
-                for name in list(write_offsets.keys()):
-                    for idx_order in list(write_offsets[name].keys()):
-                        evicts[cache_level][name][idx_order] = list(write_offsets[name][idx_order])
-            
             # Compiling stats
-            total_misses[cache_level] = sum([sum(
-                map(len, list(l.values()))) for l in list(misses[cache_level].values())])
-            total_hits[cache_level] = sum([sum(
-                map(len, list(l.values()))) for l in list(hits[cache_level].values())])
-            total_evicts[cache_level] = sum([sum(
-                map(len, list(l.values()))) for l in list(evicts[cache_level].values())])
-
-            # Calculate performance (arithmetic intensity * bandwidth with
-            # arithmetic intensity = flops / bytes transfered)
-            bytes_transfered = (total_misses[cache_level]+total_evicts[cache_level])*element_size
-            total_flops = sum(self.kernel._flops.values())
-            arith_intens = float(total_flops)/float(bytes_transfered)
+            total_misses = cache_stats['MISS']*int(cacheline_size)
+            total_hits = cache_stats['HIT']*int(cacheline_size)
+            total_evicts = cache_stats['STORE']
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
-            read_streams = 0
-            for var_name in list(misses[cache_level].keys()):
-                for idx_order in misses[cache_level][var_name]:
-                    read_streams += len(misses[cache_level][var_name][idx_order])
-            write_streams = 0
-            for var_name in list(evicts[cache_level].keys()):
-                for idx_order in evicts[cache_level][var_name]:
-                    write_streams += len(evicts[cache_level][var_name][idx_order])
+            read_streams = cache_stats['MISS']
+            write_streams = cache_stats['STORE']
             # second, try to find best fitting kernel (closest to stream seen stream counts):
-            # write allocate has to be handled in kernel information (all writes are also reads)
-            # TODO support for non-write-allocate architectures
-            measurement_kernel = 'load'
-            measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
-            for kernel_name, kernel_info in sorted(self.machine['benchmarks']['kernels'].items()):
-                if (read_streams >= (kernel_info['read streams']['streams'] +
-                                     kernel_info['write streams']['streams'] -
-                                     kernel_info['read+write streams']['streams']) >
-                        measurement_kernel_info['read streams']['streams'] +
-                        measurement_kernel_info['write streams']['streams'] -
-                        measurement_kernel_info['read+write streams']['streams'] and
-                        write_streams >= kernel_info['write streams']['streams'] >
-                        measurement_kernel_info['write streams']['streams']):
-                    measurement_kernel = kernel_name
-                    measurement_kernel_info = kernel_info
-
-            # TODO choose smt and cores:
-            threads_per_core, cores = 1, self._args.cores
-            bw_level = memory_hierarchy[cache_level+1]['level']
-            bw_measurements = \
-                self.machine['benchmarks']['measurements'][bw_level][threads_per_core]
-            assert threads_per_core == bw_measurements['threads per core'], \
-                'malformed measurement dictionary in machine file.'
-            run_index = bw_measurements['cores'].index(cores)
-            bw = bw_measurements['results'][measurement_kernel][run_index]
-
-            # Correct bandwidth due to miss-measurement of write allocation
-            # TODO support non-temporal stores and non-write-allocate architectures
-            measurement_kernel_info = self.machine['benchmarks']['kernels'][measurement_kernel]
-            factor = (float(measurement_kernel_info['read streams']['bytes']) +
-                      2.0*float(measurement_kernel_info['write streams']['bytes']) -
-                      float(measurement_kernel_info['read+write streams']['bytes'])) / \
-                     (float(measurement_kernel_info['read streams']['bytes']) +
-                      float(measurement_kernel_info['write streams']['bytes']))
-            bw = bw * factor
-
-            performance = arith_intens * float(bw)
+            # TODO let user choose threads_per_core:
+            threads_per_core = 1
+            bw, measurement_kernel = self.machine.get_bandwidth(
+                cache_level+1, read_streams, write_streams, threads_per_core,
+                cores=self._args.cores)
+            
+            # Calculate performance (arithmetic intensity * bandwidth with
+            # arithmetic intensity = flops / bytes transfered)
+            bytes_transfered = total_misses*float(cacheline_size) + total_evicts
+            if bytes_transfered == 0:
+                # This happens in case of full-caching
+                arith_intens = None
+                performance = None
+            else:
+                arith_intens = float(total_flops)/bytes_transfered
+                performance = arith_intens * float(bw)
+            
             results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
-                'level': (memory_hierarchy[cache_level]['level'] + '-' +
-                          memory_hierarchy[cache_level+1]['level']),
+                'level': (cache_info['level'] + '-' +
+                          self.machine['memory hierarchy'][cache_level+1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw})

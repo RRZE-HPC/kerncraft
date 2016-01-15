@@ -60,7 +60,11 @@ class MachineModel(object):
         
         return mh
     
-    def get_bandwidth(self, cache_level, read_streams, write_streams, threads_per_core):
+    def get_bandwidth(self, cache_level, read_streams, write_streams, threads_per_core, cores=None):
+        '''Returns best fitting bandwidth according to parameters
+        
+        :param cores: if not given, will choose maximum bandwidth
+        '''
         # try to find best fitting kernel (closest to stream seen stream counts):
         # write allocate has to be handled in kernel information (all writes are also reads)
         # TODO support for non-write-allocate architectures
@@ -80,12 +84,18 @@ class MachineModel(object):
                 measurement_kernel_info = kernel_info
         
         # choose smt, and then use max/saturation bw
-        bw_level = self['memory hierarchy'][cache_level+1]['level']
+        bw_level = self['memory hierarchy'][cache_level]['level']
         bw_measurements = \
             self['benchmarks']['measurements'][bw_level][threads_per_core]
         assert threads_per_core == bw_measurements['threads per core'], \
             'malformed measurement dictionary in machine file.'
-        bw = max(bw_measurements['results'][measurement_kernel])
+        if cores:
+            # Used by Roofline model
+            run_index = bw_measurements['cores'].index(cores)
+            bw = bw_measurements['results'][measurement_kernel][run_index]
+        else:
+            # Used by ECM model
+            bw = max(bw_measurements['results'][measurement_kernel])
 
         # Correct bandwidth due to miss-measurement of write allocation
         # TODO support non-temporal stores and non-write-allocate architectures

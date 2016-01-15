@@ -97,9 +97,6 @@ class ECMData(object):
         # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim()
         
-        # If data completly fits into the cache, pre load it completly (instead of warm-up?)
-        # TODO
-        
         # Calculate the number of iterations necessary for warm-up
         max_cache_size = max(map(lambda c: c.size(), csim.levels()))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
@@ -188,7 +185,7 @@ class ECMData(object):
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
                 threads_per_core = 1
                 bw, measurement_kernel = self.machine.get_bandwidth(
-                    cache_level, read_streams, write_streams, threads_per_core)
+                    cache_level+1, read_streams, write_streams, threads_per_core)
                 
                 # calculate cycles
                 cycles = float(cache_results['total lines misses'] +
