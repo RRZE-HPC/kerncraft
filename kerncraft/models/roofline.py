@@ -191,7 +191,8 @@ class Roofline(object):
             
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
-            bytes_transfered = total_misses*float(cacheline_size) + total_evicts
+            bytes_transfered = total_misses + total_evicts
+            
             if bytes_transfered == 0:
                 # This happens in case of full-caching
                 arith_intens = None
