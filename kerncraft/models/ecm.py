@@ -173,9 +173,8 @@ class ECMData(object):
         elements_per_cacheline = int(elements_per_cacheline)
         
         # Do the warm-up
-        for roff, woff in offsets:
-            csim.load(roff, length=element_size)  # FIXME comp._gl._of. must use element_size
-            csim.store(woff, length=element_size)  # FIXME comp._gl._of. must use element_size
+        csim.loadstore(list(offsets), length=element_size)
+        # FIXME compile_global_offsets should already expand to element_size
         
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
@@ -188,9 +187,8 @@ class ECMData(object):
         offsets = self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end))
         # simulate
-        for roff, woff in offsets:
-            csim.load(roff, length=element_size)  # FIXME comp._gl._of. must use element_size
-            csim.store(woff, length=element_size)  # FIXME comp._gl._of. must use element_size
+        csim.loadstore(list(offsets), length=element_size)
+        # FIXME compile_global_offsets should already expand to element_size
 
         # use stats to build results
         stats = list(csim.stats())
