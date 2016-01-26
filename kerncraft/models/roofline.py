@@ -157,6 +157,7 @@ class Roofline(object):
 
         # use stats to build results
         stats = list(csim.stats())
+        print(stats)
 
         # Transfrom L1 Hits and Loads from byte to to cacheline units:
         stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
@@ -167,9 +168,44 @@ class Roofline(object):
         
         results = {'bottleneck level': 0, 'mem bottlenecks': []}
         
+        # TODO let user choose threads_per_core:
+        threads_per_core = 1
+        
         # Compile relevant information
+        # TODO unite CPU-L1 and other level handling
+        
+        # CPU-L1
+        total_hits = stats[0]['HIT']
+        total_evicts = stats[0]['STORE']
+        bw, measurement_kernel = self.machine.get_bandwidth(
+            0, stats[0]['HIT']//int(cacheline_size), stats[0]['STORE']//int(cacheline_size),
+            threads_per_core, cores=self._args.cores)
+        
+        # Calculate performance (arithmetic intensity * bandwidth with
+        # arithmetic intensity = flops / bytes transfered)
+        bytes_transfered = total_hits + total_evicts
+        
+        if bytes_transfered == 0:
+            # This happens in case of full-caching
+            arith_intens = None
+            performance = None
+        else:
+            arith_intens = float(total_flops)/bytes_transfered
+            performance = arith_intens * float(bw)
+        
+        results['mem bottlenecks'].append({
+            'performance': PrefixedUnit(performance, 'FLOP/s'),
+            'level': ('CPU-' +
+                      self.machine['memory hierarchy'][0]['level']),
+            'arithmetic intensity': arith_intens,
+            'bw kernel': measurement_kernel,
+            'bandwidth': bw})
+        if performance <= results.get('min performance', performance):
+            results['bottleneck level'] = len(results['mem bottlenecks'])-1
+            results['min performance'] = performance
+        
+        # for other cache and memory levels:
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
-            cache_size = int(float(cache_info['size per group']))
             cache_stats = stats[cache_level]
 
             # Compiling stats
@@ -183,8 +219,6 @@ class Roofline(object):
             read_streams = cache_stats['MISS']
             write_streams = cache_stats['STORE']
             # second, try to find best fitting kernel (closest to stream seen stream counts):
-            # TODO let user choose threads_per_core:
-            threads_per_core = 1
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
                 cores=self._args.cores)
