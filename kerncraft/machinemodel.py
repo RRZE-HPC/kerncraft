@@ -56,7 +56,9 @@ class MachineModel(object):
                 cache_sets, cache_ways, cl_size, cache_strategy, parent=cache)
             cache_stack.append(cache)
         
-        mh = cachesim.CacheSimulator(cache_stack[-1])
+        mem = cachesim.MainMemory(cache_stack[0])
+        
+        mh = cachesim.CacheSimulator(cache_stack[-1], mem)
         
         return mh
     

@@ -73,8 +73,8 @@ class TestKerncraft(unittest.TestCase):
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
         # FIXME 3.9cy in L3-MEM should be 0, but caching is not respected in stores atm
-        self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 10, places=1)
+        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 3.9, places=0) # FIXME should be 0.0
 
     def test_2d5pt_Roofline(self):
@@ -109,8 +109,8 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['Roofline'])
         
         roofline = result['Roofline']
-        self.assertAlmostEqual(roofline['min performance'], 3440000000.0, places=0)
-        self.assertEqual(roofline['bottleneck level'], 0)
+        self.assertAlmostEqual(roofline['min performance'], 5802500000.0, places=0)
+        self.assertEqual(roofline['bottleneck level'], 2)
 
     def test_sclar_product_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData.pickle')
@@ -274,7 +274,7 @@ class TestKerncraft(unittest.TestCase):
         
         roofline = result['RooflineIACA']
         self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
-        self.assertEqual(roofline['bottleneck level'], 2)
+        self.assertEqual(roofline['bottleneck level'], 3)
 
     def test_2d5pt_Benchmark(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Benchmark.pickle')

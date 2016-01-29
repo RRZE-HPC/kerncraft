@@ -116,7 +116,7 @@ class Roofline(object):
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
-        elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
+        elements_per_cacheline = int(cacheline_size // element_size)
 
         loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
 
@@ -124,18 +124,32 @@ class Roofline(object):
         csim = self.machine.get_cachesim()
 
         # Calculate the number of iterations necessary for warm-up
-        max_cache_size = max(map(lambda c: c.size(), csim.levels()))
+        max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
+        
+        offsets = []
         if max_array_size < max_cache_size:
+            # Full caching possible, go through all itreration before actual initialization
             warmup_iteration_count = self.kernel.iteration_length()//3
-            offsets = self.kernel.compile_global_offsets(iteration=list(chain(
-                range(self.kernel.iteration_length()),range(warmup_iteration_count))))
-        else:
-            warmup_iteration_count = min(2*max_array_size//element_size//3, 
-                                         2*max_cache_size//element_size//3)
-            offsets = self.kernel.compile_global_offsets(
-                iteration=range(0, warmup_iteration_count))
-        elements_per_cacheline = int(elements_per_cacheline)
+            offsets = list(self.kernel.compile_global_offsets(
+                iteration=range(0, self.kernel.iteration_length())))
+        
+        # Regular Initialization
+        warmup_iteration_count = min(2*self.kernel.iteration_length()//3, 
+                                     2*max_cache_size//element_size//3)
+        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse 
+        # cache results)
+        # TODO can we find a nicer solution?
+        first_dim_length = self.kernel.iteration_length(-1)
+        if warmup_iteration_count % first_dim_length < 0.1*first_dim_length:
+            # to close to the beginning, increase 20%
+            warmup_iteration_count += int(0.2*first_dim_length)
+        if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
+            # to close to the end, subtract 20%
+            warmup_iteration_count -= int(0.2*first_dim_length)
+        
+        offsets += list(self.kernel.compile_global_offsets(
+            iteration=range(0, warmup_iteration_count)))
         
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
@@ -157,12 +171,6 @@ class Roofline(object):
 
         # use stats to build results
         stats = list(csim.stats())
-        print(stats)
-
-        # Transfrom L1 Hits and Loads from byte to to cacheline units:
-        stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
-            (int(element_size)-1))//int(cacheline_size)
-        stats[0]['LOAD'] = stats[0]['LOAD']//int(cacheline_size)
         
         total_flops = sum(self.kernel._flops.values())*elements_per_cacheline
         
@@ -174,16 +182,18 @@ class Roofline(object):
         # Compile relevant information
         # TODO unite CPU-L1 and other level handling
         
-        # CPU-L1
-        total_hits = stats[0]['HIT']
+        # CPU-L1 stats (in bytes!)
+        total_loads = stats[0]['LOAD']
         total_evicts = stats[0]['STORE']
+        read_streams = stats[0]['LOAD']
+        write_streams = stats[0]['STORE']//int(cacheline_size)
         bw, measurement_kernel = self.machine.get_bandwidth(
-            0, stats[0]['HIT']//int(cacheline_size), stats[0]['STORE']//int(cacheline_size),
+            0, read_streams, write_streams,
             threads_per_core, cores=self._args.cores)
         
         # Calculate performance (arithmetic intensity * bandwidth with
         # arithmetic intensity = flops / bytes transfered)
-        bytes_transfered = total_hits + total_evicts
+        bytes_transfered = total_loads + total_evicts
         
         if bytes_transfered == 0:
             # This happens in case of full-caching
@@ -208,16 +218,15 @@ class Roofline(object):
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_stats = stats[cache_level]
 
-            # Compiling stats
+            # Compiling stats (in bytes!)
             total_misses = cache_stats['MISS']*int(cacheline_size)
-            total_hits = cache_stats['HIT']*int(cacheline_size)
             total_evicts = cache_stats['STORE']
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
             read_streams = cache_stats['MISS']
-            write_streams = cache_stats['STORE']
+            write_streams = cache_stats['STORE']//int(cacheline_size)
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
@@ -245,6 +254,7 @@ class Roofline(object):
             if performance <= results.get('min performance', performance):
                 results['bottleneck level'] = len(results['mem bottlenecks'])-1
                 results['min performance'] = performance
+        
         return results
 
     def analyze(self):

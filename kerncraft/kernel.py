@@ -852,15 +852,23 @@ class Kernel(object):
         
         return expr
     
-    def iteration_length(self):
-        '''Returns the number of global loop iterations that are performed'''
+    def iteration_length(self, dimension=None):
+        '''Returns the number of global loop iterations that are performed
+        
+        If dimension is not None, it is the loop dimension that is returned 
+        (-1 is the inner most loop and 0 the outermost)'''
         
         global_iterator = sympy.Symbol('global_iterator')
         idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
         last_incr = 1
         
-        for var_name, start, end, incr in reversed(self._loop_stack):
+        if dimension is not None:
+            loops = [self._loop_stack[dimension]]
+        else:
+            loops = reversed(self._loop_stack)
+        
+        for var_name, start, end, incr in loops:
             loop_var = sympy.Symbol(var_name)
             
             # This unspools the iterations:
@@ -957,7 +965,7 @@ class Kernel(object):
         
         # Generate numpy.array for each counter
         counter_per_it = [v(iteration) for v in base_loop_counters.values()]
-
+        
         # Data access as they appear with iteration order
         return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
                            zip(*[o(*counter_per_it) for o in global_store_offsets]),

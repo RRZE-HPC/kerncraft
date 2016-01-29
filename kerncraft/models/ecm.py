@@ -87,10 +87,10 @@ class ECMData(object):
         read_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
         write_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
         
-        # handle multiple datatypes
+        # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
-        elements_per_cacheline = cacheline_size // element_size
+        elements_per_cacheline = int(cacheline_size // element_size)
 
         loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
         
@@ -98,18 +98,32 @@ class ECMData(object):
         csim = self.machine.get_cachesim()
         
         # Calculate the number of iterations necessary for warm-up
-        max_cache_size = max(map(lambda c: c.size(), csim.levels()))
+        max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
+        
+        offsets = []
         if max_array_size < max_cache_size:
+            # Full caching possible, go through all itreration before actual initialization
             warmup_iteration_count = self.kernel.iteration_length()//3
-            offsets = self.kernel.compile_global_offsets(iteration=list(chain(
-                range(self.kernel.iteration_length()),range(warmup_iteration_count))))
-        else:
-            warmup_iteration_count = min(2*max_array_size//element_size//3, 
-                                         2*max_cache_size//element_size//3)
-            offsets = self.kernel.compile_global_offsets(
-                iteration=range(0, warmup_iteration_count))
-        elements_per_cacheline = int(elements_per_cacheline)
+            offsets = list(self.kernel.compile_global_offsets(
+                iteration=range(0, self.kernel.iteration_length())))
+        
+        # Regular Initialization
+        warmup_iteration_count = min(2*self.kernel.iteration_length()//3, 
+                                     2*max_cache_size//element_size//3)
+        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse 
+        # cache results)
+        # TODO can we find a nicer solution?
+        first_dim_length = self.kernel.iteration_length(-1)
+        if warmup_iteration_count % first_dim_length < 0.1*first_dim_length:
+            # to close to the beginning, increase 20%
+            warmup_iteration_count += int(0.2*first_dim_length)
+        if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
+            # to close to the end, subtract 20%
+            warmup_iteration_count -= int(0.2*first_dim_length)
+        
+        offsets += list(self.kernel.compile_global_offsets(
+            iteration=range(0, warmup_iteration_count)))
         
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
@@ -133,6 +147,7 @@ class ECMData(object):
         stats = list(csim.stats())
 
         # Transfrom L1 Hits from byte to to cacheline units:
+        # TODO move this in to pycachesim (and do it more accuratly)
         stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
             (int(element_size)-1))//int(cacheline_size)
         
