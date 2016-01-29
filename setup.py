@@ -70,7 +70,10 @@ setup(
     install_requires=[
         'PyYAML',
         'six',
-        'sympy',
+        'sympy>0.7.6.1',
+        'pycachesim',
+        'pylru',
+        'numpy',
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
