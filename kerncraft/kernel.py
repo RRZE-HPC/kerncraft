@@ -17,9 +17,11 @@ import numbers
 import collections
 from collections import defaultdict
 from functools import reduce
+from string import ascii_letters
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
+from sympy.parsing.sympy_parser import parse_expr
 import numpy
 from six.moves import filter
 from six.moves import map
@@ -129,14 +131,8 @@ class Kernel(object):
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
     
-    def __init__(self, kernel_code, filename=None):
+    def __init__(self):
         '''This class captures the DSL kernel code, analyzes it and reports access pattern'''
-        self.kernel_code = kernel_code
-        self._filename = filename
-
-        parser = CParser()
-        self.kernel_ast = parser.parse(self._as_function()).ext[0].body
-
         self._loop_stack = []
         self.variables = {}
         self._sources = {}
@@ -145,7 +141,76 @@ class Kernel(object):
         self.datatype = None
         
         self.clear_state()
-        self._process_code()
+    
+    @classmethod
+    def from_code(cls, kernel_code, filename=None):
+        k = cls()
+
+        k.kernel_code = kernel_code
+        k._filename = filename
+        parser = CParser()
+        k.kernel_ast = parser.parse(k._as_function()).ext[0].body
+        k._process_code()
+        
+        k.check()
+        
+        return k
+    
+    @staticmethod
+    def string_to_sympy(s):
+        if isinstance(s, int):
+            return sympy.Integer(s)
+        elif isinstance(s, list):
+            return list([Kernel.string_to_sympy(e) for e in s])
+        elif s is None:
+            return None
+        else:
+            return parse_expr(s, local_dict={c: sympy.Symbol(c) for c in s if c in ascii_letters})
+    
+    @classmethod
+    def from_description(cls, description, filename=None):
+        k = cls()
+
+        k.kernel_code = None
+        k._filename = filename
+        k.kernel_ast = None
+        
+        k._loop_stack = list([
+            (l['index'], k.string_to_sympy(l['start']), 
+             k.string_to_sympy(l['stop']), k.string_to_sympy(l['step']))
+            for l in description['loops']
+        ])
+        k.variables = dict({
+            var_name: (v['type'], k.string_to_sympy(v['dimension'])) 
+            for var_name,v in description['arrays'].items()
+            #if isinstance(v['dimension'], list)
+        })
+        #k.variables.update(dict({
+        #    var_name: (v['type'], None) 
+        #    for var_name,v in description['arrays'].items()
+        #    if not isinstance(v['dimension'], list)
+        #}))
+        k.datatype = list(k.variables.values())[0][0]
+        k._sources = {
+            var_name: list([k.string_to_sympy(idx) for idx in v])
+            for var_name,v in description['data sources'].items()
+        }
+        k._destinations = {
+            var_name: list([k.string_to_sympy(idx) for idx in v])
+            for var_name,v in description['data destinations'].items()
+        }
+        k._flops = description['flops']
+        
+        k.check()
+        
+        return k
+    
+    def check(self):
+        '''Checks that information about kernel makes sens and is valid.'''
+        datatypes = [v[0] for v in self.variables.values()]
+        assert len(set(datatypes)) <= 1, 'mixing of datatypes within a kernel is not supported.'
+        
+        # TODO add combine all tests here
 
     def _as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
@@ -165,7 +230,7 @@ class Kernel(object):
             self.datatype = type_
         else:
             assert type_ == self.datatype, 'mixing of datatypes within a kernel is not supported.'
-        assert type(size) in [tuple, type(None)], 'size has to be defined as tuple'
+        assert type(size) in [list, type(None)], 'size has to be defined as tuple'
         self.variables[name] = (type_, size)
     
     def clear_state(self):
@@ -194,7 +259,7 @@ class Kernel(object):
                     t = t.type
 
                 assert len(t.type.names) == 1, "only single types are supported"
-                self.set_variable(item.name, t.type.names[0], tuple(dims))
+                self.set_variable(item.name, t.type.names[0], list(dims))
 
             else:
                 assert len(item.type.type.names) == 1, "only single types are supported"
@@ -229,7 +294,11 @@ class Kernel(object):
 
         the index order is right to left (c-code order).
         e.g. c[i+1][j-2] -> [-2, +1]
+        
+        if aref is actually an ID, None will be returned
         '''
+        if isinstance(aref, c_ast.ID):
+            return None
 
         # Check for restrictions
         assert type(aref.name) in [c_ast.ArrayRef, c_ast.ID], \
@@ -239,33 +308,17 @@ class Kernel(object):
 
         idxs = []
 
-        # TODO work-in-progress generisches auswerten von allem in [...]
-        if type(aref.subscript) is c_ast.BinaryOp:
-            assert aref.subscript.op in '+-', \
-                'binary operations in array subscript must by + or -'
-            assert (type(aref.subscript.left) is c_ast.ID and
-                    type(aref.subscript.right) is c_ast.Constant), \
-                'binary operation in array subscript may only have form "variable +- constant"'
-            assert aref.subscript.left.name in [l[0] for l in self._loop_stack], \
-                'varialbes used in array indices has to be a loop counter'
+        # Convert subscript to sympy and append
+        idxs.append(self.conv_ast_to_sym(aref.subscript))
 
-            sign = 1 if aref.subscript.op == '+' else -1
-            offset = sign*int(aref.subscript.right.value)
-
-            idxs.append(('rel', aref.subscript.left.name, offset))
-        elif type(aref.subscript) is c_ast.ID:
-            assert aref.subscript.name in [l[0] for l in self._loop_stack], \
-                'varialbes used in array indices has to be a loop counter'
-            idxs.append(('rel', aref.subscript.name, 0))
-        else:  # type(aref.subscript) is c_ast.Constant
-            idxs.append(('abs', int(aref.subscript.value)))
-
+        # Check for more indices (multi-dimensional access)
         if type(aref.name) is c_ast.ArrayRef:
             idxs += self._get_offsets(aref.name, dim=dim+1)
 
+        # Reverse to preserver order (the subscripts in the AST are traversed backwards)
         if dim == 0:
             idxs.reverse()
-
+    
         return idxs
 
     @classmethod
@@ -275,9 +328,11 @@ class Kernel(object):
 
         e.g. c[i+1][j-2] -> 'c'
         '''
-
-        if type(aref.name) is c_ast.ArrayRef:
+        
+        if isinstance(aref.name, c_ast.ArrayRef):
             return cls._get_basename(aref.name)
+        elif isinstance(aref.name, six.string_types):
+            return aref.name
         else:
             return aref.name.name
 
@@ -326,14 +381,20 @@ class Kernel(object):
             assert floop.next.expr.name == floop.cond.left.name == floop.init.decls[0].name, \
                 'initial, condition and next statement of for loop must act on same loop ' \
                 'counter variable'
-            step_size = 1
+            assert isinstance(floop.next, c_ast.UnaryOp), 'only assignment or unary operations ' \
+                'are allowed for next statement of loop.'
+            assert floop.next.op in ['++', 'p++', '--', 'p--'], 'Unary operation can only be ++ ' \
+                'or -- in next statement'
+            if floop.next.op in ['++', 'p++']:
+                step_size = sympy.Integer('1')
+            else:  # floop.next.op in ['--', 'p--']:
+                step_size = sympy.Integer('-1')
 
         # Document for loop stack
         self._loop_stack.append(
             # (index name, min, max, step size)
             (floop.init.decls[0].name, iter_min, iter_max, step_size)
         )
-        # TODO add support for other stepsizes (even negative/reverse steps?)
 
         # Traverse tree
         if type(floop.stmt) is c_ast.For:
@@ -362,26 +423,16 @@ class Kernel(object):
             self._flops[op] = self._flops.get(op, 0)+1
 
         # Document data destination
-        if type(stmt.lvalue) is c_ast.ArrayRef:
-            # self._destinations[dest name] = [dest offset, ...])
-            self._destinations.setdefault(self._get_basename(stmt.lvalue), [])
-            self._destinations[self._get_basename(stmt.lvalue)].append(
+        # self._destinations[dest name] = [dest offset, ...])
+        self._destinations.setdefault(self._get_basename(stmt.lvalue), [])
+        self._destinations[self._get_basename(stmt.lvalue)].append(
+            self._get_offsets(stmt.lvalue))
+
+        if write_and_read:
+            # this means that +=, -= or something of that sort was used
+            self._sources.setdefault(self._get_basename(stmt.lvalue), [])
+            self._sources[self._get_basename(stmt.lvalue)].append(
                 self._get_offsets(stmt.lvalue))
-
-            if write_and_read:
-                # this means that +=, -= or something of that sort was used
-                self._sources.setdefault(self._get_basename(stmt.lvalue), [])
-                self._sources[self._get_basename(stmt.lvalue)].append(
-                    self._get_offsets(stmt.lvalue))
-
-        else:  # type(stmt.lvalue) is c_ast.ID
-            self._destinations.setdefault(stmt.lvalue.name, [])
-            self._destinations[stmt.lvalue.name].append([('dir',)])
-
-            if write_and_read:
-                # this means that +=, -= or something of that sort was used
-                self._sources.setdefault(stmt.lvalue.name, [])
-                self._sources[stmt.lvalue.name].append([('dir',)])
 
         # Traverse tree
         self._p_sources(stmt.rvalue)
@@ -393,17 +444,11 @@ class Kernel(object):
             'only references to arrays, constants and variables as well as binary operations ' + \
             'are supported'
 
-        if type(stmt) is c_ast.ArrayRef:
+        if type(stmt) in [c_ast.ArrayRef, c_ast.ID]:
             # Document data source
             bname = self._get_basename(stmt)
             self._sources.setdefault(bname, [])
             self._sources[bname].append(self._get_offsets(stmt))
-            # TODO deactivated for now, since that notation might be useless
-            # ArrayAccess(stmt, array_info=self.variables[bname])
-        elif type(stmt) is c_ast.ID:
-            # Document data source
-            self._sources.setdefault(stmt.name, [])
-            self._sources[stmt.name].append([('dir',)])
         elif type(stmt) is c_ast.BinaryOp:
             # Traverse tree
             self._p_sources(stmt.left)
@@ -843,13 +888,8 @@ class Kernel(object):
         for dimension, a in enumerate(access):
             base_size = reduce(operator.mul, base_sizes[dimension+1:], sympy.Integer(1))
             
-            if a[0] == 'rel':
-                expr += base_size*(sympy.Symbol(a[1])+sympy.Number(a[2]))
-            elif a[0] == 'abs':
-                expr += base_size*(sympy.Number(a[1]))
-            else:
-                raise ValueError("Unknown access type {}".format(a[0]))
-        
+            expr += base_size*a
+            
         return expr
     
     def iteration_length(self, dimension=None):
@@ -975,14 +1015,14 @@ class Kernel(object):
         table = ('     idx |        min        max       step\n' +
                  '---------+---------------------------------\n')
         for l in self._loop_stack:
-            table += '{:>8} | {!s:>10} {!s:>10} {:>+10}\n'.format(*l)
+            table += '{:>8} | {!r:>10} {!r:>10} {!r:>10}\n'.format(*l)
         print(prefix_indent('loop stack:        ', table), file=output_file)
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
         for name, offsets in list(self._sources.items()):
             prefix = '{:>8} | '.format(name)
-            right_side = '\n'.join([', '.join(map(tuple.__repr__, o)) for o in offsets])
+            right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data sources:      ', table), file=output_file)
 
@@ -990,7 +1030,7 @@ class Kernel(object):
                  '---------+------------...\n')
         for name, offsets in list(self._destinations.items()):
             prefix = '{:>8} | '.format(name)
-            right_side = '\n'.join([', '.join(map(tuple.__repr__, o)) for o in offsets])
+            right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
         print(prefix_indent('data destinations: ', table), file=output_file)
 

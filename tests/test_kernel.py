@@ -18,6 +18,7 @@ from itertools import chain
 
 import six
 import sympy
+import yaml
 
 sys.path.insert(0, '..')
 from kerncraft.kernel import Kernel
@@ -27,6 +28,7 @@ class TestKernel(unittest.TestCase):
     def setUp(self):
         self.twod_code = open(self._find_file('2d-5pt.c')).read()
         self.threed_code = open(self._find_file('3d-7pt.c')).read()
+        self.twod_description = yaml.load(open(self._find_file('2d-5pt.yml')).read())
        
     def _find_file(self, name):
         testdir = os.path.dirname(__file__)
@@ -35,7 +37,7 @@ class TestKernel(unittest.TestCase):
         return name
         
     def test_array_sizes_2d(self):
-        k = Kernel(self.twod_code)
+        k = Kernel.from_code(self.twod_code)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
@@ -44,7 +46,7 @@ class TestKernel(unittest.TestCase):
         self.assertEqual(sizes, checked_sizes)
     
     def test_array_sizes_3d(self):
-        k = Kernel(self.threed_code)
+        k = Kernel.from_code(self.threed_code)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
@@ -53,7 +55,7 @@ class TestKernel(unittest.TestCase):
         self.assertEqual(sizes, checked_sizes)
     
     def test_global_offsets_2d(self):
-        k = Kernel(self.twod_code)
+        k = Kernel.from_code(self.twod_code)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
@@ -71,7 +73,7 @@ class TestKernel(unittest.TestCase):
             write_offsets)
         
     def test_global_offsets_3d(self):
-        k = Kernel(self.threed_code)
+        k = Kernel.from_code(self.threed_code)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
@@ -86,6 +88,17 @@ class TestKernel(unittest.TestCase):
                              read_offsets)
         # write access to b[i][j]
         six.assertCountEqual(self, [sizes['a']+(1*10*10+1*10+1)*8], write_offsets)
+
+    def test_from_description(self):
+        k_descr = Kernel.from_description(self.twod_description)
+        k_code = Kernel.from_code(self.twod_code)
+        
+        self.assertEqual(k_descr._flops, k_code._flops)
+        self.assertEqual(k_descr._sources, k_code._sources)
+        self.assertEqual(k_descr._destinations, k_code._destinations)
+        self.assertEqual(k_descr.datatype, k_code.datatype)
+        self.assertEqual(k_descr.variables, k_code.variables)
+        self.assertEqual(k_descr._loop_stack, k_code._loop_stack)
 
 if __name__ == '__main__':
     #unittest.main()

@@ -19,6 +19,7 @@ from .pycparser import clean_code
 import sympy
 import six
 from six.moves import range
+import yaml
 
 from . import models
 from .kernel import Kernel
@@ -107,7 +108,8 @@ def create_parser():
                         action=AppendStringRange,
                         help='Define constant to be used in C code. Values must be integer or '
                              'match start-stop[:num[log[base]]]. If range is given, all '
-                             'permutation s will be tested. Overwrites constants from testcase '                                 'file.')
+                             'permutation s will be tested. Overwrites constants from testcase '
+                             'file.')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity level.')
     parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(),
@@ -127,6 +129,8 @@ def create_parser():
                         help='Number of cores to be used in parallel. (default: 1)')
     parser.add_argument('--latency', action='store_true',
                         help='Use pessimistic IACA latency instead of throughput prediction.')
+    parser.add_argument('--kernel-description', action='store_true',
+                        help='Use kernel description instead of analyzing the kernel code.')
     
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
@@ -157,9 +161,13 @@ def run(parser, args, output_file=sys.stdout):
     machine = MachineModel(args.machine.name)
 
     # process kernel
-    code = six.text_type(args.code_file.read())
-    code = clean_code(code)
-    kernel = Kernel(code, filename=args.code_file.name)
+    if not args.kernel_description:
+        code = six.text_type(args.code_file.read())
+        code = clean_code(code)
+        kernel = Kernel.from_code(code, filename=args.code_file.name)
+    else:
+        description = six.text_type(args.code_file.read())
+        kernel = Kernel.from_description(yaml.load(description), filename=args.code_file.name)
 
     # if no defines were given, guess suitable defines in-mem
     # TODO support in-cache
@@ -224,8 +232,9 @@ def run(parser, args, output_file=sys.stdout):
             print('{:-^80}'.format(' '+model_name+' '), file=output_file)
             
             if args.verbose > 1:
-                kernel.print_kernel_code(output_file=output_file)
-                print('', file=output_file)
+                if not args.kernel_description:
+                    kernel.print_kernel_code(output_file=output_file)
+                    print('', file=output_file)
                 kernel.print_variables_info(output_file=output_file)
                 kernel.print_kernel_info(output_file=output_file)
             if args.verbose > 0:
