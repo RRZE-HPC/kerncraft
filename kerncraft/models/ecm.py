@@ -138,8 +138,8 @@ class ECMData(object):
 
         # Transfrom L1 Hits from byte to to cacheline units:
         # TODO move this in to pycachesim (and do it more accuratly)
-        stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
-            (int(element_size)-1))//int(cacheline_size)
+        stats[0]['HIT'] = (
+            stats[0]['HIT'] - stats[0]['MISS'] * (int(element_size)-1))//int(cacheline_size)
 
         # pprint(stats)
         # TODO csim: evicts are not yet based on cachelines (require dirty bits)
@@ -498,8 +498,8 @@ class ECM(object):
             self.results['scaling cores'] = float('inf')
         else:
             self.results['scaling cores'] = int(math.ceil(
-                    max(self.results['T_OL'],
-                    self.results['T_nOL']+sum([c[1] for c in self.results['cycles']])) / \
+                max(self.results['T_OL'],
+                    self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
                 self.results['cycles'][-1][1]))
 
     def report(self, output_file=sys.stdout):
@@ -520,10 +520,11 @@ class ECM(object):
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
 
         report += '\n{{ {} \ {} }} cy/CL'.format(
-            max(self.results['T_OL'], self.results['T_nOL']),
-            ' \ '.join(['{:.2g}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
-            self.results['T_nOL'], self.results['T_OL']))
-                for i in range(len(self.results['cycles']))]))
+            max(self.results['T_OL'],
+                self.results['T_nOL']),
+                ' \ '.join(['{:.2g}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
+                                                self.results['T_nOL'], self.results['T_OL']))
+                            for i in range(len(self.results['cycles']))]))
 
         report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 

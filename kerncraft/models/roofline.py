@@ -454,9 +454,10 @@ class RooflineIACA(Roofline):
                 print(self.results['cpu bottleneck']['IACA output'], file=output_file)
                 print(self.results['cpu bottleneck']['IACA latency output'], file=output_file)
             print('{!s}'.format(
-                     {k: v for k, v in list(self.results['cpu bottleneck'].items()) if k not in
-                     ['IACA output', 'IACA latency output']}),
-                  file=output_file)
+                {k: v
+                 for k, v in list(self.results['cpu bottleneck'].items())
+                 if k not in['IACA output', 'IACA latency output']}),
+                file=output_file)
 
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound

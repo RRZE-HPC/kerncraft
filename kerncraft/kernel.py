@@ -253,10 +253,7 @@ class Kernel(object):
         If dimension is not None, it is the loop dimension that is returned
         (-1 is the inner most loop and 0 the outermost)'''
 
-        global_iterator = sympy.Symbol('global_iterator')
-        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
-        last_incr = 1
 
         if dimension is not None:
             loops = [self._loop_stack[dimension]]
@@ -763,7 +760,7 @@ class KernelCode(Kernel):
 
         # transform multi-dimensional array references to one dimensional references
         list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
-            find_array_references(ast)))
+                 find_array_references(ast)))
 
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
@@ -950,8 +947,11 @@ class KernelCode(Kernel):
 
         try:
             subprocess.check_output(
-                [compiler]+compiler_args+[os.path.basename(in_file.name), '-S',
-                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],
+                [compiler] + 
+                compiler_args + 
+                [os.path.basename(in_file.name),
+                 '-S',
+                 '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(

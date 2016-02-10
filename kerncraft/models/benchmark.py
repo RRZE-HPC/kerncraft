@@ -105,9 +105,10 @@ class Benchmark(object):
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constantnames
         # TODO support SP (devide by 4 instead of 8.0)
-        iterations_per_repetition = reduce(operator.mul,
+        iterations_per_repetition = reduce(
+            operator.mul,
             [self.kernel.subs_consts(max_-min_)/self.kernel.subs_consts(step)
-                for idx, min_, max_, step in self.kernel._loop_stack],
+             for idx, min_, max_, step in self.kernel._loop_stack],
             1)
         self.results['Iterations per repetition'] = iterations_per_repetition
         iterations_per_cacheline = float(self.machine['cacheline size'])/8.0
