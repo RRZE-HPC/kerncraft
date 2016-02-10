@@ -15,7 +15,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.2.1',
+    version='0.2.2',
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
@@ -65,12 +65,15 @@ setup(
 
     # List run-time dependencies here.  These will be installed by pip when your
     # project is installed. For an analysis of "install_requires" vs pip's
+    
+    # what is not found or up-to-date on pypi we get from github:
+    dependency_links = ['https://github.com/sympy/sympy/tarball/master#egg=sympy-0.7.7.dev0'],
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'ruamel.yaml',
         'six',
-        'sympy>0.7.6.1',
+        'sympy==0.7.7.dev0',
         'pycachesim',
         'pylru',
         'numpy',

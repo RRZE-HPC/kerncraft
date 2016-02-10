@@ -25,7 +25,7 @@ Installation
 ============
 
 Run:
-``pip install kerncraft``
+``pip install --process-dependency-links kerncraft``
 
 Additional requirements are:
  * Intel IACA tool, with (working) ``iaca.sh`` in PATH environment variable (used by ECM, ECMCPU and Roofline models)

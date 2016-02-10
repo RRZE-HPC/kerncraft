@@ -1,5 +1,6 @@
+include tox.ini
 recursive-include examples/machine-files *.yaml
 recursive-include examples/kernels *.c *.testcases
 recursive-include tests *.py
-recursive-include tests/test_files *.c *.yaml
+recursive-include tests/test_files *.c *.yaml *.yml
 recursive-include tests/test_files/dummy_likwid *
