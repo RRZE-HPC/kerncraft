@@ -3,6 +3,7 @@
 A simple interval implementation
 '''
 
+
 class Intervals(object):
     '''Very simple interval implementation for integers (might also work on floats)'''
 

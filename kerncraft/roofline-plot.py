@@ -1,9 +1,10 @@
-from __future__ import absolute_import
 #!/usr/bin/env python
+
+from __future__ import absolute_import
 
 from pprint import pprint
 
-#matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import yaml
 
@@ -63,13 +64,13 @@ perf = min(
 arith_intensity = result['mem bottlenecks'][result['bottleneck level']]['arithmetic intensity']
 ax.plot(arith_intensity, perf, 'r+', markersize=12, markeredgewidth=4)
 
-#ax.tick_params(axis='y', which='both', left='off', right='off')
-#ax.tick_params(axis='x', which='both', top='off')
+# ax.tick_params(axis='y', which='both', left='off', right='off')
+# ax.tick_params(axis='x', which='both', top='off')
 ax.set_xscale('log', basex=2)
 ax.set_yscale('log')
 ax.set_xlim(min(xticks), max(xticks))
-#ax.set_yticks([perf, float(max_flops)])
+# ax.set_yticks([perf, float(max_flops)])
 ax.set_xticks(xticks+[arith_intensity])
 ax.grid(axis='x', alpha=0.7, linestyle='--')
-#fig.savefig('out.pdf')
+# fig.savefig('out.pdf')
 plt.show()

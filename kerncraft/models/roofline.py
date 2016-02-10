@@ -305,6 +305,7 @@ class Roofline(object):
             print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
 
+
 class RooflineIACA(Roofline):
     """
     class representation of the Roofline Model (with IACA throughput analysis)

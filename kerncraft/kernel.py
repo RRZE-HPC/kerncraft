@@ -180,8 +180,6 @@ class Kernel(object):
             return expr
         else:
             return expr.subs(self.constants)
-            # is not faster, but returns floats:
-            #return sympy.lambdify(self.constants.keys(), expr)(*self.constants.values())
 
     def array_sizes(self, in_bytes=False, subs_consts=False):
         '''Returns a dictionary with all arrays sizes (optunally in bytes, otherwise in elements).
@@ -325,7 +323,6 @@ class Kernel(object):
             array_total_size = ((int(array_total_size)+63)& ~63)
             base += array_total_size
 
-        #print(var_sizes, base_offsets)
         # Gather all read and write accesses to the array:
         for var_name, var_size in var_sizes.items():
             element_size = self.datatypes_size[self.variables[var_name][0]]

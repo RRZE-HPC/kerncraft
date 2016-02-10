@@ -139,12 +139,14 @@ def create_parser():
 
     return parser
 
+
 def check_arguments(args, parser):
     if args.asm_block not in ['auto', 'manual']:
         try:
             args.asm_block = int(args.asm_block)
         except ValueError:
             parser.error('--asm-block can only be "auto", "manual" or an integer')
+
 
 def run(parser, args, output_file=sys.stdout):
     # Try loading results file (if requested)
@@ -262,6 +264,7 @@ def run(parser, args, output_file=sys.stdout):
                 pickle.dump(result_storage, f)
             shutil.move(tempname, args.store.name)
 
+
 def main():
     # Create and populate parser
     parser = create_parser()
@@ -274,6 +277,7 @@ def main():
 
     # BUSINESS LOGIC IS FOLLOWING
     run(parser, args)
+
 
 if __name__ == '__main__':
     main()

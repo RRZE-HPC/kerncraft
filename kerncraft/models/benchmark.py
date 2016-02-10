@@ -11,6 +11,7 @@ import six
 
 from kerncraft.kernel import KernelCode
 
+
 class Benchmark(object):
     """
     this will produce a benchmarkable binary to be used with likwid
