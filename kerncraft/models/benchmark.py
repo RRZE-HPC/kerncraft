@@ -9,6 +9,7 @@ import operator
 import sys
 import six
 
+from kerncraft.kernel import KernelCode
 
 class Benchmark(object):
     """

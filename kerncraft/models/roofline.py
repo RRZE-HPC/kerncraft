@@ -21,6 +21,7 @@ from six.moves import range
 
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
+from kerncraft.kernel import KernelCode
 
 
 class Roofline(object):
