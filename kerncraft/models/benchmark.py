@@ -27,6 +27,9 @@ class Benchmark(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
         """
+        if not isinstance(kernel, KernelCode):
+            raise ValueError("Kernel was not derived from code, can not perform Benchmark "
+                             "analysis.")
         self.kernel = kernel
         self.machine = machine
         self._args = args

@@ -22,7 +22,7 @@ from six.moves import range
 import yaml
 
 from . import models
-from .kernel import Kernel
+from .kernel import KernelCode, KernelDescription
 from .machinemodel import MachineModel
 
 
@@ -164,10 +164,10 @@ def run(parser, args, output_file=sys.stdout):
     if not args.kernel_description:
         code = six.text_type(args.code_file.read())
         code = clean_code(code)
-        kernel = Kernel.from_code(code, filename=args.code_file.name)
+        kernel = KernelCode(code, filename=args.code_file.name)
     else:
         description = six.text_type(args.code_file.read())
-        kernel = Kernel.from_description(yaml.load(description), filename=args.code_file.name)
+        kernel = KernelDescription(yaml.load(description))
 
     # if no defines were given, guess suitable defines in-mem
     # TODO support in-cache

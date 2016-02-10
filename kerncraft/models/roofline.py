@@ -336,6 +336,9 @@ class RooflineIACA(Roofline):
         *args* (optional) are the parsed arguments from the comand line
         if *args* is given also *parser* has to be provided
         """
+        if not isinstance(kernel, KernelCode):
+            raise ValueError("Kernel was not derived from code, can not perform RooflineIACA "
+                             "analysis. Try Roofline.")
         Roofline.__init__(self, kernel, machine, args, parser)
 
     def analyze(self):

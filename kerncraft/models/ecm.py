@@ -26,6 +26,7 @@ except ImportError:
 
 from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
+from kerncraft.kernel import KernelCode
 
 
 def round_to_next(x, base):
@@ -298,6 +299,9 @@ class ECMCPU(object):
         *args* (optional) are the parsed arguments from the comand line
         if *args* is given also *parser* has to be provided
         """
+        if not isinstance(kernel, KernelCode):
+            raise ValueError("Kernel was not derived from code, can not perform ECMCPU analysis."
+                             "Try ECMData.")
         self.kernel = kernel
         self.machine = machine
         self._args = args
@@ -476,6 +480,9 @@ class ECM(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
         """
+        if not isinstance(kernel, KernelCode):
+            raise ValueError("Kernel was not derived from code, can not perform ECM analysis. "
+                             "Try ECMData.")
         self.kernel = kernel
         self.machine = machine
         self._args = args

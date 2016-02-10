@@ -128,11 +128,11 @@ def find_array_references(ast):
 
 
 class Kernel(object):
+    '''This class captures the kernel information, analyzes it and reports access pattern'''
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
     
     def __init__(self):
-        '''This class captures the DSL kernel code, analyzes it and reports access pattern'''
         self._loop_stack = []
         self.variables = {}
         self._sources = {}
@@ -142,79 +142,12 @@ class Kernel(object):
         
         self.clear_state()
     
-    @classmethod
-    def from_code(cls, kernel_code, filename=None):
-        k = cls()
-
-        k.kernel_code = kernel_code
-        k._filename = filename
-        parser = CParser()
-        k.kernel_ast = parser.parse(k._as_function()).ext[0].body
-        k._process_code()
-        
-        k.check()
-        
-        return k
-    
-    @staticmethod
-    def string_to_sympy(s):
-        if isinstance(s, int):
-            return sympy.Integer(s)
-        elif isinstance(s, list):
-            return list([Kernel.string_to_sympy(e) for e in s])
-        elif s is None:
-            return None
-        else:
-            # TODO find nicer solution for N and other pre-mapped letters
-            return parse_expr(s, local_dict={c: sympy.Symbol(c) for c in s if c in ascii_letters})
-    
-    @classmethod
-    def from_description(cls, description, filename=None):
-        k = cls()
-
-        k.kernel_code = None
-        k._filename = filename
-        k.kernel_ast = None
-        
-        k._loop_stack = list([
-            (l['index'], k.string_to_sympy(l['start']), 
-             k.string_to_sympy(l['stop']), k.string_to_sympy(l['step']))
-            for l in description['loops']
-        ])
-        k.variables = dict({
-            var_name: (v['type'], k.string_to_sympy(v['dimension'])) 
-            for var_name,v in description['arrays'].items()
-            #if isinstance(v['dimension'], list)
-        })
-        #k.variables.update(dict({
-        #    var_name: (v['type'], None) 
-        #    for var_name,v in description['arrays'].items()
-        #    if not isinstance(v['dimension'], list)
-        #}))
-        k.datatype = list(k.variables.values())[0][0]
-        k._sources = {
-            var_name: list([k.string_to_sympy(idx) for idx in v])
-            for var_name,v in description['data sources'].items()
-        }
-        k._destinations = {
-            var_name: list([k.string_to_sympy(idx) for idx in v])
-            for var_name,v in description['data destinations'].items()
-        }
-        k._flops = description['flops']
-        
-        k.check()
-        
-        return k
-    
     def check(self):
         '''Checks that information about kernel makes sens and is valid.'''
         datatypes = [v[0] for v in self.variables.values()]
         assert len(set(datatypes)) <= 1, 'mixing of datatypes within a kernel is not supported.'
         
         # TODO add combine all tests here
-
-    def _as_function(self, func_name='test'):
-        return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
 
     def set_constant(self, name, value):
         assert isinstance(name, six.string_types) or isinstance(name, sympy.Symbol), \
@@ -238,10 +171,283 @@ class Kernel(object):
         '''Clears changable internal states
         (constants, asm_blocks and asm_block_idx)'''
         self.constants = {}
+        self.subs_consts.clear()  # clear LRU cache of function
+
+    @lrudecorator(40)
+    def subs_consts(self, expr):
+        '''
+        Substitutes constants in expression unless it is already a number
+        '''
+        if isinstance(expr, numbers.Number):
+            return expr
+        else:
+            return expr.subs(self.constants)
+            # is not faster, but returns floats:
+            #return sympy.lambdify(self.constants.keys(), expr)(*self.constants.values())
+    
+    def array_sizes(self, in_bytes=False, subs_consts=False):
+        '''Returns a dictionary with all arrays sizes (optunally in bytes, otherwise in elements).
+        
+        :param in_bytes: If True, output will be in bytes, not in element counts.
+        :param subs_consts: If True, output will be numbers and not symbolic.
+        
+        Scalar variables are ignored.
+        '''
+        var_sizes = {}
+        
+        for var_name, var_info in self.variables.items():
+            var_type, var_size = var_info
+            
+            # Skiping sclars
+            if var_size is None:
+                continue
+            
+            var_sizes[var_name] = reduce(operator.mul, var_size, 1)
+            
+            # Multiply by bytes per element if requested
+            if in_bytes:
+                element_size = self.datatypes_size[var_type]
+                var_sizes[var_name] *= element_size
+            
+        if subs_consts:
+            return {k: self.subs_consts(v) for k,v in var_sizes.items()}
+        else:
+            return var_sizes
+    
+    def _calculate_relative_offset(self, name, access_dimensions):
+        '''
+        returns the offset from the iteration center in number of elements and the order of indices
+        used in access.
+        '''
+        # TODO to be replaced with compile_global_offsets
+        offset = 0
+        base_dims = self.variables[name][1]
+
+        for dim, offset_info in enumerate(access_dimensions):
+            offset_type, idx_name, dim_offset = offset_info
+            assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
+
+            if offset_type == 'rel':
+                offset += self.kernel.subs_consts(
+                   dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
+            else:
+                # should not happen
+                pass
+
+        return offset
+    
+    def access_to_sympy(self, var_name, access):
+        '''Transforms a variable access to a sympy expression'''
+        base_sizes = self.variables[var_name][1]
+        
+        expr = sympy.Number(0)
+         
+        for dimension, a in enumerate(access):
+            base_size = reduce(operator.mul, base_sizes[dimension+1:], sympy.Integer(1))
+            
+            expr += base_size*a
+            
+        return expr
+    
+    def iteration_length(self, dimension=None):
+        '''Returns the number of global loop iterations that are performed
+        
+        If dimension is not None, it is the loop dimension that is returned 
+        (-1 is the inner most loop and 0 the outermost)'''
+        
+        global_iterator = sympy.Symbol('global_iterator')
+        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
+        total_length = 1
+        last_incr = 1
+        
+        if dimension is not None:
+            loops = [self._loop_stack[dimension]]
+        else:
+            loops = reversed(self._loop_stack)
+        
+        for var_name, start, end, incr in loops:
+            loop_var = sympy.Symbol(var_name)
+            
+            # This unspools the iterations:
+            length = end-start
+            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
+            total_length = total_length*length
+        
+        return self.subs_consts(total_length)
+    
+    def compile_global_offsets(self, iteration=0, spacing=0):
+        '''Returns load and store offsets on a virtual address space.
+        
+        :param iteration: controlls the inner index counter
+        :param spacing: sets a spacing between the arrays, default is 0
+        
+        All array variables (non scalars) are layed out linearly starting from 0. An optional
+        spacing can be set. The accesses are based on this layout.
+        
+        The iteration 0 is the first itreation. All loops are mapped to this linear iteration space.
+        
+        Accesses to scalars are ignored.
+        
+        Returned are load and store byte-offset paris for each iteration.
+        '''
+        global_load_offsets = []
+        global_store_offsets = []
+
+        if not isinstance(iteration, collections.Sequence):
+            iteration = [iteration]
+        iteration = numpy.array(iteration)
+        # print(iteration)
+        # loop indices based on iteration
+        # unwind global iteration count into loop counters:
+        base_loop_counters = {}
+        global_iterator = sympy.Symbol('global_iterator')
+        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
+        total_length = 1
+        last_incr = 1
+        for var_name, start, end, incr in reversed(self._loop_stack):
+            loop_var = sympy.Symbol(var_name)
+            
+            # This unspools the iterations:
+            length = end-start
+            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
+            total_length = total_length*length
+            last_incr = incr
+            
+            base_loop_counters[loop_var] = sympy.lambdify(
+                global_iterator,
+                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
+        
+        assert max(iteration) < self.subs_consts(total_length), \
+            "Iterations go beyond what is possible in the original code. One common reason is, " + \
+            "that the iteration length are unrealistically small."
+        
+        # Get sizes of arrays and base offsets for each array
+        var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
+        base_offsets = {}
+        base = 0
+        # Always arange arrays in alphabetical order in memory, for reproducability
+        for var_name, var_size in sorted(var_sizes.items(), key=lambda v: v[0]):
+            base_offsets[var_name] = base
+            array_total_size = self.subs_consts(var_size + spacing)
+            # Add bytes to align by 64 byte (typical cacheline size):
+            array_total_size = ((int(array_total_size)+63)& ~63)
+            base += array_total_size
+        
+        #print(var_sizes, base_offsets)
+        # Gather all read and write accesses to the array:
+        for var_name, var_size in var_sizes.items():
+            element_size = self.datatypes_size[self.variables[var_name][0]]
+            for r in self._sources.get(var_name, []):
+                offset_expr = self.access_to_sympy(var_name, r)
+                offset = sympy.lambdify(
+                    base_loop_counters.keys(),
+                    self.subs_consts(
+                        offset_expr*element_size
+                        + base_offsets[var_name]), numpy)
+                # TODO possibly differentiate between index order
+                global_load_offsets.append(offset)
+            for w in self._destinations.get(var_name, []):
+                offset_expr = self.access_to_sympy(var_name, w)
+                offset = sympy.lambdify(
+                    base_loop_counters.keys(),
+                    self.subs_consts(
+                        offset_expr*element_size
+                        + base_offsets[var_name]), numpy)
+                # TODO possibly differentiate between index order
+                global_store_offsets.append(offset)
+                # TODO take element sizes into account, return in bytes
+        
+        global_load_offsets_iterations = []
+        global_store_offsets_iterations = []
+        
+        # Generate numpy.array for each counter
+        counter_per_it = [v(iteration) for v in base_loop_counters.values()]
+        
+        # Data access as they appear with iteration order
+        return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
+                           zip(*[o(*counter_per_it) for o in global_store_offsets]),
+                           fillvalue=None)
+
+    def print_kernel_info(self, output_file=sys.stdout):
+        table = ('     idx |        min        max       step\n' +
+                 '---------+---------------------------------\n')
+        for l in self._loop_stack:
+            table += '{:>8} | {!r:>10} {!r:>10} {!r:>10}\n'.format(*l)
+        print(prefix_indent('loop stack:        ', table), file=output_file)
+
+        table = ('    name |  offsets   ...\n' +
+                 '---------+------------...\n')
+        for name, offsets in list(self._sources.items()):
+            prefix = '{:>8} | '.format(name)
+            right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
+            table += prefix_indent(prefix, right_side, later_prefix='         | ')
+        print(prefix_indent('data sources:      ', table), file=output_file)
+
+        table = ('    name |  offsets   ...\n' +
+                 '---------+------------...\n')
+        for name, offsets in list(self._destinations.items()):
+            prefix = '{:>8} | '.format(name)
+            right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
+            table += prefix_indent(prefix, right_side, later_prefix='         | ')
+        print(prefix_indent('data destinations: ', table), file=output_file)
+
+        table = (' op | count \n' +
+                 '----+-------\n')
+        for op, count in list(self._flops.items()):
+            table += '{:>3} | {:>4}\n'.format(op, count)
+        table += '     =======\n'
+        table += '      {:>4}'.format(sum(self._flops.values()))
+        print(prefix_indent('FLOPs:     ', table), file=output_file)
+
+    def print_variables_info(self, output_file=sys.stdout):
+        table = ('    name |   type size             \n' +
+                 '---------+-------------------------\n')
+        for name, var_info in list(self.variables.items()):
+            table += '{:>8} | {:>6} {!s:<10}\n'.format(name, var_info[0], var_info[1])
+        print(prefix_indent('variables: ', table), file=output_file)
+
+    def print_constants_info(self, output_file=sys.stdout):
+        table = ('    name | value     \n' +
+                 '---------+-----------\n')
+        for name, value in list(self.constants.items()):
+            table += '{!s:>8} | {:<10}\n'.format(name, value)
+        print(prefix_indent('constants: ', table), file=output_file)
+
+
+class KernelCode(Kernel):
+    '''
+    Kernel information gathered from code using pycparser
+    
+    This version allows compilation and generation of code for iaca and likwid benchmarking
+    '''
+    def __init__(self, kernel_code, filename=None):
+        super(KernelCode, self).__init__()
+        
+        # Initialize state
+        self.asm_blocks = {}
+        self.asm_block_idx = None
+
+        self.kernel_code = kernel_code
+        self._filename = filename
+        parser = CParser()
+        self.kernel_ast = parser.parse(self._as_function()).ext[0].body
+        self._process_code()
+        
+        self.check()
+
+    def print_kernel_code(self, output_file=sys.stdout):
+        print(self.kernel_code, file=output_file)
+    
+    def _as_function(self, func_name='test'):
+        return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
+
+    def clear_state(self):
+        '''Clears changable internal states'''
+        super(KernelCode, self).clear_state()
         self.asm_blocks = {}
         self.asm_block_idx = None
         self.subs_consts.clear()  # clear LRU cache of function
-    
+        
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
         assert all([type(s) is c_ast.Decl for s in self.kernel_ast.block_items[:-1]]), \
@@ -458,18 +664,6 @@ class Kernel(object):
             self._flops[stmt.op] = self._flops.get(stmt.op, 0)+1
 
         return sources
-
-    @lrudecorator(40)
-    def subs_consts(self, expr):
-        '''
-        Substitutes constants in expression unless it is already a number
-        '''
-        if isinstance(expr, numbers.Number):
-            return expr
-        else:
-            return expr.subs(self.constants)
-            # is not faster, but returns floats:
-            #return sympy.lambdify(self.constants.keys(), expr)(*self.constants.values())
 
     def as_code(self, type_='iaca'):
         '''
@@ -831,234 +1025,56 @@ class Kernel(object):
             source_file.close()
         
         return outfile
+
+
+class KernelDescription(Kernel):
+    '''
+    Kernel information gathered from YAML kernel description file
     
-    def array_sizes(self, in_bytes=False, subs_consts=False):
-        '''Returns a dictionary with all arrays sizes (optunally in bytes, otherwise in elements).
+    This class does NOT allow compilation (required by iaca analysis and likwid benchmarking).
+    '''
+    def __init__(self, description):
+        super(KernelDescription, self).__init__()
         
-        :param in_bytes: If True, output will be in bytes, not in element counts.
-        :param subs_consts: If True, output will be numbers and not symbolic.
+        # Loops
+        self._loop_stack = list([
+            (l['index'], self.string_to_sympy(l['start']), 
+             self.string_to_sympy(l['stop']), self.string_to_sympy(l['step']))
+            for l in description['loops']
+        ])
         
-        Scalar variables are ignored.
-        '''
-        var_sizes = {}
+        # Variables
+        for var_name, v in description['arrays'].items():
+            self.set_variable(var_name, v['type'], self.string_to_sympy(v['dimension']))
         
-        for var_name, var_info in self.variables.items():
-            var_type, var_size = var_info
-            
-            # Skiping sclars
-            if var_size is None:
-                continue
-            
-            var_sizes[var_name] = reduce(operator.mul, var_size, 1)
-            
-            # Multiply by bytes per element if requested
-            if in_bytes:
-                element_size = self.datatypes_size[var_type]
-                var_sizes[var_name] *= element_size
-            
-        if subs_consts:
-            return {k: self.subs_consts(v) for k,v in var_sizes.items()}
+        # Datatype
+        self.datatype = list(self.variables.values())[0][0]
+        
+        # Data sources
+        self._sources = {
+            var_name: list([self.string_to_sympy(idx) for idx in v])
+            for var_name,v in description['data sources'].items()
+        }
+        
+        # Data destinations
+        self._destinations = {
+            var_name: list([self.string_to_sympy(idx) for idx in v])
+            for var_name,v in description['data destinations'].items()
+        }
+        
+        # Flops
+        self._flops = description['flops']
+        
+        self.check()
+    
+    @classmethod
+    def string_to_sympy(cls, s):
+        if isinstance(s, int):
+            return sympy.Integer(s)
+        elif isinstance(s, list):
+            return list([cls.string_to_sympy(e) for e in s])
+        elif s is None:
+            return None
         else:
-            return var_sizes
-    
-    def _calculate_relative_offset(self, name, access_dimensions):
-        '''
-        returns the offset from the iteration center in number of elements and the order of indices
-        used in access.
-        '''
-        # TODO to be replaced with compile_global_offsets
-        offset = 0
-        base_dims = self.variables[name][1]
-
-        for dim, offset_info in enumerate(access_dimensions):
-            offset_type, idx_name, dim_offset = offset_info
-            assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
-
-            if offset_type == 'rel':
-                offset += self.kernel.subs_consts(
-                   dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
-            else:
-                # should not happen
-                pass
-
-        return offset
-    
-    def access_to_sympy(self, var_name, access):
-        '''Transforms a variable access to a sympy expression'''
-        base_sizes = self.variables[var_name][1]
-        
-        expr = sympy.Number(0)
-         
-        for dimension, a in enumerate(access):
-            base_size = reduce(operator.mul, base_sizes[dimension+1:], sympy.Integer(1))
-            
-            expr += base_size*a
-            
-        return expr
-    
-    def iteration_length(self, dimension=None):
-        '''Returns the number of global loop iterations that are performed
-        
-        If dimension is not None, it is the loop dimension that is returned 
-        (-1 is the inner most loop and 0 the outermost)'''
-        
-        global_iterator = sympy.Symbol('global_iterator')
-        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
-        total_length = 1
-        last_incr = 1
-        
-        if dimension is not None:
-            loops = [self._loop_stack[dimension]]
-        else:
-            loops = reversed(self._loop_stack)
-        
-        for var_name, start, end, incr in loops:
-            loop_var = sympy.Symbol(var_name)
-            
-            # This unspools the iterations:
-            length = end-start
-            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
-            total_length = total_length*length
-        
-        return self.subs_consts(total_length)
-    
-    def compile_global_offsets(self, iteration=0, spacing=0):
-        '''Returns load and store offsets on a virtual address space.
-        
-        :param iteration: controlls the inner index counter
-        :param spacing: sets a spacing between the arrays, default is 0
-        
-        All array variables (non scalars) are layed out linearly starting from 0. An optional
-        spacing can be set. The accesses are based on this layout.
-        
-        The iteration 0 is the first itreation. All loops are mapped to this linear iteration space.
-        
-        Accesses to scalars are ignored.
-        
-        Returned are load and store byte-offset paris for each iteration.
-        '''
-        global_load_offsets = []
-        global_store_offsets = []
-
-        if not isinstance(iteration, collections.Sequence):
-            iteration = [iteration]
-        iteration = numpy.array(iteration)
-        # print(iteration)
-        # loop indices based on iteration
-        # unwind global iteration count into loop counters:
-        base_loop_counters = {}
-        global_iterator = sympy.Symbol('global_iterator')
-        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
-        total_length = 1
-        last_incr = 1
-        for var_name, start, end, incr in reversed(self._loop_stack):
-            loop_var = sympy.Symbol(var_name)
-            
-            # This unspools the iterations:
-            length = end-start
-            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
-            total_length = total_length*length
-            last_incr = incr
-            
-            base_loop_counters[loop_var] = sympy.lambdify(
-                global_iterator,
-                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
-        
-        assert max(iteration) < self.subs_consts(total_length), \
-            "Iterations go beyond what is possible in the original code. One common reason is, " + \
-            "that the iteration length are unrealistically small."
-        
-        # Get sizes of arrays and base offsets for each array
-        var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
-        base_offsets = {}
-        base = 0
-        # Always arange arrays in alphabetical order in memory, for reproducability
-        for var_name, var_size in sorted(var_sizes.items(), key=lambda v: v[0]):
-            base_offsets[var_name] = base
-            array_total_size = self.subs_consts(var_size + spacing)
-            # Add bytes to align by 64 byte (typical cacheline size):
-            array_total_size = ((int(array_total_size)+63)& ~63)
-            base += array_total_size
-        
-        #print(var_sizes, base_offsets)
-        # Gather all read and write accesses to the array:
-        for var_name, var_size in var_sizes.items():
-            element_size = self.datatypes_size[self.variables[var_name][0]]
-            for r in self._sources.get(var_name, []):
-                offset_expr = self.access_to_sympy(var_name, r)
-                offset = sympy.lambdify(
-                    base_loop_counters.keys(),
-                    self.subs_consts(
-                        offset_expr*element_size
-                        + base_offsets[var_name]), numpy)
-                # TODO possibly differentiate between index order
-                global_load_offsets.append(offset)
-            for w in self._destinations.get(var_name, []):
-                offset_expr = self.access_to_sympy(var_name, w)
-                offset = sympy.lambdify(
-                    base_loop_counters.keys(),
-                    self.subs_consts(
-                        offset_expr*element_size
-                        + base_offsets[var_name]), numpy)
-                # TODO possibly differentiate between index order
-                global_store_offsets.append(offset)
-                # TODO take element sizes into account, return in bytes
-        
-        global_load_offsets_iterations = []
-        global_store_offsets_iterations = []
-        
-        # Generate numpy.array for each counter
-        counter_per_it = [v(iteration) for v in base_loop_counters.values()]
-        
-        # Data access as they appear with iteration order
-        return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
-                           zip(*[o(*counter_per_it) for o in global_store_offsets]),
-                           fillvalue=None)
-
-    def print_kernel_info(self, output_file=sys.stdout):
-        table = ('     idx |        min        max       step\n' +
-                 '---------+---------------------------------\n')
-        for l in self._loop_stack:
-            table += '{:>8} | {!r:>10} {!r:>10} {!r:>10}\n'.format(*l)
-        print(prefix_indent('loop stack:        ', table), file=output_file)
-
-        table = ('    name |  offsets   ...\n' +
-                 '---------+------------...\n')
-        for name, offsets in list(self._sources.items()):
-            prefix = '{:>8} | '.format(name)
-            right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
-            table += prefix_indent(prefix, right_side, later_prefix='         | ')
-        print(prefix_indent('data sources:      ', table), file=output_file)
-
-        table = ('    name |  offsets   ...\n' +
-                 '---------+------------...\n')
-        for name, offsets in list(self._destinations.items()):
-            prefix = '{:>8} | '.format(name)
-            right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
-            table += prefix_indent(prefix, right_side, later_prefix='         | ')
-        print(prefix_indent('data destinations: ', table), file=output_file)
-
-        table = (' op | count \n' +
-                 '----+-------\n')
-        for op, count in list(self._flops.items()):
-            table += '{:>3} | {:>4}\n'.format(op, count)
-        table += '     =======\n'
-        table += '      {:>4}'.format(sum(self._flops.values()))
-        print(prefix_indent('FLOPs:     ', table), file=output_file)
-
-    def print_kernel_code(self, output_file=sys.stdout):
-        print(self.kernel_code, file=output_file)
-
-    def print_variables_info(self, output_file=sys.stdout):
-        table = ('    name |   type size             \n' +
-                 '---------+-------------------------\n')
-        for name, var_info in list(self.variables.items()):
-            table += '{:>8} | {:>6} {!s:<10}\n'.format(name, var_info[0], var_info[1])
-        print(prefix_indent('variables: ', table), file=output_file)
-
-    def print_constants_info(self, output_file=sys.stdout):
-        table = ('    name | value     \n' +
-                 '---------+-----------\n')
-        for name, value in list(self.constants.items()):
-            table += '{!s:>8} | {:<10}\n'.format(name, value)
-        print(prefix_indent('constants: ', table), file=output_file)
+            # TODO find nicer solution for N and other pre-mapped letters
+            return parse_expr(s, local_dict={c: sympy.Symbol(c) for c in s if c in ascii_letters})
