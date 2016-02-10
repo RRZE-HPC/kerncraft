@@ -165,6 +165,7 @@ class Kernel(object):
         elif s is None:
             return None
         else:
+            # TODO find nicer solution for N and other pre-mapped letters
             return parse_expr(s, local_dict={c: sympy.Symbol(c) for c in s if c in ascii_letters})
     
     @classmethod
@@ -476,6 +477,9 @@ class Kernel(object):
 
         *type* can be iaca or likwid.
         '''
+        assert self.kernel_ast is not None, "AST does not exist, this could be due to running of " \
+             "kernel description rather then code."
+        
         ast = deepcopy(self.kernel_ast)
         declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
 
