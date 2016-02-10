@@ -14,6 +14,7 @@ import math
 import re
 import itertools
 import operator
+from functools import reduce
 
 from .pycparser import clean_code
 import sympy
@@ -30,24 +31,24 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
     '''
     Returns list of evenly spaced integers over an interval.
 
-    Numbers can either be evenlty distributed in a linear space (if *log* is False) or in a log 
+    Numbers can either be evenlty distributed in a linear space (if *log* is False) or in a log
     space (if *log* is True). If *log* is True, base is used to define the log space basis.
-    
+
     If *endpoint* is True, *stop* will be the last retruned value, as long as *num* >= 2.
     '''
     assert type(start) is int and type(stop) is int and type(num) is int, \
         "start, stop and num need to be intergers"
     assert num >= 2, "num has to be atleast 2"
-    
+
     if log:
         start = math.log(start, base)
         stop = math.log(stop, base)
-    
+
     if endpoint:
         steplength = float((stop-start))/float(num-1)
     else:
         steplength = float((stop-start))/float(num)
-    
+
     i = 0
     while i < num:
         if log:
@@ -55,12 +56,12 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
         else:
             yield int(round(start + i*steplength))
         i += 1
-    
+
 
 class AppendStringRange(argparse.Action):
     """
     Action to append a string and a range discription
-    
+
     A range discription must have the following format: start[-stop[:num[log[base]]]]
     if stop is given, a list of integers is compiled
     if num is given, an evently spaced lsit of intergers from start to stop is compiled
@@ -131,11 +132,11 @@ def create_parser():
                         help='Use pessimistic IACA latency instead of throughput prediction.')
     parser.add_argument('--kernel-description', action='store_true',
                         help='Use kernel description instead of analyzing the kernel code.')
-    
+
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)
-    
+
     return parser
 
 def check_arguments(args, parser):
@@ -155,7 +156,7 @@ def run(parser, args, output_file=sys.stdout):
         except EOFError:
             pass
         args.store.close()
-    
+
     # machine information
     # Read machine description
     machine = MachineModel(args.machine.name)
@@ -187,15 +188,13 @@ def run(parser, args, output_file=sys.stdout):
         # From 100 elements to 512MB of data with 150 data points on log10 scale
         for inner_dim_size in space(
                 100, int(0.5*1025**3/kernel.datatypes_size[kernel.datatype]), 150, log=True):
-            current_define = [(inner_loop_const, inner_dim_size)]
-
             # we choose all other constants, such that the largest array consumes 1-3GB of memory:
             array_dims = sorted(required_consts, key=len)[-1]
             array_size = reduce(operator.mul, array_dims).subs(inner_loop_const, inner_dim_size)
             assert 0 <= len(array_size.free_symbols) <= 1, "Automatic selection can only  " + \
                 "work, if arrays depend only on the inner-loop constant and one more " + \
                 "constant (at most)."
-            
+
             if len(array_size.free_symbols) == 1:
                 define_product.append([
                     (inner_loop_const, inner_dim_size),
@@ -214,7 +213,7 @@ def run(parser, args, output_file=sys.stdout):
                 if v not in define_dict[name]:
                     define_dict[name].append([name, v])
         define_product = list(itertools.product(*list(define_dict.values())))
-    
+
     for define in define_product:
         # Reset state of kernel
         kernel.clear_state()
@@ -230,7 +229,7 @@ def run(parser, args, output_file=sys.stdout):
                   file=output_file)
             print(' '.join(['-D {} {}'.format(k,v) for k,v in define]), file=output_file)
             print('{:-^80}'.format(' '+model_name+' '), file=output_file)
-            
+
             if args.verbose > 1:
                 if not args.kernel_description:
                     kernel.print_kernel_code(output_file=output_file)
@@ -239,12 +238,12 @@ def run(parser, args, output_file=sys.stdout):
                 kernel.print_kernel_info(output_file=output_file)
             if args.verbose > 0:
                 kernel.print_constants_info(output_file=output_file)
-            
+
             model = getattr(models, model_name)(kernel, machine, args, parser)
 
             model.analyze()
             model.report(output_file=output_file)
-            
+
             # Add results to storage
             kernel_name = os.path.split(args.code_file.name)[1]
             if kernel_name not in result_storage:
@@ -253,9 +252,9 @@ def run(parser, args, output_file=sys.stdout):
                 result_storage[kernel_name][tuple(kernel.constants.items())] = {}
             result_storage[kernel_name][tuple(kernel.constants.items())][model_name] = \
                 model.results
-            
+
             print('', file=output_file)
-        
+
         # Save storage to file (if requested)
         if args.store:
             tempname = args.store.name + '.tmp'
@@ -266,13 +265,13 @@ def run(parser, args, output_file=sys.stdout):
 def main():
     # Create and populate parser
     parser = create_parser()
-    
+
     # Parse given arguments
     args = parser.parse_args()
-    
+
     # Checking arguments
     check_arguments(args, parser)
-    
+
     # BUSINESS LOGIC IS FOLLOWING
     run(parser, args)
 

@@ -9,17 +9,10 @@ from functools import reduce
 import operator
 import subprocess
 import re
-from copy import deepcopy
 import sys
-from itertools import chain
 
 import sympy
-import six
-from six.moves import filter
-from six.moves import map
-from six.moves import range
 
-from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.kernel import KernelCode
 
@@ -111,15 +104,10 @@ class Roofline(object):
         return self._expand_to_cacheline_blocks_cache[(first,last)]
 
     def calculate_cache_access(self, CPUL1=True):
-        read_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
-        write_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
-
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
         elements_per_cacheline = int(cacheline_size // element_size)
-
-        loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
 
         # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim()
@@ -127,18 +115,18 @@ class Roofline(object):
         # Calculate the number of iterations necessary for warm-up
         max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-        
+
         offsets = []
         if max_array_size < max_cache_size:
             # Full caching possible, go through all itreration before actual initialization
             warmup_iteration_count = self.kernel.iteration_length()//3
             offsets = list(self.kernel.compile_global_offsets(
                 iteration=range(0, self.kernel.iteration_length())))
-        
+
         # Regular Initialization
-        warmup_iteration_count = min(2*self.kernel.iteration_length()//3, 
+        warmup_iteration_count = min(2*self.kernel.iteration_length()//3,
                                      2*max_cache_size//element_size//3)
-        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse 
+        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse
         # cache results)
         # TODO can we find a nicer solution?
         first_dim_length = self.kernel.iteration_length(-1)
@@ -148,21 +136,21 @@ class Roofline(object):
         if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
             # to close to the end, subtract 20%
             warmup_iteration_count -= int(0.2*first_dim_length)
-        
+
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
-        
+
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-        
+
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
-        
+
         # Benchmark iterations:
         bench_iteration_start = warmup_iteration_count
         bench_iteration_end = bench_iteration_start+elements_per_cacheline
-        
+
         # compile access needed for one cache-line
         offsets = self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end))
@@ -172,17 +160,17 @@ class Roofline(object):
 
         # use stats to build results
         stats = list(csim.stats())
-        
+
         total_flops = sum(self.kernel._flops.values())*elements_per_cacheline
-        
+
         results = {'bottleneck level': 0, 'mem bottlenecks': []}
-        
+
         # TODO let user choose threads_per_core:
         threads_per_core = 1
-        
+
         # Compile relevant information
         # TODO unite CPU-L1 and other level handling
-        
+
         # CPU-L1 stats (in bytes!)
         total_loads = stats[0]['LOAD']
         total_evicts = stats[0]['STORE']
@@ -191,11 +179,11 @@ class Roofline(object):
         bw, measurement_kernel = self.machine.get_bandwidth(
             0, read_streams, write_streams,
             threads_per_core, cores=self._args.cores)
-        
+
         # Calculate performance (arithmetic intensity * bandwidth with
         # arithmetic intensity = flops / bytes transfered)
         bytes_transfered = total_loads + total_evicts
-        
+
         if bytes_transfered == 0:
             # This happens in case of full-caching
             arith_intens = None
@@ -203,7 +191,7 @@ class Roofline(object):
         else:
             arith_intens = float(total_flops)/bytes_transfered
             performance = arith_intens * float(bw)
-        
+
         results['mem bottlenecks'].append({
             'performance': PrefixedUnit(performance, 'FLOP/s'),
             'level': ('CPU-' +
@@ -214,7 +202,7 @@ class Roofline(object):
         if performance <= results.get('min performance', performance):
             results['bottleneck level'] = len(results['mem bottlenecks'])-1
             results['min performance'] = performance
-        
+
         # for other cache and memory levels:
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_stats = stats[cache_level]
@@ -232,11 +220,11 @@ class Roofline(object):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
                 cores=self._args.cores)
-            
+
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
             bytes_transfered = total_misses + total_evicts
-            
+
             if bytes_transfered == 0:
                 # This happens in case of full-caching
                 arith_intens = None
@@ -244,7 +232,7 @@ class Roofline(object):
             else:
                 arith_intens = float(total_flops)/bytes_transfered
                 performance = arith_intens * float(bw)
-            
+
             results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
                 'level': (cache_info['level'] + '-' +
@@ -255,17 +243,17 @@ class Roofline(object):
             if performance <= results.get('min performance', performance):
                 results['bottleneck level'] = len(results['mem bottlenecks'])-1
                 results['min performance'] = performance
-        
+
         return results
 
     def analyze(self):
         self.results = self.calculate_cache_access()
-    
+
     def conv_perf(self, performance, unit, default='FLOP/s'):
         '''Convert performance (FLOP/s) to other units, such as It/s or cy/CL'''
         if not unit:
             unit = default
-        
+
         clock = self.machine['clock']
         flops_per_it = sum(self.kernel._flops.values())
         it_s = performance/flops_per_it
@@ -274,7 +262,7 @@ class Roofline(object):
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         cy_cl = clock/it_s*elements_per_cacheline
         cy_cl.unit = 'cy/CL'
-        
+
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
                 'FLOP/s': performance}[unit]
@@ -344,7 +332,7 @@ class RooflineIACA(Roofline):
 
     def analyze(self):
         self.results = self.calculate_cache_access(CPUL1=False)
-        
+
         # For the IACA/CPU analysis we need to compile and assemble
         asm_name = self.kernel.compile(
             self.machine['compiler'], compiler_args=self.machine['compiler flags'])
@@ -363,7 +351,7 @@ class RooflineIACA(Roofline):
         except subprocess.CalledProcessError as e:
             print("IACA throughput analysis failed:", e, file=sys.stderr)
             sys.exit(1)
-        
+
         match = re.search(
             r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
         assert match, "Could not find Block Throughput in IACA output."
@@ -389,7 +377,7 @@ class RooflineIACA(Roofline):
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
         uops = float(match.groups()[0])
-        
+
         # Get latency prediction from IACA
         try:
             iaca_latency_output = subprocess.check_output(
@@ -398,7 +386,7 @@ class RooflineIACA(Roofline):
         except subprocess.CalledProcessError as e:
             print("IACA latency analysis failed:", e, file=sys.stderr)
             sys.exit(1)
-        
+
         # Get predicted latency
         match = re.search(
             r'^Latency: ([0-9\.]+) Cycles', iaca_latency_output, re.MULTILINE)
@@ -466,7 +454,7 @@ class RooflineIACA(Roofline):
                 print(self.results['cpu bottleneck']['IACA output'], file=output_file)
                 print(self.results['cpu bottleneck']['IACA latency output'], file=output_file)
             print('{!s}'.format(
-                     {k: v for k, v in list(self.results['cpu bottleneck'].items()) if k not in 
+                     {k: v for k, v in list(self.results['cpu bottleneck'].items()) if k not in
                      ['IACA output', 'IACA latency output']}),
                   file=output_file)
 

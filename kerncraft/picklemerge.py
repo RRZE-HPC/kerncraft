@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import argparse
-import os.path
 import pickle
 import collections
 import six
@@ -38,14 +37,14 @@ def main():
 
     result = pickle.load(args.destination)
     assert isinstance(result, collections.Mapping), "only Mapping types can be handled."
-    
+
     for s in args.source:
         data = pickle.load(s)
         assert isinstance(data, collections.Mapping), "only Mapping types can be handled."
-        
-        
+
+
         update(result, data)
-    
+
     args.destination.seek(0)
     args.destination.truncate()
     pickle.dump(result, args.destination)

@@ -38,7 +38,7 @@ def find_asm_blocks(asm_lines):
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
-        
+
         # Strip comments and whitespaces
         line = line.split('#')[0]
         line = line.strip()
@@ -96,17 +96,17 @@ def find_asm_blocks(asm_lines):
                             # reg can not be it
                             possible_idx_regs.remove(reg)
                             break
-                
+
                 if len(possible_idx_regs) == 1:
                     # good, exactly one register was found
                     idx_reg = possible_idx_regs[0]
-                    
+
                     mem_scales = [mref[3] for mref in mem_references if idx_reg == mref[2]]
 
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
                         pointer_increment = mem_scales[0]*increments[idx_reg]
-            
+
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
                            'ops': i-last_label_line,
@@ -138,7 +138,7 @@ def userselect_increment(block):
     print("Selected block:")
     print('\n    '+('    '.join(block['lines'])))
     print()
-    
+
     increment = None
     while increment is None:
         increment = input("Choose store pointer increment (number of bytes): ")
@@ -146,7 +146,7 @@ def userselect_increment(block):
             increment = int(increment)
         except ValueError:
             increment = None
-    
+
     block['pointer_increment'] = increment
     return increment
 
@@ -169,7 +169,7 @@ def userselect_block(blocks, default=None):
             block_idx = int(block_idx)
         except ValueError:
             block_idx = -1
-    block = blocks[block_idx][1]
+    # block = blocks[block_idx][1]
 
     return block_idx
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# pylint: disable=W0142
 
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -15,7 +14,6 @@ import os.path
 import sys
 import numbers
 import collections
-from collections import defaultdict
 from functools import reduce
 from string import ascii_letters
 
@@ -131,7 +129,7 @@ class Kernel(object):
     '''This class captures the kernel information, analyzes it and reports access pattern'''
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
-    
+
     def __init__(self):
         self._loop_stack = []
         self.variables = {}
@@ -139,14 +137,14 @@ class Kernel(object):
         self._destinations = {}
         self._flops = {}
         self.datatype = None
-        
+
         self.clear_state()
-    
+
     def check(self):
         '''Checks that information about kernel makes sens and is valid.'''
         datatypes = [v[0] for v in self.variables.values()]
         assert len(set(datatypes)) <= 1, 'mixing of datatypes within a kernel is not supported.'
-        
+
         # TODO add combine all tests here
 
     def set_constant(self, name, value):
@@ -166,7 +164,7 @@ class Kernel(object):
             assert type_ == self.datatype, 'mixing of datatypes within a kernel is not supported.'
         assert type(size) in [list, type(None)], 'size has to be defined as tuple'
         self.variables[name] = (type_, size)
-    
+
     def clear_state(self):
         '''Clears changable internal states
         (constants, asm_blocks and asm_block_idx)'''
@@ -184,36 +182,36 @@ class Kernel(object):
             return expr.subs(self.constants)
             # is not faster, but returns floats:
             #return sympy.lambdify(self.constants.keys(), expr)(*self.constants.values())
-    
+
     def array_sizes(self, in_bytes=False, subs_consts=False):
         '''Returns a dictionary with all arrays sizes (optunally in bytes, otherwise in elements).
-        
+
         :param in_bytes: If True, output will be in bytes, not in element counts.
         :param subs_consts: If True, output will be numbers and not symbolic.
-        
+
         Scalar variables are ignored.
         '''
         var_sizes = {}
-        
+
         for var_name, var_info in self.variables.items():
             var_type, var_size = var_info
-            
+
             # Skiping sclars
             if var_size is None:
                 continue
-            
+
             var_sizes[var_name] = reduce(operator.mul, var_size, 1)
-            
+
             # Multiply by bytes per element if requested
             if in_bytes:
                 element_size = self.datatypes_size[var_type]
                 var_sizes[var_name] *= element_size
-            
+
         if subs_consts:
             return {k: self.subs_consts(v) for k,v in var_sizes.items()}
         else:
             return var_sizes
-    
+
     def _calculate_relative_offset(self, name, access_dimensions):
         '''
         returns the offset from the iteration center in number of elements and the order of indices
@@ -235,59 +233,56 @@ class Kernel(object):
                 pass
 
         return offset
-    
+
     def access_to_sympy(self, var_name, access):
         '''Transforms a variable access to a sympy expression'''
         base_sizes = self.variables[var_name][1]
-        
+
         expr = sympy.Number(0)
-         
+
         for dimension, a in enumerate(access):
             base_size = reduce(operator.mul, base_sizes[dimension+1:], sympy.Integer(1))
-            
+
             expr += base_size*a
-            
+
         return expr
-    
+
     def iteration_length(self, dimension=None):
         '''Returns the number of global loop iterations that are performed
-        
-        If dimension is not None, it is the loop dimension that is returned 
+
+        If dimension is not None, it is the loop dimension that is returned
         (-1 is the inner most loop and 0 the outermost)'''
-        
+
         global_iterator = sympy.Symbol('global_iterator')
         idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
         last_incr = 1
-        
+
         if dimension is not None:
             loops = [self._loop_stack[dimension]]
         else:
             loops = reversed(self._loop_stack)
-        
+
         for var_name, start, end, incr in loops:
-            loop_var = sympy.Symbol(var_name)
-            
             # This unspools the iterations:
             length = end-start
-            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
             total_length = total_length*length
-        
+
         return self.subs_consts(total_length)
-    
+
     def compile_global_offsets(self, iteration=0, spacing=0):
         '''Returns load and store offsets on a virtual address space.
-        
+
         :param iteration: controlls the inner index counter
         :param spacing: sets a spacing between the arrays, default is 0
-        
+
         All array variables (non scalars) are layed out linearly starting from 0. An optional
         spacing can be set. The accesses are based on this layout.
-        
+
         The iteration 0 is the first itreation. All loops are mapped to this linear iteration space.
-        
+
         Accesses to scalars are ignored.
-        
+
         Returned are load and store byte-offset paris for each iteration.
         '''
         global_load_offsets = []
@@ -306,21 +301,21 @@ class Kernel(object):
         last_incr = 1
         for var_name, start, end, incr in reversed(self._loop_stack):
             loop_var = sympy.Symbol(var_name)
-            
+
             # This unspools the iterations:
             length = end-start
             counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
             total_length = total_length*length
             last_incr = incr
-            
+
             base_loop_counters[loop_var] = sympy.lambdify(
                 global_iterator,
                 self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
-        
+
         assert max(iteration) < self.subs_consts(total_length), \
             "Iterations go beyond what is possible in the original code. One common reason is, " + \
             "that the iteration length are unrealistically small."
-        
+
         # Get sizes of arrays and base offsets for each array
         var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
         base_offsets = {}
@@ -332,7 +327,7 @@ class Kernel(object):
             # Add bytes to align by 64 byte (typical cacheline size):
             array_total_size = ((int(array_total_size)+63)& ~63)
             base += array_total_size
-        
+
         #print(var_sizes, base_offsets)
         # Gather all read and write accesses to the array:
         for var_name, var_size in var_sizes.items():
@@ -356,13 +351,10 @@ class Kernel(object):
                 # TODO possibly differentiate between index order
                 global_store_offsets.append(offset)
                 # TODO take element sizes into account, return in bytes
-        
-        global_load_offsets_iterations = []
-        global_store_offsets_iterations = []
-        
+
         # Generate numpy.array for each counter
         counter_per_it = [v(iteration) for v in base_loop_counters.values()]
-        
+
         # Data access as they appear with iteration order
         return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
                            zip(*[o(*counter_per_it) for o in global_store_offsets]),
@@ -417,12 +409,12 @@ class Kernel(object):
 class KernelCode(Kernel):
     '''
     Kernel information gathered from code using pycparser
-    
+
     This version allows compilation and generation of code for iaca and likwid benchmarking
     '''
     def __init__(self, kernel_code, filename=None):
         super(KernelCode, self).__init__()
-        
+
         # Initialize state
         self.asm_blocks = {}
         self.asm_block_idx = None
@@ -432,12 +424,12 @@ class KernelCode(Kernel):
         parser = CParser()
         self.kernel_ast = parser.parse(self._as_function()).ext[0].body
         self._process_code()
-        
+
         self.check()
 
     def print_kernel_code(self, output_file=sys.stdout):
         print(self.kernel_code, file=output_file)
-    
+
     def _as_function(self, func_name='test'):
         return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
 
@@ -447,7 +439,7 @@ class KernelCode(Kernel):
         self.asm_blocks = {}
         self.asm_block_idx = None
         self.subs_consts.clear()  # clear LRU cache of function
-        
+
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
         assert all([type(s) is c_ast.Decl for s in self.kernel_ast.block_items[:-1]]), \
@@ -501,7 +493,7 @@ class KernelCode(Kernel):
 
         the index order is right to left (c-code order).
         e.g. c[i+1][j-2] -> [-2, +1]
-        
+
         if aref is actually an ID, None will be returned
         '''
         if isinstance(aref, c_ast.ID):
@@ -525,7 +517,7 @@ class KernelCode(Kernel):
         # Reverse to preserver order (the subscripts in the AST are traversed backwards)
         if dim == 0:
             idxs.reverse()
-    
+
         return idxs
 
     @classmethod
@@ -535,7 +527,7 @@ class KernelCode(Kernel):
 
         e.g. c[i+1][j-2] -> 'c'
         '''
-        
+
         if isinstance(aref.name, c_ast.ArrayRef):
             return cls._get_basename(aref.name)
         elif isinstance(aref.name, six.string_types):
@@ -673,7 +665,7 @@ class KernelCode(Kernel):
         '''
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running of " \
              "kernel description rather then code."
-        
+
         ast = deepcopy(self.kernel_ast)
         declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
 
@@ -772,7 +764,7 @@ class KernelCode(Kernel):
         # transform multi-dimensional array references to one dimensional references
         list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
             find_array_references(ast)))
-        
+
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
             ast.block_items.insert(-2, c_ast.FuncCall(
@@ -840,7 +832,7 @@ class KernelCode(Kernel):
             c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
             None, None)
         ast.ext.insert(0, decl)
-        
+
         # add external var_false declaration
         decl = c_ast.Decl('var_false', [], ['extern'], [], c_ast.TypeDecl(
                 'var_false', [], c_ast.IdentifierType(['int'])
@@ -873,7 +865,7 @@ class KernelCode(Kernel):
 
         *asm_block* controlls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
-        
+
         *asm_increment* is the increment of the store pointer during each iteration of the ASM block
         if it is 0 (default), automatic detection will be use and might lead to an interactive user
         interface.
@@ -905,11 +897,11 @@ class KernelCode(Kernel):
                 block_idx = asm_block
 
             self.asm_block = blocks[block_idx][1]
-            
+
             # Use userinput for pointer_increment, if given
             if asm_increment != 0:
                 self.asm_block['pointer_increment'] = asm_increment
-            
+
             # If block's pointer_increment is None, let user choose
             if self.asm_block['pointer_increment'] is None:
                 iaca.userselect_increment(self.asm_block)
@@ -988,7 +980,7 @@ class KernelCode(Kernel):
 
         if cflags is None:
             cflags = []
-        cflags += ['-std=c99', 
+        cflags += ['-std=c99',
                    '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
                    os.environ.get('LIKWID_INCLUDE', ''),
                    os.environ.get('LIKWID_INC', '')]
@@ -1023,50 +1015,50 @@ class KernelCode(Kernel):
             sys.exit(1)
         finally:
             source_file.close()
-        
+
         return outfile
 
 
 class KernelDescription(Kernel):
     '''
     Kernel information gathered from YAML kernel description file
-    
+
     This class does NOT allow compilation (required by iaca analysis and likwid benchmarking).
     '''
     def __init__(self, description):
         super(KernelDescription, self).__init__()
-        
+
         # Loops
         self._loop_stack = list([
-            (l['index'], self.string_to_sympy(l['start']), 
+            (l['index'], self.string_to_sympy(l['start']),
              self.string_to_sympy(l['stop']), self.string_to_sympy(l['step']))
             for l in description['loops']
         ])
-        
+
         # Variables
         for var_name, v in description['arrays'].items():
             self.set_variable(var_name, v['type'], self.string_to_sympy(v['dimension']))
-        
+
         # Datatype
         self.datatype = list(self.variables.values())[0][0]
-        
+
         # Data sources
         self._sources = {
             var_name: list([self.string_to_sympy(idx) for idx in v])
             for var_name,v in description['data sources'].items()
         }
-        
+
         # Data destinations
         self._destinations = {
             var_name: list([self.string_to_sympy(idx) for idx in v])
             for var_name,v in description['data destinations'].items()
         }
-        
+
         # Flops
         self._flops = description['flops']
-        
+
         self.check()
-    
+
     @classmethod
     def string_to_sympy(cls, s):
         if isinstance(s, int):

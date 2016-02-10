@@ -39,22 +39,22 @@ class Benchmark(object):
         if args:
             # handle CLI info
             pass
-    
+
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
         '''
         runs *cmd* with likwid-perfctr and returns result as dict
         '''
         # FIXME currently only single core measurements support!
         perf_cmd = ['likwid-perfctr', '-O', '-g', group]
-        
+
         if pin:
             perf_cmd += ['-C', cpu]
         else:
             perf_cmd += ['-c', cpu]
-        
+
         if code_markers:
             perf_cmd.append('-m')
-        
+
         perf_cmd += cmd
         if self._args.verbose > 1:
             print(' '.join(perf_cmd))
@@ -63,7 +63,7 @@ class Benchmark(object):
         except subprocess.CalledProcessError as e:
             print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
             sys.exit(1)
-        
+
         results = {}
         ignore = True
         for l in output:
@@ -71,37 +71,37 @@ class Benchmark(object):
                 ignore = False
             elif ignore or not l:
                 continue
-            
+
             l = l.split(',')
             results[l[0]] = l[1:]
-        
+
         return results
 
     def analyze(self):
         bench = self.kernel.build(self.machine['compiler'],
                                   cflags=self.machine['compiler flags'],
                                   verbose=self._args.verbose > 1)
-        
+
         # Build arguments to pass to command:
         args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
-        
+
         # Determan base runtime with 100 iterations
         runtime = 0.0
         time_per_repetition = 0.2/10.0
-        
+
         while runtime < 0.15:
             # Interpolate to a 0.2s run
             if time_per_repetition != 0.0:
                 repetitions = 0.2//time_per_repetition
             else:
                 repetitions *= 10
-            
+
             result = self.perfctr(args+[six.text_type(repetitions)])
             runtime = float(result['Runtime (RDTSC) [s]'][0])
             time_per_repetition = runtime/float(repetitions)
-        
+
         self.results = {'raw output': result}
-        
+
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constantnames
         # TODO support SP (devide by 4 instead of 8.0)
@@ -132,7 +132,7 @@ class Benchmark(object):
                   file=output_file)
         if self._args.verbose > 0:
             print('Iterations per repetition: {!s}'.format(
-                     self.results['Iterations per repetition']), 
+                     self.results['Iterations per repetition']),
                   file=output_file)
         print('Runtime (per cacheline update): {:.2g} cy/CL'.format(
                   self.results['Runtime (per cacheline update) [cy/CL]']),

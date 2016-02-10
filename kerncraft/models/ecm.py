@@ -4,17 +4,12 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import division
 
-import operator
 import copy
 import sys
 import subprocess
 import re
 import math
-from functools import reduce
-from itertools import chain
-from pprint import pprint
 
-import sympy
 import six
 try:
     import matplotlib
@@ -24,7 +19,6 @@ try:
 except ImportError:
     plot_support = False
 
-from kerncraft.intervals import Intervals
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.kernel import KernelCode
 
@@ -85,34 +79,29 @@ class ECMData(object):
             pass
 
     def calculate_cache_access(self):
-        read_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
-        write_offsets = {var_name: dict() for var_name in list(self.kernel.variables.keys())}
-        
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
         elements_per_cacheline = int(cacheline_size // element_size)
 
-        loop_order = ''.join([l[0] for l in self.kernel._loop_stack])
-        
         # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim()
-        
+
         # Calculate the number of iterations necessary for warm-up
         max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-        
+
         offsets = []
         if max_array_size < max_cache_size:
             # Full caching possible, go through all itreration before actual initialization
             warmup_iteration_count = self.kernel.iteration_length()//3
             offsets = list(self.kernel.compile_global_offsets(
                 iteration=range(0, self.kernel.iteration_length())))
-        
+
         # Regular Initialization
-        warmup_iteration_count = min(2*self.kernel.iteration_length()//3, 
+        warmup_iteration_count = min(2*self.kernel.iteration_length()//3,
                                      2*max_cache_size//element_size//3)
-        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse 
+        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse
         # cache results)
         # TODO can we find a nicer solution?
         first_dim_length = self.kernel.iteration_length(-1)
@@ -122,21 +111,21 @@ class ECMData(object):
         if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
             # to close to the end, subtract 20%
             warmup_iteration_count -= int(0.2*first_dim_length)
-        
+
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
-        
+
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-        
+
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
-        
+
         # Benchmark iterations:
         bench_iteration_start = warmup_iteration_count
         bench_iteration_end = bench_iteration_start+elements_per_cacheline
-        
+
         # compile access needed for one cache-line
         offsets = self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end))
@@ -151,10 +140,10 @@ class ECMData(object):
         # TODO move this in to pycachesim (and do it more accuratly)
         stats[0]['HIT'] = (stats[0]['HIT']-stats[0]['MISS']* \
             (int(element_size)-1))//int(cacheline_size)
-        
+
         # pprint(stats)
         # TODO csim: evicts are not yet based on cachelines (require dirty bits)
-        
+
         self.results = {'memory hierarchy': [], 'cycles': []}
 
         # Check for layer condition towards all cache levels (except main memory/last level)
@@ -178,21 +167,21 @@ class ECMData(object):
     def calculate_cycles(self):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-        
+
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             bandwidth = cache_info['bandwidth']
             cache_cycles = cache_info['cycles per cacheline transfer']
             cache_results = self.results['memory hierarchy'][cache_level]
-            
+
             if not bandwidth:
                 # only cache cycles count
-                cycles = (cache_results['total lines misses'] 
+                cycles = (cache_results['total lines misses']
                           + cache_results['total lines evicts']) * \
                          cache_cycles
             else:
                 # Memory transfer
                 # we use bandwidth to calculate cycles and then add panalty cycles (if given)
-            
+
                 # choose bw according to cache level and problem
                 # first, compile stream counts at current cache level
                 # write-allocate is allready resolved above
@@ -202,7 +191,7 @@ class ECMData(object):
                 threads_per_core = 1
                 bw, measurement_kernel = self.machine.get_bandwidth(
                     cache_level+1, read_streams, write_streams, threads_per_core)
-                
+
                 # calculate cycles
                 cycles = float(cache_results['total lines misses'] +
                                cache_results['total lines evicts']) *\
@@ -211,30 +200,30 @@ class ECMData(object):
                 # add penalty cycles for each read stream
                 if cache_cycles:
                     cycles += cache_results['total lines misses']*cache_cycles
-                
+
             cache_results['cycles'] =  cycles
 
             if bandwidth:
                 cache_results.update({
                     'memory bandwidth kernel': measurement_kernel,
                     'memory bandwidth': bw})
-            
+
             self.results['cycles'].append((
                 '{}-{}'.format(
                     cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level']),
                 cycles))
-            
+
             # TODO remove the following by makeing testcases more versatile:
             self.results['{}-{}'.format(
                 cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level'])
                 ] = cycles
-        
+
         return self.results
 
     def analyze(self):
         self.calculate_cache_access()
         self.calculate_cycles()
-        
+
         return self.results
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
@@ -243,7 +232,7 @@ class ECMData(object):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
         if not unit:
             unit = default
-        
+
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
@@ -252,7 +241,7 @@ class ECMData(object):
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
         performance.unit = 'FLOP/s'
-        
+
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
                 'FLOP/s': performance}[unit]
@@ -360,7 +349,7 @@ class ECMCPU(object):
         match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
         assert match, "Could not find Uops in IACA output."
         uops = float(match.groups()[0])
-        
+
         # Get latency prediction from IACA
         try:
             iaca_latency_output = subprocess.check_output(
@@ -373,7 +362,7 @@ class ECMCPU(object):
             r'^Latency: ([0-9\.]+) Cycles', iaca_latency_output, re.MULTILINE)
         assert match, "Could not find Latency in IACA latency analysis output."
         block_latency = float(match.groups()[0])
-        
+
         # Normalize to cycles per cacheline
         elements_per_block = abs(self.kernel.asm_block['pointer_increment']
                                  // self.kernel.datatypes_size[self.kernel.datatype])
@@ -394,15 +383,15 @@ class ECMCPU(object):
             [v for k, v in list(port_cycles.items()) if k in self.machine['overlapping ports']])
         T_nOL = max(
             [v for k, v in list(port_cycles.items()) if k in self.machine['non-overlapping ports']])
-        
+
         # Use IACA throughput prediction if it is slower then T_nOL
         if T_nOL < cl_throughput:
             T_OL = cl_throughput
-        
+
         # Use latency if requested
         if self._args.latency:
             T_OL = cl_latency
-        
+
         # Create result dictionary
         self.results = {
             'port cycles': port_cycles,
@@ -421,7 +410,7 @@ class ECMCPU(object):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
         if not unit:
             unit = default
-        
+
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(self.machine['cacheline size']) / element_size
@@ -430,7 +419,7 @@ class ECMCPU(object):
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
         performance.unit = 'FLOP/s'
-        
+
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
                 'FLOP/s': performance}[unit]
@@ -441,19 +430,19 @@ class ECMCPU(object):
             print(self.results['IACA output'], file=output_file)
             print(self.results['IACA latency output'], file=output_file)
             print('', file=output_file)
-        
+
         if self._args and self._args.verbose > 1:
             print('Ports and cycles:', six.text_type(self.results['port cycles']), file=output_file)
             print('Uops:', six.text_type(self.results['uops']), file=output_file)
-            
+
             print('Throughput: {}'.format(
                       self.conv_cy(self.results['cl throughput'], self._args.unit)),
                   file=output_file)
-            
+
             print('Latency: {}'.format(
                       self.conv_cy(self.results['cl latency'], self._args.unit)),
                   file=output_file)
-        
+
         print('T_nOL = {:.2g} cy/CL'.format(self.results['T_nOL']), file=output_file)
         print('T_OL = {:.2g} cy/CL'.format(self.results['T_OL']), file=output_file)
 
@@ -499,7 +488,7 @@ class ECM(object):
         self._data.analyze()
         self.results = copy.deepcopy(self._CPU.results)
         self.results.update(copy.deepcopy(self._data.results))
-        
+
         # Saturation/multi-core scaling analysis
         # very simple approach. Assumptions are:
         #  - bottleneck is always LLC-MEM
@@ -518,7 +507,7 @@ class ECM(object):
         if self._args and self._args.verbose > 1:
             self._CPU.report()
             self._data.report()
-        
+
         total_cycles = max(
             self.results['T_OL'],
             sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']]))
@@ -526,10 +515,10 @@ class ECM(object):
             self.results['T_OL'],
             self.results['T_nOL'],
             ' | '.join(['{:.2g}'.format(i[1]) for i in self.results['cycles']]))
-        
+
         if self._args.unit:
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
-        
+
         report += '\n{{ {} \ {} }} cy/CL'.format(
             max(self.results['T_OL'], self.results['T_nOL']),
             ' \ '.join(['{:.2g}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +

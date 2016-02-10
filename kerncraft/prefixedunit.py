@@ -56,7 +56,7 @@ class PrefixedUnit(yaml.YAMLObject):
         return self.value*self.PREFIXES[self.prefix]
 
     __float__ = base_value
-    
+
     def __int__(self):
         return int(self.base_value())
 
@@ -130,7 +130,7 @@ class PrefixedUnit(yaml.YAMLObject):
 
         v = self.__class__(float(self)/float(other), unit)
         return v.reduced()
-    
+
     def __floordiv__(self, other):
         if isinstance(other, self.__class__):
             unit = self.unit+'/'+other.unit
@@ -139,22 +139,22 @@ class PrefixedUnit(yaml.YAMLObject):
 
         v = self.__class__(float(self)//float(other), unit)
         return v.reduced()
-    
+
     def __lt__(self, other):
         return float(self) < float(other)
-    
+
     def __gt__(self, other):
         return float(self) > float(other)
-    
+
     def __eq__(self, other):
         return float(self) == float(other)
-    
+
     def __le__(self, other):
         return float(self) <= float(other)
-    
+
     def __ge__(self, other):
         return float(self) >= float(other)
-    
+
     def __ne__(self, other):
         return float(self) != float(other)
 

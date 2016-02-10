@@ -100,16 +100,16 @@ def cli():
     # TODO support everything described here
     if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
         print('''Usage:', sys.argv[0], '[-h] {collect|measure} [machinefile] | upgrade machinefile
-        
+
         collect will retriev as much hardware information as possible, without benchmarking
         measure will do the same as collect, but also include memory benchmarks
-        
-        If machinefile already exists the CPU name will be compared. If they matche, measurements 
-        will proceed and the file is updated accordingly. All other information in the file 
+
+        If machinefile already exists the CPU name will be compared. If they matche, measurements
+        will proceed and the file is updated accordingly. All other information in the file
         (typically manually inserted) will be left alone.
-        
+
         If no machinefile is given, the information will be printed to stdout.
-        
+
         updgrade will transform machinefile to the most up-to-date machine file version.
         ''')
 
