@@ -18,7 +18,7 @@ from itertools import chain
 
 import six
 import sympy
-import yaml
+from ruamel import yaml
 
 sys.path.insert(0, '..')
 from kerncraft.kernel import Kernel, KernelCode, KernelDescription

@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import yaml
+from ruamel import yaml
 import cachesim
 
 

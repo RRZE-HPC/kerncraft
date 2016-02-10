@@ -6,7 +6,7 @@ from pprint import pprint
 
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import yaml
+from ruamel import yaml
 
 from .prefixedunit import PrefixedUnit
 from six.moves import range

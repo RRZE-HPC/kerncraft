@@ -7,7 +7,7 @@ import re
 import sys
 from copy import copy
 
-import yaml
+from ruamel import yaml
 
 from .prefixedunit import PrefixedUnit
 from six.moves import range

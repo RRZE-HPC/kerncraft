@@ -20,7 +20,7 @@ from .pycparser import clean_code
 import sympy
 import six
 from six.moves import range
-import yaml
+from ruamel import yaml
 
 from . import models
 from .kernel import KernelCode, KernelDescription

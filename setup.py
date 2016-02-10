@@ -68,7 +68,7 @@ setup(
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'PyYAML',
+        'ruamel.yaml',
         'six',
         'sympy>0.7.6.1',
         'pycachesim',
