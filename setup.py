@@ -114,7 +114,8 @@ setup(
             'kerncraft=kerncraft.kerncraft:main',
             'iaca_marker=kerncraft.iaca_marker:main',
             'likwid_bench_auto=kerncraft.likwid_bench_auto:main',
-            'picklemerge=kerncraft.picklemerge:main'
+            'picklemerge=kerncraft.picklemerge:main',
+            'cachetile=kerncraft.cachetile:main'
         ],
     },
 )
