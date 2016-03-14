@@ -67,13 +67,13 @@ setup(
     # project is installed. For an analysis of "install_requires" vs pip's
     
     # what is not found or up-to-date on pypi we get from github:
-    dependency_links = ['https://github.com/sympy/sympy/tarball/master#egg=sympy-0.7.7.dev0'],
+    #dependency_links = ['https://github.com/sympy/sympy/tarball/master#egg=sympy-0.7.7.dev0'],
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'ruamel.yaml',
         'six',
-        'sympy==0.7.7.dev0',
+        'sympy>=0.7.7',
         'pycachesim',
         'pylru',
         'numpy',
