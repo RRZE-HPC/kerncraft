@@ -57,6 +57,7 @@ def simulate(kernel, model, define_dict, blocking_constant, blocking_length):
     model.analyze()
     return sum([cy for dscr, cy in model.results['cycles']])
 
+
 def run(parser, args):
     # machine information
     # Read machine description
@@ -78,9 +79,10 @@ def run(parser, args):
     undefined_constants = set()
     for var_name, var_info in kernel.variables.items():
         var_type, var_size = var_info
-        for s in var_size:
-            if isinstance(s, sympy.Symbol) and s.name not in define_dict:
-                undefined_constants.add(s)
+        for size in var_size:
+            for s in size.atoms(sympy.Symbol):
+                if s.name not in define_dict:
+                    undefined_constants.add(s)
     assert len(undefined_constants) == 1, "There are multiple or none undefined constants {!r}. " \
         "Exactly one must be undefined.".format(undefined_constants)
     blocking_constant = undefined_constants.pop()
