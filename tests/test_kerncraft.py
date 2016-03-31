@@ -48,7 +48,7 @@ class TestKerncraft(unittest.TestCase):
         args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                   '-p', 'ECMData',
                                   self._find_file('2d-5pt.c'),
-                                  #'-D', 'N', '10000-100000:2log10',
+                                  '-D', 'N', '10000-100000:2log10',
                                   '-D', 'N', '1000',
                                   '-D', 'M', '50',
                                   '-vvv',
@@ -62,11 +62,11 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        #six.assertCountEqual(self,
-        #    [sorted(map(str, r)) for r in results['2d-5pt.c']],
-        #    [sorted(map(str, r)) for r in [
-        #        ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
-        #         (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+        six.assertCountEqual(self,
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [
+                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
+                 (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
 
         # Output of first result:
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
