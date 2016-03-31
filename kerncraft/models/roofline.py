@@ -136,6 +136,11 @@ class Roofline(object):
         if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
             # to close to the end, subtract 20%
             warmup_iteration_count -= int(0.2*first_dim_length)
+        
+        # Align iteration count with cachelines
+        warmup_iteration_count = int(warmup_iteration_count)>>csim.first_level.cl_bits \
+            <<csim.first_level.cl_bits
+        warmup_iteration_count -= self.kernel._loop_stack[-1][1]
 
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
@@ -143,7 +148,10 @@ class Roofline(object):
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-
+        
+        # Force write-back on all cache levels
+        csim.force_write_back()
+        
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
 
@@ -154,9 +162,13 @@ class Roofline(object):
         # compile access needed for one cache-line
         offsets = self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end))
+
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
+
+        # Force write-back on all cache levels
+        csim.force_write_back()
 
         # use stats to build results
         stats = list(csim.stats())
@@ -172,10 +184,10 @@ class Roofline(object):
         # TODO unite CPU-L1 and other level handling
 
         # CPU-L1 stats (in bytes!)
-        total_loads = stats[0]['LOAD']
-        total_evicts = stats[0]['STORE']
-        read_streams = stats[0]['LOAD']
-        write_streams = stats[0]['STORE']//int(cacheline_size)
+        total_loads = stats[0]['LOAD_byte']
+        total_evicts = stats[0]['STORE_byte']
+        read_streams = stats[0]['LOAD_count']
+        write_streams = stats[1]['STORE_count']
         bw, measurement_kernel = self.machine.get_bandwidth(
             0, read_streams, write_streams,
             threads_per_core, cores=self._args.cores)
@@ -208,14 +220,14 @@ class Roofline(object):
             cache_stats = stats[cache_level]
 
             # Compiling stats (in bytes!)
-            total_misses = cache_stats['MISS']*int(cacheline_size)
-            total_evicts = cache_stats['STORE']
+            total_misses = stats[cache_level+1]['LOAD_byte']
+            total_evicts = cache_stats['STORE_byte']
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
-            read_streams = cache_stats['MISS']
-            write_streams = cache_stats['STORE']//int(cacheline_size)
+            read_streams = cache_stats['MISS_count']
+            write_streams = stats[cache_level-1]['STORE_count']
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
