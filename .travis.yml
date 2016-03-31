@@ -13,7 +13,6 @@ before_install:
 - pip install codecov
 - pip install requests
 install:
-- pip install https://github.com/RRZE-HPC/pycachesim/tarball/complex-structures
 - pip install --process-dependency-links  .
 - python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
   lin64
