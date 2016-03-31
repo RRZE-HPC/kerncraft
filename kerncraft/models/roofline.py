@@ -138,9 +138,20 @@ class Roofline(object):
             warmup_iteration_count -= int(0.2*first_dim_length)
         
         # Align iteration count with cachelines
-        warmup_iteration_count = int(warmup_iteration_count)>>csim.first_level.cl_bits \
-            <<csim.first_level.cl_bits
-        warmup_iteration_count -= self.kernel._loop_stack[-1][1]
+        # do this by aligning either writes (preferred) or reads:
+        # Assumption: writes (and reads) increase linearly
+        o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
+        if o[1]:
+            # we have a write to work with:
+            first_offset = min(o[1])
+        else:
+            # we use reads
+            first_offset = min(o[0])
+        # Distance from cacheline boundary (in bytes)
+        diff = first_offset - \
+               (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
+
+        warmup_iteration_count -= diff//element_size
 
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))

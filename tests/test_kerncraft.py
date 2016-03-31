@@ -308,7 +308,7 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['RooflineIACA'])
 
         roofline = result['RooflineIACA']
-        self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
+        self.assertAlmostEqual(roofline['min performance'], 2175000000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")

@@ -9,6 +9,7 @@ import sys
 import subprocess
 import re
 import math
+from pprint import pprint, pformat
 
 import six
 try:
@@ -114,9 +115,20 @@ class ECMData(object):
             warmup_iteration_count -= int(0.2*first_dim_length)
         
         # Align iteration count with cachelines
-        warmup_iteration_count = int(warmup_iteration_count)>>csim.first_level.cl_bits \
-            <<csim.first_level.cl_bits
-        warmup_iteration_count -= self.kernel._loop_stack[-1][1]
+        # do this by aligning either writes (preferred) or reads:
+        # Assumption: writes (and reads) increase linearly
+        o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
+        if o[1]:
+            # we have a write to work with:
+            first_offset = min(o[1])
+        else:
+            # we use reads
+            first_offset = min(o[0])
+        # Distance from cacheline boundary (in bytes)
+        diff = first_offset - \
+               (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
+
+        warmup_iteration_count -= diff//element_size
 
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
@@ -138,7 +150,8 @@ class ECMData(object):
         # compile access needed for one cache-line
         offsets = self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end))
-        
+        offsets = list(offsets)
+
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
@@ -150,7 +163,7 @@ class ECMData(object):
         stats = list(csim.stats())
 
         # Check for layer condition towards all cache levels (except main memory/last level)
-        self.results = {'memory hierarchy': [], 'cycles': []}
+        self.results = {'memory hierarchy': [], 'cycles': [], 'cache stats': stats}
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             self.results['memory hierarchy'].append({
                 'index': len(self.results['memory hierarchy']),
@@ -162,10 +175,6 @@ class ECMData(object):
                 'total lines hits': stats[cache_level]['HIT_count'],
                 # FIXME assumption for line evicts: all stores are consecutive
                 'total lines evicts': stats[cache_level+1]['STORE_count'],
-                'trace length': None,
-                'misses': None,
-                'hits': None,
-                'evicts': None,
                 'cycles': None})
 
     def calculate_cycles(self):
@@ -252,21 +261,11 @@ class ECMData(object):
 
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
-            for r in self.results['memory hierarchy']:
-                print('Trace legth per access in {}: {}'.format(r['level'], r['trace length']),
+            print('Cache simulation statistics:', file=output_file)
+            print('{!r}'.format(self.results['cache stats']), file=output_file)
+            for cs in self.results['cache stats']:
+                print('{:>5} {!r}'.format(cs['name'], {k:v for k,v in cs.items() if v != 'name'}),
                       file=output_file)
-                print('Hits in {}: {} {}'.format(r['level'], r['total hits'], r['hits']),
-                      file=output_file)
-                print('Misses in {}: {} ({}CL): {}'.format(
-                    r['level'], r['total misses'], r['total lines misses'], r['misses']),
-                    file=output_file)
-                print('Evicts from {} {} ({}CL): {}'.format(
-                    r['level'], r['total evicts'], r['total lines evicts'], r['evicts']),
-                    file=output_file)
-                if 'memory bandwidth' in r:
-                    print('memory bandwidth: {} (from {} kernel benchmark)'.format(
-                              r['memory bandwidth'], r['memory bandwidth kernel']),
-                          file=output_file)
 
         for level, cycles in self.results['cycles']:
             print('{} = {:.2g} cy/CL'.format(level, cycles), file=output_file)
