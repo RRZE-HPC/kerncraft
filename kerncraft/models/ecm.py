@@ -9,6 +9,7 @@ import sys
 import subprocess
 import re
 import math
+from pprint import pprint, pformat
 
 import six
 try:
@@ -101,6 +102,7 @@ class ECMData(object):
         # Regular Initialization
         warmup_iteration_count = min(2*self.kernel.iteration_length()//3,
                                      2*max_cache_size//element_size//3)
+
         # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse
         # cache results)
         # TODO can we find a nicer solution?
@@ -111,6 +113,22 @@ class ECMData(object):
         if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
             # to close to the end, subtract 20%
             warmup_iteration_count -= int(0.2*first_dim_length)
+        
+        # Align iteration count with cachelines
+        # do this by aligning either writes (preferred) or reads:
+        # Assumption: writes (and reads) increase linearly
+        o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
+        if o[1]:
+            # we have a write to work with:
+            first_offset = min(o[1])
+        else:
+            # we use reads
+            first_offset = min(o[0])
+        # Distance from cacheline boundary (in bytes)
+        diff = first_offset - \
+               (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
+
+        warmup_iteration_count -= diff//element_size
 
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
@@ -118,6 +136,9 @@ class ECMData(object):
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
+
+        # Force write-back on all cache levels
+        csim.force_write_back()
 
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
@@ -129,39 +150,31 @@ class ECMData(object):
         # compile access needed for one cache-line
         offsets = self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end))
+        offsets = list(offsets)
+
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
 
+        # Force write-back on all cache levels
+        csim.force_write_back()
+
         # use stats to build results
         stats = list(csim.stats())
 
-        # Transfrom L1 Hits from byte to to cacheline units:
-        # TODO move this in to pycachesim (and do it more accuratly)
-        stats[0]['HIT'] = (
-            stats[0]['HIT'] - stats[0]['MISS'] * (int(element_size)-1))//int(cacheline_size)
-
-        # pprint(stats)
-        # TODO csim: evicts are not yet based on cachelines (require dirty bits)
-
-        self.results = {'memory hierarchy': [], 'cycles': []}
-
         # Check for layer condition towards all cache levels (except main memory/last level)
+        self.results = {'memory hierarchy': [], 'cycles': [], 'cache stats': stats}
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             self.results['memory hierarchy'].append({
                 'index': len(self.results['memory hierarchy']),
                 'level': '{}'.format(cache_info['level']),
-                'total misses': stats[cache_level]['MISS']*int(cacheline_size),
-                'total hits': stats[cache_level]['HIT']*int(cacheline_size),
-                'total evicts': stats[cache_level]['STORE'],
-                'total lines misses': stats[cache_level]['MISS'],
-                'total lines hits': stats[cache_level]['HIT'],
+                'total misses': stats[cache_level]['MISS_byte'],
+                'total hits': stats[cache_level]['HIT_byte'],
+                'total evicts': stats[cache_level]['STORE_byte'],
+                'total lines misses': stats[cache_level]['MISS_count'],
+                'total lines hits': stats[cache_level]['HIT_count'],
                 # FIXME assumption for line evicts: all stores are consecutive
-                'total lines evicts': stats[cache_level]['STORE']//int(cacheline_size),
-                'trace length': None,
-                'misses': None,
-                'hits': None,
-                'evicts': None,
+                'total lines evicts': stats[cache_level+1]['STORE_count'],
                 'cycles': None})
 
     def calculate_cycles(self):
@@ -169,11 +182,10 @@ class ECMData(object):
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
 
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
-            bandwidth = cache_info['bandwidth']
             cache_cycles = cache_info['cycles per cacheline transfer']
             cache_results = self.results['memory hierarchy'][cache_level]
 
-            if not bandwidth:
+            if cache_cycles is not None:
                 # only cache cycles count
                 cycles = (cache_results['total lines misses']
                           + cache_results['total lines evicts']) * \
@@ -198,12 +210,13 @@ class ECMData(object):
                     float(elements_per_cacheline) * float(element_size) * \
                     float(self.machine['clock']) / float(bw)
                 # add penalty cycles for each read stream
-                if cache_cycles:
-                    cycles += cache_results['total lines misses']*cache_cycles
+                if 'penalty cycles per read stream' in cache_info:
+                    cycles += cache_results['total lines misses'] * \
+                              cache_info['penalty cycles per read stream']
 
             cache_results['cycles'] =  cycles
 
-            if bandwidth:
+            if cache_cycles is None:
                 cache_results.update({
                     'memory bandwidth kernel': measurement_kernel,
                     'memory bandwidth': bw})
@@ -248,21 +261,11 @@ class ECMData(object):
 
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
-            for r in self.results['memory hierarchy']:
-                print('Trace legth per access in {}: {}'.format(r['level'], r['trace length']),
+            print('Cache simulation statistics:', file=output_file)
+            print('{!r}'.format(self.results['cache stats']), file=output_file)
+            for cs in self.results['cache stats']:
+                print('{:>5} {!r}'.format(cs['name'], {k:v for k,v in cs.items() if v != 'name'}),
                       file=output_file)
-                print('Hits in {}: {} {}'.format(r['level'], r['total hits'], r['hits']),
-                      file=output_file)
-                print('Misses in {}: {} ({}CL): {}'.format(
-                    r['level'], r['total misses'], r['total lines misses'], r['misses']),
-                    file=output_file)
-                print('Evicts from {} {} ({}CL): {}'.format(
-                    r['level'], r['total evicts'], r['total lines evicts'], r['evicts']),
-                    file=output_file)
-                if 'memory bandwidth' in r:
-                    print('memory bandwidth: {} (from {} kernel benchmark)'.format(
-                              r['memory bandwidth'], r['memory bandwidth kernel']),
-                          file=output_file)
 
         for level, cycles in self.results['cycles']:
             print('{} = {:.2g} cy/CL'.format(level, cycles), file=output_file)

@@ -25,39 +25,13 @@ class MachineModel(object):
         cache_stack = []
         cache = None
         cl_size = int(self['cacheline size'])
-
-        for cache_dscr in reversed(self['memory hierarchy'][:-1]):
-            # Default case, all of the cache goes to one processor
-            cache_size = int(cache_dscr['size per group'])
-            # reduce cache size in parallel execution
-            if cores > 1 and cache_dscr['cores per group'] is not None and \
-                cache_dscr['cores per group'] > 1:
-                if cores < cache_dscr['cores per group']:
-                    cache_size /= cores
-                else:
-                    cache_size /= cache_dscr['cores per group']
-
-            if cache_dscr['ways'] is not None:
-                # N-way cache associativity
-                cache_ways = int(cache_dscr['ways'])
-                cache_sets = cache_size // (cache_ways*cl_size)
-            else:
-                # Full associativity
-                # this will increase the cache size to the next power of two
-                cache_ways = 2**((cache_size//cl_size-1).bit_length())  # needs to be a pow. of 2
-                cache_sets = 1
-            cache_strategy = cache_dscr['replacement strategy']
-
-            # print(cache_sets, cache_ways, cl_size)
-            cache = cachesim.Cache(
-                cache_sets, cache_ways, cl_size, cache_strategy, parent=cache)
-            cache_stack.append(cache)
-
-        mem = cachesim.MainMemory(cache_stack[0])
-
-        mh = cachesim.CacheSimulator(cache_stack[-1], mem)
-
-        return mh
+        
+        cs, caches, mem = cachesim.CacheSimulator.from_dict(
+            {c['level']: c['cache per group']
+             for c in self['memory hierarchy']
+             if 'cache per group' in c})
+        
+        return cs
 
     def get_bandwidth(self, cache_level, read_streams, write_streams, threads_per_core, cores=None):
         '''Returns best fitting bandwidth according to parameters

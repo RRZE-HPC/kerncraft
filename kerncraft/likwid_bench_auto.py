@@ -54,7 +54,8 @@ def get_machine_topology():
         if line.startswith('Level:'):
             mem_level['level'] = 'L'+line.split(':')[1].strip()
         elif line.startswith('Size:'):
-            mem_level['size per group'] = PrefixedUnit(line.split(':')[1].strip())
+            mem_level['cache per group'] = 
+                'INFORMATION_REQUIRED ('+str(PrefixedUnit(line.split(':')[1].strip()))+')'
         elif line.startswith('Cache groups:'):
             mem_level['groups'] = line.count('(')
             mem_level['cores per group'] = \
@@ -62,18 +63,16 @@ def get_machine_topology():
             mem_level['threads per group'] = \
                 mem_level['cores per group'] * machine['threads per core']
         mem_level['cycles per cacheline transfer'] = 'INFORMATION_REQUIRED'
-        mem_level['bandwidth'] = 'INFORMATION_REQUIRED'
 
         if len(mem_level) == 7:
             machine['memory hierarchy'].append(mem_level)
             mem_level = {}
     machine['memory hierarchy'].append({
         'level': 'MEM',
-        'size per group': None,
         'cores per group': machine['cores per socket'],
         'threads per group': machine['threads per core'] * machine['cores per socket'],
         'cycles per cacheline transfer': None,
-        'bandwidth': 'INFORMATION_REQUIRED'
+        'penalty cycles per read stream': 0
     })
 
     return machine

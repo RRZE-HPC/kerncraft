@@ -208,17 +208,40 @@ compiler: icc
 compiler flags: [-O3, -xAVX, -fno-alias]
 write-allocate: True
 memory hierarchy:
-- {cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 20, level: L1, bandwidth: null, size per group: 32768 B,
-  threads per group: 2, ways: 8, replacement strategy: LRU}
-- {cores per group: 1, cycles per cacheline transfer: 2,
-  groups: 20, level: L2, bandwidth: null, size per group: 262144 B,
-  threads per group: 2, ways: 8, replacement strategy: LRU}
-- {cores per group: 10, cycles per cacheline transfer: 2,
-  groups: 2, level: L3, bandwidth: 60 GB/s, size per group: 26214400 B,
-  threads per group: 20, ways: 16, replacement strategy: LRU}
-- {cores per group: 10, cycles per cacheline transfer: null,
-  level: MEM, bandwidth: null, size per group: null, threads per group: 20}
+    - level: L1
+      cache per group: {
+         'sets': 64, 'ways': 8, 'cl_size': 64, # 32 kB
+         'replacement_policy': 'LRU',
+         'write_allocate': True, 'write_back': True,
+         'load_from': 'L2', 'store_to': 'L2'}
+      cores per group: 1
+      threads per group: 2
+      groups: 16
+      cycles per cacheline transfer: 2
+    - level: L2
+      cache per group: {
+         'sets': 512, 'ways': 8, 'cl_size': 64, # 256 kB
+         'replacement_policy': 'LRU',
+         'write_allocate': True, 'write_back': True,
+         'load_from': 'L3', 'store_to': 'L3'}
+      cores per group: 1
+      threads per group: 2
+      groups: 16
+      cycles per cacheline transfer: 2
+    - level: L3
+      cache per group: {
+         'sets': 25600, 'ways': 16, 'cl_size': 64, # 25 MB
+         'replacement_policy': 'LRU', 
+         'write_allocate': True, 'write_back': True}
+      cores per group: 8
+      threads per group: 16
+      groups: 2
+      cycles per cacheline transfer: null
+    - level: MEM
+      cores per group: 8
+      cycles per cacheline transfer: null,
+      size per group: null
+      threads per group: 16
 micro-architecture: IVB
 model name: Intel Core IvyBridge EP processor
 sockets: 2

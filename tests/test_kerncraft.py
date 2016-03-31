@@ -22,6 +22,7 @@ import sympy
 
 sys.path.insert(0, '..')
 from kerncraft import kerncraft as kc
+from kerncraft.prefixedunit import PrefixedUnit
 
 
 class TestKerncraft(unittest.TestCase):
@@ -64,7 +65,8 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self,
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
-                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50), (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
+                 (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
 
         # Output of first result:
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
@@ -74,7 +76,7 @@ class TestKerncraft(unittest.TestCase):
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        # FIXME 3.9cy in L3-MEM should be 0, but caching is not respected in stores atm
+        # FIXME 3.9cy in L3-MEM should be 0, but full caching is not respected in stores atm
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 3.9, places=0) # FIXME should be 0.0
@@ -113,6 +115,31 @@ class TestKerncraft(unittest.TestCase):
         roofline = result['Roofline']
         self.assertAlmostEqual(roofline['min performance'], 5802500000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 2)
+        
+        expected_btlncks = [{u'arithmetic intensity': 0.08333333333333333,
+                             u'bandwidth': PrefixedUnit(122.97, u'G', u'B/s'),
+                             u'bw kernel': 'copy',
+                             u'level': u'CPU-L1',
+                             u'performance': PrefixedUnit(10247500000.0, u'', u'FLOP/s')},
+                            {u'arithmetic intensity': 0.1,
+                             u'bandwidth': PrefixedUnit(61.92, u'G', u'B/s'),
+                             u'bw kernel': 'copy',
+                             u'level': u'L1-L2',
+                             u'performance': PrefixedUnit(6192000000.0, u'', u'FLOP/s')},
+                            {u'arithmetic intensity': 0.16666666666666666,
+                             u'bandwidth': PrefixedUnit(34815.0, u'M', u'B/s'),
+                             u'bw kernel': 'copy',
+                             u'level': u'L2-L3',
+                             u'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},
+                            {u'arithmetic intensity': 0.5,
+                             u'bandwidth': PrefixedUnit(12.01, u'G', u'B/s'),
+                             u'bw kernel': 'load',
+                             u'level': u'L3-MEM',
+                             u'performance': PrefixedUnit(6005000000.0, u'', u'FLOP/s')}]
+        
+        for i, btlnck in enumerate(expected_btlncks):
+            for k,v in btlnck.items():
+                self.assertEqual(roofline['mem bottlenecks'][i][k], v)
 
     def test_sclar_product_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData.pickle')
@@ -162,7 +189,7 @@ class TestKerncraft(unittest.TestCase):
         # -> L3
         # FIXME 2.3cy in L3 due to evicts not respecting cache, should be 0.0
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 8.31, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 2.3, places=0)
 
     @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
