@@ -10,6 +10,7 @@ import subprocess
 import re
 import math
 from pprint import pprint, pformat
+from distutils.spawn import find_executable
 
 import six
 try:
@@ -314,6 +315,11 @@ class ECMCPU(object):
         bin_name = self.kernel.assemble(
             self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block,
             asm_increment=self._args.asm_increment)
+
+        # Making sure iaca.sh is available:
+        if find_executable('iaca.sh') is None:
+            print("iaca.sh was not found. Make sure it is found in PATH.", file=sys.stderr)
+            sys.exit(1)
 
         try:
             cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]

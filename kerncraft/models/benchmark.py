@@ -8,6 +8,7 @@ from functools import reduce
 import operator
 import sys
 import six
+from distutils.spawn import find_executable
 
 from kerncraft.kernel import KernelCode
 
@@ -45,6 +46,13 @@ class Benchmark(object):
         '''
         runs *cmd* with likwid-perfctr and returns result as dict
         '''
+
+        # Making sure iaca.sh is available:
+        if find_executable('likwid-perfctr') is None:
+            print("likwid-perfctr was not found. Make sure likwid is installed and found in PATH.",
+                  file=sys.stderr)
+            sys.exit(1)
+        
         # FIXME currently only single core measurements support!
         perf_cmd = ['likwid-perfctr', '-O', '-g', group]
 

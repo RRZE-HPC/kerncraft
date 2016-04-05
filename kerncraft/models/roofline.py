@@ -10,6 +10,7 @@ import operator
 import subprocess
 import re
 import sys
+from distutils.spawn import find_executable
 
 import sympy
 
@@ -363,6 +364,11 @@ class RooflineIACA(Roofline):
         bin_name = self.kernel.assemble(
            self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block,
            asm_increment=self._args.asm_increment)
+
+        # Making sure iaca.sh is available:
+        if find_executable('iaca.sh') is None:
+            print("iaca.sh was not found. Make sure it is found in PATH.", file=sys.stderr)
+            sys.exit(1)
 
         # Get total cycles per loop iteration
         try:

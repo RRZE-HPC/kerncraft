@@ -16,6 +16,7 @@ import numbers
 import collections
 from functools import reduce
 from string import ascii_letters
+from distutils.spawn import find_executable
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -929,6 +930,11 @@ class KernelCode(Kernel):
 
         Output can be used with Kernel.assemble()
         '''
+        # Making sure compiler is available:
+        if find_executable(compiler) is None:
+            print("Compiler ({}) was not found. Choose different one in machine file "
+                  "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
+            sys.exit(1)
 
         if not self._filename:
             in_file = tempfile.NamedTemporaryFile(suffix='_compilable.c').file
@@ -971,9 +977,17 @@ class KernelCode(Kernel):
 
         returns the executable name
         '''
-        assert ('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and \
-            'LIKWID_LIB' in os.environ, \
-            'Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables'
+        if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
+                'LIKWID_LIB' in os.environ):
+            print('Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables',
+                  file=sys.stderr)
+            sys.exit(1)
+
+        # Making sure compiler is available:
+        if find_executable(compiler) is None:
+            print("Compiler ({}) was not found. Choose different one in machine file "
+                  "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
+            sys.exit(1)
 
         if cflags is None:
             cflags = []

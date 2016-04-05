@@ -5,8 +5,14 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import division
 
-import argparse
+# Version check
 import sys
+if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
+        sys.version_info[0] == 3 and sys.version_info < (3, 4):
+    print("Must use python 2.7 or 3.4 and greater.", file=sys.stderr)
+    sys.exit(1)
+
+import argparse
 import os.path
 import pickle
 import shutil
