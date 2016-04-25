@@ -286,9 +286,12 @@ class Roofline(object):
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         cy_cl = clock/it_s*elements_per_cacheline
         cy_cl.unit = 'cy/CL'
+        cy_it = clock/it_s
+        cy_it.unit = 'cy/It'
 
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
+                'cy/It': cy_it,
                 'FLOP/s': performance}[unit]
 
     def report(self, output_file=sys.stdout):

@@ -249,15 +249,18 @@ class ECMData(object):
 
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+        elements_per_cacheline = int(self.machine['cacheline size']) // element_size
         it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
         performance.unit = 'FLOP/s'
+        cy_it = cy_cl*elements_per_cacheline
+        cy_it.unit = 'cy/It'
 
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
+                'cy/It': cy_it,
                 'FLOP/s': performance}[unit]
 
     def report(self, output_file=sys.stdout):
@@ -269,7 +272,8 @@ class ECMData(object):
                       file=output_file)
 
         for level, cycles in self.results['cycles']:
-            print('{} = {:.2g} cy/CL'.format(level, cycles), file=output_file)
+            print('{} = {}'.format(
+                level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
 
 
 class ECMCPU(object):
@@ -422,15 +426,18 @@ class ECMCPU(object):
 
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        elements_per_cacheline = int(self.machine['cacheline size']) / element_size
+        elements_per_cacheline = int(self.machine['cacheline size']) // element_size
         it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
         performance.unit = 'FLOP/s'
+        cy_it = cy_cl*elements_per_cacheline
+        cy_it.unit = 'cy/It'
 
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
+                'cy/It': cy_it,
                 'FLOP/s': performance}[unit]
 
     def report(self, output_file=sys.stdout):

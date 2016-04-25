@@ -130,7 +130,7 @@ def create_parser():
                              'required.')
     parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
                         help='Addes results to PICKLE file for later processing.')
-    parser.add_argument('--unit', '-u', choices=['cy/CL', 'It/s', 'FLOP/s'],
+    parser.add_argument('--unit', '-u', choices=['cy/CL', 'cy/It', 'It/s', 'FLOP/s'],
                         help='Select the output unit, defaults to model specific if not given.')
     parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
                         help='Number of cores to be used in parallel. (default: 1)')
