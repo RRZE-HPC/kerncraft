@@ -250,8 +250,11 @@ class ECMData(object):
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(self.machine['cacheline size']) // element_size
-        it_s = clock/cy_cl*elements_per_cacheline
-        it_s.unit = 'It/s'
+        if cy_cl != 0:
+            it_s = clock/cy_cl*elements_per_cacheline
+            it_s.unit = 'It/s'
+        else:
+            it_s = PrefixedUnit('inf It/S')
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
         performance.unit = 'FLOP/s'

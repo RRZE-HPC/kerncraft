@@ -32,7 +32,7 @@ class PrefixedUnit(yaml.YAMLObject):
         if len(args) == 1:
             if isinstance(args[0], six.string_types):
                 m = re.match(
-                    r'^(?P<value>[0-9]+(?:\.[0-9]+)?) (?P<prefix>[kMGTP])?(?P<unit>.*)$', args[0])
+                    r'^(?P<value>(?:[0-9]+(?:\.[0-9]+)?|inf)) (?P<prefix>[kMGTP])?(?P<unit>.*)$', args[0])
                 assert m, "Could not parse unit parameter "+repr(args[0])
                 g = m.groups()
                 args = [float(g[0]), g[1], g[2]]
