@@ -6,7 +6,6 @@ from __future__ import absolute_import
 import argparse
 import pickle
 import collections
-import six
 
 
 def update(d, u):
@@ -15,7 +14,7 @@ def update(d, u):
     Origin:
     http://stackoverflow.com/a/3233356/2754040
     '''
-    for k, v in six.iteritems(u):
+    for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = update(d.get(k, {}), v)
             d[k] = r
@@ -41,7 +40,6 @@ def main():
     for s in args.source:
         data = pickle.load(s)
         assert isinstance(data, collections.Mapping), "only Mapping types can be handled."
-
 
         update(result, data)
 

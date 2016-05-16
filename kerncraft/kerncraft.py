@@ -184,7 +184,7 @@ def run(parser, args, output_file=sys.stdout):
     # TODO make configurable (no hardcoded 512MB/1GB/min. 3 iteration ...)
     # works only for up to 3 dimensions
     if not args.define:
-        required_consts = [v[1] for v in kernel.variables.itervalues() if v[1] is not None]
+        required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
         assert all([1 <= len(rc) <= 3 for rc in required_consts]), "Automatic selection of " + \
             "defines only works with up to 3 dimensions."
         inner_loop_syms = kernel._loop_stack[-1][2].free_symbols
