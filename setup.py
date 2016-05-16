@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from __future__ import absolute_import
 from setuptools import setup, find_packages  # Always prefer setuptools over distutils
 from codecs import open  # To use a consistent encoding
@@ -65,7 +67,7 @@ setup(
 
     # List run-time dependencies here.  These will be installed by pip when your
     # project is installed. For an analysis of "install_requires" vs pip's
-    
+
     # what is not found or up-to-date on pypi we get from github:
     #dependency_links = ['https://github.com/sympy/sympy/tarball/master#egg=sympy-0.7.7.dev0'],
 

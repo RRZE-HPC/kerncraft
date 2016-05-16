@@ -13,7 +13,7 @@ before_install:
 - pip install codecov
 - pip install requests
 install:
-- pip install --process-dependency-links  .
+- python ./setup.py install
 - python get-iaca.py --i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
   lin64
 before_script:
