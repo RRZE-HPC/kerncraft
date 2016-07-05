@@ -507,5 +507,5 @@ class RooflineIACA(Roofline):
                       bottleneck['level'],
                       bottleneck['bw kernel']),
                   file=output_file)
-            print('Arithmetic Intensity: {:.2g} FLOP/B'.format(bottleneck['arithmetic intensity']),
+            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)

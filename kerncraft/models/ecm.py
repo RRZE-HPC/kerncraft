@@ -462,8 +462,8 @@ class ECMCPU(object):
                       self.conv_cy(self.results['cl latency'], self._args.unit)),
                   file=output_file)
 
-        print('T_nOL = {:.2g} cy/CL'.format(self.results['T_nOL']), file=output_file)
-        print('T_OL = {:.2g} cy/CL'.format(self.results['T_OL']), file=output_file)
+        print('T_nOL = {:.1f} cy/CL'.format(self.results['T_nOL']), file=output_file)
+        print('T_OL = {:.1f} cy/CL'.format(self.results['T_OL']), file=output_file)
 
 
 class ECM(object):
@@ -530,10 +530,10 @@ class ECM(object):
         total_cycles = max(
             self.results['T_OL'],
             sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']]))
-        report += '{{ {:.2g} || {:.2g} | {} }} cy/CL'.format(
+        report += '{{ {:.1f} || {:.1f} | {} }} cy/CL'.format(
             self.results['T_OL'],
             self.results['T_nOL'],
-            ' | '.join(['{:.2g}'.format(i[1]) for i in self.results['cycles']]))
+            ' | '.join(['{:.1f}'.format(i[1]) for i in self.results['cycles']]))
 
         if self._args.unit:
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
@@ -541,7 +541,7 @@ class ECM(object):
         report += '\n{{ {} \ {} }} cy/CL'.format(
             max(self.results['T_OL'],
                 self.results['T_nOL']),
-                ' \ '.join(['{:.2g}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
+                ' \ '.join(['{:.1f}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
                                                 self.results['T_nOL'], self.results['T_OL']))
                             for i in range(len(self.results['cycles']))]))
 
@@ -580,7 +580,7 @@ class ECM(object):
                 yticks.append(i)
                 i += 1
             xticks.append(sorted_overlapping_ports[-1][1])
-            xticks_labels.append('{:.2g}'.format(sorted_overlapping_ports[-1][1]))
+            xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
 
             # T_nOL + memory transfers
             y = 0
@@ -590,7 +590,7 @@ class ECM(object):
                 ax.barh(i, v, height, y, align='center', color=colors.pop())
                 ax.text(y+v/2.0, i, '$T_\mathrm{'+k+'}$', ha='center', va='center')
                 xticks.append(y+v)
-                xticks_labels.append('{:.2g}'.format(y+v))
+                xticks_labels.append('{:.1f}'.format(y+v))
                 y += v
             yticks_labels.append('LD')
             yticks.append(i)
