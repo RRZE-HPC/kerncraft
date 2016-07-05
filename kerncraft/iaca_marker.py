@@ -14,10 +14,12 @@ import re
 from six.moves import map
 from six.moves import input
 
+# Within loop
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     103        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
+# After loop
 END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
               '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
               '        .byte     103        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
