@@ -147,7 +147,10 @@ class PrefixedUnit(yaml.YAMLObject):
         return float(self) > float(other)
 
     def __eq__(self, other):
-        return float(self) == float(other)
+        try:
+            return float(self) == float(other)
+        except TypeError:
+            return False
 
     def __le__(self, other):
         return float(self) <= float(other)
@@ -156,7 +159,10 @@ class PrefixedUnit(yaml.YAMLObject):
         return float(self) >= float(other)
 
     def __ne__(self, other):
-        return float(self) != float(other)
+        try:
+            return float(self) != float(other)
+        except TypeError:
+            return True
 
 # Make this tag automatic
 yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)
