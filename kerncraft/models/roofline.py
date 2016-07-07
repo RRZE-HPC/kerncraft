@@ -26,7 +26,6 @@ class Roofline(object):
     """
 
     name = "Roofline"
-    _expand_to_cacheline_blocks_cache = {}
 
     @classmethod
     def configure_arggroup(cls, parser):
@@ -46,63 +45,6 @@ class Roofline(object):
         if args:
             # handle CLI info
             pass
-
-    def _calculate_relative_offset(self, name, access_dimensions):
-        '''
-        returns the offset from the iteration center in number of elements and the order of indices
-        used in access.
-        '''
-        offset = 0
-        base_dims = self.kernel.variables[name][1]
-
-        for dim, offset_info in enumerate(access_dimensions):
-            offset_type, idx_name, dim_offset = offset_info
-            assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
-
-            if offset_type == 'rel':
-                offset += self.kernel.subs_consts(
-                    dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
-            else:
-                # should not happen
-                pass
-
-        return offset
-
-    def _calculate_iteration_offset(self, name, index_order, loop_index):
-        '''
-        returns the offset from one to the next iteration using *loop_index*.
-        *index_order* is the order used by the access dimensions e.g. 'ijk' corresponse to [i][j][k]
-        *loop_index* specifies the loop to be used for iterations (this is typically the inner
-        moste one)
-        '''
-        offset = 0
-        base_dims = self.kernel.variables[name][1]
-
-        for dim, index_name in enumerate(index_order):
-            if loop_index == index_name:
-                offset += self.kernel.subs_consts(
-                    reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
-
-        return offset
-
-    def _get_index_order(self, access_dimensions):
-        '''Returns the order of indices used in *access_dimensions*.'''
-        return ''.join([d[1] for d in access_dimensions])
-
-    def _expand_to_cacheline_blocks(self, first, last):
-        '''
-        Returns first and last values wich align with cacheline blocks, by increasing range.
-        '''
-        if (first,last) not in self._expand_to_cacheline_blocks_cache:
-            # handle multiple datatypes
-            element_size = self.kernel.datatypes_size[self.kernel.datatype]
-            elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
-
-            self._expand_to_cacheline_blocks_cache[(first,last)] = [
-                first - first % elements_per_cacheline,
-                last - last % elements_per_cacheline + elements_per_cacheline - 1]
-
-        return self._expand_to_cacheline_blocks_cache[(first,last)]
 
     def calculate_cache_access(self, CPUL1=True):
         # FIXME handle multiple datatypes
