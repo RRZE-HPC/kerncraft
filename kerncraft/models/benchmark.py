@@ -144,19 +144,19 @@ class Benchmark(object):
             print('Iterations per repetition: {!s}'.format(
                      self.results['Iterations per repetition']),
                   file=output_file)
-        print('Runtime (per cacheline update): {:.2g} cy/CL'.format(
+        print('Runtime (per cacheline update): {:.2f} cy/CL'.format(
                   self.results['Runtime (per cacheline update) [cy/CL]']),
               file=output_file)
-        print('MEM volume (per repetition): {:.2g} Byte'.format(
+        print('MEM volume (per repetition): {:.2f} Byte'.format(
                   self.results['MEM volume (per repetition) [B]']),
               file=output_file)
-        print('Performance: {:.2g} MFLOP/s'.format(self.results['Performance [MFLOP/s]']),
+        print('Performance: {:.2f} MFLOP/s'.format(self.results['Performance [MFLOP/s]']),
               file=output_file)
-        print('Performance: {:.2g} MLUP/s'.format(self.results['Performance [MLUP/s]']),
+        print('Performance: {:.2f} MLUP/s'.format(self.results['Performance [MLUP/s]']),
               file=output_file)
-        print('Performance: {:.2g} It/s'.format(self.results['Performance [MIt/s]']),
+        print('Performance: {:.2f} It/s'.format(self.results['Performance [MIt/s]']),
               file=output_file)
         if self._args.verbose > 0:
-            print('MEM bandwidth: {:.2g} MByte/s'.format(self.results['MEM BW [MByte/s]']),
+            print('MEM bandwidth: {:.2f} MByte/s'.format(self.results['MEM BW [MByte/s]']),
                   file=output_file)
         print('', file=output_file)
