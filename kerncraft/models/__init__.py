@@ -14,5 +14,6 @@ The exported classes must have the following class level attributes:
 from .ecm import ECM, ECMData, ECMCPU
 from .roofline import Roofline, RooflineIACA
 from .benchmark import Benchmark
+from .layer_condition import LC
 
-__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA', 'Benchmark']
+__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA', 'Benchmark', 'LC']

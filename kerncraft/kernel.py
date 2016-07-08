@@ -17,6 +17,9 @@ import collections
 from functools import reduce
 from string import ascii_letters
 from distutils.spawn import find_executable
+from itertools import chain
+from collections import defaultdict
+from pprint import pprint
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -265,6 +268,45 @@ class Kernel(object):
             total_length = total_length*length
 
         return self.subs_consts(total_length)
+    
+    def get_loop_stack(self):
+        for l in self._loop_stack:
+            yield {'index': l[0], 'start': l[1], 'stop': l[2], 'increment': l[3]}
+    
+    def compile_sympy_accesses(self, sources=True, destinations=True):
+        '''returns a dictionary of lists of sympy accesses, for each variable'''
+        sympy_accesses = defaultdict(list)
+        # Compile sympy accesses
+        for var_name in self.variables:
+            if sources:
+                for r in self._sources.get(var_name, []):
+                    if r is None: continue
+                    sympy_accesses[var_name].append(self.access_to_sympy(var_name, r))
+            if destinations:
+                for w in self._destinations.get(var_name, []):
+                    if w is None: continue
+                    sympy_accesses[var_name].append(self.access_to_sympy(var_name, w))
+
+        return sympy_accesses
+    
+    def compile_relative_distances(self, sympy_accesses=None):
+        '''Returns load and store distances between accesses.
+        
+        :param sympy_accesses: optionally restrict accesses, default from compile_sympy_accesses()
+        
+        e.g. if accesses are to [+N, +1, -1, -N], relative distances are [N-1, 2, N-1]
+        
+        returned is a dict of list of sympy expressions, for each variable'''
+        if sympy_accesses is None:
+            sympy_accesses = self.compile_sympy_accesses()
+        
+        sympy_distances = defaultdict(list)
+        for var_name, accesses in sympy_accesses.items():
+            for i in range(1, len(accesses)):
+                sympy_distances[var_name].append((accesses[i-1]-accesses[i]).simplify())
+        
+        return sympy_distances
+        
 
     def compile_global_offsets(self, iteration=0, spacing=0):
         '''Returns load and store offsets on a virtual address space.
@@ -279,7 +321,7 @@ class Kernel(object):
 
         Accesses to scalars are ignored.
 
-        Returned are load and store byte-offset paris for each iteration.
+        Returned are load and store byte-offset pairs for each iteration.
         '''
         global_load_offsets = []
         global_store_offsets = []
@@ -514,6 +556,28 @@ class KernelCode(Kernel):
             idxs.reverse()
 
         return idxs
+    
+    def index_order(self, sources=True, destinations=True):
+        '''
+        Returns the order of indices as they appear in array references
+        
+        Use *source* and *destination* to reduce output
+        '''
+        if sources:
+            arefs = chain(*self._sources.values())
+        else:
+            arefs = []
+        if destinations:
+            arefs = chain(arefs, *self._destinations.values())
+        
+        ret = []
+        for a in [aref for aref in arefs if aref is not None]:
+            ref = []
+            for expr in a:
+                ref.append(expr.free_symbols)
+            ret.append(ref)
+        
+        return ret
 
     @classmethod
     def _get_basename(cls, aref):
