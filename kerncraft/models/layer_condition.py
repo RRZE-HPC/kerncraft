@@ -116,14 +116,26 @@ class LC(object):
             results['dimensions'][dimension]['slices_sum'] = slices_sum
             
             # Max of lengths between relative distances
-            # TODO make sympy understand that Symbols > Integers, or have it solve correctly
             # Work-around, the arguments with the most symbols get to stay
             # FIXME, may not be correct in all cases. e.g., N+M vs. N*M
             def FuckedUpMax(*args):
+                # Filter expressions with less than the maximum number of symbols
                 max_symbols = max([len(a.free_symbols) for a in args])
                 args = filter(lambda a: len(a.free_symbols) == max_symbols, args)
+                
+                # Filter symbols of with lower exponent
+                max_coeffs = 0
+                for a in args:
+                    for s in a.free_symbols:
+                        max_coeffs = max(max_coeffs, len(sympy.Poly(a, s).all_coeffs()))
+                def coeff_filter(a):
+                    return max(
+                        0, 0,
+                        *[len(sympy.Poly(a, s).all_coeffs()) for s in a.free_symbols]) == max_coeffs
+    
+                args = filter(coeff_filter, args)
                 return sympy.Max(*args)
-                    
+            
             slices_max = FuckedUpMax(*[FuckedUpMax(*dists) for dists in slices_distances.values()])
             results['dimensions'][dimension]['slices_sum'] = slices_sum
             
@@ -135,6 +147,14 @@ class LC(object):
             cache_requirement_bytes = (slices_sum + slices_max*slices_count)*element_size
             results['dimensions'][dimension]['cache_requirement_bytes'] = cache_requirement_bytes
             
+            # To get rid of negative representations in sqrts:
+            # Get constant variables and marks as all positive,
+            # replace constants in cache_requirement_bytes with positive counterparts:
+            consts_pos = []
+            for c in self.kernel.constants.keys():
+                consts_pos.append(sympy.Symbol(c.name, positive=True))
+                cache_requirement_bytes = cache_requirement_bytes.subs(c, consts_pos[-1])
+            
             # Apply to all cache sizes
             csim = self.machine.get_cachesim()
             results['dimensions'][dimension]['caches'] = {}
@@ -144,10 +164,10 @@ class LC(object):
                     'cache_size': cl.size(),
                     'equation': cache_equation,
                     'lt': sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),
-                                      *self.kernel.constants.keys()),
-                    'eq': sympy.solve(sympy.Eq(cache_requirement_bytes, cl.size()),
-                                      *self.kernel.constants.keys())
+                                      *consts_pos),
+                    'eq': sympy.solve(cache_equation, *consts_pos)
                 }
+        #pprint(results)
         
         return results
 
