@@ -330,6 +330,8 @@ class ECMCPU(object):
 
         try:
             cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
+            if self._args.verbose >= 3:
+                print('Executing:', ' '.join(cmd))
             iaca_output = subprocess.check_output(cmd).decode('utf-8')
         except OSError as e:
             print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)

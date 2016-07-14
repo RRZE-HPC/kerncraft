@@ -21,6 +21,27 @@ from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.kernel import KernelCode
 
 
+# Not useing functools.cmp_to_key, because it does not exit in python 2.x
+def cmp_to_key(mycmp):
+    'Convert a cmp= function into a key= function'
+    class K(object):
+        def __init__(self, obj, *args):
+            self.obj = obj
+        def __lt__(self, other):
+            return mycmp(self.obj, other.obj) < 0
+        def __gt__(self, other):
+            return mycmp(self.obj, other.obj) > 0
+        def __eq__(self, other):
+            return mycmp(self.obj, other.obj) == 0
+        def __le__(self, other):
+            return mycmp(self.obj, other.obj) <= 0
+        def __ge__(self, other):
+            return mycmp(self.obj, other.obj) >= 0
+        def __ne__(self, other):
+            return mycmp(self.obj, other.obj) != 0
+    return K
+
+
 class LC(object):
     """
     class representation of the Layer-Condition Model
@@ -48,7 +69,7 @@ class LC(object):
         if args:
             # handle CLI info
             pass
-
+    
     def calculate_cache_access(self):
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
@@ -80,7 +101,7 @@ class LC(object):
                 accesses[var_name].append(w)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
             # order accesses by increasing order
-            accesses[var_name].sort(cmp=sympy_compare)
+            accesses[var_name].sort(key=cmp_to_key(sympy_compare))#cmp=sympy_compare)
         
         results['accesses'] = accesses
         results['sympy_accesses'] = sympy_accesses
@@ -119,10 +140,13 @@ class LC(object):
             # Work-around, the arguments with the most symbols get to stay
             # FIXME, may not be correct in all cases. e.g., N+M vs. N*M
             def FuckedUpMax(*args):
+                if len(args) == 1:
+                    return args[0]
                 # Filter expressions with less than the maximum number of symbols
                 max_symbols = max([len(a.free_symbols) for a in args])
-                args = filter(lambda a: len(a.free_symbols) == max_symbols, args)
-                
+                args = list(filter(lambda a: len(a.free_symbols) == max_symbols, args))
+                if max_symbols == 0:
+                    return sympy.Max(*args)
                 # Filter symbols of with lower exponent
                 max_coeffs = 0
                 for a in args:
@@ -132,8 +156,7 @@ class LC(object):
                     return max(
                         0, 0,
                         *[len(sympy.Poly(a, s).all_coeffs()) for s in a.free_symbols]) == max_coeffs
-    
-                args = filter(coeff_filter, args)
+                args = list(filter(coeff_filter, args))
                 return sympy.Max(*args)
             
             slices_max = FuckedUpMax(*[FuckedUpMax(*dists) for dists in slices_distances.values()])
@@ -147,14 +170,6 @@ class LC(object):
             cache_requirement_bytes = (slices_sum + slices_max*slices_count)*element_size
             results['dimensions'][dimension]['cache_requirement_bytes'] = cache_requirement_bytes
             
-            # To get rid of negative representations in sqrts:
-            # Get constant variables and marks as all positive,
-            # replace constants in cache_requirement_bytes with positive counterparts:
-            consts_pos = []
-            for c in self.kernel.constants.keys():
-                consts_pos.append(sympy.Symbol(c.name, positive=True))
-                cache_requirement_bytes = cache_requirement_bytes.subs(c, consts_pos[-1])
-            
             # Apply to all cache sizes
             csim = self.machine.get_cachesim()
             results['dimensions'][dimension]['caches'] = {}
@@ -164,8 +179,8 @@ class LC(object):
                     'cache_size': cl.size(),
                     'equation': cache_equation,
                     'lt': sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),
-                                      *consts_pos),
-                    'eq': sympy.solve(cache_equation, *consts_pos)
+                                      *self.kernel.constants.keys()),
+                    'eq': sympy.solve(cache_equation, *self.kernel.constants.keys())
                 }
         #pprint(results)
         

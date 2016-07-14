@@ -158,7 +158,7 @@ class Kernel(object):
         if isinstance(name, sympy.Symbol):
             self.constants[name] = value
         else:
-            self.constants[sympy.Symbol(name)] = value
+            self.constants[sympy.Symbol(name, positive=True)] = value
 
     def set_variable(self, name, type_, size):
         assert type_ in self.datatypes_size, 'only float and double variables are supported'
@@ -333,12 +333,12 @@ class Kernel(object):
         # loop indices based on iteration
         # unwind global iteration count into loop counters:
         base_loop_counters = {}
-        global_iterator = sympy.Symbol('global_iterator')
+        global_iterator = sympy.Symbol('global_iterator', positive=True)
         idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
         last_incr = 1
         for var_name, start, end, incr in reversed(self._loop_stack):
-            loop_var = sympy.Symbol(var_name)
+            loop_var = sympy.Symbol(var_name, positive=True)
 
             # This unspools the iterations:
             length = end-start
@@ -510,7 +510,7 @@ class KernelCode(Kernel):
         multiplication from AST to a sympy representation.
         '''
         if type(math_ast) is c_ast.ID:
-            return sympy.Symbol(math_ast.name)
+            return sympy.Symbol(math_ast.name, positive=True)
         elif type(math_ast) is c_ast.Constant:
             return sympy.Integer(math_ast.value)
         else:  # elif type(dim) is c_ast.BinaryOp:
@@ -614,7 +614,7 @@ class KernelCode(Kernel):
 
         if type(floop.cond.right) is c_ast.ID:
             const_name = floop.cond.right.name
-            iter_max = sympy.Symbol(const_name)
+            iter_max = sympy.Symbol(const_name, positive=True)
         elif type(floop.cond.right) is c_ast.Constant:
             iter_max = sympy.Integer(floop.cond.right.value)
         else:  # type(floop.cond.right) is c_ast.BinaryOp
@@ -1058,7 +1058,8 @@ class KernelCode(Kernel):
         cflags += ['-std=c99',
                    '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
                    os.environ.get('LIKWID_INCLUDE', ''),
-                   os.environ.get('LIKWID_INC', '')]
+                   os.environ.get('LIKWID_INC', ''),
+                   '-llikwid']
 
         if lflags is None:
             lflags = []
@@ -1144,4 +1145,5 @@ class KernelDescription(Kernel):
             return None
         else:
             # TODO find nicer solution for N and other pre-mapped letters
-            return parse_expr(s, local_dict={c: sympy.Symbol(c) for c in s if c in ascii_letters})
+            return parse_expr(s, local_dict={c: sympy.Symbol(c, positive=True)
+                                             for c in s if c in ascii_letters})
