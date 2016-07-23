@@ -7,17 +7,25 @@ import cachesim
 
 
 class MachineModel(object):
-    def __init__(self, path_to_yaml):
+    def __init__(self, path_to_yaml=None, machine_yaml=None):
+        if not path_to_yaml and not machine_yaml:
+            raise ValueError('Either path_to_yaml ot machine_yaml is required')
+        if path_to_yaml and machine_yaml:
+            raise ValueError('Only one of path_to_yaml and machine_yaml is allowed')
         self._path = path_to_yaml
-        self._data = {}
-        with open(path_to_yaml, 'r') as f:
-            self._data = yaml.load(f)
+        self._data = machine_yaml
+        if path_to_yaml:
+            with open(path_to_yaml, 'r') as f:
+                self._data = yaml.load(f)
 
     def __getitem__(self, index):
         return self._data[index]
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, repr(self._path))
+        return '{}({})'.format(
+            self.__class__.__name__,
+            repr(self._path or self._data['model name']),
+        )
 
     def get_cachesim(self, cores=1):
         '''Returns a cachesim.CacheSimulator object based on the machine description
@@ -25,12 +33,12 @@ class MachineModel(object):
         cache_stack = []
         cache = None
         cl_size = int(self['cacheline size'])
-        
+
         cs, caches, mem = cachesim.CacheSimulator.from_dict(
             {c['level']: c['cache per group']
              for c in self['memory hierarchy']
              if 'cache per group' in c})
-        
+
         return cs
 
     def get_bandwidth(self, cache_level, read_streams, write_streams, threads_per_core, cores=None):
