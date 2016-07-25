@@ -674,7 +674,6 @@ class KernelCode(Kernel):
 
     def _p_assignment(self, stmt):
         # Check for restrictions
-        print(stmt)
         assert type(stmt) is c_ast.Assignment, \
             "Only assignment statements are allowed in loops."
         assert type(stmt.lvalue) in [c_ast.ArrayRef, c_ast.ID], \
