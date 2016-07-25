@@ -458,7 +458,8 @@ class KernelCode(Kernel):
 
         self.kernel_code = kernel_code
         self._filename = filename
-        parser = CParser()
+        # need to refer to local lextab, otherwise the systemwide lextab would be imported
+        parser = CParser(lextab='kerncraft.pycparser.lextab')
         self.kernel_ast = parser.parse(self._as_function()).ext[0].body
         self._process_code()
 
