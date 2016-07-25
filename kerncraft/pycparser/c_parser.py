@@ -537,6 +537,7 @@ class CParser(PLYParser):
 
     def p_external_declaration_3(self, p):
         """ external_declaration    : pp_directive
+                                    | pppragma_directive
         """
         p[0] = [p[1]]
 
@@ -547,17 +548,18 @@ class CParser(PLYParser):
 
     def p_pp_directive(self, p):
         """ pp_directive  : PPHASH
-                          | PPPRAGMA
-                          | PPPRAGMA PPPRAGMASTR
         """
-        if p[1] == "pragma":
-            if len(p) == 3:
-                p[0] = c_ast.Pragma(p[2])
-            else:
-                p[0] = c_ast.Pragma("")
+        self._parse_error('Directives not supported yet',
+                          self._coord(p.lineno(1)))
+
+    def p_pppragma_directive(self, p):
+        """ pppragma_directive      : PPPRAGMA
+                                    | PPPRAGMA PPPRAGMASTR
+        """
+        if len(p) == 3:
+            p[0] = c_ast.Pragma(p[2])
         else:
-            self._parse_error('Directives not supported yet',
-                self._coord(p.lineno(1)))
+            p[0] = c_ast.Pragma("")
 
     # In function definitions, the declarator can be followed by
     # a declaration list, for old "K&R style" function definitios.
@@ -597,7 +599,7 @@ class CParser(PLYParser):
                         | selection_statement
                         | iteration_statement
                         | jump_statement
-                        | pp_directive
+                        | pppragma_directive
         """
         p[0] = p[1]
 

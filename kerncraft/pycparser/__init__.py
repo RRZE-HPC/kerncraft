@@ -115,7 +115,7 @@ def clean_code(code, comments=True, macros=False):
                 lines[i] = ''
                 in_macro = l.endswith('\\')
         code = '\n'.join(lines)
-
+    
     if comments:
         idx = 0
         comment_start = None
@@ -131,5 +131,5 @@ def clean_code(code, comments=True, macros=False):
                 idx -= idx - comment_start
                 comment_start = None
             idx += 1
-
+    
     return code

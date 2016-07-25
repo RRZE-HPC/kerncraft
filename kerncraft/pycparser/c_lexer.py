@@ -172,7 +172,7 @@ class CLexer(object):
 
         # pre-processor
         'PPHASH',       # '#'
-        'PPPRAGMA',     # '#pragma'
+        'PPPRAGMA',     # 'pragma'
         'PPPRAGMASTR',
     )
 
@@ -313,10 +313,6 @@ class CLexer(object):
         '.+'
         t.type = 'PPPRAGMASTR'
         return t
-    
-    @TOKEN(identifier)
-    def t_pppragma_ID(self, t):
-        pass
 
     def t_pppragma_error(self, t):
         self._error('invalid #pragma directive', t)
