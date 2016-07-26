@@ -479,12 +479,14 @@ class KernelCode(Kernel):
 
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
-        assert all([type(s) is c_ast.Decl for s in self.kernel_ast.block_items[:-1]]), \
-            'all statments befor the for loop need to be declarations'
+        assert all([type(s) in [c_ast.Decl, c_ast.Pragma]
+                    for s in self.kernel_ast.block_items[:-1]]), \
+            'all statments before the for loop need to be declarations or pragmas'
         assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
             'last statment in kernel code must be a loop'
 
         for item in self.kernel_ast.block_items[:-1]:
+            if type(item) is c_ast.Pragma: continue
             array = type(item.type) is c_ast.ArrayDecl
 
             if array:

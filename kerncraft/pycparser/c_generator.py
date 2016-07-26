@@ -196,9 +196,9 @@ class CGenerator(object):
         return 'continue;'
 
     def visit_TernaryOp(self, n):
-        s = self._visit_expr(n.cond) + ' ? '
-        s += self._visit_expr(n.iftrue) + ' : '
-        s += self._visit_expr(n.iffalse)
+        s  = '(' + self._visit_expr(n.cond) + ') ? '
+        s += '(' + self._visit_expr(n.iftrue) + ') : '
+        s += '(' + self._visit_expr(n.iffalse) + ')'
         return s
 
     def visit_If(self, n):
@@ -279,7 +279,7 @@ class CGenerator(object):
                 s += '.' + name.name
             elif isinstance(name, c_ast.Constant):
                 s += '[' + name.value + ']'
-        s += ' = ' + self.visit(n.expr)
+        s += ' = ' + self._visit_expr(n.expr)
         return s
 
     def visit_FuncDecl(self, n):

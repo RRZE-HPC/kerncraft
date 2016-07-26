@@ -20,6 +20,7 @@ class CParser(PLYParser):
     def __init__(
             self,
             lex_optimize=True,
+            lexer=CLexer,
             lextab='pycparser.lextab',
             yacc_optimize=True,
             yacctab='pycparser.yacctab',
@@ -41,7 +42,11 @@ class CParser(PLYParser):
                 When releasing with a stable lexer, set to True
                 to save the re-generation of the lexer table on
                 each run.
-
+                
+            lexer:
+                Set this parameter to define the lexer to use if
+                you're not using the default CLexer.
+                
             lextab:
                 Points to the lex table that's used for optimized
                 mode. Only if you're modifying the lexer and want
@@ -70,7 +75,7 @@ class CParser(PLYParser):
                 Set this parameter to control the location of generated
                 lextab and yacctab files.
         """
-        self.clex = CLexer(
+        self.clex = lexer(
             error_func=self._lex_error_func,
             on_lbrace_func=self._lex_on_lbrace_func,
             on_rbrace_func=self._lex_on_rbrace_func,
@@ -557,9 +562,9 @@ class CParser(PLYParser):
                                     | PPPRAGMA PPPRAGMASTR
         """
         if len(p) == 3:
-            p[0] = c_ast.Pragma(p[2])
+            p[0] = c_ast.Pragma(p[2], self._coord(p.lineno(2)))
         else:
-            p[0] = c_ast.Pragma("")
+            p[0] = c_ast.Pragma("", self._coord(p.lineno(1)))
 
     # In function definitions, the declarator can be followed by
     # a declaration list, for old "K&R style" function definitios.
@@ -836,7 +841,10 @@ class CParser(PLYParser):
         """ struct_declaration_list     : struct_declaration
                                         | struct_declaration_list struct_declaration
         """
-        p[0] = p[1] if len(p) == 2 else p[1] + p[2]
+        if len(p) == 2:
+            p[0] = p[1] or []
+        else:
+            p[0] = p[1] + (p[2] or [])
 
     def p_struct_declaration_1(self, p):
         """ struct_declaration : specifier_qualifier_list struct_declarator_list_opt SEMI
@@ -889,6 +897,11 @@ class CParser(PLYParser):
         p[0] = self._build_declarations(
                 spec=p[1],
                 decls=[dict(decl=p[2], init=None)])
+
+    def p_struct_declaration_3(self, p):
+        """ struct_declaration : SEMI
+        """
+        p[0] = None
 
     def p_struct_declarator_list(self, p):
         """ struct_declarator_list  : struct_declarator

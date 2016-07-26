@@ -361,6 +361,18 @@ class TestKerncraft(unittest.TestCase):
 
         for k, v in correct_results.items():
             self.assertAlmostEqual(roofline[k], v, places=1)
+    
+    def test_2d5pt_pragma(self):
+        output_stream = StringIO()
+
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'ECMData',
+                                  self._find_file('2d-5pt_pragma.c'),
+                                  '-D', 'N', '1000',
+                                  '-D', 'M', '50'])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
 
     def test_argument_parser_asm_block(self):
         # valid --asm-block
