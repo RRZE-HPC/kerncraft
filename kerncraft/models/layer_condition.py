@@ -127,10 +127,10 @@ class LC(object):
                     slices_distances[k].append((v[i-1] - v[i]).simplify())
             results['dimensions'][dimension]['slices_distances'] = slices_distances
             
-            # Check that distances do not contain only free_symbols based on constants
+            # Check that distances contain only free_symbols based on constants
             for dist in chain(*slices_distances.values()):
                 if any([s not in self.kernel.constants.keys() for s in dist.free_symbols]):
-                    raise ValueError("Some distances are not based on constants: "+str(dist))
+                    raise ValueError("Some distances are not based on non-constants: "+str(dist))
             
             # Sum of lengths between relative distances
             slices_sum = sum([sum(dists) for dists in slices_distances.values()])
@@ -175,14 +175,19 @@ class LC(object):
             results['dimensions'][dimension]['caches'] = {}
             for cl in  csim.levels(with_mem=False):
                 cache_equation = sympy.Eq(cache_requirement_bytes, cl.size())
+                print(sympy.LessThan(cache_requirement_bytes, cl.size()))
+                if len(self.kernel.constants.keys()) <= 1:
+                    inequality = sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),
+                                             *self.kernel.constants.keys())
+                else:
+                    # Sympy does not solve for multiple constants
+                    inequality = sympy.LessThan(cache_requirement_bytes, cl.size())
                 results['dimensions'][dimension]['caches'][cl.name] = {
                     'cache_size': cl.size(),
                     'equation': cache_equation,
-                    'lt': sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),
-                                      *self.kernel.constants.keys()),
+                    'lt': inequality,
                     'eq': sympy.solve(cache_equation, *self.kernel.constants.keys())
                 }
-        #pprint(results)
         
         return results
 
@@ -222,6 +227,9 @@ class LC(object):
         self.results = self.calculate_cache_access()
 
     def report(self, output_file=sys.stdout):
+        if self._args and self._args.verbose > 2:
+            pprint(self.results)
+        
         for dimension, lc_info in self.results['dimensions'].items():
             print("{}D Layer-Condition:".format(dimension), file=output_file)
             for cache, lc_solution in sorted(lc_info['caches'].items()):
@@ -231,4 +239,7 @@ class LC(object):
                 else:
                     for solu in lc_solution['eq']:
                         for s, v in solu.items():
-                            print("{} <= {:.0f}".format(s, v.n()), file=output_file)
+                            if v.n().is_Float:
+                                print("{} <= {:.0f}".format(s, v.n()), file=output_file)
+                            else:
+                                print("{} <= {}".format(s, v), file=output_file)
