@@ -25,10 +25,10 @@ Installation
 ============
 
 Run:
-``python ./setup.py install``
+``pip install --user kerncraft`` for the latest release, or ``python ./setup.py install`` if you cloned this repository.
 
 Additional requirements are:
- * Intel IACA tool, with (working) ``iaca.sh`` in PATH environment variable (used by ECM, ECMCPU and Roofline models)
+ * Intel IACA tool, with (working) ``iaca.sh`` in PATH environment variable (used by ECM, ECMCPU and RooflineIACA models)
  * likwid (used in Benchmark model and by ``likwid_bench_auto.py``)
 
 Usage
@@ -36,11 +36,11 @@ Usage
 
 1. Get an example kernel and machine file from the examples directory
 
-``wget https://raw.githubusercontent.com/cod3monk/kerncraft/master/examples/machine-files/phinally.yaml``
+``wget https://raw.githubusercontent.com/RRZE-HPC/kerncraft/master/examples/machine-files/phinally.yaml``
 
-``wget https://raw.githubusercontent.com/cod3monk/kerncraft/master/examples/kernels/2d-5pt.c``
+``wget https://raw.githubusercontent.com/RRZE-HPC/kerncraft/master/examples/kernels/2d-5pt.c``
 
-2. Have a look at the machine file and change it to match your targeted machine (above we downloaded a file for a sandy bridge EP machine)
+2. Have a look at the machine file and change it to match your targeted machine (above we downloaded a file for a Sandy Bridge EP machine)
 
 3. Run kerncraft
 
@@ -51,6 +51,7 @@ Credits
 =======
 Implementation: Julian Hammer
 ECM Model (theory): Georg Hager, Holger Stengel, Jan Treibig
+LC generalization: Julian Hammer
 
 License
 =======
