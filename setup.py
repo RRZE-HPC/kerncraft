@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 from __future__ import absolute_import
 # Always prefer setuptools over distutils
-try:
-    from setuptools import setup, find_packages
-    from setuptools.command.install import install as _install
-    from setuptools.command.sdist import sdist as _sdist
-except ImportError:
-    from distutils.core import setup, find_packages
-    from distutils.command.install import install as _install
-    from distutils.command.sdist import sdist as _sdist
+from setuptools import setup, find_packages
+from setuptools.command.build_py import build_py as _build_py
+from setuptools.command.sdist import sdist as _sdist
+from distutils.dir_util import mkpath
 from codecs import open  # To use a consistent encoding
 import sys, os
 
@@ -16,17 +12,23 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # Stolen from pycparser
 def _run_build_tables(dir):
+    targetdir = os.path.join(dir, 'kerncraft/pycparser')
+    # mkpath is a distutils helper to create directories
+    mkpath(targetdir)
     from subprocess import call
-    call([sys.executable, '_build_tables.py'],
-         cwd=os.path.join(dir, 'kerncraft/pycparser'))
+    print(sys.executable)
+    print(os.getcwd())
+    call([sys.executable, 'kerncraft/pycparser/_build_tables.py'], cwd=targetdir)
 
 
-# Stolen from pycparser
-class install(_install):
+# Stolen and modified from pycparser
+class build_py(_build_py):
     def run(self):
-        _install.run(self)
-        self.execute(_run_build_tables, (self.install_lib,),
-                     msg="Build the lexing/parsing tables")
+        # honor the --dry-run flag
+        if not self.dry_run:
+            self.execute(_run_build_tables, (self.build_lib,),
+                         msg="Build the lexing/parsing tables")
+        _build_py.run(self)
 
 
 # Stolen from pycparser
@@ -47,7 +49,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.3.4',
+    version='0.3.6',
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
@@ -153,5 +155,5 @@ setup(
         ],
     },
     
-    cmdclass={'install': install, 'sdist': sdist},
+    cmdclass={'build_py': build_py, 'sdist': sdist},
 )
