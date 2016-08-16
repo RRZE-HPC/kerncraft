@@ -175,7 +175,6 @@ class LC(object):
             results['dimensions'][dimension]['caches'] = {}
             for cl in  csim.levels(with_mem=False):
                 cache_equation = sympy.Eq(cache_requirement_bytes, cl.size())
-                print(sympy.LessThan(cache_requirement_bytes, cl.size()))
                 if len(self.kernel.constants.keys()) <= 1:
                     inequality = sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),
                                              *self.kernel.constants.keys())
