@@ -462,7 +462,7 @@ class KernelCode(Kernel):
         parser = CParser(lextab='kerncraft.pycparser.lextab',
                          yacctab='kerncraft.pycparser.yacctab')
         try:
-            self.kernel_ast = parser.parse(self._as_function()).ext[0].body
+            self.kernel_ast = parser.parse(self._as_function(), filename=filename).ext[0].body
         except plyparser.ParseError as e:
             print('Error parsing kernel code:', e)
             sys.exit(1)
@@ -474,8 +474,12 @@ class KernelCode(Kernel):
     def print_kernel_code(self, output_file=sys.stdout):
         print(self.kernel_code, file=output_file)
 
-    def _as_function(self, func_name='test'):
-        return 'void {}() {{ {} }}'.format(func_name, self.kernel_code)
+    def _as_function(self, func_name='test', filename=None):
+        if filename is None:
+            filename = ''
+        else:
+            filename ='"{}"'.format(filename)
+        return '#line 0 \nvoid {}() {{\n#line 1 {}\n{}\n#line 999 \n}}'.format(func_name, filename, self.kernel_code)
 
     def clear_state(self):
         '''Clears changable internal states'''
