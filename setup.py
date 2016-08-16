@@ -1,14 +1,44 @@
 #!/usr/bin/env python
-
 from __future__ import absolute_import
-from setuptools import setup, find_packages  # Always prefer setuptools over distutils
+# Always prefer setuptools over distutils
+try:
+    from setuptools import setup, find_packages
+    from setuptools.command.install import install as _install
+    from setuptools.command.sdist import sdist as _sdist
+except ImportError:
+    from distutils.core import setup, find_packages
+    from distutils.command.install import install as _install
+    from distutils.command.sdist import sdist as _sdist
 from codecs import open  # To use a consistent encoding
-from os import path
+import sys, os
 
-here = path.abspath(path.dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
+
+# Stolen from pycparser
+def _run_build_tables(dir):
+    from subprocess import call
+    call([sys.executable, '_build_tables.py'],
+         cwd=os.path.join(dir, 'kerncraft/pycparser'))
+
+
+# Stolen from pycparser
+class install(_install):
+    def run(self):
+        _install.run(self)
+        self.execute(_run_build_tables, (self.install_lib,),
+                     msg="Build the lexing/parsing tables")
+
+
+# Stolen from pycparser
+class sdist(_sdist):
+    def make_release_tree(self, basedir, files):
+        _sdist.make_release_tree(self, basedir, files)
+        self.execute(_run_build_tables, (basedir,),
+                     msg="Build the lexing/parsing tables")
+
 
 # Get the long description from the relevant file
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
@@ -121,4 +151,6 @@ setup(
             'cachetile=kerncraft.cachetile:main'
         ],
     },
+    
+    cmdclass={'install': install, 'sdist': sdist},
 )

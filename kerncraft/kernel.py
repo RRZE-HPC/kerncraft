@@ -31,7 +31,7 @@ from six.moves import zip_longest
 import six
 from pylru import lrudecorator
 
-from .pycparser import CParser, c_ast
+from .pycparser import CParser, c_ast, plyparser
 from .pycparser.c_generator import CGenerator
 
 from . import iaca_marker as iaca
@@ -459,8 +459,14 @@ class KernelCode(Kernel):
         self.kernel_code = kernel_code
         self._filename = filename
         # need to refer to local lextab, otherwise the systemwide lextab would be imported
-        parser = CParser(lextab='kerncraft.pycparser.lextab')
-        self.kernel_ast = parser.parse(self._as_function()).ext[0].body
+        parser = CParser(lextab='kerncraft.pycparser.lextab',
+                         yacctab='kerncraft.pycparser.yacctab')
+        try:
+            self.kernel_ast = parser.parse(self._as_function()).ext[0].body
+        except plyparser.ParseError as e:
+            print('Error parsing kernel code:', e)
+            sys.exit(1)
+        
         self._process_code()
 
         self.check()
