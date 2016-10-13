@@ -12,13 +12,11 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # Stolen from pycparser
 def _run_build_tables(dir):
-    targetdir = os.path.join(dir, 'kerncraft/pycparser')
+    targetdir = os.path.join(dir, 'kerncraft', 'pycparser')
     # mkpath is a distutils helper to create directories
     mkpath(targetdir)
     from subprocess import call
-    print(sys.executable)
-    print(os.getcwd())
-    call([sys.executable, 'kerncraft/pycparser/_build_tables.py'], cwd=targetdir)
+    call([sys.executable, '_build_tables.py'], cwd=targetdir)
 
 
 # Stolen and modified from pycparser
@@ -26,18 +24,21 @@ class build_py(_build_py):
     def run(self):
         # honor the --dry-run flag
         if not self.dry_run:
-            self.execute(_run_build_tables, (self.build_lib,),
+            # FIXME can we also build at the target dir?
+            self.execute(_run_build_tables, (os.getcwd(),),
                          msg="Build the lexing/parsing tables")
         _build_py.run(self)
 
 
-# Stolen from pycparser
+# Stolen and modified from pycparser
 class sdist(_sdist):
-    def make_release_tree(self, basedir, files):
-        _sdist.make_release_tree(self, basedir, files)
-        self.execute(_run_build_tables, (basedir,),
+    def make_release_tree(self, base_dir, files):
+        self.execute(_run_build_tables, (os.getcwd(),),
                      msg="Build the lexing/parsing tables")
-
+        dir = os.path.join('kerncraft', 'pycparser')
+        files.append(os.path.join(dir, 'yacctab.py'))
+        files.append(os.path.join(dir, 'lextab.py'))
+        _sdist.make_release_tree(self, base_dir, files)
 
 # Get the long description from the relevant file
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
