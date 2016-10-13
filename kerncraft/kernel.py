@@ -268,11 +268,17 @@ class Kernel(object):
             total_length = total_length*length
 
         return self.subs_consts(total_length)
-    
-    def get_loop_stack(self):
+
+    def get_loop_stack(self, subs_consts=False):
         for l in self._loop_stack:
-            yield {'index': l[0], 'start': l[1], 'stop': l[2], 'increment': l[3]}
-    
+            if subs_consts:
+                yield {'index': l[0],
+                       'start': self.subs_consts(l[1]),
+                       'stop': self.subs_consts(l[2]),
+                       'increment': self.subs_consts(l[3])}
+            else:
+                yield {'index': l[0], 'start': l[1], 'stop': l[2], 'increment': l[3]}
+
     def compile_sympy_accesses(self, sources=True, destinations=True):
         '''returns a dictionary of lists of sympy accesses, for each variable'''
         sympy_accesses = defaultdict(list)
@@ -288,25 +294,72 @@ class Kernel(object):
                     sympy_accesses[var_name].append(self.access_to_sympy(var_name, w))
 
         return sympy_accesses
-    
+
     def compile_relative_distances(self, sympy_accesses=None):
         '''Returns load and store distances between accesses.
-        
+
         :param sympy_accesses: optionally restrict accesses, default from compile_sympy_accesses()
-        
+
         e.g. if accesses are to [+N, +1, -1, -N], relative distances are [N-1, 2, N-1]
-        
+
         returned is a dict of list of sympy expressions, for each variable'''
         if sympy_accesses is None:
             sympy_accesses = self.compile_sympy_accesses()
-        
+
         sympy_distances = defaultdict(list)
         for var_name, accesses in sympy_accesses.items():
             for i in range(1, len(accesses)):
                 sympy_distances[var_name].append((accesses[i-1]-accesses[i]).simplify())
-        
+
         return sympy_distances
-        
+
+    def global_iterator_to_indices(self, git=None):
+        '''Returns sympy expressions translating global_iterator to loop indices,
+        or if global_iterator is given, an integer is returned'''
+        # unwind global iteration count into loop counters:
+        base_loop_counters = {}
+        if git is None:
+            global_iterator = sympy.Symbol('global_iterator', positive=True)
+        else:
+            global_iterator = git
+        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
+        total_length = 1
+        last_incr = 1
+        for var_name, start, end, incr in reversed(self._loop_stack):
+            loop_var = sympy.Symbol(var_name, positive=True)
+
+            # This unspools the iterations:
+            length = end-start  # FIXME is incr handled correct here?
+            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
+            total_length = total_length*length
+            last_incr = incr
+
+            if git is not None:
+                try:  # Try to resolve to integer if global_iterator was given
+                    base_loop_counters[loop_var] = sympy.Integer(self.subs_consts(counter))
+                    continue
+                except:
+                    pass
+            base_loop_counters[loop_var] = sympy.lambdify(
+                global_iterator,
+                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
+
+        return base_loop_counters
+
+    def indices_to_global_iterator(self, indices):
+        '''Transforms a dictionary of indices to a global iterator integer.
+
+        Inverse of global_iterator_to_indices().'''
+        global_iterator = sympy.Integer(0)
+        total_length = 1
+        for var_name, start, end, incr in reversed(self._loop_stack):
+            loop_var = sympy.Symbol(var_name, positive=True)
+            length = end-start  # FIXME is incr handled correct here?
+            global_iterator += (indices[loop_var] - start)*total_length
+            total_length = total_length*length
+
+        return self.subs_consts(global_iterator)
+
 
     def compile_global_offsets(self, iteration=0, spacing=0):
         '''Returns load and store offsets on a virtual address space.
@@ -329,26 +382,11 @@ class Kernel(object):
         if not isinstance(iteration, collections.Sequence):
             iteration = [iteration]
         iteration = numpy.array(iteration)
-        # print(iteration)
+
         # loop indices based on iteration
         # unwind global iteration count into loop counters:
-        base_loop_counters = {}
-        global_iterator = sympy.Symbol('global_iterator', positive=True)
-        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
-        total_length = 1
-        last_incr = 1
-        for var_name, start, end, incr in reversed(self._loop_stack):
-            loop_var = sympy.Symbol(var_name, positive=True)
-
-            # This unspools the iterations:
-            length = end-start
-            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
-            total_length = total_length*length
-            last_incr = incr
-
-            base_loop_counters[loop_var] = sympy.lambdify(
-                global_iterator,
-                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
+        base_loop_counters = self.global_iterator_to_indices()
+        total_length = self.iteration_length()
 
         assert max(iteration) < self.subs_consts(total_length), \
             "Iterations go beyond what is possible in the original code. One common reason is, " + \
@@ -466,7 +504,7 @@ class KernelCode(Kernel):
         except plyparser.ParseError as e:
             print('Error parsing kernel code:', e)
             sys.exit(1)
-        
+
         self._process_code()
 
         self.check()
@@ -569,11 +607,11 @@ class KernelCode(Kernel):
             idxs.reverse()
 
         return idxs
-    
+
     def index_order(self, sources=True, destinations=True):
         '''
         Returns the order of indices as they appear in array references
-        
+
         Use *source* and *destination* to reduce output
         '''
         if sources:
@@ -582,14 +620,14 @@ class KernelCode(Kernel):
             arefs = []
         if destinations:
             arefs = chain(arefs, *self._destinations.values())
-        
+
         ret = []
         for a in [aref for aref in arefs if aref is not None]:
             ref = []
             for expr in a:
                 ref.append(expr.free_symbols)
             ret.append(ref)
-        
+
         return ret
 
     @classmethod
@@ -1032,8 +1070,8 @@ class KernelCode(Kernel):
 
         try:
             subprocess.check_output(
-                [compiler] + 
-                compiler_args + 
+                [compiler] +
+                compiler_args +
                 [os.path.basename(in_file.name),
                  '-S',
                  '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],

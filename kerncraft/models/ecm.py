@@ -11,6 +11,8 @@ import re
 import math
 from pprint import pprint, pformat
 from distutils.spawn import find_executable
+from itertools import chain
+from copy import deepcopy
 
 import six
 try:
@@ -20,6 +22,7 @@ try:
     plot_support = True
 except ImportError:
     plot_support = False
+import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.kernel import KernelCode
@@ -96,28 +99,20 @@ class ECMData(object):
         offsets = []
         if max_array_size < max_cache_size:
             # Full caching possible, go through all itreration before actual initialization
-            warmup_iteration_count = self.kernel.iteration_length()//3
             offsets = list(self.kernel.compile_global_offsets(
                 iteration=range(0, self.kernel.iteration_length())))
 
         # Regular Initialization
-        warmup_iteration_count = min(2*self.kernel.iteration_length()//3,
-                                     2*max_cache_size//element_size//3)
+        warmup_indices = {
+            sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
+            for l in self.kernel.get_loop_stack(subs_consts=True)}
+        warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
 
-        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse
-        # cache results)
-        # TODO can we find a nicer solution?
-        first_dim_length = self.kernel.iteration_length(-1)
-        if warmup_iteration_count % first_dim_length < 0.1*first_dim_length:
-            # to close to the beginning, increase 20%
-            warmup_iteration_count += int(0.2*first_dim_length)
-        if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
-            # to close to the end, subtract 20%
-            warmup_iteration_count -= int(0.2*first_dim_length)
-        
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads:
         # Assumption: writes (and reads) increase linearly
+        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
+        inner_increment = inner_loop['increment']
         o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
         if o[1]:
             # we have a write to work with:
@@ -128,8 +123,8 @@ class ECMData(object):
         # Distance from cacheline boundary (in bytes)
         diff = first_offset - \
                (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
-
-        warmup_iteration_count -= diff//element_size
+        warmup_iteration_count -= (diff//element_size)//inner_increment
+        warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
 
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
@@ -145,13 +140,18 @@ class ECMData(object):
         csim.reset_stats()
 
         # Benchmark iterations:
+        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
+        # Strting point is one past the last warmup element
         bench_iteration_start = warmup_iteration_count
-        bench_iteration_end = bench_iteration_start+elements_per_cacheline
+        # End point is the end of the current dimension (cacheline alligned)
+        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
+                               // (elements_per_cacheline//inner_increment))
+        bench_iteration_end = (bench_iteration_start + 
+                               elements_per_cacheline*inner_increment*first_dim_factor)
 
         # compile access needed for one cache-line
-        offsets = self.kernel.compile_global_offsets(
-            iteration=range(bench_iteration_start, bench_iteration_end))
-        offsets = list(offsets)
+        offsets = list(self.kernel.compile_global_offsets(
+            iteration=range(bench_iteration_start, bench_iteration_end)))
 
         # simulate
         csim.loadstore(offsets, length=element_size)
@@ -164,18 +164,19 @@ class ECMData(object):
         stats = list(csim.stats())
 
         # Check for layer condition towards all cache levels (except main memory/last level)
-        self.results = {'memory hierarchy': [], 'cycles': [], 'cache stats': stats}
+        self.results = {'memory hierarchy': [], 'cycles': [], 'cache stats': stats,
+                        'cachelines in stats': first_dim_factor}
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             self.results['memory hierarchy'].append({
                 'index': len(self.results['memory hierarchy']),
                 'level': '{}'.format(cache_info['level']),
-                'total misses': stats[cache_level]['MISS_byte'],
-                'total hits': stats[cache_level]['HIT_byte'],
-                'total evicts': stats[cache_level]['STORE_byte'],
-                'total lines misses': stats[cache_level]['MISS_count'],
-                'total lines hits': stats[cache_level]['HIT_count'],
+                'total misses': stats[cache_level]['MISS_byte']/first_dim_factor,
+                'total hits': stats[cache_level]['HIT_byte']/first_dim_factor,
+                'total evicts': stats[cache_level]['STORE_byte']/first_dim_factor,
+                'total lines misses': stats[cache_level]['MISS_count']/first_dim_factor,
+                'total lines hits': stats[cache_level]['HIT_count']/first_dim_factor,
                 # FIXME assumption for line evicts: all stores are consecutive
-                'total lines evicts': stats[cache_level+1]['STORE_count'],
+                'total lines evicts': stats[cache_level+1]['STORE_count']/first_dim_factor,
                 'cycles': None})
 
     def calculate_cycles(self):
@@ -268,6 +269,8 @@ class ECMData(object):
 
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
+            print('Cachelines in stats: {}'.format(self.results['cachelines in stats']),
+                  file=output_file)
             print('Cache simulation statistics:', file=output_file)
             print('{!r}'.format(self.results['cache stats']), file=output_file)
             for cs in self.results['cache stats']:
