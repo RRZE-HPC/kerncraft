@@ -142,12 +142,14 @@ class LC(object):
             def FuckedUpMax(*args):
                 if len(args) == 1:
                     return args[0]
+                # expand all expressions:
+                args = [a.expand() for a in args]
                 # Filter expressions with less than the maximum number of symbols
                 max_symbols = max([len(a.free_symbols) for a in args])
                 args = list(filter(lambda a: len(a.free_symbols) == max_symbols, args))
                 if max_symbols == 0:
                     return sympy.Max(*args)
-                # Filter symbols of with lower exponent
+                # Filter symbols with lower exponent
                 max_coeffs = 0
                 for a in args:
                     for s in a.free_symbols:
@@ -157,7 +159,11 @@ class LC(object):
                         0, 0,
                         *[len(sympy.Poly(a, s).all_coeffs()) for s in a.free_symbols]) == max_coeffs
                 args = list(filter(coeff_filter, args))
-                return sympy.Max(*args)
+
+                m = sympy.Max(*args)
+                #if m.is_Function:
+                #    raise ValueError("Could not resolve {} to maximum.".format(m))
+                return m
             
             slices_max = FuckedUpMax(*[FuckedUpMax(*dists) for dists in slices_distances.values()])
             results['dimensions'][dimension]['slices_sum'] = slices_sum
