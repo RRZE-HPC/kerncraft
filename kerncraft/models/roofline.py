@@ -67,22 +67,17 @@ class Roofline(object):
                 iteration=range(0, self.kernel.iteration_length())))
 
         # Regular Initialization
-        warmup_iteration_count = min(2*self.kernel.iteration_length()//3,
-                                     2*max_cache_size//element_size//3)
-        # Make sure warmup_iteration_count is not near a boundary (otherwise jumps might give worse
-        # cache results)
-        # TODO can we find a nicer solution?
-        first_dim_length = self.kernel.iteration_length(-1)
-        if warmup_iteration_count % first_dim_length < 0.1*first_dim_length:
-            # to close to the beginning, increase 20%
-            warmup_iteration_count += int(0.2*first_dim_length)
-        if abs(warmup_iteration_count % first_dim_length - first_dim_length) < 0.1*first_dim_length:
-            # to close to the end, subtract 20%
-            warmup_iteration_count -= int(0.2*first_dim_length)
-        
+        import sympy
+        warmup_indices = {
+            sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
+            for l in self.kernel.get_loop_stack(subs_consts=True)}
+        warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
+
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads:
         # Assumption: writes (and reads) increase linearly
+        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
+        inner_increment = inner_loop['increment']
         o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
         if o[1]:
             # we have a write to work with:
@@ -93,8 +88,8 @@ class Roofline(object):
         # Distance from cacheline boundary (in bytes)
         diff = first_offset - \
                (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
-
-        warmup_iteration_count -= diff//element_size
+        warmup_iteration_count -= (diff//element_size)//inner_increment
+        warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
 
         offsets += list(self.kernel.compile_global_offsets(
             iteration=range(0, warmup_iteration_count)))
@@ -102,20 +97,26 @@ class Roofline(object):
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-        
+
         # Force write-back on all cache levels
         csim.force_write_back()
-        
+
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
 
         # Benchmark iterations:
+        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
+        # Strting point is one past the last warmup element
         bench_iteration_start = warmup_iteration_count
-        bench_iteration_end = bench_iteration_start+elements_per_cacheline
+        # End point is the end of the current dimension (cacheline alligned)
+        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
+                               // (elements_per_cacheline//inner_increment))
+        bench_iteration_end = (bench_iteration_start + 
+                               elements_per_cacheline*inner_increment*first_dim_factor)
 
         # compile access needed for one cache-line
-        offsets = self.kernel.compile_global_offsets(
-            iteration=range(bench_iteration_start, bench_iteration_end))
+        offsets = list(self.kernel.compile_global_offsets(
+            iteration=range(bench_iteration_start, bench_iteration_end)))
 
         # simulate
         csim.loadstore(offsets, length=element_size)
@@ -129,7 +130,9 @@ class Roofline(object):
 
         total_flops = sum(self.kernel._flops.values())*elements_per_cacheline
 
-        results = {'bottleneck level': 0, 'mem bottlenecks': []}
+        results = {'bottleneck level': 0,
+                   'mem bottlenecks': [],
+                   'cachelines in stats': first_dim_factor}
 
         # TODO let user choose threads_per_core:
         threads_per_core = 1
@@ -138,10 +141,10 @@ class Roofline(object):
         # TODO unite CPU-L1 and other level handling
 
         # CPU-L1 stats (in bytes!)
-        total_loads = stats[0]['LOAD_byte']
-        total_evicts = stats[0]['STORE_byte']
-        read_streams = stats[0]['LOAD_count']
-        write_streams = stats[1]['STORE_count']
+        total_loads = stats[0]['LOAD_byte']/first_dim_factor
+        total_evicts = stats[0]['STORE_byte']/first_dim_factor
+        read_streams = stats[0]['LOAD_count']/first_dim_factor
+        write_streams = stats[1]['STORE_count']/first_dim_factor
         bw, measurement_kernel = self.machine.get_bandwidth(
             0, read_streams, write_streams,
             threads_per_core, cores=self._args.cores)
@@ -174,14 +177,14 @@ class Roofline(object):
             cache_stats = stats[cache_level]
 
             # Compiling stats (in bytes!)
-            total_misses = stats[cache_level+1]['LOAD_byte']
-            total_evicts = cache_stats['STORE_byte']
+            total_misses = stats[cache_level+1]['LOAD_byte']/first_dim_factor
+            total_evicts = cache_stats['STORE_byte']/first_dim_factor
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
-            read_streams = cache_stats['MISS_count']
-            write_streams = stats[cache_level-1]['STORE_count']
+            read_streams = cache_stats['MISS_count']/first_dim_factor
+            write_streams = stats[cache_level-1]['STORE_count']/first_dim_factor
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
