@@ -103,7 +103,6 @@ class ECMData(object):
                 iteration=range(0, self.kernel.iteration_length())))
 
         # Regular Initialization
-        import sympy
         warmup_indices = {
             sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
@@ -270,7 +269,8 @@ class ECMData(object):
 
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
-            print('Cachelines in stats:', self.results['cachelines in stats'], file=output_file)
+            print('Cachelines in stats: {}'.format(self.results['cachelines in stats']),
+                  file=output_file)
             print('Cache simulation statistics:', file=output_file)
             print('{!r}'.format(self.results['cache stats']), file=output_file)
             for cs in self.results['cache stats']:

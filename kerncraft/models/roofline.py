@@ -67,7 +67,6 @@ class Roofline(object):
                 iteration=range(0, self.kernel.iteration_length())))
 
         # Regular Initialization
-        import sympy
         warmup_indices = {
             sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
@@ -245,6 +244,8 @@ class Roofline(object):
             self.machine['FLOPs per cycle'][precision].values())
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
+            print('Cachelines in stats: {}'.format(self.results['cachelines in stats']),
+                  file=output_file)
             print('Bottlnecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
                   file=output_file)
