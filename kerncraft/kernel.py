@@ -1057,7 +1057,7 @@ class KernelCode(Kernel):
             sys.exit(1)
 
         if not self._filename:
-            in_file = tempfile.NamedTemporaryFile(suffix='_compilable.c').file
+            in_file = tempfile.NamedTemporaryFile(suffix='_compilable.c', mode='w', encoding='ascii')
         else:
             in_file = open(self._filename+"_compilable.c", 'w')
 
@@ -1122,7 +1122,7 @@ class KernelCode(Kernel):
         lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
         if not self._filename:
-            source_file = tempfile.NamedTemporaryFile(suffix='_compilable.c')
+            source_file = tempfile.NamedTemporaryFile(suffix='_compilable.c', mode='w', encoding='ascii')
         else:
             source_file = open(self._filename+"_compilable.c", 'w')
 
