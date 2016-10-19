@@ -88,7 +88,12 @@ class ECMData(object):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
         elements_per_cacheline = int(cacheline_size // element_size)
-
+        
+        # Gathering some loop information:
+        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
+        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
+        inner_increment = inner_loop['increment']
+        
         # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim()
 
@@ -107,12 +112,19 @@ class ECMData(object):
             sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
         warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-
+        
+        # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
+        while warmup_iteration_count*element_size > max_cache_size*1.5:
+            for index in [sympy.Symbol(l['index'], positive=True)
+                          for l in self.kernel.get_loop_stack()]:
+                if warmup_indices[index] > 1:
+                    warmup_indices[index] -= 1
+                    break
+            warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
+        
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads:
         # Assumption: writes (and reads) increase linearly
-        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
-        inner_increment = inner_loop['increment']
         o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
         if o[1]:
             # we have a write to work with:
@@ -140,7 +152,6 @@ class ECMData(object):
         csim.reset_stats()
 
         # Benchmark iterations:
-        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
         # Strting point is one past the last warmup element
         bench_iteration_start = warmup_iteration_count
         # End point is the end of the current dimension (cacheline alligned)
