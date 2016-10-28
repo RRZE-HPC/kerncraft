@@ -26,6 +26,7 @@ import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.kernel import KernelCode
+from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
 
 
 def round_to_next(x, base):
@@ -84,125 +85,25 @@ class ECMData(object):
             pass
 
     def calculate_cache_access(self):
-        # FIXME handle multiple datatypes
-        element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        cacheline_size = self.machine['cacheline size']
-        elements_per_cacheline = int(cacheline_size // element_size)
-        
-        # Gathering some loop information:
-        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
-        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
-        inner_increment = inner_loop['increment']
-        
-        # Get the machine's cache model and simulator
-        csim = self.machine.get_cachesim()
-
-        # Calculate the number of iterations necessary for warm-up
-        max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
-        max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-
-        offsets = []
-        if max_array_size < max_cache_size:
-            # Full caching possible, go through all itreration before actual initialization
-            offsets = list(self.kernel.compile_global_offsets(
-                iteration=range(0, self.kernel.iteration_length())))
-
-        # Regular Initialization
-        warmup_indices = {
-            sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
-            for l in self.kernel.get_loop_stack(subs_consts=True)}
-        warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        
-        # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
-        while warmup_iteration_count*element_size > max_cache_size*1.5:
-            for index in [sympy.Symbol(l['index'], positive=True)
-                          for l in self.kernel.get_loop_stack()]:
-                if warmup_indices[index] > 1:
-                    warmup_indices[index] -= 1
-                    break
-            warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        
-        # Align iteration count with cachelines
-        # do this by aligning either writes (preferred) or reads:
-        # Assumption: writes (and reads) increase linearly
-        o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
-        if o[1]:
-            # we have a write to work with:
-            first_offset = min(o[1])
-        else:
-            # we use reads
-            first_offset = min(o[0])
-        # Distance from cacheline boundary (in bytes)
-        diff = first_offset - \
-               (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
-        warmup_iteration_count -= (diff//element_size)//inner_increment
-        warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
-
-        offsets += list(self.kernel.compile_global_offsets(
-            iteration=range(0, warmup_iteration_count)))
-
-        # Do the warm-up
-        csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # Force write-back on all cache levels
-        csim.force_write_back()
-
-        # Reset stats to conclude warm-up phase
-        csim.reset_stats()
-
-        # Benchmark iterations:
-        # Strting point is one past the last warmup element
-        bench_iteration_start = warmup_iteration_count
-        # End point is the end of the current dimension (cacheline alligned)
-        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
-                               // (elements_per_cacheline//inner_increment))
-        bench_iteration_end = (bench_iteration_start + 
-                               elements_per_cacheline*inner_increment*first_dim_factor)
-
-        # compile access needed for one cache-line
-        offsets = list(self.kernel.compile_global_offsets(
-            iteration=range(bench_iteration_start, bench_iteration_end)))
-
-        # simulate
-        csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # Force write-back on all cache levels
-        csim.force_write_back()
-
-        # use stats to build results
-        stats = list(csim.stats())
-
-        # Check for layer condition towards all cache levels (except main memory/last level)
-        self.results = {'memory hierarchy': [], 'cycles': [], 'cache stats': stats,
-                        'cachelines in stats': first_dim_factor}
-        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
-            self.results['memory hierarchy'].append({
-                'index': len(self.results['memory hierarchy']),
-                'level': '{}'.format(cache_info['level']),
-                'total misses': stats[cache_level]['MISS_byte']/first_dim_factor,
-                'total hits': stats[cache_level]['HIT_byte']/first_dim_factor,
-                'total evicts': stats[cache_level]['STORE_byte']/first_dim_factor,
-                'total lines misses': stats[cache_level]['MISS_count']/first_dim_factor,
-                'total lines hits': stats[cache_level]['HIT_count']/first_dim_factor,
-                # FIXME assumption for line evicts: all stores are consecutive
-                'total lines evicts': stats[cache_level+1]['STORE_count']/first_dim_factor,
-                'cycles': None})
+        self.predictor = CacheSimulationPredictor(self.kernel, self.machine)
+        self.results = {'cycles': [],  # will be filled by caclculate_cycles()
+                        'misses': self.predictor.get_misses(),
+                        'hits': self.predictor.get_hits(),
+                        'evicts': self.predictor.get_evicts(),
+                        'verbose infos': self.predictor.get_infos()}  # only for verbose outputs
 
     def calculate_cycles(self):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+        
+        misses, evicts = (self.predictor.get_misses(), self.predictor.get_evicts())
 
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             cache_cycles = cache_info['cycles per cacheline transfer']
-            cache_results = self.results['memory hierarchy'][cache_level]
 
             if cache_cycles is not None:
                 # only cache cycles count
-                cycles = (cache_results['total lines misses']
-                          + cache_results['total lines evicts']) * \
-                         cache_cycles
+                cycles = (misses[cache_level] + evicts[cache_level]) * cache_cycles
             else:
                 # Memory transfer
                 # we use bandwidth to calculate cycles and then add panalty cycles (if given)
@@ -210,27 +111,24 @@ class ECMData(object):
                 # choose bw according to cache level and problem
                 # first, compile stream counts at current cache level
                 # write-allocate is allready resolved above
-                read_streams = cache_results['total lines misses']
-                write_streams = cache_results['total lines evicts']
+                read_streams = misses[cache_level]
+                write_streams = evicts[cache_level]
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
                 threads_per_core = 1
                 bw, measurement_kernel = self.machine.get_bandwidth(
                     cache_level+1, read_streams, write_streams, threads_per_core)
 
                 # calculate cycles
-                cycles = float(cache_results['total lines misses'] +
-                               cache_results['total lines evicts']) *\
+                cycles = float(misses[cache_level] + evicts[cache_level]) * \
                     float(elements_per_cacheline) * float(element_size) * \
                     float(self.machine['clock']) / float(bw)
                 # add penalty cycles for each read stream
                 if 'penalty cycles per read stream' in cache_info:
-                    cycles += cache_results['total lines misses'] * \
+                    cycles += misses[cache_level] * \
                               cache_info['penalty cycles per read stream']
 
-            cache_results['cycles'] =  cycles
-
             if cache_cycles is None:
-                cache_results.update({
+                self.results.update({
                     'memory bandwidth kernel': measurement_kernel,
                     'memory bandwidth': bw})
 
@@ -280,14 +178,8 @@ class ECMData(object):
 
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
-            print('Cachelines in stats: {}'.format(self.results['cachelines in stats']),
-                  file=output_file)
-            print('Cache simulation statistics:', file=output_file)
-            print('{!r}'.format(self.results['cache stats']), file=output_file)
-            for cs in self.results['cache stats']:
-                print('{:>5} {!r}'.format(cs['name'], {k:v for k,v in cs.items() if v != 'name'}),
-                      file=output_file)
-
+            print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
+            
         for level, cycles in self.results['cycles']:
             print('{} = {}'.format(
                 level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
