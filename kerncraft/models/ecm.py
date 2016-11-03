@@ -67,7 +67,13 @@ class ECMData(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
-        pass
+        # they are being configured in ECMData and ECMCPU
+        parser.add_argument(
+            '--cache-predictor', '-P',
+            choices=['LC', 'SIM'],
+            default='SIM',
+            help='Change cache predictor to use, options are LC (layer conditions) and SIM (cache '
+                 'simulation with pycachesim), default is SIM.')
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
@@ -85,7 +91,13 @@ class ECMData(object):
             pass
 
     def calculate_cache_access(self):
-        self.predictor = CacheSimulationPredictor(self.kernel, self.machine)
+        if self._args.cache_predictor == 'SIM':
+            self.predictor = CacheSimulationPredictor(self.kernel, self.machine)
+        elif self._args.cache_predictor == 'LC':
+            self.predictor = LayerConditionPredictor(self.kernel, self.machine)
+        else:
+            raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
+                                      "SIM (cache simulation with pycachesim) is supported.")
         self.results = {'cycles': [],  # will be filled by caclculate_cycles()
                         'misses': self.predictor.get_misses(),
                         'hits': self.predictor.get_hits(),
@@ -385,7 +397,7 @@ class ECM(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
-        # they are being configured in ECMData and ECMCPU
+        # others are being configured in ECMData and ECMCPU
         parser.add_argument(
             '--ecm-plot',
             help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
