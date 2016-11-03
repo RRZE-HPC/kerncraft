@@ -99,153 +99,93 @@ class LayerConditionPredictor(CachePredictor):
                     # TODO support -1 aswell
                     raise ValueError("Can not apply layer-condition, array references may not "
                                      "increment more then one per iteration.")
-        
-        # calculate_cache_access()
-        
+                
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         
-        results = {'dimensions': {}}
-        
-        def sympy_compare(a,b):
-            c = 0
-            for i in range(min(len(a), len(b))):
-                s = a[i] - b[i]
-                if sympy.simplify(s > 0):
-                    c = -1
-                elif sympy.simplify(s == 0):
-                    c = 0
-                else:
-                    c = 1
-                if c != 0: break
-            return c
-        
-        accesses = defaultdict(list)
-        sympy_accesses = defaultdict(list)
+        accesses = {}
+        destinations = set()
+        distances = []
+        results = {'accesses': accesses,
+                   'distances': distances,
+                   'destinations': destinations}
         for var_name in self.kernel.variables:
-            for r in self.kernel._sources.get(var_name, []):
-                if r is None: continue
-                accesses[var_name].append(r)
-                sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, r))
-            for w in self.kernel._destinations.get(var_name, []):
-                if w is None: continue
-                accesses[var_name].append(w)
-                sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
-            # order accesses by increasing order
-            accesses[var_name].sort(key=cmp_to_key(sympy_compare))#cmp=sympy_compare)
-        
-        results['accesses'] = accesses
-        results['sympy_accesses'] = sympy_accesses
-        
-        # For each dimension (1D, 2D, 3D ... nD)
-        for dimension in range(1, len(list(self.kernel.get_loop_stack()))+1):
-            results['dimensions'][dimension] = {}
-            
-            slices = defaultdict(list)
-            slices_accesses = defaultdict(list)
-            for var_name in accesses:
-                for a in accesses[var_name]:
-                    # slices are identified by the tuple of indices of higher dimensions
-                    slice_id = tuple([var_name, tuple(a[:-dimension])])
-                    slices[slice_id].append(a)
-                    slices_accesses[slice_id].append(self.kernel.access_to_sympy(var_name, a))
-            results['dimensions'][dimension]['slices'] = slices
-            results['dimensions'][dimension]['slices_accesses'] = slices_accesses
-            
-            slices_distances = defaultdict(list)
-            for k,v in slices_accesses.items():
-                for i in range(1, len(v)):
-                    slices_distances[k].append((v[i-1] - v[i]).simplify())
-            results['dimensions'][dimension]['slices_distances'] = slices_distances
-            
-            # Check that distances contain only free_symbols based on constants
-            for dist in chain(*slices_distances.values()):
-                if any([s not in self.kernel.constants.keys() for s in dist.free_symbols]):
-                    raise ValueError("Some distances are not based on non-constants: "+str(dist))
-            
-            # Sum of lengths between relative distances
-            slices_sum = sum([sum(dists) for dists in slices_distances.values()])
-            results['dimensions'][dimension]['slices_sum'] = slices_sum
-            
-            # Max of lengths between relative distances
-            # Work-around, the arguments with the most symbols get to stay
-            # FIXME, may not be correct in all cases. e.g., N+M vs. N*M
-            def FuckedUpMax(*args):
-                if len(args) == 1:
-                    return args[0]
-                # expand all expressions:
-                args = [a.expand() for a in args]
-                # Filter expressions with less than the maximum number of symbols
-                max_symbols = max([len(a.free_symbols) for a in args])
-                args = list(filter(lambda a: len(a.free_symbols) == max_symbols, args))
-                if max_symbols == 0:
-                    return sympy.Max(*args)
-                # Filter symbols with lower exponent
-                max_coeffs = 0
-                for a in args:
-                    for s in a.free_symbols:
-                        max_coeffs = max(max_coeffs, len(sympy.Poly(a, s).all_coeffs()))
-                def coeff_filter(a):
-                    return max(
-                        0, 0,
-                        *[len(sympy.Poly(a, s).all_coeffs()) for s in a.free_symbols]) == max_coeffs
-                args = list(filter(coeff_filter, args))
+            # Gather all access to current variable/array
+            accesses[var_name] = self.kernel._sources.get(var_name, []) + \
+                                 self.kernel._destinations.get(var_name, [])
+            destinations.update(
+                [(var_name, tuple(r)) for r in self.kernel._destinations.get(var_name, [])])
+            acs = accesses[var_name]
+            # Skip non-variable offsets (acs is [None, None, None] or the like)
+            if not any(accesses[var_name]):
+                continue
+            # Transform them into sympy expressions
+            acs = [self.kernel.access_to_sympy(var_name, r) for r in acs]
+            # Replace constants with their integer counter parts, to make the entries sortable
+            acs = [self.kernel.subs_consts(e) for e in acs]
+            # Sort accesses by decreasing order
+            acs.sort(reverse=True)
 
-                m = sympy.Max(*args)
-                #if m.is_Function:
-                #    raise ValueError("Could not resolve {} to maximum.".format(m))
-                return m
+            # Create reuse distances by substracting accesses pairwise in decreasing order
+            distances += [(acs[i-1]-acs[i]).simplify() for i in range(1,len(acs))]
+            # Add infinity for each array
+            distances.append(sympy.oo)
             
-            slices_max = FuckedUpMax(*[FuckedUpMax(*dists) for dists in slices_distances.values()])
-            results['dimensions'][dimension]['slices_sum'] = slices_sum
+        # Sort distances by decreasing order
+        distances.sort(reverse=True)
+        # Create copy of distances in bytes:
+        distances_bytes = [d*element_size for d in distances]
+        # CAREFUL! From here on we are working in bytes and not in indices anymore.
+        
+        results['distances_bytes'] = distances_bytes
+        results['cache'] = []
+        
+        for c in  self.machine.get_cachesim().levels(with_mem=False):
+            # Assuming increasing order of cache sizes
+            hits = 0
+            misses = len(distances_bytes)
+            for tail in sorted(set(distances_bytes), reverse=True):
+                # Assuming decreasing order of tails
+                # Ignoring infinity tail:
+                if tail is sympy.oo:
+                    continue
+                cache_requirement = (
+                    sum([d for d in distances_bytes if d<=tail]) +  # Sum of inter-access caches
+                    tail*len([d for d in distances_bytes if d>tail]))  # Tails
+                
+                if cache_requirement <= c.size():
+                    # If we found a tail that fits into our available cache size
+                    # note hits and misses and break
+                    hits = len([d for d in distances_bytes if d<=tail])
+                    misses = len([d for d in distances_bytes if d>tail])
+                    break
             
-            # Nmber of slices
-            slices_count = len(slices_accesses)
-            results['dimensions'][dimension]['slices_count'] = slices_count
-            
-            # Cache requirement expression
-            cache_requirement_bytes = (slices_sum + slices_max*slices_count)*element_size
-            results['dimensions'][dimension]['cache_requirement_bytes'] = cache_requirement_bytes
-            
-            # Apply to all cache sizes
-            csim = self.machine.get_cachesim()
-            results['dimensions'][dimension]['caches'] = {}
-            for cl in  csim.levels(with_mem=False):
-                cache_equation = sympy.Eq(cache_requirement_bytes, cl.size())
-                if len(self.kernel.constants.keys()) <= 1:
-                    inequality = sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),
-                                             *self.kernel.constants.keys())
-                else:
-                    # Sympy does not solve for multiple constants
-                    inequality = sympy.LessThan(cache_requirement_bytes, cl.size())
-                results['dimensions'][dimension]['caches'][cl.name] = {
-                    'cache_size': cl.size(),
-                    'equation': cache_equation,
-                    'lt': inequality,
-                    'eq': sympy.solve(cache_equation, *self.kernel.constants.keys())
-                }
+            # Resulting analysis for current cache level
+            results['cache'].append({
+                'name': c.name,
+                'hits': hits,
+                'misses': misses,
+                'evicts': len(destinations),
+                'requirement': cache_requirement,
+                'tail': tail})
         
         self.results = results
-        
 
     def get_hits(self):
         '''Returns a list with cache lines of hits per cache level'''
-        #TODO
-        return [1, 1, 1]
+        return [c['hits'] for c in self.results['cache']]
 
     def get_misses(self):
         '''Returns a list with cache lines of misses per cache level'''
-        #TODO
-        return [4, 4, 4]
+        return [c['misses'] for c in self.results['cache']]
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        #TODO
-        return [1,1,1]
+        return [c['evicts'] for c in self.results['cache']]
 
     def get_infos(self):
         '''Returns verbose information about the predictor'''
-        return {}
+        return self.results
 
 
 class CacheSimulationPredictor(CachePredictor):
