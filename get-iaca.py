@@ -15,8 +15,8 @@ import requests
 if __name__ == '__main__':
     if len(sys.argv) != 3 or sys.argv[1] != \
             "--i-accept-the-What-If-Pre-Release-License-Agreement-and-please-take-my-soul":
-        print("Sorry, this tool is only ment to be used by automated build systems.")
-        print("Please get IACA 'the-regular-way' from "
+        print("Sorry, this tool is only meant to be used by automated build systems.")
+        print("Please get IACA 'the regular way' from "
               "https://software.intel.com/protected-download/267266/157552")
         print("")
         print("However, if you happen to be an automated build system: "
