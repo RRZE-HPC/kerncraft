@@ -753,10 +753,13 @@ class KernelCode(Kernel):
 
     def _p_sources(self, stmt):
         sources = []
-
-        assert type(stmt) in [c_ast.ArrayRef, c_ast.Constant, c_ast.ID, c_ast.BinaryOp], \
+        print(stmt, type(stmt))
+        assert type(stmt) in \
+            [c_ast.ArrayRef, c_ast.Constant, c_ast.ID, c_ast.BinaryOp, c_ast.UnaryOp], \
             'only references to arrays, constants and variables as well as binary operations ' + \
             'are supported'
+        assert type(stmt) is not c_ast.UnaryOp or stmt.op in ['-', '--', '++', 'p++', 'p--'], \
+            'unary operations are only allowed with -, -- and ++'
 
         if type(stmt) in [c_ast.ArrayRef, c_ast.ID]:
             # Document data source
@@ -769,6 +772,9 @@ class KernelCode(Kernel):
             self._p_sources(stmt.right)
 
             self._flops[stmt.op] = self._flops.get(stmt.op, 0)+1
+        elif type(stmt) is c_ast.UnaryOp:
+            self._p_sources(stmt.expr)
+            self._flops[stmt.op] = self._flops.get(stmt.op[-1], 0)+1
 
         return sources
 
