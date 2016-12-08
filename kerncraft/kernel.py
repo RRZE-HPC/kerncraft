@@ -753,7 +753,6 @@ class KernelCode(Kernel):
 
     def _p_sources(self, stmt):
         sources = []
-        print(stmt, type(stmt))
         assert type(stmt) in \
             [c_ast.ArrayRef, c_ast.Constant, c_ast.ID, c_ast.BinaryOp, c_ast.UnaryOp], \
             'only references to arrays, constants and variables as well as binary operations ' + \
