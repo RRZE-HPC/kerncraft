@@ -135,7 +135,7 @@ class LayerConditionPredictor(CachePredictor):
         distances.sort(reverse=True)
         # Create copy of distances in bytes:
         distances_bytes = [d*element_size for d in distances]
-        # CAREFUL! From here on we are working in bytes and not in indices anymore.
+        # CAREFUL! From here on we are working in byte offsets and not in indices anymore.
         
         results['distances_bytes'] = distances_bytes
         results['cache'] = []
