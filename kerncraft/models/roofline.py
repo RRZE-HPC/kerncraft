@@ -48,7 +48,7 @@ class Roofline(object):
             # handle CLI info
             pass
 
-    def calculate_cache_access(self, CPUL1=True):
+    def calculate_cache_access(self):
         if self._args.cache_predictor == 'SIM':
             self.predictor = CacheSimulationPredictor(self.kernel, self.machine)
         elif self._args.cache_predictor == 'LC':
@@ -68,9 +68,6 @@ class Roofline(object):
         elements_per_cacheline = int(cacheline_size // element_size)
 
         total_flops = sum(self.kernel._flops.values())*elements_per_cacheline
-
-        results = {'bottleneck level': 0,
-                   'mem bottlenecks': []}
 
         # TODO let user choose threads_per_core:
         threads_per_core = 1
@@ -148,9 +145,11 @@ class Roofline(object):
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw})
-            if performance <= self.results.get('min performance', performance):
-                self.results['bottleneck level'] = len(results['mem bottlenecks'])-1
+            if performance < self.results.get('min performance', performance):
+                self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
                 self.results['min performance'] = performance
+        
+        return self.results
 
     def analyze(self):
         self.calculate_cache_access()
@@ -242,7 +241,7 @@ class RooflineIACA(Roofline):
         Roofline.__init__(self, kernel, machine, args, parser)
 
     def analyze(self):
-        self.results = self.calculate_cache_access(CPUL1=False)
+        self.results = self.calculate_cache_access()
 
         # For the IACA/CPU analysis we need to compile and assemble
         asm_name = self.kernel.compile(
@@ -325,6 +324,9 @@ class RooflineIACA(Roofline):
         cl_latency = block_latency*block_to_cl_ratio
         flops_per_element = sum(self.kernel._flops.values())
 
+        # Overwrite CPU-L1 stats, because they are covered by IACA
+        self.results['mem bottlenecks'][0] = None
+
         # Create result dictionary
         self.results.update({
             'cpu bottleneck': {
@@ -360,6 +362,7 @@ class RooflineIACA(Roofline):
                       self.conv_perf(cpu_flops, self._args.unit)),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
+                if b is None: continue # Skip CPU-L1 from Roofline model
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {!s:>15} |'
                       ' {bandwidth!s:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
