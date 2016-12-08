@@ -5,10 +5,6 @@ from __future__ import division
 import ruamel
 import cachesim
 
-# Ignore ruamel unsafe loading warning
-import warnings
-warnings.simplefilter('ignore', ruamel.yaml.error.UnsafeLoaderWarning)
-
 class MachineModel(object):
     def __init__(self, path_to_yaml=None, machine_yaml=None):
         if not path_to_yaml and not machine_yaml:
@@ -19,7 +15,8 @@ class MachineModel(object):
         self._data = machine_yaml
         if path_to_yaml:
             with open(path_to_yaml, 'r') as f:
-                self._data = ruamel.yaml.load(f)
+                # Ignore ruamel unsafe loading warning, by supplying Loader parameter
+                self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.Loader)
 
     def __getitem__(self, index):
         return self._data[index]
