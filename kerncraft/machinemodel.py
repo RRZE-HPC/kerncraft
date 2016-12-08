@@ -2,9 +2,12 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from ruamel import yaml
+import ruamel
 import cachesim
 
+# Ignore ruamel unsafe loading warning
+import warnings
+warnings.simplefilter('ignore', ruamel.yaml.error.UnsafeLoaderWarning)
 
 class MachineModel(object):
     def __init__(self, path_to_yaml=None, machine_yaml=None):
@@ -16,7 +19,7 @@ class MachineModel(object):
         self._data = machine_yaml
         if path_to_yaml:
             with open(path_to_yaml, 'r') as f:
-                self._data = yaml.load(f)
+                self._data = ruamel.yaml.load(f)
 
     def __getitem__(self, index):
         return self._data[index]
