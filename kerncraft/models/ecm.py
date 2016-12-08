@@ -67,13 +67,7 @@ class ECMData(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
-        # they are being configured in ECMData and ECMCPU
-        parser.add_argument(
-            '--cache-predictor', '-P',
-            choices=['LC', 'SIM'],
-            default='SIM',
-            help='Change cache predictor to use, options are LC (layer conditions) and SIM (cache '
-                 'simulation with pycachesim), default is SIM.')
+        pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """

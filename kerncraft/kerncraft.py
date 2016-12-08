@@ -139,6 +139,11 @@ def create_parser():
     parser.add_argument('--kernel-description', action='store_true',
                         help='Use kernel description instead of analyzing the kernel code.')
 
+    # Needed for ECM, ECMData and Roofline model:
+    parser.add_argument('--cache-predictor', '-P', choices=['LC', 'SIM'], default='SIM',
+                        help='Change cache predictor to use, options are LC (layer conditions) and '
+                             'SIM (cache simulation with pycachesim), default is SIM.')
+
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)

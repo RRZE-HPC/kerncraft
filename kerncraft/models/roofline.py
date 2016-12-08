@@ -10,12 +10,14 @@ import operator
 import subprocess
 import re
 import sys
+from pprint import pprint, pformat
 from distutils.spawn import find_executable
 
 import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.kernel import KernelCode
+from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
 
 
 class Roofline(object):
@@ -47,152 +49,81 @@ class Roofline(object):
             pass
 
     def calculate_cache_access(self, CPUL1=True):
-        # FIXME handle multiple datatypes
-        element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        cacheline_size = self.machine['cacheline size']
-        elements_per_cacheline = int(cacheline_size // element_size)
-
-        # Get the machine's cache model and simulator
-        csim = self.machine.get_cachesim()
-
-        # Calculate the number of iterations necessary for warm-up
-        max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
-        max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-
-        offsets = []
-        if max_array_size < max_cache_size:
-            # Full caching possible, go through all itreration before actual initialization
-            warmup_iteration_count = self.kernel.iteration_length()//3
-            offsets = list(self.kernel.compile_global_offsets(
-                iteration=range(0, self.kernel.iteration_length())))
-
-        # Regular Initialization
-        warmup_indices = {
-            sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
-            for l in self.kernel.get_loop_stack(subs_consts=True)}
-        warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        
-        # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
-        while warmup_iteration_count*element_size > max_cache_size*1.5:
-            for index in [sympy.Symbol(l['index'], positive=True)
-                          for l in self.kernel.get_loop_stack()]:
-                if warmup_indices[index] > 1:
-                    warmup_indices[index] -= 1
-                    break
-            warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-
-        # Align iteration count with cachelines
-        # do this by aligning either writes (preferred) or reads:
-        # Assumption: writes (and reads) increase linearly
-        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
-        inner_increment = inner_loop['increment']
-        o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
-        if o[1]:
-            # we have a write to work with:
-            first_offset = min(o[1])
+        if self._args.cache_predictor == 'SIM':
+            self.predictor = CacheSimulationPredictor(self.kernel, self.machine)
+        elif self._args.cache_predictor == 'LC':
+            self.predictor = LayerConditionPredictor(self.kernel, self.machine)
         else:
-            # we use reads
-            first_offset = min(o[0])
-        # Distance from cacheline boundary (in bytes)
-        diff = first_offset - \
-               (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
-        warmup_iteration_count -= (diff//element_size)//inner_increment
-        warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
-
-        offsets += list(self.kernel.compile_global_offsets(
-            iteration=range(0, warmup_iteration_count)))
-
-        # Do the warm-up
-        csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # Force write-back on all cache levels
-        csim.force_write_back()
-
-        # Reset stats to conclude warm-up phase
-        csim.reset_stats()
-
-        # Benchmark iterations:
-        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
-        # Strting point is one past the last warmup element
-        bench_iteration_start = warmup_iteration_count
-        # End point is the end of the current dimension (cacheline alligned)
-        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
-                               // (elements_per_cacheline//inner_increment))
-        bench_iteration_end = (bench_iteration_start + 
-                               elements_per_cacheline*inner_increment*first_dim_factor)
-
-        # compile access needed for one cache-line
-        offsets = list(self.kernel.compile_global_offsets(
-            iteration=range(bench_iteration_start, bench_iteration_end)))
-
-        # simulate
-        csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # Force write-back on all cache levels
-        csim.force_write_back()
-
-        # use stats to build results
-        stats = list(csim.stats())
+            raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
+                                      "SIM (cache simulation with pycachesim) is supported.")
+        self.results = {'misses': self.predictor.get_misses(),
+                        'hits': self.predictor.get_hits(),
+                        'evicts': self.predictor.get_evicts(),
+                        'verbose infos': self.predictor.get_infos(),  # only for verbose outputs
+                        'bottleneck level': 0,
+                        'mem bottlenecks': []}
+        
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
+        cacheline_size = float(self.machine['cacheline size'])
+        elements_per_cacheline = int(cacheline_size // element_size)
 
         total_flops = sum(self.kernel._flops.values())*elements_per_cacheline
 
         results = {'bottleneck level': 0,
-                   'mem bottlenecks': [],
-                   'cachelines in stats': first_dim_factor}
+                   'mem bottlenecks': []}
 
         # TODO let user choose threads_per_core:
         threads_per_core = 1
 
         # Compile relevant information
-        # TODO unite CPU-L1 and other level handling
 
         # CPU-L1 stats (in bytes!)
-        total_loads = stats[0]['LOAD_byte']/first_dim_factor
-        total_evicts = stats[0]['STORE_byte']/first_dim_factor
-        read_streams = stats[0]['LOAD_count']/first_dim_factor
-        write_streams = stats[1]['STORE_count']/first_dim_factor
+        # We compile CPU-L1 stats on our own, because cacheprediction only works on cache lines
+        read_offsets, write_offsets = zip(*list(self.kernel.compile_global_offsets(
+            iteration=range(0, elements_per_cacheline))))
+        read_offsets = set([item for sublist in read_offsets for item in sublist])
+        write_offsets = set([item for sublist in write_offsets for item in sublist])
+        
+        write_streams = len(write_offsets)
+        read_streams = len(read_offsets) + write_streams # write-allocate
+        total_loads = read_streams * element_size
+        total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
             0, read_streams, write_streams,
             threads_per_core, cores=self._args.cores)
 
         # Calculate performance (arithmetic intensity * bandwidth with
-        # arithmetic intensity = flops / bytes transfered)
-        bytes_transfered = total_loads + total_evicts
-
-        if bytes_transfered == 0:
+        # arithmetic intensity = flops / bytes loaded )
+        if total_loads == 0:
             # This happens in case of full-caching
             arith_intens = None
             performance = None
         else:
-            arith_intens = float(total_flops)/bytes_transfered
+            arith_intens = float(total_flops)/total_loads
             performance = arith_intens * float(bw)
 
-        results['mem bottlenecks'].append({
+        self.results['mem bottlenecks'].append({
             'performance': PrefixedUnit(performance, 'FLOP/s'),
             'level': ('CPU-' +
                       self.machine['memory hierarchy'][0]['level']),
             'arithmetic intensity': arith_intens,
             'bw kernel': measurement_kernel,
             'bandwidth': bw})
-        if performance <= results.get('min performance', performance):
-            results['bottleneck level'] = len(results['mem bottlenecks'])-1
-            results['min performance'] = performance
+        if performance <= self.results.get('min performance', performance):
+            self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
+            self.results['min performance'] = performance
 
         # for other cache and memory levels:
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
-            cache_stats = stats[cache_level]
-
             # Compiling stats (in bytes!)
-            total_misses = stats[cache_level+1]['LOAD_byte']/first_dim_factor
-            total_evicts = cache_stats['STORE_byte']/first_dim_factor
+            total_misses = self.results['misses'][cache_level]*cacheline_size
+            total_evicts = self.results['evicts'][cache_level]*cacheline_size
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
-            read_streams = cache_stats['MISS_count']/first_dim_factor
-            write_streams = stats[cache_level-1]['STORE_count']/first_dim_factor
+            read_streams = self.results['misses'][cache_level]
+            write_streams = self.results['evicts'][cache_level]
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
@@ -210,21 +141,19 @@ class Roofline(object):
                 arith_intens = float(total_flops)/bytes_transfered
                 performance = arith_intens * float(bw)
 
-            results['mem bottlenecks'].append({
+            self.results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
                 'level': (cache_info['level'] + '-' +
                           self.machine['memory hierarchy'][cache_level+1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw})
-            if performance <= results.get('min performance', performance):
-                results['bottleneck level'] = len(results['mem bottlenecks'])-1
-                results['min performance'] = performance
-
-        return results
+            if performance <= self.results.get('min performance', performance):
+                self.results['bottleneck level'] = len(results['mem bottlenecks'])-1
+                self.results['min performance'] = performance
 
     def analyze(self):
-        self.results = self.calculate_cache_access()
+        self.calculate_cache_access()
 
     def conv_perf(self, performance, unit, default='FLOP/s'):
         '''Convert performance (FLOP/s) to other units, such as It/s or cy/CL'''
@@ -253,8 +182,7 @@ class Roofline(object):
             self.machine['FLOPs per cycle'][precision].values())
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
-            print('Cachelines in stats: {}'.format(self.results['cachelines in stats']),
-                  file=output_file)
+            print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
             print('Bottlnecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
                   file=output_file)

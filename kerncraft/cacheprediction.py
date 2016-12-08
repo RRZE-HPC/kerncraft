@@ -205,7 +205,7 @@ class CacheSimulationPredictor(CachePredictor):
         # Gathering some loop information:
         inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
         inner_index = sympy.Symbol(inner_loop['index'], positive=True)
-        inner_increment = inner_loop['increment']# Calculate the number of iterations necessary for warm-up
+        inner_increment = inner_loop['increment']# Calculate the number of iterations for warm-up
         max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
 
@@ -271,7 +271,6 @@ class CacheSimulationPredictor(CachePredictor):
         # compile access needed for one cache-line
         offsets = list(self.kernel.compile_global_offsets(
             iteration=range(bench_iteration_start, bench_iteration_end)))
-
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
