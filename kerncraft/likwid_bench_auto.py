@@ -29,7 +29,7 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
 
 def get_machine_topology():
     try:
-        topo = subprocess.Popen(['likwid-topology'], stdout=subprocess.PIPE).communicate()[0]
+        topo = subprocess.Popen(['likwid-topology'], stdout=subprocess.PIPE).communicate()[0].decode("utf-8")
     except OSError as e:
         print('likwid-topology execution failed, is it installed and loaded?', file=sys.stderr)
         sys.exit(1)
@@ -98,7 +98,7 @@ def get_machine_topology():
     # Remove last caches load_from and store_to:
     del machine['memory hierarchy'][-1]['cache per group']['load_from']
     del machine['memory hierarchy'][-1]['cache per group']['store_to']
-    
+
     machine['memory hierarchy'].append({
         'level': 'MEM',
         'cores per group': machine['cores per socket'],
@@ -123,12 +123,14 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
             ':1:'+str(int(max_threads_per_core/threads_per_core))]
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
     cmd = ['likwid-bench', '-t', type_]+groups
-    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
+    sys.stderr.write(' '.join(cmd))
+    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
     if not output:
         print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
               '(requires 4.0 or later)', file=sys.stderr)
         sys.exit(1)
     bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
+    print(' ', PrefixedUnit(bw, 'MB/s'), file=sys.stderr)
     return PrefixedUnit(bw, 'MB/s')
 
 
@@ -183,7 +185,8 @@ def main():
             'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
             'FLOPs per iteration': 2}, }
 
-    USAGE_FACTOR = 0.5
+    USAGE_FACTOR = 0.66
+    MEM_FACTOR = 15.0
 
     cores = list(range(1, machine['cores per socket']+1))
     for mem in machine['memory hierarchy']:
@@ -194,12 +197,12 @@ def main():
             threads = [c*threads_per_core for c in cores]
             if mem['size per group'] is not None:
                 total_sizes = [
-                    max(int(mem['size per group'])*c/mem['cores per group'],
-                        int(mem['size per group']))*USAGE_FACTOR
+                    PrefixedUnit(max(int(mem['size per group'])*c/mem['cores per group'],
+                                 int(mem['size per group']))*USAGE_FACTOR, 'B')
                     for c in cores]
             else:
                 last_mem = machine['memory hierarchy'][-2]
-                total_sizes = [float(last_mem['size per group'])/USAGE_FACTOR for c in cores]
+                total_sizes = [last_mem['size per group']*MEM_FACTOR for c in cores]
             sizes_per_core = [t/cores[i] for i, t in enumerate(total_sizes)]
             sizes_per_thread = [t/threads[i] for i, t in enumerate(total_sizes)]
 
@@ -211,7 +214,6 @@ def main():
                 'size per thread': sizes_per_thread,
                 'total size': total_sizes,
                 'results': {}, }
-
     print('Progress: ', end='', file=sys.stderr)
     sys.stderr.flush()
     for mem_level in list(machine['benchmarks']['measurements'].keys()):
