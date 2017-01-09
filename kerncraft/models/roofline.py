@@ -177,8 +177,8 @@ class Roofline(object):
 
     def report(self, output_file=sys.stdout):
         precision = 'DP' if self.kernel.datatype == 'double' else 'SP'
-        max_flops = self.machine['clock']*self._args.cores*sum(
-            self.machine['FLOPs per cycle'][precision].values())
+        max_flops = self.machine['clock']*self._args.cores * \
+                    self.machine['FLOPs per cycle'][precision]['total']
         max_flops.unit = "FLOP/s"
         if self._args and self._args.verbose >= 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
