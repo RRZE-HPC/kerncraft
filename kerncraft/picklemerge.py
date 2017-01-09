@@ -27,9 +27,9 @@ def main():
     parser = argparse.ArgumentParser(
         description='Recursively merges two or more pickle files. Only supports pickles consisting '
         'of a single dictionary object.')
-    parser.add_argument('destination', type=argparse.FileType('r+'),
+    parser.add_argument('destination', type=argparse.FileType('rb+'),
                         help='File to write to and include in resulting pickle. (WILL BE CHANGED)')
-    parser.add_argument('source', type=argparse.FileType('r'), nargs='+',
+    parser.add_argument('source', type=argparse.FileType('rb'), nargs='+',
                         help='File to include in resulting pickle.')
 
     args = parser.parse_args()
