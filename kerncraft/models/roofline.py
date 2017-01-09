@@ -101,8 +101,7 @@ class Roofline(object):
 
         self.results['mem bottlenecks'].append({
             'performance': PrefixedUnit(performance, 'FLOP/s'),
-            'level': ('CPU-' +
-                      self.machine['memory hierarchy'][0]['level']),
+            'level': self.machine['memory hierarchy'][0]['level'],
             'arithmetic intensity': arith_intens,
             'bw kernel': measurement_kernel,
             'bandwidth': bw})
@@ -140,8 +139,7 @@ class Roofline(object):
 
             self.results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
-                'level': (cache_info['level'] + '-' +
-                          self.machine['memory hierarchy'][cache_level+1]['level']),
+                'level': (self.machine['memory hierarchy'][cache_level+1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw})
