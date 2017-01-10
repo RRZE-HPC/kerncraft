@@ -10,7 +10,7 @@ import operator
 import subprocess
 import re
 import sys
-from pprint import pprint, pformat
+from pprint import pformat  # Do not use pprint, breaks in combination with --store and StringIO
 from distutils.spawn import find_executable
 
 import sympy
@@ -132,8 +132,8 @@ class Roofline(object):
 
             if bytes_transfered == 0:
                 # This happens in case of full-caching
-                arith_intens = None
-                performance = None
+                arith_intens = float('inf')
+                performance = float('inf')
             else:
                 arith_intens = float(total_flops)/bytes_transfered
                 performance = arith_intens * float(bw)
@@ -182,7 +182,7 @@ class Roofline(object):
         max_flops.unit = "FLOP/s"
         
         if self._args and self._args.verbose >= 3:
-            pprint(self.results, stream=output_file)
+            print('{}'.format(pformat(self.results)), file=output_file)
         
         if self._args and self._args.verbose >= 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
@@ -358,7 +358,7 @@ class RooflineIACA(Roofline):
                 self.results['cpu bottleneck']['performance latency'], "FLOP/s")
         
         if self._args and self._args.verbose >= 3:
-            pprint(self.results, stream=output_file)
+            print('{}'.format(pformat(self.results)), file=output_file)
         
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:', file=output_file)
