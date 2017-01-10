@@ -104,7 +104,8 @@ class Roofline(object):
             'level': self.machine['memory hierarchy'][0]['level'],
             'arithmetic intensity': arith_intens,
             'bw kernel': measurement_kernel,
-            'bandwidth': bw})
+            'bandwidth': bw,
+            'bytes transfered': total_loads})
         if performance <= self.results.get('min performance', performance):
             self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
             self.results['min performance'] = performance
@@ -127,7 +128,7 @@ class Roofline(object):
 
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
-            bytes_transfered = total_misses + total_evicts
+            bytes_transfered = total_misses
 
             if bytes_transfered == 0:
                 # This happens in case of full-caching
@@ -142,7 +143,8 @@ class Roofline(object):
                 'level': (self.machine['memory hierarchy'][cache_level+1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
-                'bandwidth': bw})
+                'bandwidth': bw,
+                'bytes transfered': bytes_transfered})
             if performance < self.results.get('min performance', performance):
                 self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
                 self.results['min performance'] = performance
@@ -178,6 +180,10 @@ class Roofline(object):
         max_flops = self.machine['clock']*self._args.cores * \
                     self.machine['FLOPs per cycle'][precision]['total']
         max_flops.unit = "FLOP/s"
+        
+        if self._args and self._args.verbose >= 3:
+            pprint(self.results, stream=output_file)
+        
         if self._args and self._args.verbose >= 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
             print('Bottlnecks:', file=output_file)
@@ -350,6 +356,10 @@ class RooflineIACA(Roofline):
         else:
             cpu_flops = PrefixedUnit(
                 self.results['cpu bottleneck']['performance latency'], "FLOP/s")
+        
+        if self._args and self._args.verbose >= 3:
+            pprint(self.results, stream=output_file)
+        
         if self._args and self._args.verbose >= 1:
             print('Bottlnecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
@@ -367,9 +377,6 @@ class RooflineIACA(Roofline):
                       file=output_file)
             print('', file=output_file)
             print('IACA analisys:', file=output_file)
-            if self._args.verbose >= 3:
-                print(self.results['cpu bottleneck']['IACA output'], file=output_file)
-                print(self.results['cpu bottleneck']['IACA latency output'], file=output_file)
             print('{!s}'.format(
                 {k: v
                  for k, v in list(self.results['cpu bottleneck'].items())
