@@ -6,6 +6,7 @@ from __future__ import division
 
 from itertools import chain
 from collections import defaultdict
+from pprint import pprint
 
 import sympy
 
@@ -113,12 +114,12 @@ class LayerConditionPredictor(CachePredictor):
             # Gather all access to current variable/array
             accesses[var_name] = self.kernel._sources.get(var_name, []) + \
                                  self.kernel._destinations.get(var_name, [])
-            destinations.update(
-                [(var_name, tuple(r)) for r in self.kernel._destinations.get(var_name, [])])
-            acs = accesses[var_name]
             # Skip non-variable offsets (acs is [None, None, None] or the like)
             if not any(accesses[var_name]):
                 continue
+            destinations.update(
+                [(var_name, tuple(r)) for r in self.kernel._destinations.get(var_name, [])])
+            acs = accesses[var_name]
             # Transform them into sympy expressions
             acs = [self.kernel.access_to_sympy(var_name, r) for r in acs]
             # Replace constants with their integer counter parts, to make the entries sortable
