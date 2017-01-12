@@ -113,29 +113,29 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['Roofline'])
 
         roofline = result['Roofline']
-        self.assertAlmostEqual(roofline['min performance'], 7740000000.0, places=0)
-        self.assertEqual(roofline['bottleneck level'], 1)
+        self.assertAlmostEqual(roofline['min performance'], 5802500000.0, places=0)
+        self.assertEqual(roofline['bottleneck level'], 2)
         
         expected_btlncks = [{u'arithmetic intensity': 0.11764705882352941,
                              u'bandwidth': PrefixedUnit(122.97, u'G', u'B/s'),
                              u'bw kernel': 'copy',
                              u'level': u'L1',
                              u'performance': PrefixedUnit(14467058823.529411, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': 0.125,
+                            {u'arithmetic intensity': 0.1,
                              u'bandwidth': PrefixedUnit(61.92, u'G', u'B/s'),
                              u'bw kernel': 'copy',
                              u'level': u'L2',
-                             u'performance': PrefixedUnit(7740000000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': 0.25,
+                             u'performance': PrefixedUnit(6192000000.0, u'', u'FLOP/s')},
+                            {u'arithmetic intensity': 0.16666666666666666,
                              u'bandwidth': PrefixedUnit(34815.0, u'M', u'B/s'),
                              u'bw kernel': 'copy',
                              u'level': u'L3',
-                             u'performance': PrefixedUnit(8703750000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': float('inf'),
+                             u'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},
+                            {u'arithmetic intensity': float(0.5),
                              u'bandwidth': PrefixedUnit(12.01, u'G', u'B/s'),
                              u'bw kernel': 'load',
                              u'level': u'MEM',
-                             u'performance': PrefixedUnit(float('inf'), u'', u'FLOP/s')}]
+                             u'performance': PrefixedUnit(6005000000.0, u'', u'FLOP/s')}]
         
         for i, btlnck in enumerate(expected_btlncks):
             for k,v in btlnck.items():
@@ -308,7 +308,7 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['RooflineIACA'])
 
         roofline = result['RooflineIACA']
-        self.assertAlmostEqual(roofline['min performance'], 4350000000.0, places=0)
+        self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
