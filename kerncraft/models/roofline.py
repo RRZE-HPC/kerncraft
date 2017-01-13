@@ -186,7 +186,7 @@ class Roofline(object):
         
         if self._args and self._args.verbose >= 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
-            print('Bottlnecks:', file=output_file)
+            print('Bottlenecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
                   file=output_file)
             print('--------+--------------+-----------------+--------------+-----------------',
@@ -361,7 +361,7 @@ class RooflineIACA(Roofline):
             print('{}'.format(pformat(self.results)), file=output_file)
         
         if self._args and self._args.verbose >= 1:
-            print('Bottlnecks:', file=output_file)
+            print('Bottlenecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
                   file=output_file)
             print('--------+--------------+-----------------+--------------+-----------------',
