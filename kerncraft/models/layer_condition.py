@@ -191,7 +191,7 @@ class LC(object):
                     'cache_size': cl.size(),
                     'equation': cache_equation,
                     'lt': inequality,
-                    'eq': sympy.solve(cache_equation, *self.kernel.constants.keys())
+                    'eq': sympy.solve(cache_equation, *self.kernel.constants.keys(), dict=True)
                 }
         
         return results
