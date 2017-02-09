@@ -164,8 +164,8 @@ class LC(object):
                 #if m.is_Function:
                 #    raise ValueError("Could not resolve {} to maximum.".format(m))
                 return m
-            
-            slices_max = FuckedUpMax(*[FuckedUpMax(*dists) for dists in slices_distances.values()])
+
+            slices_max = FuckedUpMax(*[FuckedUpMax(*dists) for dists in slices_distances.values()], sympy.Integer(0))
             results['dimensions'][dimension]['slices_sum'] = slices_sum
             
             # Nmber of slices
