@@ -129,6 +129,17 @@ def find_array_references(ast):
         return reduce(operator.add, [find_array_references(o[1]) for o in ast.children()], [])
 
 
+# Make sure that functions will return iterable objects:
+def force_iterable(f):
+    def wrapper(*args, **kwargs):
+        r = f(*args, **kwargs)
+        if hasattr(r, '__iter__'):
+            return r
+        else:
+            return [r]
+    return wrapper
+
+
 class Kernel(object):
     '''This class captures the kernel information, analyzes it and reports access pattern'''
     # Datatype sizes in bytes
@@ -409,20 +420,20 @@ class Kernel(object):
             element_size = self.datatypes_size[self.variables[var_name][0]]
             for r in self._sources.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, r)
-                offset = sympy.lambdify(
+                offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
                     self.subs_consts(
                         offset_expr*element_size
-                        + base_offsets[var_name]), numpy)
+                        + base_offsets[var_name]), numpy))
                 # TODO possibly differentiate between index order
                 global_load_offsets.append(offset)
             for w in self._destinations.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, w)
-                offset = sympy.lambdify(
+                offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
                     self.subs_consts(
                         offset_expr*element_size
-                        + base_offsets[var_name]), numpy)
+                        + base_offsets[var_name]), numpy))
                 # TODO possibly differentiate between index order
                 global_store_offsets.append(offset)
                 # TODO take element sizes into account, return in bytes
