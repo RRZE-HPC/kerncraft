@@ -134,8 +134,6 @@ def create_parser():
                         help='Select the output unit, defaults to model specific if not given.')
     parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
                         help='Number of cores to be used in parallel. (default: 1)')
-    parser.add_argument('--latency', action='store_true',
-                        help='Use pessimistic IACA latency instead of throughput prediction.')
     parser.add_argument('--kernel-description', action='store_true',
                         help='Use kernel description instead of analyzing the kernel code.')
 
