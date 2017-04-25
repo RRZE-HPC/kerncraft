@@ -23,7 +23,7 @@ if __name__ == '__main__':
               "there is something wrong with your configuration.")
         sys.exit(1)
 
-    assert sys.argv[2] in ['lin64', 'lin32', 'mac32', 'mac64']
+    assert sys.argv[2] in ['lin64', 'mac']
     version = sys.argv[2]
 
     URL = "https://software.intel.com/protected-download/267266/157552"
@@ -36,7 +36,8 @@ if __name__ == '__main__':
         'form_id': 'intel_licensed_dls_step_1'}
     r = s.post(URL, data=response_data)
     download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-'+version+'[^"]*\.zip)"', r.text).group(1)
+        r'"(https://software.intel.com/[^"]*iaca-version-2.2-'+version+'\.zip)"', r.text).group(1)
+    print("Downloading", download_url)
     r = s.get(download_url, stream=True)
     zfile = zipfile.ZipFile(BytesIO(r.content))
     members = [n
@@ -58,6 +59,7 @@ if __name__ == '__main__':
     # Fixing iaca.sh
     iaca_sh = open('iaca-{:}/bin/iaca.sh'.format(version)).read()
     iaca_sh = iaca_sh.replace('realpath', 'readlink -f', 1)
+    iaca_sh = iaca_sh.replace('mypath=`pwd`', 'mypath=`dirname $0`', 1)
     open('iaca-{:}/bin/iaca.sh'.format(version), 'w').write(iaca_sh)
 
     print("{:}/iaca-{:}/bin/".format(os.getcwd(), version))
