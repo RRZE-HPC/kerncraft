@@ -64,7 +64,7 @@ class CachePredictor(object):
 
 class LayerConditionPredictor(CachePredictor):
     '''
-    Predictor classed based on layer condition analysis.
+    Predictor class based on layer condition analysis.
     '''
     def __init__(self, kernel, machine):
         CachePredictor.__init__(self, kernel, machine)
@@ -141,25 +141,35 @@ class LayerConditionPredictor(CachePredictor):
         results['distances_bytes'] = distances_bytes
         results['cache'] = []
         
+        sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
+        
         for c in  self.machine.get_cachesim().levels(with_mem=False):
             # Assuming increasing order of cache sizes
             hits = 0
             misses = len(distances_bytes)
-            for tail in sorted(set(distances_bytes), reverse=True):
-                # Assuming decreasing order of tails
-                # Ignoring infinity tail:
-                if tail is sympy.oo:
-                    continue
-                cache_requirement = (
-                    sum([d for d in distances_bytes if d<=tail]) +  # Sum of inter-access caches
-                    tail*len([d for d in distances_bytes if d>tail]))  # Tails
-                
-                if cache_requirement <= c.size():
-                    # If we found a tail that fits into our available cache size
-                    # note hits and misses and break
-                    hits = len([d for d in distances_bytes if d<=tail])
-                    misses = len([d for d in distances_bytes if d>tail])
-                    break
+            cache_requirement = 0
+            
+            # Test for full caching
+            if c.size() > sum_array_sizes:
+                hits = misses
+                misses = 0
+                cache_requirement = sum_array_sizes
+            else:
+                for tail in sorted(set(distances_bytes), reverse=True):
+                    # Assuming decreasing order of tails
+                    # Ignoring infinity tail:
+                    if tail is sympy.oo:
+                        continue
+                    cache_requirement = (
+                        sum([d for d in distances_bytes if d<=tail]) +  # Sum of inter-access caches
+                        tail*len([d for d in distances_bytes if d>tail]))  # Tails
+                    
+                    if cache_requirement <= c.size():
+                        # If we found a tail that fits into our available cache size
+                        # note hits and misses and break
+                        hits = len([d for d in distances_bytes if d<=tail])
+                        misses = len([d for d in distances_bytes if d>tail])
+                        break
             
             # Resulting analysis for current cache level
             results['cache'].append({
@@ -191,7 +201,7 @@ class LayerConditionPredictor(CachePredictor):
 
 class CacheSimulationPredictor(CachePredictor):
     '''
-    Predictor classed based on layer condition analysis.
+    Predictor class based on layer condition analysis.
     '''
     def __init__(self, kernel, machine):
         CachePredictor.__init__(self, kernel, machine)
