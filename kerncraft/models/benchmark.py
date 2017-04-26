@@ -7,8 +7,11 @@ import subprocess
 from functools import reduce
 import operator
 import sys
-import six
 from distutils.spawn import find_executable
+from pprint import pprint
+import re
+
+import six
 
 from kerncraft.kernel import KernelCode
 
@@ -45,6 +48,9 @@ class Benchmark(object):
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
         '''
         runs *cmd* with likwid-perfctr and returns result as dict
+        
+        *group* may be a performance group known to likwid-perfctr or an event string.
+        Only works with single core!
         '''
 
         # Making sure iaca.sh is available:
@@ -52,9 +58,9 @@ class Benchmark(object):
             print("likwid-perfctr was not found. Make sure likwid is installed and found in PATH.",
                   file=sys.stderr)
             sys.exit(1)
-        
+
         # FIXME currently only single core measurements support!
-        perf_cmd = ['likwid-perfctr', '-O', '-g', group]
+        perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
 
         if pin:
             perf_cmd += ['-C', cpu]
@@ -76,13 +82,20 @@ class Benchmark(object):
         results = {}
         ignore = True
         for l in output:
-            if ignore and (l.startswith('Event,core 0') or l.startswith('Metric,Core 0')):
-                ignore = False
-            elif ignore or not l:
-                continue
-
             l = l.split(',')
-            results[l[0]] = l[1:]
+            try:
+                # Metrics
+                results[l[0]] = float(l[1])
+            except:
+                pass
+            try:
+                # Event counters
+                counter_value = int(l[2])
+                if re.fullmatch(r'[A-Z_]+', l[0]) and re.fullmatch(r'[A-Z0-9]+', l[1]):
+                    results.setdefault(l[0], {})
+                    results[l[0]][l[1]] = counter_value
+            except (IndexError, ValueError):
+                pass
 
         return results
 
@@ -106,7 +119,7 @@ class Benchmark(object):
                 repetitions *= 10
 
             result = self.perfctr(args+[six.text_type(repetitions)])
-            runtime = float(result['Runtime (RDTSC) [s]'][0])
+            runtime = result['Runtime (RDTSC) [s]']
             time_per_repetition = runtime/float(repetitions)
 
         self.results = {'raw output': result}
@@ -125,13 +138,13 @@ class Benchmark(object):
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
             (cys_per_repetition/iterations_per_repetition)*iterations_per_cacheline
         self.results['MEM volume (per repetition) [B]'] = \
-            float(result['Memory data volume [GBytes]'][0])*1e9/repetitions
+            result['Memory data volume [GBytes]']*1e9/repetitions
         self.results['Performance [MFLOP/s]'] = \
             sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
         if 'Memory bandwidth [MBytes/s]' in result:
-            self.results['MEM BW [MByte/s]'] = float(result['Memory bandwidth [MBytes/s]'][0])
+            self.results['MEM BW [MByte/s]'] = result['Memory bandwidth [MBytes/s]']
         else:
-            self.results['MEM BW [MByte/s]'] = float(result['Memory BW [MBytes/s]'][0])
+            self.results['MEM BW [MByte/s]'] = result['Memory BW [MBytes/s]']
         self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
         self.results['Performance [MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
