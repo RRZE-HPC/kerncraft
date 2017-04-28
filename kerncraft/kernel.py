@@ -290,6 +290,28 @@ class Kernel(object):
             else:
                 yield {'index': l[0], 'start': l[1], 'stop': l[2], 'increment': l[3]}
 
+    def index_order(self, sources=True, destinations=True):
+        '''
+        Returns the order of indices as they appear in array references
+
+        Use *source* and *destination* to reduce output
+        '''
+        if sources:
+            arefs = chain(*self._sources.values())
+        else:
+            arefs = []
+        if destinations:
+            arefs = chain(arefs, *self._destinations.values())
+
+        ret = []
+        for a in [aref for aref in arefs if aref is not None]:
+            ref = []
+            for expr in a:
+                ref.append(expr.free_symbols)
+            ret.append(ref)
+
+        return ret
+
     def compile_sympy_accesses(self, sources=True, destinations=True):
         '''returns a dictionary of lists of sympy accesses, for each variable'''
         sympy_accesses = defaultdict(list)
@@ -618,28 +640,6 @@ class KernelCode(Kernel):
             idxs.reverse()
 
         return idxs
-
-    def index_order(self, sources=True, destinations=True):
-        '''
-        Returns the order of indices as they appear in array references
-
-        Use *source* and *destination* to reduce output
-        '''
-        if sources:
-            arefs = chain(*self._sources.values())
-        else:
-            arefs = []
-        if destinations:
-            arefs = chain(arefs, *self._destinations.values())
-
-        ret = []
-        for a in [aref for aref in arefs if aref is not None]:
-            ref = []
-            for expr in a:
-                ref.append(expr.free_symbols)
-            ret.append(ref)
-
-        return ret
 
     @classmethod
     def _get_basename(cls, aref):
