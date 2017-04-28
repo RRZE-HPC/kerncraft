@@ -163,11 +163,13 @@ def userselect_block(blocks, default=None):
     print("Blocks found in assembly file:")
     print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
           "-----------+-----+------+-----++-----------+----------+----------+---------++-------|")
+    from pprint import pprint
+    #pprint(blocks)
     for idx, b in blocks:
         print('{:>2} {b[label]:>7} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
               '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '
-              '{b[pointer_increment]:>5} |'.format(idx, b=b))
+              '{b[pointer_increment]!s:>5} |'.format(idx, b=b))
 
     # Let user select block:
     block_idx = -1
@@ -213,7 +215,7 @@ def main():
 
     # write back to file
     with open(sys.argv[1], 'w') as fp:
-        fp.writelines(lines)
+        fp.write('\n'.join(lines))
 
     print("Markers inserted.")
 
