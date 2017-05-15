@@ -1,9 +1,14 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from pprint import pprint
 import re
 import string
 from collections import defaultdict
-from itertools import zip_longest, chain
+from itertools import chain
+try:
+    # Python 3
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
 
 
 def group_iterator(group):
@@ -54,7 +59,7 @@ def register_options(regdescr):
     ['PMC0', 'PMC1', 'PMC2', 'PMC3']
     '''
     if not regdescr:
-        return []
+        yield None
     tokenizer = ('\[(?P<grp>[^]]+)\]|'
                  '(?P<chr>.)')
     for u in regdescr.split('|'):
@@ -79,13 +84,17 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
     >>> eventstr(('L1D_REPLACEMENT', 'PMC0', None))
     'L1D_REPLACEMENT:PMC0'
+    >>> eventstr(('L1D_REPLACEMENT', 'PMC0'))
+    'L1D_REPLACEMENT:PMC0'
     >>> eventstr(('MEM_UOPS_RETIRED_LOADS', 'PMC3', {'EDGEDETECT': None, 'THRESHOLD': 2342}))
     'MEM_UOPS_RETIRED_LOADS:PMC3:EDGEDETECT:THRESHOLD=0x926'
     >>> eventstr(event='DTLB_LOAD_MISSES_WALK_DURATION', register='PMC3')
     'DTLB_LOAD_MISSES_WALK_DURATION:PMC3'
     '''
-    if event_tuple:
+    if len(event_tuple) == 3:
         event, register, parameters = event_tuple
+    elif len(event_tuple) == 2:
+        event, register = event_tuple
     event_dscr = [event, register]
 
     if parameters:
@@ -97,47 +106,35 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
 
 def build_minimal_runs(events):
-    runs = []
     # Eliminate multiples
-    events = [e for i, e in enumerate(events) if events.index(e) == i ]
+    events = [e for i, e in enumerate(events) if events.index(e) == i]
 
-    reg_dict = defaultdict(list)
-    for e, r, p in events:
-        i = (e,p)
-        if i not in reg_dict[r]:
-            reg_dict[r].append(i)
-
-    # Check that no keys overlapp
-    all_regs = []
-    for k in reg_dict:
-        all_regs += list(register_options(k))
-    if len(all_regs) != len(set(all_regs)):
-        raise ValueError('Overlapping register definitions is not supported.')
-    
     # Build list of runs per register group
-    per_reg_runs = defaultdict(list)
-    for reg, evts in reg_dict.items():
-        regs = list(register_options(reg))
-        i = len(regs)
-        cur = []
-        for e,p in evts:
-            if len(regs) <= i+1:
-                i = 0
-                cur = []
-                per_reg_runs[reg].append(cur)
-            else:
-                i = i+1
-            r = regs[i]
-            cur.append((e,r,p))
-    
-    # Collaps all register groups to single runs
-    runs = zip_longest(*per_reg_runs.values())
-    # elimate Nones
-    runs = [list(filter(bool, r)) for r in runs]
-    # flatten
-    runs = [list(chain.from_iterable(r)) for r in runs]
-    
-    return list(runs)
+    scheduled_runs = {}
+    scheduled_events = []
+    cur_run = 0
+    while len(scheduled_events) != len(events):
+        for event_tpl in events:
+            # Skip allready scheduled events
+            if event_tpl in scheduled_events: continue
+
+            event, registers, parameters = event_tpl
+
+            # Compile explicit list of possible register locations
+            for possible_reg in register_options(registers):
+                # Schedule in current run, if register is not yet in use
+                s = scheduled_runs.setdefault(cur_run, {})
+                if possible_reg not in s:
+                    s[possible_reg] = (event, possible_reg, parameters)
+                    # ban from further scheduling attempts
+                    scheduled_events.append(event_tpl)
+                    break
+        cur_run += 1
+
+    # Collaps all register dicts to single runs
+    runs = [list(v.values()) for v in scheduled_runs.values()]
+
+    return runs
 
 
 if __name__ == '__main__':
@@ -190,5 +187,5 @@ if __name__ == '__main__':
 
     print(len(requested))
     runs = build_minimal_runs(requested)
-    pprint(runs)
+    pprint([[eventstr(e) for e in r] for r in runs])
     print(len(runs))
