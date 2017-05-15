@@ -80,7 +80,12 @@ def register_options(regdescr):
 
 def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     '''
-    Returns an event string from a tuple
+    Returns a LIKWID event string from an event tuple or keyword arguments
+
+    *event_tuple* may have two or three arguments: (event, register) or
+    (event, register, parameters)
+
+    Keyword arguments will be overwritten by *event_tuple*.
 
     >>> eventstr(('L1D_REPLACEMENT', 'PMC0', None))
     'L1D_REPLACEMENT:PMC0'
@@ -106,6 +111,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
 
 def build_minimal_runs(events):
+    '''Compiles list of minimal runs for given events'''
     # Eliminate multiples
     events = [e for i, e in enumerate(events) if events.index(e) == i]
 
@@ -115,11 +121,9 @@ def build_minimal_runs(events):
     cur_run = 0
     while len(scheduled_events) != len(events):
         for event_tpl in events:
+            event, registers, parameters = event_tpl
             # Skip allready scheduled events
             if event_tpl in scheduled_events: continue
-
-            event, registers, parameters = event_tpl
-
             # Compile explicit list of possible register locations
             for possible_reg in register_options(registers):
                 # Schedule in current run, if register is not yet in use
@@ -148,6 +152,7 @@ if __name__ == '__main__':
         ('DTLB_STORE_MISSES_CAUSES_A_WALK', 'PMC[0-3]', None),
         ('DTLB_LOAD_MISSES_WALK_DURATION', 'PMC[0-3]', None),
         ('DTLB_STORE_MISSES_WALK_DURATION', 'PMC[0-3]', None),
+        ('CYCLE_ACTIVITY_CYCLES_L2_PENDING', 'PMC2', None),
         ('MEM_UOPS_RETIRED_LOADS', 'PMC[0-3]', {'EDGEDETECT': None}),
         ('MEM_UOPS_RETIRED_LOADS', 'PMC[0-3]', {'EDGEDETECT': None, 'THRESHOLD': 2342}),
         ('MEM_UOPS_RETIRED_LOADS', 'PMC[0-3]', {'EDGEDETECT': None, 'THRESHOLD': 0x926}),
