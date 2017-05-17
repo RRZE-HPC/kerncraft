@@ -48,6 +48,9 @@ class Roofline(object):
             # handle CLI info
             pass
 
+        if sum(self.kernel._flops.values()) == 0:
+            raise ValueError("The Roofline model requires that the sum of FLOPs is non-zero.")
+
     def calculate_cache_access(self):
         if self._args.cache_predictor == 'SIM':
             self.predictor = CacheSimulationPredictor(self.kernel, self.machine)

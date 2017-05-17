@@ -24,12 +24,17 @@ For a detailed documentation see publications in `<doc/>`_.
 Installation
 ============
 
-Run:
-``pip install --user kerncraft`` for the latest release, or ``python ./setup.py install`` if you cloned this repository.
+On most systems with python pip and setuputils installed, just run:
+``pip install --user kerncraft`` for the latest release.
+
+If you want to build from source:
+Clone this repository and run ``python ./setup.py install``.
+
+If you are unfamiliar with python, here is a tutorial on how to install python packages: https://packaging.python.org/installing/ . The use of virtual enviornments is usually a good choice.
 
 Additional requirements are:
- * Intel IACA tool, with (working) ``iaca.sh`` in PATH environment variable (used by ECM, ECMCPU and RooflineIACA models)
- * likwid (used in Benchmark model and by ``likwid_bench_auto.py``)
+ * `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_, with (working) ``iaca.sh`` in PATH environment variable (used by ECM, ECMCPU and RooflineIACA models)
+ * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto.py``)
 
 Usage
 =====

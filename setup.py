@@ -50,7 +50,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.4.7',
+    version='0.4.8',
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
@@ -155,6 +155,6 @@ setup(
             'cachetile=kerncraft.cachetile:main'
         ],
     },
-    
+
     cmdclass={'build_py': build_py, 'sdist': sdist},
 )
