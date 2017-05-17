@@ -155,6 +155,6 @@ setup(
             'cachetile=kerncraft.cachetile:main'
         ],
     },
-    
+
     cmdclass={'build_py': build_py, 'sdist': sdist},
 )
