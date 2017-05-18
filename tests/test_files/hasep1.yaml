@@ -259,8 +259,10 @@ benchmarks:
 cacheline size: 64 B
 clock: 2.3 GHz
 cores per socket: 14
-compiler: icc
-compiler flags: [-O3, -xAVX, -fno-alias]
+compiler:
+    icc: -O3 -xCORE-AVX2 -fno-alias
+    gcc: -O3 -march=haswell
+    clang: -03 -mavx2
 memory hierarchy:
     - level: L1
       cache per group: {

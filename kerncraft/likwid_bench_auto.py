@@ -50,8 +50,10 @@ def get_machine_topology():
                                    'ADD': 'INFORMATION_REQUIRED',
                                    'MUL': 'INFORMATION_REQUIRED'}},
         'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW)',
-        'compiler': 'INFORMATION_REQUIRED (e.g., gcc)',
-        'compiler flags': 'INFORMATION_REQUIRED (list of flags, e.g., [-O3, -xACX, -fno-alias])',
+        # TODO retrive flags automatically from compiler with -march=native
+        'compiler': {'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)',],
+                     'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L',],
+                     'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)',},
         'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
         'overlapping ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)' + \
                              ', ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"])',

@@ -29,7 +29,7 @@ class TestKernel(unittest.TestCase):
         self.twod_code = open(self._find_file('2d-5pt.c')).read()
         self.threed_code = open(self._find_file('3d-7pt.c')).read()
         self.twod_description = yaml.load(open(self._find_file('2d-5pt.yml')).read(),
-                                          Loader=yaml.Loader)
+                                          Loader=yaml.RoundTripLoader)
        
     def _find_file(self, name):
         testdir = os.path.dirname(__file__)

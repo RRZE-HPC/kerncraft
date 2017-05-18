@@ -16,7 +16,6 @@ import numbers
 import collections
 from functools import reduce
 from string import ascii_letters
-from distutils.spawn import find_executable
 from itertools import chain
 from collections import defaultdict
 from pprint import pprint
@@ -145,13 +144,14 @@ class Kernel(object):
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
 
-    def __init__(self):
+    def __init__(self, machine=None):
         self._loop_stack = []
         self.variables = {}
         self._sources = {}
         self._destinations = {}
         self._flops = {}
         self.datatype = None
+        self._machine = machine
 
         self.clear_state()
 
@@ -520,8 +520,8 @@ class KernelCode(Kernel):
 
     This version allows compilation and generation of code for iaca and likwid benchmarking
     '''
-    def __init__(self, kernel_code, filename=None):
-        super(KernelCode, self).__init__()
+    def __init__(self, kernel_code, filename=None, machine=None):
+        super(KernelCode, self).__init__(machine=machine)
 
         # Initialize state
         self.asm_blocks = {}
@@ -982,7 +982,7 @@ class KernelCode(Kernel):
 
         return code
 
-    def assemble(self, compiler, in_filename,
+    def assemble(self, in_filename,
                  out_filename=None, iaca_markers=True, asm_block='auto', asm_increment=0):
         '''
         Assembles *in_filename* to *out_filename*.
@@ -1045,6 +1045,8 @@ class KernelCode(Kernel):
             with open(in_filename, 'w') as in_file:
                 in_file.writelines(lines)
 
+        compiler, cflags = self._machine.get_compiler()
+
         try:
             # Assamble all to a binary
             subprocess.check_output(
@@ -1058,7 +1060,7 @@ class KernelCode(Kernel):
 
         return out_filename
 
-    def compile(self, compiler, compiler_args=None):
+    def compile(self):
         '''
         Compiles source (from as_code(type_)) to assembly.
 
@@ -1066,11 +1068,7 @@ class KernelCode(Kernel):
 
         Output can be used with Kernel.assemble()
         '''
-        # Making sure compiler is available:
-        if find_executable(compiler) is None:
-            print("Compiler ({}) was not found. Choose different one in machine file "
-                  "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
-            sys.exit(1)
+        compiler, cflags = self._machine.get_compiler()
 
         if not self._filename:
             in_file = tempfile.NamedTemporaryFile(
@@ -1082,21 +1080,19 @@ class KernelCode(Kernel):
         in_file.write(self.as_code())
         in_file.flush()
 
-        if compiler_args is None:
-            compiler_args = []
-        compiler_args += ['-std=c99']
+        cflags += ['-std=c99']
 
         try:
             subprocess.check_output(
                 [compiler] +
-                compiler_args +
+                cflags +
                 [os.path.basename(in_file.name),
                  '-S',
                  '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(
-                [compiler] + compiler_args + [
+                [compiler] + cflags + [
                     os.path.abspath(os.path.dirname(os.path.realpath(__file__))+'/headers/dummy.c'),
                     '-S'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
@@ -1109,26 +1105,20 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def build(self, compiler, cflags=None, lflags=None, verbose=False):
+    def build(self, lflags=None, verbose=False):
         '''
         compiles source to executable with likwid capabilities
 
         returns the executable name
         '''
+        compiler, cflags = self._machine.get_compiler()
+
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                 'LIKWID_LIB' in os.environ):
             print('Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables',
                   file=sys.stderr)
             sys.exit(1)
 
-        # Making sure compiler is available:
-        if find_executable(compiler) is None:
-            print("Compiler ({}) was not found. Choose different one in machine file "
-                  "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
-            sys.exit(1)
-
-        if cflags is None:
-            cflags = []
         cflags += ['-std=c99',
                    '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
                    os.environ.get('LIKWID_INCLUDE', ''),
@@ -1177,8 +1167,8 @@ class KernelDescription(Kernel):
 
     This class does NOT allow compilation (required by iaca analysis and likwid benchmarking).
     '''
-    def __init__(self, description):
-        super(KernelDescription, self).__init__()
+    def __init__(self, description, machine=None):
+        super(KernelDescription, self).__init__(machine=machine)
 
         # Loops
         self._loop_stack = list([

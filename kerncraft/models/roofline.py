@@ -251,10 +251,8 @@ class RooflineIACA(Roofline):
         self.results = self.calculate_cache_access()
 
         # For the IACA/CPU analysis we need to compile and assemble
-        asm_name = self.kernel.compile(
-            self.machine['compiler'], compiler_args=self.machine['compiler flags'])
-        bin_name = self.kernel.assemble(
-           self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block,
+        asm_name = self.kernel.compile()
+        bin_name = self.kernel.assemble(asm_name, iaca_markers=True, asm_block=self._args.asm_block,
            asm_increment=self._args.asm_increment)
 
         # Making sure iaca.sh is available:

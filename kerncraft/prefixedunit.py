@@ -13,8 +13,8 @@ class PrefixedUnit(yaml.YAMLObject):
     PREFIXES = {'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e13, 'P': 1e16, 'E': 1e19, 'Z': 1e21, 'Y': 1e24,
                 '': 1}
 
-    yaml_loader = yaml.Loader
-    yaml_dumper = yaml.Dumper
+    yaml_loader = yaml.RoundTripLoader
+    yaml_dumper = yaml.RoundTripDumper
 
     yaml_tag = u'!prefixed'
     yaml_implicit_pattern = re.compile(re.compile(
@@ -164,5 +164,7 @@ class PrefixedUnit(yaml.YAMLObject):
         except TypeError:
             return True
 
-# Make this tag automatic
-yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)
+    @staticmethod
+    def register():
+        '''Register this tag with yaml'''
+        yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)

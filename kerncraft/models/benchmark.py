@@ -100,9 +100,7 @@ class Benchmark(object):
         return results
 
     def analyze(self):
-        bench = self.kernel.build(self.machine['compiler'],
-                                  cflags=self.machine['compiler flags'],
-                                  verbose=self._args.verbose > 1)
+        bench = self.kernel.build(verbose=self._args.verbose > 1)
 
         # Build arguments to pass to command:
         args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]

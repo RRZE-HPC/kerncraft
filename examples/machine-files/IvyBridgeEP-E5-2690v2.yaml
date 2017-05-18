@@ -204,8 +204,10 @@ benchmarks:
 cacheline size: 64 B
 clock: 3.0 GHz
 cores per socket: 10
-compiler: icc
-compiler flags: [-O3, -xAVX, -fno-alias]
+compiler:
+    icc: -O3 -xAVX -fno-alias
+    clang: -O3 -mavx -D_POSIX_C_SOURCE=200112L
+    gcc: -O3 -march=ivybridge
 write-allocate: True
 memory hierarchy:
     - level: L1
@@ -218,6 +220,10 @@ memory hierarchy:
       threads per group: 2
       groups: 16
       cycles per cacheline transfer: 2
+      performance counter metrics:
+          accesses: MEM_UOPS_RETIRED_LOADS:PMC0
+          misses: L1D_REPLACEMENT:PMC[0-3]
+          evicts: L1D_M_EVICT:PMC[0-3]
     - level: L2
       cache per group: {
          'sets': 512, 'ways': 8, 'cl_size': 64, # 256 kB
@@ -228,6 +234,10 @@ memory hierarchy:
       threads per group: 2
       groups: 16
       cycles per cacheline transfer: 2
+      performance counter metrics:
+          accesses: L1D_REPLACEMENT:PMC[0-3]
+          misses: L2_LINES_IN_ALL:PMC[0-3]
+          evicts: L2_LINES_OUT_DIRTY_ALL:PMC[0-3]
     - level: L3
       cache per group: {
          'sets': 25600, 'ways': 16, 'cl_size': 64, # 25 MB
@@ -237,6 +247,14 @@ memory hierarchy:
       threads per group: 16
       groups: 2
       cycles per cacheline transfer: null
+      performance counter metrics:
+          accesses: L2_LINES_IN_ALL:PMC[0-3]
+          misses: (CAS_COUNT_LD:MBOX0C[01] + CAS_COUNT_LD:MBOX1C[01] + CAS_COUNT_LD:MBOX2C[01] + 
+                   CAS_COUNT_LD:MBOX3C[01] + CAS_COUNT_LD:MBOX4C[01] + CAS_COUNT_LD:MBOX5C[01] + 
+                   CAS_COUNT_LD:MBOX6C[01] + CAS_COUNT_LD:MBOX6C[01])
+          evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01] + 
+                   CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01] + 
+                   CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
     - level: MEM
       cores per group: 8
       cycles per cacheline transfer: null,
@@ -247,5 +265,13 @@ model type: Intel Core IvyBridge EP processor
 model name: Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz
 sockets: 2
 threads per core: 2
-overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
-non-overlapping ports: ["2D", "3D"]
+overlapping model:
+    ports: ["0", "0DV", "1", "2", "3", "4", "5"]
+    performance counter metric:
+        max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])
+non-overlapping model:
+    ports: ["2D", "3D"]
+    performance counter metric: T_OL + T_L1L2 + T_L2L3 + T_L3MEM

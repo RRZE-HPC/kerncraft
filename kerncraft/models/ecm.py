@@ -229,11 +229,9 @@ class ECMCPU(object):
 
     def analyze(self):
         # For the IACA/CPU analysis we need to compile and assemble
-        asm_name = self.kernel.compile(
-            self.machine['compiler'], compiler_args=self.machine['compiler flags'])
-        bin_name = self.kernel.assemble(
-            self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block,
-            asm_increment=self._args.asm_increment)
+        asm_name = self.kernel.compile()
+        bin_name = self.kernel.assemble(asm_name, iaca_markers=True, asm_block=self._args.asm_block,
+                                        asm_increment=self._args.asm_increment)
 
         # Making sure iaca.sh is available:
         if find_executable('iaca.sh') is None:
