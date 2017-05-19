@@ -261,7 +261,7 @@ clock: 2.3 GHz
 cores per socket: 14
 compiler:
     icc: -O3 -xCORE-AVX2 -fno-alias
-    gcc: -O3 -march=haswell
+    gcc: -O3 -march=native -D_POSIX_C_SOURCE=200112L  # no -march=haswell, it does not work with old gcc versions
     clang: -03 -mavx2
 memory hierarchy:
     - level: L1

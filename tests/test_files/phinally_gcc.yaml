@@ -7,7 +7,7 @@ threads per core: 2
 cacheline size: 64 B
 compiler:
     icc: -O3 -xCORE-AVX2 -fno-alias
-    gcc: -O3 -march=haswell -D_POSIX_C_SOURCE=200112L
+    gcc: -O3 -march=native -D_POSIX_C_SOURCE=200112L  # no -march=sandybridge, it does not work with old gcc versions
     clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
 micro-architecture: SNB
 FLOPs per cycle:
