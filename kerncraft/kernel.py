@@ -1125,6 +1125,10 @@ class KernelCode(Kernel):
                    os.environ.get('LIKWID_INC', ''),
                    '-llikwid']
 
+        # This is a special case for unittesting
+        if os.environ.get('LIKWID_LIB') == '':
+            cflags = cflags[:-1]
+
         if lflags is None:
             lflags = []
         lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']

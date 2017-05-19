@@ -14,7 +14,7 @@ from . import prefixedunit
 class MachineModel(object):
     def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
         if not path_to_yaml and not machine_yaml:
-            raise ValueError('Either path_to_yaml ot machine_yaml is required')
+            raise ValueError('Either path_to_yaml or machine_yaml is required')
         if path_to_yaml and machine_yaml:
             raise ValueError('Only one of path_to_yaml and machine_yaml is allowed')
         self._path = path_to_yaml
