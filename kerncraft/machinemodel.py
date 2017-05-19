@@ -2,21 +2,29 @@
 from __future__ import absolute_import
 from __future__ import division
 
+from distutils.spawn import find_executable
+
 import ruamel
 import cachesim
+from sympy.parsing.sympy_parser import parse_expr
+
+from . import prefixedunit
+
 
 class MachineModel(object):
-    def __init__(self, path_to_yaml=None, machine_yaml=None):
+    def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
         if not path_to_yaml and not machine_yaml:
             raise ValueError('Either path_to_yaml ot machine_yaml is required')
         if path_to_yaml and machine_yaml:
             raise ValueError('Only one of path_to_yaml and machine_yaml is allowed')
         self._path = path_to_yaml
         self._data = machine_yaml
+        self._args = args
         if path_to_yaml:
+            prefixedunit.PrefixedUnit.register()
             with open(path_to_yaml, 'r') as f:
                 # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.Loader)
+                self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.RoundTripLoader)
 
     def __getitem__(self, index):
         return self._data[index]
@@ -89,3 +97,29 @@ class MachineModel(object):
         bw = bw * factor
 
         return bw, measurement_kernel
+
+    def get_compiler(self):
+        '''
+        Returns tuple of compiler and compiler flags
+        
+        Selects compiler and flags from machine description file or commandline arguments
+        '''
+        compiler = self._args.compiler
+        flags = self._args.compiler_flags
+        if compiler is None:
+            # Select first available compiler in machine description file's compiler dict
+            for c in self['compiler'].keys():
+                # Making sure compiler is available:
+                if find_executable(c) is not None:
+                    compiler = c
+                    break
+            else:
+                raise RuntimeError("No compiler ({}) was found. Add different one in machine file, "
+                                   "via --compiler argument or make sure it will be found in "
+                                   "$PATH.".format(list(self['compiler'].keys())), file=sys.stderr)
+        if flags is None:
+            # Select from machine description file
+            flags = self['compiler'].get(compiler, '')
+
+        return compiler, flags.split(' ')
+    

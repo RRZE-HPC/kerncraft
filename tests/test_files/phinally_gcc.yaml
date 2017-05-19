@@ -5,8 +5,10 @@ model name: Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz
 sockets: 2
 threads per core: 2
 cacheline size: 64 B
-compiler: gcc
-compiler flags: [-O3, -march=corei7-avx, -mtune=corei7-avx, -D_POSIX_C_SOURCE=200112L]
+compiler:
+    icc: -O3 -xCORE-AVX2 -fno-alias
+    gcc: -O3 -march=haswell -D_POSIX_C_SOURCE=200112L
+    clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
 micro-architecture: SNB
 FLOPs per cycle:
     SP: {total: 16, ADD: 8, MUL: 8}
