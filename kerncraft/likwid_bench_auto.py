@@ -55,9 +55,22 @@ def get_machine_topology():
                      'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L',],
                      'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)',},
         'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
-        'overlapping ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)' + \
-                             ', ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"])',
-        'non-overlapping ports': 'INFORMATION_REQUIRED (like overlapping ports)',
+        'overlapping model': {
+            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+            'performance counter metric':
+                     'INFORAMTION_REQUIRED Example:'
+                     'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+        }
+        'non-overlapping model': {
+            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+            'performance counter metric':
+                     'INFORAMTION_REQUIRED Example:'
+                     'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+        }
     }
 
     threads_start = topo.find('HWThread')
@@ -96,6 +109,11 @@ def get_machine_topology():
             mem_level['threads per group'] = \
                 mem_level['cores per group'] * machine['threads per core']
         mem_level['cycles per cacheline transfer'] = 'INFORMATION_REQUIRED'
+        mem_level['performance counter metrics'] = {
+            'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
+            'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
+            'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
+            }
 
     # Remove last caches load_from and store_to:
     del machine['memory hierarchy'][-1]['cache per group']['load_from']

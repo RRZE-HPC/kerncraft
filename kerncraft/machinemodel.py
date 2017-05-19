@@ -101,7 +101,7 @@ class MachineModel(object):
     def get_compiler(self):
         '''
         Returns tuple of compiler and compiler flags
-        
+
         Selects compiler and flags from machine description file or commandline arguments
         '''
         compiler = self._args.compiler
@@ -122,4 +122,58 @@ class MachineModel(object):
             flags = self['compiler'].get(compiler, '')
 
         return compiler, flags.split(' ')
-    
+
+    @staticmethod
+    def parse_perfctr_event(perfctr):
+        '''
+        Parses events in machine description to tuple representation used in Benchmark module
+
+        Examples:
+        >>> parse_perfctr_event('PERF_EVENT:REG[0-3]')
+        ('PERF_EVENT', 'REG[0-3]')
+        >>> parse_perfctr_event('PERF_EVENT:REG[0-3]:STAY:FOO=23:BAR=0x23')
+        ('PERF_EVENT', 'REG[0-3]', {'STAY': None, 'FOO': 23, 'BAR': 35})
+        '''
+        split_perfctr = perfctr.split(':')
+        assert len(split_perfctr) >= 2, "Atleast one colon (:) is required in the event name"
+        event_tuple = split_perfctr[:2]
+        parameters = {}
+        for p in split_perfctr[2:]:
+            if '=' in p:
+                k,v = p.split('=')
+                if v.startswith('0x'):
+                    parameters[k] = int(v, 16)
+                else:
+                    parameters[k] = int(v)
+            else:
+                parameters[p] = None
+        if parameters:
+            event_tuple.append(parameters)
+        return tuple(event_tuple)
+
+    @staticmethod
+    def parse_perfmetric(metric):
+        '''
+        Takes a performance metric describing string and constructs sympy and perf. counter
+        representation from it.
+
+        Returns a tuple containing the sympy expression and a dict with performance counters.
+        '''
+        # Find all perfs counter references
+        perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]\|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
+
+        # Build a temporary metric, with parser-friendly Symbol names
+        temp_metric = metric
+        temp_pc_names = {"SYM{}".format(i): pc for i, pc in enumerate(perfcounters)}
+        for var_name, pc in temp_pc_names.items():
+            temp_metric.replace(pc, var_name)
+        # Parse temporary expression
+        expr = parse_expr(temp_metric)
+
+        # Rename symbols to originals
+        symbols = expr.free_symbols
+        for s in symbols:
+            s.name = temp_pc_names[str(s)]
+
+        return expr, {s: MachineModel.parse_perfctr_event(s.name) for s in symbols}
+

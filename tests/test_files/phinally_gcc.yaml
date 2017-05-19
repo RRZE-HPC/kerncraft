@@ -6,15 +6,23 @@ sockets: 2
 threads per core: 2
 cacheline size: 64 B
 compiler:
-    icc: -O3 -xCORE-AVX2 -fno-alias
-    gcc: -O3 -march=native -D_POSIX_C_SOURCE=200112L  # no -march=sandybridge, it does not work with old gcc versions
-    clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
+    icc: -O3 -xAVX -fno-alias
+    clang: -O3 -march=corei7-avx -mtune=corei7-avx -D_POSIX_C_SOURCE=200112L
+    gcc: -O3 -march=native -D_POSIX_C_SOURCE=200112L # not with -march=sandybridge!
 micro-architecture: SNB
 FLOPs per cycle:
     SP: {total: 16, ADD: 8, MUL: 8}
     DP: {total: 8, ADD: 4, MUL: 4}
-overlapping ports: ["0", "0DV", "1", "2", "3", "4", "5"]
-non-overlapping ports: ["2D", "3D"]
+overlapping model:
+    ports: ["0", "0DV", "1", "2", "3", "4", "5"]
+    performance counter metric:
+        max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])
+non-overlapping model:
+    ports: ["2D", "3D"]
+    performance counter metric: T_OL + T_L1L2 + T_L2L3 + T_L3MEM
 write-allocate: True
 memory hierarchy:
     - level: L1
@@ -27,6 +35,10 @@ memory hierarchy:
       threads per group: 2
       groups: 16
       cycles per cacheline transfer: 2
+      performance counter metrics:
+          accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3]
+          misses: L1D_REPLACEMENT:PMC[0-3]
+          evicts: L1D_M_EVICT:PMC[0-3]
     - level: L2
       cache per group: {
          'sets': 512, 'ways': 8, 'cl_size': 64, # 256 kB
@@ -37,6 +49,10 @@ memory hierarchy:
       threads per group: 2
       groups: 16
       cycles per cacheline transfer: 2
+      performance counter metrics:
+          accesses: L1D_REPLACEMENT:PMC[0-3]
+          misses: L2_LINES_IN_ALL:PMC[0-3]
+          evicts: L2_TRANS_L2_WB:PMC[0-3]
     - level: L3
       cache per group: {
          'sets': 20480, 'ways': 16, 'cl_size': 64, # 20 MB
@@ -46,6 +62,12 @@ memory hierarchy:
       threads per group: 16
       groups: 2
       cycles per cacheline transfer: null
+      performance counter metrics:
+          accesses: L2_LINES_IN_ALL:PMC[0-3]
+          misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01] + 
+                   CAS_COUNT_RD:MBOX3C[01])
+          evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01] + 
+                   CAS_COUNT_WR:MBOX3C[01])
     - level: MEM
       cores per group: 8
       cycles per cacheline transfer: null,
