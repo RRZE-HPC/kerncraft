@@ -21,7 +21,6 @@ class MachineModel(object):
         self._data = machine_yaml
         self._args = args
         if path_to_yaml:
-            prefixedunit.PrefixedUnit.register()
             with open(path_to_yaml, 'r') as f:
                 # Ignore ruamel unsafe loading warning, by supplying Loader parameter
                 self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.RoundTripLoader)
