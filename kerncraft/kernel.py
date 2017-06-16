@@ -144,14 +144,13 @@ class Kernel(object):
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
 
-    def __init__(self, machine=None):
+    def __init__(self):
         self._loop_stack = []
         self.variables = {}
         self._sources = {}
         self._destinations = {}
         self._flops = {}
         self.datatype = None
-        self._machine = machine
 
         self.clear_state()
 
@@ -520,9 +519,10 @@ class KernelCode(Kernel):
 
     This version allows compilation and generation of code for iaca and likwid benchmarking
     '''
-    def __init__(self, kernel_code, filename=None, machine=None):
-        super(KernelCode, self).__init__(machine=machine)
+    def __init__(self, kernel_code, machine, filename=None):
+        super(KernelCode, self).__init__()
 
+        self._machine = machine
         # Initialize state
         self.asm_blocks = {}
         self.asm_block_idx = None
@@ -977,8 +977,8 @@ class KernelCode(Kernel):
 
         return code
 
-    def assemble(self, in_filename,
-                 out_filename=None, iaca_markers=True, asm_block='auto', asm_increment=0):
+    def assemble(self, in_filename, out_filename=None, iaca_markers=True,
+                 asm_block='auto', asm_increment=0):
         '''
         Assembles *in_filename* to *out_filename*.
 
@@ -1166,8 +1166,8 @@ class KernelDescription(Kernel):
 
     This class does NOT allow compilation (required by iaca analysis and likwid benchmarking).
     '''
-    def __init__(self, description, machine=None):
-        super(KernelDescription, self).__init__(machine=machine)
+    def __init__(self, description):
+        super(KernelDescription, self).__init__()
 
         # Loops
         self._loop_stack = list([
