@@ -97,14 +97,15 @@ class MachineModel(object):
 
         return bw, measurement_kernel
 
-    def get_compiler(self):
+    def get_compiler(self, compiler=None, flags=None):
         '''
         Returns tuple of compiler and compiler flags
 
-        Selects compiler and flags from machine description file or commandline arguments
+        Selects compiler and flags from machine description file, commandline arguments or params
         '''
-        compiler = self._args.compiler
-        flags = self._args.compiler_flags
+        if self._args:
+            compiler = compiler or self._args.compiler
+            flags = compiler_flags or self._args.compiler_flags
         if compiler is None:
             # Select first available compiler in machine description file's compiler dict
             for c in self['compiler'].keys():
