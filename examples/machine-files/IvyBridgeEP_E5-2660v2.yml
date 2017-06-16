@@ -207,7 +207,7 @@ cores per socket: 10
 compiler:
     icc: -O3 -xAVX -fno-alias
     clang: -O3 -mavx -D_POSIX_C_SOURCE=200112L
-    gcc: -O3 -march=ivybridge
+    gcc: -O3 -march=ivybridge -D_POSIX_C_SOURCE=200112L
 write-allocate: True
 
 memory hierarchy:
@@ -222,7 +222,7 @@ memory hierarchy:
       groups: 16
       cycles per cacheline transfer: 2
       performance counter metrics:
-          accesses: MEM_UOPS_RETIRED_LOADS:PMC0
+          accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3]
           misses: L1D_REPLACEMENT:PMC[0-3]
           evicts: L1D_M_EVICT:PMC[0-3]
     - level: L2

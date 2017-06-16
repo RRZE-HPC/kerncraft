@@ -21,6 +21,7 @@ if __name__ == '__main__':
     args = remove_find(r'-O -g (:?CLOCK|MEM) -[cC] S0:0', args)
     args = remove_find(r'-m', args)
     args = remove_find(r'[a-zA-Z\-0-9/\._]+\.likwid_marked(:? [0-9]+(:?\.[0-9]+)?)+$', args)
+    args = remove_find(r'-f', args)
     
     if len(args) > 0:
         print('Could not remove all arguments. Remaining:', args)

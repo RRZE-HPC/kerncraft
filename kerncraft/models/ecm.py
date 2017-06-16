@@ -101,7 +101,7 @@ class ECMData(object):
     def calculate_cycles(self):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-        
+
         misses, evicts = (self.predictor.get_misses(), self.predictor.get_evicts())
 
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
@@ -185,7 +185,7 @@ class ECMData(object):
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
-            
+
         for level, cycles in self.results['cycles']:
             print('{} = {}'.format(
                 level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
@@ -293,10 +293,10 @@ class ECMCPU(object):
         cl_throughput = block_throughput*block_to_cl_ratio
 
         # Compile most relevant information
-        T_OL = max(
-            [v for k, v in list(port_cycles.items()) if k in self.machine['overlapping ports']])
-        T_nOL = max(
-            [v for k, v in list(port_cycles.items()) if k in self.machine['non-overlapping ports']])
+        T_OL = max([v for k, v in list(port_cycles.items())
+                    if k in self.machine['overlapping model']['ports']])
+        T_nOL = max([v for k, v in list(port_cycles.items())
+                     if k in self.machine['non-overlapping model']['ports']])
 
         # Use IACA throughput prediction if it is slower then T_nOL
         if T_nOL < cl_throughput:

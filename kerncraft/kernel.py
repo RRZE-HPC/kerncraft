@@ -719,18 +719,14 @@ class KernelCode(Kernel):
         # Traverse tree
         if type(floop.stmt) is c_ast.For:
             self._p_for(floop.stmt)
-        elif type(floop.stmt) is c_ast.Compound and \
-                len(floop.stmt.block_items) == 1 and \
-                type(floop.stmt.block_items[0]) is c_ast.For:
-            self._p_for(floop.stmt.block_items[0])
-        elif type(floop.stmt) is c_ast.Compound and \
-                len(floop.stmt.block_items) == 2 and \
-                type(floop.stmt.block_items[0]) is c_ast.Pragma and \
-                type(floop.stmt.block_items[1]) is c_ast.For:
-            self._p_for(floop.stmt.block_items[1])
         elif type(floop.stmt) is c_ast.Assignment:
             self._p_assignment(floop.stmt)
+        # Handle For if it is the last statement, only preceeded by Pragmas
+        elif type(floop.stmt.block_items[-1]) is c_ast.For and \
+                all([type(s) == c_ast.Pragma for s in floop.stmt.block_items[:-1]]):
+            self._p_for(floop.stmt.block_items[-1])
         else:  # type(floop.stmt) is c_ast.Compound
+            # Handle Assignments
             for assgn in floop.stmt.block_items:
                 self._p_assignment(assgn)
 
@@ -1124,6 +1120,10 @@ class KernelCode(Kernel):
                    os.environ.get('LIKWID_INCLUDE', ''),
                    os.environ.get('LIKWID_INC', ''),
                    '-llikwid']
+
+        # This is a special case for unittesting
+        if os.environ.get('LIKWID_LIB') == '':
+            cflags = cflags[:-1]
 
         if lflags is None:
             lflags = []
