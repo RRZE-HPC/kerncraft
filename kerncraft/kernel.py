@@ -681,9 +681,8 @@ class KernelCode(Kernel):
             iter_max = sympy.Integer(floop.cond.right.value)
         else:  # type(floop.cond.right) is c_ast.BinaryOp
             bop = floop.cond.right
-            assert type(bop.left) is c_ast.ID, 'left of operator has to be a variable'
-            assert type(bop.right) is c_ast.Constant, 'right of operator has to be a constant'
-            assert bop.op in '+-', 'only plus (+) and minus (-) are accepted operators'
+            assert bop.op in '+-*', ('only addition (+), substraction (-) and multiplications (*) '
+                                     'are accepted operators')
             iter_max = self.conv_ast_to_sym(bop)
 
         iter_min = self.conv_ast_to_sym(floop.init.decls[0].init)
