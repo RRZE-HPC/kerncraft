@@ -164,31 +164,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L1-L2'], 4, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 0.0, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
-        
-    def test_sclar_product_ECMData_LC(self):
-        store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData_LC.pickle')
-        output_stream = StringIO()
-
-        parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('hasep1.yaml'),
-                                  '-p', 'ECMData',
-                                  self._find_file('scalar_product.c'),
-                                  '-D', 'N', '10000',
-                                  '-vvv',
-                                  '--cache-predictor=LC',
-                                  '--store', store_file])
-        kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
-
-        results = pickle.load(open(store_file, 'rb'))
-
-        # Output of first result:
-        ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
-
-        # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        self.assertAlmostEqual(ecmd['L1-L2'], 4, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 0.0, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
@@ -201,34 +176,6 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '1000000',
                                   '-vvv',
                                   '--unit=cy/CL',
-                                  '--store', store_file])
-        kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
-
-        results = pickle.load(open(store_file, 'rb'))
-
-        # Output of first result:
-        ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
-
-        # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
-        # -> L3
-        # FIXME 2.3cy in L3 due to evicts not respecting cache, should be 0.0
-        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 2.3, places=0)
-    
-    def test_copy_ECMData_LC(self):
-        store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
-        output_stream = StringIO()
-
-        parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('hasep1.yaml'),
-                                  '-p', 'ECMData',
-                                  self._find_file('copy.c'),
-                                  '-D', 'N', '1000000',
-                                  '-vvv',
-                                  '--unit=cy/CL',
-                                  '--cache-predictor=LC',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -279,7 +226,7 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        self.assertAlmostEqual(ecmd['T_OL'], 26, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
         self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
 
     @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
@@ -321,50 +268,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        self.assertAlmostEqual(ecmd['T_OL'], 26, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
         self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
-        self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
-    
-    def test_2d5pt_ECMData_LC(self):
-        store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData_LC.pickle')
-        output_stream = StringIO()
-
-        parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
-                                  '-p', 'ECMData',
-                                  self._find_file('2d-5pt.c'),
-                                  '-D', 'N', '2000',
-                                  '-D', 'M', '1000',
-                                  '--cache-predictor=LC',
-                                  '-vvv',
-                                  '--unit=cy/CL',
-                                  '--store', store_file])
-        kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
-
-        results = pickle.load(open(store_file, 'rb'))
-
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
-        # Check for correct variations of constants
-        six.assertCountEqual(self,
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
-
-        # Output of first result:
-        result = list(results['2d-5pt.c'].values())[0]
-
-        six.assertCountEqual(self, result, ['ECMData'])
-
-        ecmd = result['ECMData']
-        # 2 * 2000*1000 * 8 = 31MB
-        # -> no full caching
-        # applying layer-conditions:
-        # 3 * 2000 * 8 ~ 47kB
-        # -> layer-condition in L2
         self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
@@ -407,12 +312,14 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
-    @unittest.skipUnless(find_executable('likwid-perfctr'), "LIKWID not available")
+    @unittest.skipUnless(find_executable('likwid-perfctr'), "GCC not available")
     @unittest.skipIf(platform.system() == "Darwin", "Won't build on OS X.")
     def test_2d5pt_Benchmark(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Benchmark.pickle')
         output_stream = StringIO()
 
+        # patch environment to include dummy likwid
+        environ_orig = os.environ
         os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
         os.environ['LIKWID_LIB'] = ''
         os.environ['LIKWID_INCLUDE'] = '-I'+self._find_file('dummy_likwid/include')
@@ -427,6 +334,9 @@ class TestKerncraft(unittest.TestCase):
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
+
+        # restore enviornment
+        os.environ = environ_orig
 
         results = pickle.load(open(store_file, 'rb'))
 
