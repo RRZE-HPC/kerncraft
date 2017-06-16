@@ -26,10 +26,14 @@ from kerncraft.kernel import Kernel, KernelCode, KernelDescription
 
 class TestKernel(unittest.TestCase):
     def setUp(self):
-        self.twod_code = open(self._find_file('2d-5pt.c')).read()
-        self.threed_code = open(self._find_file('3d-7pt.c')).read()
-        self.twod_description = yaml.load(open(self._find_file('2d-5pt.yml')).read(),
-                                          Loader=yaml.Loader)
+        with open(self._find_file('2d-5pt.c')) as f:
+            self.twod_code = f.read()
+        with open(self._find_file('3d-7pt.c')) as f:
+            self.threed_code = f.read()
+        with open(self._find_file('2d-5pt.yml')) as f:
+            self.twod_description = yaml.load(f.read(),Loader=yaml.Loader)
+        with open(self._find_file('copy-2d-linearized.c')) as f:
+            self.twod_linear = f.read()
        
     def _find_file(self, name):
         testdir = os.path.dirname(__file__)
@@ -54,6 +58,12 @@ class TestKernel(unittest.TestCase):
         # 8 byte per double
         checked_sizes = {'a': 20*10*10*8, 'b': 20*10*10*8}
         self.assertEqual(sizes, checked_sizes)
+    
+    def test_iterations_sizes_2d_linear(self):
+        k = KernelCode(self.twod_linear)
+        k.set_constant('N', 10)
+        k.set_constant('M', 20)
+        self.assertEqual(k.iteration_length(), 200)
     
     def test_global_offsets_2d(self):
         k = KernelCode(self.twod_code)
