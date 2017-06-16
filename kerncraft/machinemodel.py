@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 from distutils.spawn import find_executable
+import re
 
 import ruamel
 import cachesim
@@ -105,7 +106,7 @@ class MachineModel(object):
         '''
         if self._args:
             compiler = compiler or self._args.compiler
-            flags = compiler_flags or self._args.compiler_flags
+            flags = flags or self._args.compiler_flags
         if compiler is None:
             # Select first available compiler in machine description file's compiler dict
             for c in self['compiler'].keys():
@@ -157,7 +158,8 @@ class MachineModel(object):
         Takes a performance metric describing string and constructs sympy and perf. counter
         representation from it.
 
-        Returns a tuple containing the sympy expression and a dict with performance counters.
+        Returns a tuple containing the sympy expression and a dict with performance counters and
+        symbols the expression depends on.
         '''
         # Find all perfs counter references
         perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]\|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
@@ -166,14 +168,17 @@ class MachineModel(object):
         temp_metric = metric
         temp_pc_names = {"SYM{}".format(i): pc for i, pc in enumerate(perfcounters)}
         for var_name, pc in temp_pc_names.items():
-            temp_metric.replace(pc, var_name)
+            temp_metric = temp_metric.replace(pc, var_name)
         # Parse temporary expression
         expr = parse_expr(temp_metric)
 
         # Rename symbols to originals
-        symbols = expr.free_symbols
-        for s in symbols:
-            s.name = temp_pc_names[str(s)]
+        for s in expr.free_symbols:
+            if s.name in temp_pc_names:
+                s.name = temp_pc_names[str(s)]
 
-        return expr, {s: MachineModel.parse_perfctr_event(s.name) for s in symbols}
+        events = {s: MachineModel.parse_perfctr_event(s.name) for s in expr.free_symbols
+                  if s.name in perfcounters}
+
+        return expr, events
 
