@@ -13,6 +13,8 @@ if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
 import re
 from six.moves import map
 from six.moves import input
+import subprocess
+from distutils.spawn import find_executable
 
 # Within loop
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
@@ -163,8 +165,6 @@ def userselect_block(blocks, default=None):
     print("Blocks found in assembly file:")
     print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
           "-----------+-----+------+-----++-----------+----------+----------+---------++-------|")
-    from pprint import pprint
-    #pprint(blocks)
     for idx, b in blocks:
         print('{:>2} {b[label]:>7} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
@@ -191,31 +191,124 @@ def insert_markers(asm_lines, start_line, end_line):
     return asm_lines
 
 
+def iaca_instrumentation(input_file, output_file=None,
+                         block_selection='auto',
+                         pointer_increment='auto_with_manual_fallback'):
+    """
+    Add IACA markers to an assembly file. If instrumentation fails
+    because loop increment could not determined automatically, a ValueError is raised
+    
+    :param input_file: path to assembly file used as input
+    :param output_file: output path, if None the input is overwritten
+    :param block_selection: index of the assembly block to instrument, or 'auto' for automatically using block with the
+                            most vector instructions, or 'manual' to read index to prompt user
+    :param pointer_increment: number of bytes the pointer is incremented after the loop or 
+                              - 'auto': automatic detection, RuntimeError is raised in case of failure
+                              - 'auto_with_manual_fallback': automatic detection, fallback to manual input
+                              - 'manual': prompt user
+    :return: the instrumented assembly block
+    """
+    if output_file is None:
+        output_file = input_file
+
+    with open(input_file, 'r') as f:
+        assembly = f.readlines()
+
+    blocks = find_asm_blocks(assembly)
+    if block_selection == 'auto':
+        block_idx = select_best_block(blocks)
+    elif block_selection == 'manual':
+        block_idx = userselect_block(blocks, default=select_best_block(blocks))
+    elif isinstance(block_selection, int):
+        block_idx = block_selection
+    else:
+        raise ValueError("block_selection has to be an integer, 'auto' or 'manual' ")
+
+    block = blocks[block_idx][1]
+
+    if pointer_increment == 'auto':
+        if block['pointer_increment'] is None:
+            raise RuntimeError("pointer_increment could not be detected automatically")
+    elif pointer_increment == 'auto_with_manual_fallback':
+        if block['pointer_increment'] is None:
+            block['pointer_increment'] = userselect_increment(block)
+    elif pointer_increment == 'manual':
+        block['pointer_increment'] = userselect_increment(block)
+    elif isinstance(pointer_increment, int):
+        block['pointer_increment'] = pointer_increment
+    else:
+        raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  'auto_with_manual_fallback' ")
+
+    instrumentedAsm = insert_markers(assembly, block['first_line'], block['last_line'])
+    with open(output_file, 'w') as in_file:
+        in_file.writelines(instrumentedAsm)
+
+    return block
+
+
+def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architecture):
+    """
+    Runs IACA analysis on an instrumented binary
+    
+    :param instrumented_binary_file: path of binary that was built with IACA markers 
+    :param micro_architecture: micro architecture string as taken by IACA. 
+                               one of: NHM, WSM, SNB, IVB, HSW, BDW
+    :return: a dictionary with the following keys:
+        - 'output': the output of the iaca executable
+        - 'throughput': the block throughput in cycles for one possibly vectorized loop iteration
+        - 'port cycles': dict, mapping port name to number of active cycles
+        - 'uops': total number of Uops
+    """
+    if find_executable('iaca.sh') is None:
+        raise RuntimeError("iaca.sh was not found. Make sure it is found in PATH.")
+
+    result = {}
+
+    try:
+        cmd = ['iaca.sh', '-64', '-arch', micro_architecture, instrumented_binary_file]
+        iaca_output = subprocess.check_output(cmd).decode('utf-8')
+        result['output'] = iaca_output
+    except OSError as e:
+        raise RuntimeError("IACA execution failed:" + ' '.join(cmd) + '\n' + str(e))
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("IACA throughput analysis failed:" + str(e))
+
+    # Get total cycles per loop iteration
+    match = re.search(r'^Block Throughput: ([0-9.]+) Cycles', iaca_output, re.MULTILINE)
+    assert match, "Could not find Block Throughput in IACA output."
+    throughput = float(match.groups()[0])
+    result['throughput'] = throughput
+
+    # Find ports and cycles per port
+    ports = [l for l in iaca_output.split('\n') if l.startswith('|  Port  |')]
+    cycles = [l for l in iaca_output.split('\n') if l.startswith('| Cycles |')]
+    assert ports and cycles, "Could not find ports/cycles lines in IACA output."
+    ports = [p.strip() for p in ports[0].split('|')][2:]
+    cycles = [c.strip() for c in cycles[0].split('|')][2:]
+    port_cycles = []
+    for i in range(len(ports)):
+        if '-' in ports[i] and ' ' in cycles[i]:
+            subports = [p.strip() for p in ports[i].split('-')]
+            subcycles = [c for c in cycles[i].split(' ') if bool(c)]
+            port_cycles.append((subports[0], float(subcycles[0])))
+            port_cycles.append((subports[0] + subports[1], float(subcycles[1])))
+        elif ports[i] and cycles[i]:
+            port_cycles.append((ports[i], float(cycles[i])))
+    result['port cycles'] = dict(port_cycles)
+
+    match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
+    assert match, "Could not find Uops in IACA output."
+    result['uops'] = float(match.groups()[0])
+    return result
+
+
 def main():
     if len(sys.argv) != 2:
         print("Usage:", sys.argv[0], "filename.s")
         sys.exit(1)
 
-    with open(sys.argv[1], 'r') as fp:
-        lines = fp.readlines()
-    lines = list(map(str.strip, lines))
-    blocks = find_asm_blocks(lines)
-
-    # TODO check for already present markers
-
-    # Choose best default block:
-    best_idx = select_best_block(blocks)
-    # Let user select block:
-    block_idx = userselect_block(blocks, best_idx)
-
-    block = blocks[block_idx][1]
-
-    # Insert markers:
-    lines = insert_markers(lines, block['first_line'], block['last_line'])
-
-    # write back to file
-    with open(sys.argv[1], 'w') as fp:
-        fp.write('\n'.join(lines))
+    iaca_instrumentation(input_file=sys.argv[1], output_file=sys.argv[1],
+                         block_selection='manual', pointer_increment=1)
 
     print("Markers inserted.")
 

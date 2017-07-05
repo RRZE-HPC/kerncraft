@@ -432,7 +432,7 @@ class Kernel(object):
             base_offsets[var_name] = base
             array_total_size = self.subs_consts(var_size + spacing)
             # Add bytes to align by 64 byte (typical cacheline size):
-            array_total_size = ((int(array_total_size)+63)& ~63)
+            array_total_size = ((int(array_total_size) + 63) & ~63)
             base += array_total_size
 
         # Gather all read and write accesses to the array:
@@ -511,6 +511,13 @@ class Kernel(object):
             table += '{!s:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table), file=output_file)
 
+    def iaca_analysis(self, *args, **kwargs):
+        raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
+                                  "Try a different model e.g. ECMData")
+
+    def build(self, *args, **kwargs):
+        raise NotImplementedError("Kernel does not support compilation. Try a different model e.g. ECMData")
+
 
 class KernelCode(Kernel):
     """
@@ -522,8 +529,7 @@ class KernelCode(Kernel):
         super(KernelCode, self).__init__()
 
         # Initialize state
-        self.asm_blocks = {}
-        self.asm_block_idx = None
+        self.asm_block = None
 
         self.kernel_code = kernel_code
         self._filename = filename
@@ -553,8 +559,7 @@ class KernelCode(Kernel):
     def clear_state(self):
         """Clears mutable internal states"""
         super(KernelCode, self).clear_state()
-        self.asm_blocks = {}
-        self.asm_block_idx = None
+        self.asm_block = None
 
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
@@ -894,31 +899,31 @@ class KernelCode(Kernel):
         list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
                  find_array_references(ast)))
 
+        dummies = []
+        # Make sure nothing gets removed by inserting dummy calls
+        for d in declarations:
+            if array_dimensions[d.name]:
+                dummies.append(c_ast.If(
+                    cond=c_ast.ID('var_false'),
+                    iftrue=c_ast.Compound([
+                        c_ast.FuncCall(
+                            c_ast.ID('dummy'),
+                            c_ast.ExprList([c_ast.ID(d.name)]))]),
+                    iffalse=None))
+            else:
+                dummies.append(c_ast.If(
+                    cond=c_ast.ID('var_false'),
+                    iftrue=c_ast.Compound([
+                        c_ast.FuncCall(
+                            c_ast.ID('dummy'),
+                            c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
+                    iffalse=None))
+
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
             ast.block_items.insert(-2, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
-
-            dummies = []
-            # Make sure nothing gets removed by inserting dummy calls
-            for d in declarations:
-                if array_dimensions[d.name]:
-                    dummies.append(c_ast.If(
-                        cond=c_ast.ID('var_false'),
-                        iftrue=c_ast.Compound([
-                            c_ast.FuncCall(
-                                c_ast.ID('dummy'),
-                                c_ast.ExprList([c_ast.ID(d.name)]))]),
-                        iffalse=None))
-                else:
-                    dummies.append(c_ast.If(
-                        cond=c_ast.ID('var_false'),
-                        iftrue=c_ast.Compound([
-                            c_ast.FuncCall(
-                                c_ast.ID('dummy'),
-                                c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
-                        iffalse=None))
 
             # Wrap everything in a loop
             # int repeat = atoi(argv[2])
@@ -940,6 +945,8 @@ class KernelCode(Kernel):
             ast.block_items.insert(-1, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStopRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+        else:
+            ast.block_items += dummies
 
         # embed compound into main FuncDecl
         decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
@@ -1011,47 +1018,17 @@ class KernelCode(Kernel):
 
         # insert iaca markers
         if iaca_markers:
-            with open(in_filename, 'r') as in_file:
-                lines = in_file.readlines()
-            blocks = iaca.find_asm_blocks(lines)
-
-            # TODO check for already present markers
-
-            # Choose best default block:
-            block_idx = iaca.select_best_block(blocks)
-            if asm_block == 'manual':
-                block_idx = iaca.userselect_block(blocks, default=block_idx)
-            elif asm_block != 'auto':
-                block_idx = asm_block
-
-            self.asm_block = blocks[block_idx][1]
-
-            # Use userinput for pointer_increment, if given
-            if asm_increment != 0:
-                self.asm_block['pointer_increment'] = asm_increment
-
-            # If block's pointer_increment is None, let user choose
-            if self.asm_block['pointer_increment'] is None:
-                iaca.userselect_increment(self.asm_block)
-
-            # Insert markers:
-            lines = iaca.insert_markers(
-                lines, self.asm_block['first_line'], self.asm_block['last_line'])
-
-            # write back to file
-            with open(in_filename, 'w') as in_file:
-                in_file.writelines(lines)
+            self.asm_block = iaca.iaca_instrumentation(in_filename, block_selection=asm_block,
+                                                       pointer_increment='auto_with_manual_fallback')
 
         try:
             # Assemble all to a binary
             subprocess.check_output(
-                [compiler, os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
-                cwd=os.path.dirname(os.path.realpath(in_file.name)))
+                [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename],
+                cwd=os.path.dirname(os.path.realpath(in_filename)))
         except subprocess.CalledProcessError as e:
-            print("Assemblation failed:", e, file=sys.stderr)
+            print("Assembly failed:", e, file=sys.stderr)
             sys.exit(1)
-        finally:
-            in_file.close()
 
         return out_filename
 
@@ -1106,7 +1083,13 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def build(self, compiler, cflags=None, lflags=None, verbose=False):
+    def iaca_analysis(self, compiler, compiler_args, micro_architecture, asm_block='auto', asm_increment=0):
+        asmFile = self.compile(compiler, compiler_args)
+        bin_name = self.assemble(compiler, asmFile, iaca_markers=True,
+                                 asm_block=asm_block, asm_increment=asm_increment)
+        return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
+
+    def build(self, compiler, compiler_args=None, verbose=False):
         """
         compiles source to executable with likwid capabilities
 
@@ -1124,17 +1107,15 @@ class KernelCode(Kernel):
                   "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
             sys.exit(1)
 
-        if cflags is None:
-            cflags = []
-        cflags += ['-std=c99',
+        if compiler_args is None:
+            compiler_args = []
+        compiler_args += ['-std=c99',
                    '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
                    os.environ.get('LIKWID_INCLUDE', ''),
                    os.environ.get('LIKWID_INC', ''),
                    '-llikwid']
 
-        if lflags is None:
-            lflags = []
-        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
+        compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(
@@ -1152,7 +1133,7 @@ class KernelCode(Kernel):
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
-        cmd = [compiler] + infiles + cflags + lflags + ['-o', outfile]
+        cmd = [compiler] + infiles + compiler_args + ['-o', outfile]
         # remove empty arguments
         cmd = list(filter(bool, cmd))
         if verbose:
