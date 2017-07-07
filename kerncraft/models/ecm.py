@@ -393,58 +393,62 @@ class ECM(object):
 
         if self._args and self._args.ecm_plot:
             assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
-
             fig = plt.figure(frameon=False)
-            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-            ax = fig.add_subplot(1, 1, 1)
+            self.plot(fig)
 
-            sorted_overlapping_ports = sorted(
-                [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
-                key=lambda x: x[1])
+    def plot(self, fig=None):
+        if not fig:
+            fig = plt.gcf()
 
-            yticks_labels = []
-            yticks = []
-            xticks_labels = []
-            xticks = []
+        fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
+        ax = fig.add_subplot(1, 1, 1)
 
-            # Plot configuration
-            height = 0.9
+        sorted_overlapping_ports = sorted(
+            [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
+            key=lambda x: x[1])
 
-            i = 0
-            # T_OL
-            colors = [(254./255, 177./255., 178./255.)] + [(255./255., 255./255., 255./255.)] * \
-                (len(sorted_overlapping_ports) - 1)
-            for p, c in sorted_overlapping_ports:
-                ax.barh(i, c, height, align='center', color=colors.pop())
-                if i == len(sorted_overlapping_ports)-1:
-                    ax.text(c/2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
-                yticks_labels.append(p)
-                yticks.append(i)
-                i += 1
-            xticks.append(sorted_overlapping_ports[-1][1])
-            xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
+        yticks_labels = []
+        yticks = []
+        xticks_labels = []
+        xticks = []
 
-            # T_nOL + memory transfers
-            y = 0
-            colors = [(187./255., 255/255., 188./255.)] * (len(self.results['cycles'])) + \
-                [(119./255, 194./255., 255./255.)]
-            for k, v in [('nOL', self.results['T_nOL'])]+self.results['cycles']:
-                ax.barh(i, v, height, y, align='center', color=colors.pop())
-                ax.text(y+v/2.0, i, '$T_\mathrm{'+k+'}$', ha='center', va='center')
-                xticks.append(y+v)
-                xticks_labels.append('{:.1f}'.format(y+v))
-                y += v
-            yticks_labels.append('LD')
+        # Plot configuration
+        height = 0.9
+
+        i = 0
+        # T_OL
+        colors = [(254. / 255, 177. / 255., 178. / 255.)] + [(255. / 255., 255. / 255., 255. / 255.)] * \
+                                                            (len(sorted_overlapping_ports) - 1)
+        for p, c in sorted_overlapping_ports:
+            ax.barh(i, c, height, align='center', color=colors.pop(), edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
+            if i == len(sorted_overlapping_ports) - 1:
+                ax.text(c / 2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
+            yticks_labels.append(p)
             yticks.append(i)
+            i += 1
+        xticks.append(sorted_overlapping_ports[-1][1])
+        xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
 
-            ax.tick_params(axis='y', which='both', left='off', right='off')
-            ax.tick_params(axis='x', which='both', top='off')
-            ax.set_xlabel('t [cy]')
-            ax.set_ylabel('execution port')
-            ax.set_yticks(yticks)
-            ax.set_yticklabels(yticks_labels)
-            ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels, rotation='vertical')
-            ax.xaxis.grid(alpha=0.7, linestyle='--')
-            fig.savefig(self._args.ecm_plot)
+        # T_nOL + memory transfers
+        y = 0
+        colors = [(187. / 255., 255 / 255., 188. / 255.)] * (len(self.results['cycles'])) + \
+                 [(119. / 255, 194. / 255., 255. / 255.)]
+        for k, v in [('nOL', self.results['T_nOL'])] + self.results['cycles']:
+            ax.barh(i, v, height, y, align='center', color=colors.pop())
+            ax.text(y + v / 2.0, i, '$T_\mathrm{' + k + '}$', ha='center', va='center')
+            xticks.append(y + v)
+            xticks_labels.append('{:.1f}'.format(y + v))
+            y += v
+        yticks_labels.append('LD')
+        yticks.append(i)
 
+        ax.tick_params(axis='y', which='both', left='off', right='off')
+        ax.tick_params(axis='x', which='both', top='off')
+        ax.set_xlabel('t [cy]')
+        ax.set_ylabel('execution port')
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticks_labels)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticks_labels, rotation='vertical')
+        ax.xaxis.grid(alpha=0.7, linestyle='--')
+        fig.savefig(self._args.ecm_plot)
