@@ -176,7 +176,7 @@ class LayerConditionPredictor(CachePredictor):
                 'name': c.name,
                 'hits': hits,
                 'misses': misses,
-                'evicts': len(destinations),
+                'evicts': len(destinations) if c.size() < sum_array_sizes else 0,
                 'requirement': cache_requirement,
                 'tail': tail})
         
@@ -192,7 +192,14 @@ class LayerConditionPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        return [c['evicts'] for c in self.results['cache']]
+        l = []
+        for c in self.results['cache']:
+            # Check if full caching applies on this level
+            if c['misses'] > 0:
+                l.append(c['evicts'])
+            else:
+                l.append(0)
+        return l
 
     def get_infos(self):
         '''Returns verbose information about the predictor'''
@@ -305,8 +312,14 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        return [self.stats[cache_level+1]['STORE_count']/self.first_dim_factor
-                for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
+        l = []
+        for cache_level in range(len(self.machine['memory hierarchy'][:-1])):
+            # Check if full caching applies on this level
+            if self.stats[cache_level]['MISS_count'] > 0:
+                l.append(self.stats[cache_level+1]['STORE_count']/self.first_dim_factor)
+            else:
+                l.append(0)
+        return l
 
     def get_infos(self):
         '''Returns verbose information about the predictor'''
@@ -319,10 +332,10 @@ class CacheSimulationPredictor(CachePredictor):
                 'level': '{}'.format(cache_info['level']),
                 'total misses': self.stats[cache_level]['MISS_byte']/first_dim_factor,
                 'total hits': self.stats[cache_level]['HIT_byte']/first_dim_factor,
-                'total evicts': self.stats[cache_level]['STORE_byte']/first_dim_factor,
+                'total evicts': self.stats[cache_level]['STORE_byte']/first_dim_factor if self.stats[cache_level]['MISS_count'] > 0 else 0,
                 'total lines misses': self.stats[cache_level]['MISS_count']/first_dim_factor,
                 'total lines hits': self.stats[cache_level]['HIT_count']/first_dim_factor,
                 # FIXME assumption for line evicts: all stores are consecutive
-                'total lines evicts': self.stats[cache_level+1]['STORE_count']/first_dim_factor,
+                'total lines evicts': self.stats[cache_level+1]['STORE_count']/first_dim_factor if self.stats[cache_level]['MISS_count'] > 0 else 0,
                 'cycles': None})
         return infos
