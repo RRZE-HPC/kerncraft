@@ -116,7 +116,7 @@ class ECMData(object):
 
                 # choose bw according to cache level and problem
                 # first, compile stream counts at current cache level
-                # write-allocate is allready resolved above
+                # write-allocate is allready resolved in cache predictor
                 read_streams = misses[cache_level]
                 write_streams = evicts[cache_level]
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
