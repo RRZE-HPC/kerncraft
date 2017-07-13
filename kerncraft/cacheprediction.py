@@ -192,14 +192,7 @@ class LayerConditionPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        l = []
-        for c in self.results['cache']:
-            # Check if full caching applies on this level
-            if c['misses'] > 0:
-                l.append(c['evicts'])
-            else:
-                l.append(0)
-        return l
+        return [c['evicts'] for c in self.results['cache']]
 
     def get_infos(self):
         '''Returns verbose information about the predictor'''
@@ -271,9 +264,6 @@ class CacheSimulationPredictor(CachePredictor):
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
 
-        # Force write-back on all cache levels
-        csim.force_write_back()
-
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
 
@@ -292,9 +282,6 @@ class CacheSimulationPredictor(CachePredictor):
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-
-        # Force write-back on all cache levels
-        csim.force_write_back()
         
         # use stats to build results
         self.stats = list(csim.stats())
@@ -312,14 +299,8 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        l = []
-        for cache_level in range(len(self.machine['memory hierarchy'][:-1])):
-            # Check if full caching applies on this level
-            if self.stats[cache_level]['MISS_count'] > 0:
-                l.append(self.stats[cache_level+1]['STORE_count']/self.first_dim_factor)
-            else:
-                l.append(0)
-        return l
+        return [self.stats[cache_level+1]['STORE_count']/self.first_dim_factor
+                for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_infos(self):
         '''Returns verbose information about the predictor'''
