@@ -22,10 +22,8 @@ try:
     plot_support = True
 except ImportError:
     plot_support = False
-import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
-from kerncraft.kernel import KernelCode
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
 
 
@@ -101,7 +99,7 @@ class ECMData(object):
     def calculate_cycles(self):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-        
+
         misses, evicts = (self.predictor.get_misses(), self.predictor.get_evicts())
 
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
@@ -122,12 +120,12 @@ class ECMData(object):
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
                 threads_per_core = 1
                 bw, measurement_kernel = self.machine.get_bandwidth(
-                    cache_level+1, read_streams, write_streams, threads_per_core)
+                    cache_level + 1, read_streams, write_streams, threads_per_core)
 
                 # calculate cycles
                 cycles = float(misses[cache_level] + evicts[cache_level]) * \
-                    float(elements_per_cacheline) * float(element_size) * \
-                    float(self.machine['clock']) / float(bw)
+                         float(elements_per_cacheline) * float(element_size) * \
+                         float(self.machine['clock']) / float(bw)
                 # add penalty cycles for each read stream
                 if 'penalty cycles per read stream' in cache_info:
                     cycles += misses[cache_level] * \
@@ -140,13 +138,13 @@ class ECMData(object):
 
             self.results['cycles'].append((
                 '{}-{}'.format(
-                    cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level']),
+                    cache_info['level'], self.machine['memory hierarchy'][cache_level + 1]['level']),
                 cycles))
 
             # TODO remove the following by makeing testcases more versatile:
             self.results['{}-{}'.format(
-                cache_info['level'], self.machine['memory hierarchy'][cache_level+1]['level'])
-                ] = cycles
+                cache_info['level'], self.machine['memory hierarchy'][cache_level + 1]['level'])
+            ] = cycles
 
         return self.results
 
@@ -185,7 +183,7 @@ class ECMData(object):
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
-            
+
         for level, cycles in self.results['cycles']:
             print('{} = {}'.format(
                 level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
@@ -211,9 +209,6 @@ class ECMCPU(object):
         *args* (optional) are the parsed arguments from the comand line
         if *args* is given also *parser* has to be provided
         """
-        if not isinstance(kernel, KernelCode):
-            raise ValueError("Kernel was not derived from code, can not perform ECMCPU analysis."
-                             "Try ECMData.")
         self.kernel = kernel
         self.machine = machine
         self._args = args
@@ -228,60 +223,22 @@ class ECMCPU(object):
                     parser.error('--asm-block can only be "auto", "manual" or an integer')
 
     def analyze(self):
-        # For the IACA/CPU analysis we need to compile and assemble
-        asm_name = self.kernel.compile(
-            self.machine['compiler'], compiler_args=self.machine['compiler flags'])
-        bin_name = self.kernel.assemble(
-            self.machine['compiler'], asm_name, iaca_markers=True, asm_block=self._args.asm_block,
-            asm_increment=self._args.asm_increment)
-
-        # Making sure iaca.sh is available:
-        if find_executable('iaca.sh') is None:
-            print("iaca.sh was not found. Make sure it is found in PATH.", file=sys.stderr)
-            sys.exit(1)
-
         try:
-            cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
-            if self._args.verbose >= 3:
-                print('Executing:', ' '.join(cmd))
-            iaca_output = subprocess.check_output(cmd).decode('utf-8')
-        except OSError as e:
-            print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)
-            print(e, file=sys.stderr)
-            sys.exit(1)
-        except subprocess.CalledProcessError as e:
-            print("IACA throughput analysis failed:", e, file=sys.stderr)
+            iaca_analysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
+                                                                 compiler_args=self.machine['compiler flags'],
+                                                                 micro_architecture=self.machine['micro-architecture'],
+                                                                 asm_block=self._args.asm_block,
+                                                                 asm_increment=self._args.asm_increment)
+        except RuntimeError as e:
+            print("IACA analysis failed: " + str(e))
             sys.exit(1)
 
-        # Get total cycles per loop iteration
-        match = re.search(
-            r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
-        assert match, "Could not find Block Throughput in IACA output."
-        block_throughput = float(match.groups()[0])
-
-        # Find ports and cyles per port
-        ports = [l for l in iaca_output.split('\n') if l.startswith('|  Port  |')]
-        cycles = [l for l in iaca_output.split('\n') if l.startswith('| Cycles |')]
-        assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-        ports = [p.strip() for p in ports[0].split('|')][2:]
-        cycles = [c.strip() for c in cycles[0].split('|')][2:]
-        port_cycles = []
-        for i in range(len(ports)):
-            if '-' in ports[i] and ' ' in cycles[i]:
-                subports = [p.strip() for p in ports[i].split('-')]
-                subcycles = [c for c in cycles[i].split(' ') if bool(c)]
-                port_cycles.append((subports[0], float(subcycles[0])))
-                port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
-            elif ports[i] and cycles[i]:
-                port_cycles.append((ports[i], float(cycles[i])))
-        port_cycles = dict(port_cycles)
-
-        match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
-        assert match, "Could not find Uops in IACA output."
-        uops = float(match.groups()[0])
+        block_throughput = iaca_analysis['throughput']
+        port_cycles = iaca_analysis['port cycles']
+        uops = iaca_analysis['uops']
 
         # Normalize to cycles per cacheline
-        elements_per_block = abs(self.kernel.asm_block['pointer_increment']
+        elements_per_block = abs(asm_block['pointer_increment']
                                  // self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         try:
@@ -311,8 +268,7 @@ class ECMCPU(object):
             'uops': uops,
             'T_nOL': T_nOL,
             'T_OL': T_OL,
-            'IACA output': iaca_output}
-
+            'IACA output': iaca_analysis['output']}
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
         '''Convert cycles (cy/CL) to other units, such as FLOP/s or It/s'''
@@ -377,9 +333,6 @@ class ECM(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
         """
-        if not isinstance(kernel, KernelCode):
-            raise ValueError("Kernel was not derived from code, can not perform ECM analysis. "
-                             "Try ECMData.")
         self.kernel = kernel
         self.machine = machine
         self._args = args
@@ -440,58 +393,62 @@ class ECM(object):
 
         if self._args and self._args.ecm_plot:
             assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
-
             fig = plt.figure(frameon=False)
-            fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-            ax = fig.add_subplot(1, 1, 1)
+            self.plot(fig)
 
-            sorted_overlapping_ports = sorted(
-                [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
-                key=lambda x: x[1])
+    def plot(self, fig=None):
+        if not fig:
+            fig = plt.gcf()
 
-            yticks_labels = []
-            yticks = []
-            xticks_labels = []
-            xticks = []
+        fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
+        ax = fig.add_subplot(1, 1, 1)
 
-            # Plot configuration
-            height = 0.9
+        sorted_overlapping_ports = sorted(
+            [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
+            key=lambda x: x[1])
 
-            i = 0
-            # T_OL
-            colors = [(254./255, 177./255., 178./255.)] + [(255./255., 255./255., 255./255.)] * \
-                (len(sorted_overlapping_ports) - 1)
-            for p, c in sorted_overlapping_ports:
-                ax.barh(i, c, height, align='center', color=colors.pop())
-                if i == len(sorted_overlapping_ports)-1:
-                    ax.text(c/2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
-                yticks_labels.append(p)
-                yticks.append(i)
-                i += 1
-            xticks.append(sorted_overlapping_ports[-1][1])
-            xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
+        yticks_labels = []
+        yticks = []
+        xticks_labels = []
+        xticks = []
 
-            # T_nOL + memory transfers
-            y = 0
-            colors = [(187./255., 255/255., 188./255.)] * (len(self.results['cycles'])) + \
-                [(119./255, 194./255., 255./255.)]
-            for k, v in [('nOL', self.results['T_nOL'])]+self.results['cycles']:
-                ax.barh(i, v, height, y, align='center', color=colors.pop())
-                ax.text(y+v/2.0, i, '$T_\mathrm{'+k+'}$', ha='center', va='center')
-                xticks.append(y+v)
-                xticks_labels.append('{:.1f}'.format(y+v))
-                y += v
-            yticks_labels.append('LD')
+        # Plot configuration
+        height = 0.9
+
+        i = 0
+        # T_OL
+        colors = [(254. / 255, 177. / 255., 178. / 255.)] + [(255. / 255., 255. / 255., 255. / 255.)] * \
+                                                            (len(sorted_overlapping_ports) - 1)
+        for p, c in sorted_overlapping_ports:
+            ax.barh(i, c, height, align='center', color=colors.pop(), edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
+            if i == len(sorted_overlapping_ports) - 1:
+                ax.text(c / 2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
+            yticks_labels.append(p)
             yticks.append(i)
+            i += 1
+        xticks.append(sorted_overlapping_ports[-1][1])
+        xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
 
-            ax.tick_params(axis='y', which='both', left='off', right='off')
-            ax.tick_params(axis='x', which='both', top='off')
-            ax.set_xlabel('t [cy]')
-            ax.set_ylabel('execution port')
-            ax.set_yticks(yticks)
-            ax.set_yticklabels(yticks_labels)
-            ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels, rotation='vertical')
-            ax.xaxis.grid(alpha=0.7, linestyle='--')
-            fig.savefig(self._args.ecm_plot)
+        # T_nOL + memory transfers
+        y = 0
+        colors = [(187. / 255., 255 / 255., 188. / 255.)] * (len(self.results['cycles'])) + \
+                 [(119. / 255, 194. / 255., 255. / 255.)]
+        for k, v in [('nOL', self.results['T_nOL'])] + self.results['cycles']:
+            ax.barh(i, v, height, y, align='center', color=colors.pop())
+            ax.text(y + v / 2.0, i, '$T_\mathrm{' + k + '}$', ha='center', va='center')
+            xticks.append(y + v)
+            xticks_labels.append('{:.1f}'.format(y + v))
+            y += v
+        yticks_labels.append('LD')
+        yticks.append(i)
 
+        ax.tick_params(axis='y', which='both', left='off', right='off')
+        ax.tick_params(axis='x', which='both', top='off')
+        ax.set_xlabel('t [cy]')
+        ax.set_ylabel('execution port')
+        ax.set_yticks(yticks)
+        ax.set_yticklabels(yticks_labels)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticks_labels, rotation='vertical')
+        ax.xaxis.grid(alpha=0.7, linestyle='--')
+        fig.savefig(self._args.ecm_plot)

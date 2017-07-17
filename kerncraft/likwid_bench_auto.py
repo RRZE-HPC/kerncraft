@@ -139,7 +139,7 @@ def cli():
     if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
         print('''Usage:', sys.argv[0], '[-h] {collect|measure} [machinefile] | upgrade machinefile
 
-        collect will retriev as much hardware information as possible, without benchmarking
+        collect will retrieve as much hardware information as possible, without benchmarking
         measure will do the same as collect, but also include memory benchmarks
 
         If machinefile already exists the CPU name will be compared. If they matche, measurements
@@ -148,7 +148,7 @@ def cli():
 
         If no machinefile is given, the information will be printed to stdout.
 
-        updgrade will transform machinefile to the most up-to-date machine file version.
+        upgrade will transform machinefile to the most up-to-date machine file version.
         ''')
 
 

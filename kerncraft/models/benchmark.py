@@ -8,12 +8,8 @@ from functools import reduce
 import operator
 import sys
 from distutils.spawn import find_executable
-from pprint import pprint
 import re
-
 import six
-
-from kerncraft.kernel import KernelCode
 
 
 class Benchmark(object):
@@ -33,9 +29,6 @@ class Benchmark(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
         """
-        if not isinstance(kernel, KernelCode):
-            raise ValueError("Kernel was not derived from code, can not perform Benchmark "
-                             "analysis.")
         self.kernel = kernel
         self.machine = machine
         self._args = args
@@ -101,13 +94,13 @@ class Benchmark(object):
 
     def analyze(self):
         bench = self.kernel.build(self.machine['compiler'],
-                                  cflags=self.machine['compiler flags'],
+                                  compiler_args=self.machine['compiler flags'],
                                   verbose=self._args.verbose > 1)
 
         # Build arguments to pass to command:
         args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
 
-        # Determan base runtime with 100 iterations
+        # Determine base runtime with 100 iterations
         runtime = 0.0
         time_per_repetition = 0.2/10.0
 
@@ -125,7 +118,7 @@ class Benchmark(object):
         self.results = {'raw output': result}
 
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
-        # TODO make more generic to support other (and multiple) constantnames
+        # TODO make more generic to support other (and multiple) constant names
         # TODO support SP (devide by 4 instead of 8.0)
         iterations_per_repetition = reduce(
             operator.mul,
