@@ -224,18 +224,18 @@ class ECMCPU(object):
 
     def analyze(self):
         try:
-            iacaAnalysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
-                                                                compiler_args=self.machine['compiler flags'],
-                                                                micro_architecture=self.machine['micro-architecture'],
-                                                                asm_block=self._args.asm_block,
-                                                                asm_increment=self._args.asm_increment)
+            iaca_analysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
+                                                                 compiler_args=self.machine['compiler flags'],
+                                                                 micro_architecture=self.machine['micro-architecture'],
+                                                                 asm_block=self._args.asm_block,
+                                                                 asm_increment=self._args.asm_increment)
         except RuntimeError as e:
             print("IACA analysis failed: " + str(e))
             sys.exit(1)
 
-        block_throughput = iacaAnalysis['throughput']
-        port_cycles = iacaAnalysis['port cycles']
-        uops = iacaAnalysis['uops']
+        block_throughput = iaca_analysis['throughput']
+        port_cycles = iaca_analysis['port cycles']
+        uops = iaca_analysis['uops']
 
         # Normalize to cycles per cacheline
         elements_per_block = abs(asm_block['pointer_increment']
@@ -268,7 +268,7 @@ class ECMCPU(object):
             'uops': uops,
             'T_nOL': T_nOL,
             'T_OL': T_OL,
-            'IACA output': iacaAnalysis['output']}
+            'IACA output': iaca_analysis['output']}
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
         '''Convert cycles (cy/CL) to other units, such as FLOP/s or It/s'''

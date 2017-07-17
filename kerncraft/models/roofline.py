@@ -7,6 +7,7 @@ from __future__ import division
 
 import sys
 from pprint import pformat  # Do not use pprint, breaks in combination with --store and StringIO
+
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
 
@@ -239,19 +240,19 @@ class RooflineIACA(Roofline):
         self.results = self.calculate_cache_access()
 
         try:
-            iacaAnalysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
-                                                                compiler_args=self.machine['compiler flags'],
-                                                                micro_architecture=self.machine['micro-architecture'],
-                                                                asm_block=self._args.asm_block,
-                                                                asm_increment=self._args.asm_increment)
+            iaca_analysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
+                                                                 compiler_args=self.machine['compiler flags'],
+                                                                 micro_architecture=self.machine['micro-architecture'],
+                                                                 asm_block=self._args.asm_block,
+                                                                 asm_increment=self._args.asm_increment)
         except RuntimeError as e:
             print("IACA analysis failed: " + str(e))
             sys.exit(1)
 
-        block_throughput = iacaAnalysis['throughput']
-        uops = iacaAnalysis['uops']
-        iaca_output = iacaAnalysis['output']
-        port_cycles = iacaAnalysis['port cycles']
+        block_throughput = iaca_analysis['throughput']
+        uops = iaca_analysis['uops']
+        iaca_output = iaca_analysis['output']
+        port_cycles = iaca_analysis['port cycles']
 
         # Normalize to cycles per cacheline
         elements_per_block = abs(asm_block['pointer_increment']

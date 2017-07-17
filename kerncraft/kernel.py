@@ -33,7 +33,7 @@ from pylru import lrudecorator
 from .pycparser import CParser, c_ast, plyparser
 from .pycparser.c_generator import CGenerator
 
-from . import iaca_marker as iaca
+from . import iaca
 
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
@@ -513,10 +513,10 @@ class Kernel(object):
 
     def iaca_analysis(self, *args, **kwargs):
         raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
-                                  "Try a different model e.g. ECMData")
+                                  "Try a different model or kernel input format.")
 
     def build(self, *args, **kwargs):
-        raise NotImplementedError("Kernel does not support compilation. Try a different model e.g. ECMData")
+        raise NotImplementedError("Kernel does not support compilation. Try a different model or kernel input format.")
 
 
 class KernelCode(Kernel):
