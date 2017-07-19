@@ -69,7 +69,8 @@ class TestKerncraft(unittest.TestCase):
                  (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
 
         # Output of first result:
-        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
+        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c']
+                                      if (sympy.var('N'), 1000) in k][0]]
 
         six.assertCountEqual(self, result, ['ECMData'])
 
@@ -167,8 +168,8 @@ class TestKerncraft(unittest.TestCase):
                              u'bw kernel': 'copy',
                              u'level': u'L2',
                              u'performance': PrefixedUnit(6192000000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': 0.16666666666666666,
-                             u'bandwidth': PrefixedUnit(34815.0, u'M', u'B/s'),
+                            {u'arithmetic intensity': 1.0/6.0,
+                             u'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
                              u'bw kernel': 'copy',
                              u'level': u'L3',
                              u'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},

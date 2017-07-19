@@ -300,7 +300,7 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        return [self.stats[cache_level+1]['EVICT_count']/self.first_dim_factor
+        return [self.stats[cache_level]['EVICT_count']/self.first_dim_factor
                 for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_infos(self):
@@ -314,10 +314,9 @@ class CacheSimulationPredictor(CachePredictor):
                 'level': '{}'.format(cache_info['level']),
                 'total misses': self.stats[cache_level]['MISS_byte']/first_dim_factor,
                 'total hits': self.stats[cache_level]['HIT_byte']/first_dim_factor,
-                'total evicts': self.stats[cache_level]['STORE_byte']/first_dim_factor if self.stats[cache_level]['MISS_count'] > 0 else 0,
+                'total evicts': self.stats[cache_level]['EVICT_byte']/first_dim_factor,
                 'total lines misses': self.stats[cache_level]['MISS_count']/first_dim_factor,
                 'total lines hits': self.stats[cache_level]['HIT_count']/first_dim_factor,
-                # FIXME assumption for line evicts: all stores are consecutive
-                'total lines evicts': self.stats[cache_level+1]['STORE_count']/first_dim_factor if self.stats[cache_level]['MISS_count'] > 0 else 0,
+                'total lines evicts': self.stats[cache_level]['EVICT_count']/first_dim_factor,
                 'cycles': None})
         return infos
