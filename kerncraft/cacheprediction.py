@@ -269,7 +269,7 @@ class CacheSimulationPredictor(CachePredictor):
         csim.reset_stats()
 
         # Benchmark iterations:
-        # Strting point is one past the last warmup element
+        # Starting point is one past the last warmup element
         bench_iteration_start = warmup_iteration_count
         # End point is the end of the current dimension (cacheline alligned)
         first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
@@ -300,7 +300,7 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        return [self.stats[cache_level+1]['STORE_count']/self.first_dim_factor
+        return [self.stats[cache_level+1]['EVICT_count']/self.first_dim_factor
                 for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_infos(self):

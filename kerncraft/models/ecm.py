@@ -417,10 +417,11 @@ class ECM(object):
 
         i = 0
         # T_OL
-        colors = [(254. / 255, 177. / 255., 178. / 255.)] + [(255. / 255., 255. / 255., 255. / 255.)] * \
-                                                            (len(sorted_overlapping_ports) - 1)
+        colors = ([(254. / 255, 177. / 255., 178. / 255.)] + 
+                  [(255. / 255., 255. / 255., 255. / 255.)] * (len(sorted_overlapping_ports) - 1))
         for p, c in sorted_overlapping_ports:
-            ax.barh(i, c, height, align='center', color=colors.pop(), edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
+            ax.barh(i, c, height, align='center', color=colors.pop(),
+                    edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
             if i == len(sorted_overlapping_ports) - 1:
                 ax.text(c / 2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
             yticks_labels.append(p)
