@@ -1,14 +1,36 @@
 #!/usr/bin/env python
 from __future__ import absolute_import
+
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.sdist import sdist as _sdist
 from distutils.dir_util import mkpath
 from codecs import open  # To use a consistent encoding
-import sys, os
+import sys, os, io, re
+
 
 here = os.path.abspath(os.path.dirname(__file__))
+
+
+# Stolen from pip
+def read(*names, **kwargs):
+    with io.open(
+        os.path.join(os.path.dirname(__file__), *names),
+        encoding=kwargs.get("encoding", "utf8")
+    ) as fp:
+        return fp.read()
+
+
+# Stolen from pip
+def find_version(*file_paths):
+    version_file = read(*file_paths)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
 
 # Stolen from pycparser
 def _run_build_tables(dir):
@@ -50,7 +72,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.4.10',
+    version=find_version('kerncraft', '__init__.py'),
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
