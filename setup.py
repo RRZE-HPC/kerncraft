@@ -131,7 +131,7 @@ setup(
         'ruamel.yaml>=0.13.4,<0.15',
         'six',
         'sympy>=0.7.7',
-        'pycachesim>=0.1.4',
+        'pycachesim>=0.1.5',
         'pylru',
         'numpy',
         'pycparser>=2.14',
