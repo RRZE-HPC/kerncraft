@@ -142,13 +142,14 @@ class LayerConditionPredictor(CachePredictor):
         results['cache'] = []
         
         sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-        
-        for c in  self.machine.get_cachesim().levels(with_mem=False):
+
+        for c in self.machine.get_cachesim().levels(with_mem=False):
             # Assuming increasing order of cache sizes
             hits = 0
             misses = len(distances_bytes)
             cache_requirement = 0
-            
+
+            tail = 0
             # Test for full caching
             if c.size() > sum_array_sizes:
                 hits = misses

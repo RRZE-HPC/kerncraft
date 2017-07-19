@@ -19,7 +19,6 @@ from string import ascii_letters
 from distutils.spawn import find_executable
 from itertools import chain
 from collections import defaultdict
-from pprint import pprint
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -34,7 +33,7 @@ from pylru import lrudecorator
 from .pycparser import CParser, c_ast, plyparser
 from .pycparser.c_generator import CGenerator
 
-from . import iaca_marker as iaca
+from . import iaca
 
 
 def prefix_indent(prefix, textblock, later_prefix=' '):
@@ -49,13 +48,13 @@ def prefix_indent(prefix, textblock, later_prefix=' '):
         return s
 
 
-def trasform_multidim_to_1d_decl(decl):
-    '''
+def transform_multidim_to_1d_decl(decl):
+    """
     Transforms ast of multidimensional declaration to a single dimension declaration.
     In-place operation!
 
     Returns name and dimensions of array (to be used with transform_multidim_to_1d_ref())
-    '''
+    """
     dims = []
     t = decl.type
     while type(t) is c_ast.ArrayDecl:
@@ -71,10 +70,10 @@ def trasform_multidim_to_1d_decl(decl):
 
 
 def transform_multidim_to_1d_ref(aref, dimension_dict):
-    '''
+    """
     Transforms ast of multidimensional reference to a single dimension reference.
     In-place operation!
-    '''
+    """
     dims = []
     name = aref
     while type(name) is c_ast.ArrayRef:
@@ -96,8 +95,8 @@ def transform_multidim_to_1d_ref(aref, dimension_dict):
 
 
 def transform_array_decl_to_malloc(decl):
-    '''Transforms ast of "type var_name[N]" to "type* var_name = __mm_malloc(N, 32)"
-    (in-place)'''
+    """Transforms ast of "type var_name[N]" to "type* var_name = __mm_malloc(N, 32)"
+    (in-place)"""
     if type(decl.type) is not c_ast.ArrayDecl:
         # Not an array declaration, can be ignored
         return
@@ -118,7 +117,7 @@ def transform_array_decl_to_malloc(decl):
 
 
 def find_array_references(ast):
-    '''returns list of array references in AST'''
+    """returns list of array references in AST"""
     if type(ast) is c_ast.ArrayRef:
         return [ast]
     elif type(ast) is list:
@@ -141,7 +140,7 @@ def force_iterable(f):
 
 
 class Kernel(object):
-    '''This class captures the kernel information, analyzes it and reports access pattern'''
+    """This class captures the kernel information, analyzes it and reports access pattern"""
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
 
@@ -156,7 +155,7 @@ class Kernel(object):
         self.clear_state()
 
     def check(self):
-        '''Checks that information about kernel makes sens and is valid.'''
+        """Checks that information about kernel makes sens and is valid."""
         datatypes = [v[0] for v in self.variables.values()]
         assert len(set(datatypes)) <= 1, 'mixing of datatypes within a kernel is not supported.'
 
@@ -181,29 +180,29 @@ class Kernel(object):
         self.variables[name] = (type_, size)
 
     def clear_state(self):
-        '''Clears changable internal states
-        (constants, asm_blocks and asm_block_idx)'''
+        """Clears mutable internal states
+        (constants, asm_blocks and asm_block_idx)"""
         self.constants = {}
         self.subs_consts.clear()  # clear LRU cache of function
 
     @lrudecorator(40)
     def subs_consts(self, expr):
-        '''
+        """
         Substitutes constants in expression unless it is already a number
-        '''
+        """
         if isinstance(expr, numbers.Number):
             return expr
         else:
             return expr.subs(self.constants)
 
     def array_sizes(self, in_bytes=False, subs_consts=False):
-        '''Returns a dictionary with all arrays sizes (optunally in bytes, otherwise in elements).
+        """Returns a dictionary with all arrays sizes (optionally in bytes, otherwise in elements).
 
         :param in_bytes: If True, output will be in bytes, not in element counts.
         :param subs_consts: If True, output will be numbers and not symbolic.
 
         Scalar variables are ignored.
-        '''
+        """
         var_sizes = {}
 
         for var_name, var_info in self.variables.items():
@@ -226,10 +225,10 @@ class Kernel(object):
             return var_sizes
 
     def _calculate_relative_offset(self, name, access_dimensions):
-        '''
-        returns the offset from the iteration center in number of elements and the order of indices
+        """
+        Returns the offset from the iteration center in number of elements and the order of indices
         used in access.
-        '''
+        """
         # TODO to be replaced with compile_global_offsets
         offset = 0
         base_dims = self.variables[name][1]
@@ -248,7 +247,7 @@ class Kernel(object):
         return offset
 
     def access_to_sympy(self, var_name, access):
-        '''Transforms a variable access to a sympy expression'''
+        """Transforms a variable access to a sympy expression"""
         base_sizes = self.variables[var_name][1]
 
         expr = sympy.Number(0)
@@ -261,10 +260,10 @@ class Kernel(object):
         return expr
 
     def iteration_length(self, dimension=None):
-        '''Returns the number of global loop iterations that are performed
+        """Returns the number of global loop iterations that are performed
 
         If dimension is not None, it is the loop dimension that is returned
-        (-1 is the inner most loop and 0 the outermost)'''
+        (-1 is the inner most loop and 0 the outermost)"""
 
         total_length = 1
 
@@ -291,11 +290,11 @@ class Kernel(object):
                 yield {'index': l[0], 'start': l[1], 'stop': l[2], 'increment': l[3]}
 
     def index_order(self, sources=True, destinations=True):
-        '''
+        """
         Returns the order of indices as they appear in array references
 
         Use *source* and *destination* to reduce output
-        '''
+        """
         if sources:
             arefs = chain(*self._sources.values())
         else:
@@ -313,7 +312,7 @@ class Kernel(object):
         return ret
 
     def compile_sympy_accesses(self, sources=True, destinations=True):
-        '''returns a dictionary of lists of sympy accesses, for each variable'''
+        """Returns a dictionary of lists of sympy accesses, for each variable"""
         sympy_accesses = defaultdict(list)
         # Compile sympy accesses
         for var_name in self.variables:
@@ -329,13 +328,13 @@ class Kernel(object):
         return sympy_accesses
 
     def compile_relative_distances(self, sympy_accesses=None):
-        '''Returns load and store distances between accesses.
+        """Returns load and store distances between accesses.
 
         :param sympy_accesses: optionally restrict accesses, default from compile_sympy_accesses()
 
         e.g. if accesses are to [+N, +1, -1, -N], relative distances are [N-1, 2, N-1]
 
-        returned is a dict of list of sympy expressions, for each variable'''
+        returned is a dict of list of sympy expressions, for each variable"""
         if sympy_accesses is None:
             sympy_accesses = self.compile_sympy_accesses()
 
@@ -347,8 +346,8 @@ class Kernel(object):
         return sympy_distances
 
     def global_iterator_to_indices(self, git=None):
-        '''Returns sympy expressions translating global_iterator to loop indices,
-        or if global_iterator is given, an integer is returned'''
+        """Returns sympy expressions translating global_iterator to loop indices,
+        or if global_iterator is given, an integer is returned"""
         # unwind global iteration count into loop counters:
         base_loop_counters = {}
         if git is None:
@@ -380,9 +379,9 @@ class Kernel(object):
         return base_loop_counters
 
     def indices_to_global_iterator(self, indices):
-        '''Transforms a dictionary of indices to a global iterator integer.
+        """Transforms a dictionary of indices to a global iterator integer.
 
-        Inverse of global_iterator_to_indices().'''
+        Inverse of global_iterator_to_indices()."""
         global_iterator = sympy.Integer(0)
         total_length = 1
         for var_name, start, end, incr in reversed(self._loop_stack):
@@ -393,22 +392,21 @@ class Kernel(object):
 
         return self.subs_consts(global_iterator)
 
-
     def compile_global_offsets(self, iteration=0, spacing=0):
-        '''Returns load and store offsets on a virtual address space.
+        """Returns load and store offsets on a virtual address space.
 
-        :param iteration: controlls the inner index counter
+        :param iteration: controls the inner index counter
         :param spacing: sets a spacing between the arrays, default is 0
 
         All array variables (non scalars) are layed out linearly starting from 0. An optional
         spacing can be set. The accesses are based on this layout.
 
-        The iteration 0 is the first itreation. All loops are mapped to this linear iteration space.
+        The iteration 0 is the first iteration. All loops are mapped to this linear iteration space.
 
         Accesses to scalars are ignored.
 
         Returned are load and store byte-offset pairs for each iteration.
-        '''
+        """
         global_load_offsets = []
         global_store_offsets = []
 
@@ -429,12 +427,12 @@ class Kernel(object):
         var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
         base_offsets = {}
         base = 0
-        # Always arange arrays in alphabetical order in memory, for reproducability
+        # Always arrange arrays in alphabetical order in memory, for reproducibility
         for var_name, var_size in sorted(var_sizes.items(), key=lambda v: v[0]):
             base_offsets[var_name] = base
             array_total_size = self.subs_consts(var_size + spacing)
             # Add bytes to align by 64 byte (typical cacheline size):
-            array_total_size = ((int(array_total_size)+63)& ~63)
+            array_total_size = ((int(array_total_size) + 63) & ~63)
             base += array_total_size
 
         # Gather all read and write accesses to the array:
@@ -513,19 +511,25 @@ class Kernel(object):
             table += '{!s:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table), file=output_file)
 
+    def iaca_analysis(self, *args, **kwargs):
+        raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
+                                  "Try a different model or kernel input format.")
+
+    def build(self, *args, **kwargs):
+        raise NotImplementedError("Kernel does not support compilation. Try a different model or kernel input format.")
+
 
 class KernelCode(Kernel):
-    '''
+    """
     Kernel information gathered from code using pycparser
 
     This version allows compilation and generation of code for iaca and likwid benchmarking
-    '''
+    """
     def __init__(self, kernel_code, filename=None):
         super(KernelCode, self).__init__()
 
         # Initialize state
-        self.asm_blocks = {}
-        self.asm_block_idx = None
+        self.asm_block = None
 
         self.kernel_code = kernel_code
         self._filename = filename
@@ -553,19 +557,17 @@ class KernelCode(Kernel):
         return '#line 0 \nvoid {}() {{\n#line 1 {}\n{}\n#line 999 \n}}'.format(func_name, filename, self.kernel_code)
 
     def clear_state(self):
-        '''Clears changable internal states'''
+        """Clears mutable internal states"""
         super(KernelCode, self).clear_state()
-        self.asm_blocks = {}
-        self.asm_block_idx = None
-        self.subs_consts.clear()  # clear LRU cache of function
+        self.asm_block = None
 
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
         assert all([type(s) in [c_ast.Decl, c_ast.Pragma]
                     for s in self.kernel_ast.block_items[:-1]]), \
-            'all statments before the for loop need to be declarations or pragmas'
+            'all statements before the for loop need to be declarations or pragmas'
         assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
-            'last statment in kernel code must be a loop'
+            'last statement in kernel code must be a loop'
 
         for item in self.kernel_ast.block_items[:-1]:
             if type(item) is c_ast.Pragma: continue
@@ -589,10 +591,10 @@ class KernelCode(Kernel):
         self._p_for(floop)
 
     def conv_ast_to_sym(self, math_ast):
-        '''
+        """
         converts mathematical expressions containing paranthesis, addition, subtraction and
         multiplication from AST to a sympy representation.
-        '''
+        """
         if type(math_ast) is c_ast.ID:
             return sympy.Symbol(math_ast.name, positive=True)
         elif type(math_ast) is c_ast.Constant:
@@ -609,14 +611,14 @@ class KernelCode(Kernel):
                 self.conv_ast_to_sym(math_ast.right))
 
     def _get_offsets(self, aref, dim=0):
-        '''
-        returns a list of offsets of an ArrayRef object in all dimensions
+        """
+        Returns a list of offsets of an ArrayRef object in all dimensions
 
         the index order is right to left (c-code order).
         e.g. c[i+1][j-2] -> [-2, +1]
 
         if aref is actually an ID, None will be returned
-        '''
+        """
         if isinstance(aref, c_ast.ID):
             return None
 
@@ -643,11 +645,11 @@ class KernelCode(Kernel):
 
     @classmethod
     def _get_basename(cls, aref):
-        '''
+        """
         returns base name of ArrayRef object
 
         e.g. c[i+1][j-2] -> 'c'
-        '''
+        """
 
         if isinstance(aref.name, c_ast.ArrayRef):
             return cls._get_basename(aref.name)
@@ -790,19 +792,19 @@ class KernelCode(Kernel):
         return sources
 
     def as_code(self, type_='iaca'):
-        '''
+        """
         generates compilable source code from AST
 
         *type* can be iaca or likwid.
-        '''
+        """
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running of " \
-             "kernel description rather then code."
+                                            "kernel description rather than code."
 
         ast = deepcopy(self.kernel_ast)
         declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
 
         # transform multi-dimensional declarations to one dimensional references
-        array_dimensions = dict(list(map(trasform_multidim_to_1d_decl, declarations)))
+        array_dimensions = dict(list(map(transform_multidim_to_1d_decl, declarations)))
         # transform to pointer and malloc notation (stack can be too small)
         list(map(transform_array_decl_to_malloc, declarations))
 
@@ -897,33 +899,33 @@ class KernelCode(Kernel):
         list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
                  find_array_references(ast)))
 
+        dummies = []
+        # Make sure nothing gets removed by inserting dummy calls
+        for d in declarations:
+            if array_dimensions[d.name]:
+                dummies.append(c_ast.If(
+                    cond=c_ast.ID('var_false'),
+                    iftrue=c_ast.Compound([
+                        c_ast.FuncCall(
+                            c_ast.ID('dummy'),
+                            c_ast.ExprList([c_ast.ID(d.name)]))]),
+                    iffalse=None))
+            else:
+                dummies.append(c_ast.If(
+                    cond=c_ast.ID('var_false'),
+                    iftrue=c_ast.Compound([
+                        c_ast.FuncCall(
+                            c_ast.ID('dummy'),
+                            c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
+                    iffalse=None))
+
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
             ast.block_items.insert(-2, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
 
-            dummies = []
-            # Make sure nothing gets removed by inserting dummy calls
-            for d in declarations:
-                if array_dimensions[d.name]:
-                    dummies.append(c_ast.If(
-                        cond=c_ast.ID('var_false'),
-                        iftrue=c_ast.Compound([
-                            c_ast.FuncCall(
-                                c_ast.ID('dummy'),
-                                c_ast.ExprList([c_ast.ID(d.name)]))]),
-                        iffalse=None))
-                else:
-                    dummies.append(c_ast.If(
-                        cond=c_ast.ID('var_false'),
-                        iftrue=c_ast.Compound([
-                            c_ast.FuncCall(
-                                c_ast.ID('dummy'),
-                                c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
-                        iffalse=None))
-
-            # Wrap everything in a reapeat loop
+            # Wrap everything in a loop
             # int repeat = atoi(argv[2])
             type_decl = c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int']))
             init = c_ast.FuncCall(
@@ -943,8 +945,10 @@ class KernelCode(Kernel):
             ast.block_items.insert(-1, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStopRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+        else:
+            ast.block_items += dummies
 
-        # embedd Compound into main FuncDecl
+        # embed compound into main FuncDecl
         decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
             c_ast.Typename(None, [], c_ast.TypeDecl('argc', [], c_ast.IdentifierType(['int']))),
             c_ast.Typename(None, [], c_ast.PtrDecl([], c_ast.PtrDecl(
@@ -954,7 +958,7 @@ class KernelCode(Kernel):
 
         ast = c_ast.FuncDef(decl, None, ast)
 
-        # embedd Compound AST into FileAST
+        # embed Compound AST into FileAST
         ast = c_ast.FileAST([ast])
 
         # add dummy function declaration
@@ -971,7 +975,6 @@ class KernelCode(Kernel):
             ), None, None)
         ast.ext.insert(1, decl)
 
-
         # convert to code string
         code = CGenerator().visit(ast)
 
@@ -985,7 +988,7 @@ class KernelCode(Kernel):
 
     def assemble(self, compiler, in_filename,
                  out_filename=None, iaca_markers=True, asm_block='auto', asm_increment=0):
-        '''
+        """
         Assembles *in_filename* to *out_filename*.
 
         If *out_filename* is not given a new file will created either temporarily or according
@@ -995,7 +998,7 @@ class KernelCode(Kernel):
         instructions or (if no packed instr. were found) the largest block and modified file is
         saved to *in_file*.
 
-        *asm_block* controlls how the to-be-marked block is chosen. "auto" (default) results in
+        *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
 
         *asm_increment* is the increment of the store pointer during each iteration of the ASM block
@@ -1003,7 +1006,7 @@ class KernelCode(Kernel):
         interface.
 
         Returns two-tuple (filepointer, filename) to temp binary file.
-        '''
+        """
         if not out_filename:
             suffix = ''
             if iaca_markers:
@@ -1015,58 +1018,28 @@ class KernelCode(Kernel):
 
         # insert iaca markers
         if iaca_markers:
-            with open(in_filename, 'r') as in_file:
-                lines = in_file.readlines()
-            blocks = iaca.find_asm_blocks(lines)
-
-            # TODO check for already present markers
-
-            # Choose best default block:
-            block_idx = iaca.select_best_block(blocks)
-            if asm_block == 'manual':
-                block_idx = iaca.userselect_block(blocks, default=block_idx)
-            elif asm_block != 'auto':
-                block_idx = asm_block
-
-            self.asm_block = blocks[block_idx][1]
-
-            # Use userinput for pointer_increment, if given
-            if asm_increment != 0:
-                self.asm_block['pointer_increment'] = asm_increment
-
-            # If block's pointer_increment is None, let user choose
-            if self.asm_block['pointer_increment'] is None:
-                iaca.userselect_increment(self.asm_block)
-
-            # Insert markers:
-            lines = iaca.insert_markers(
-                lines, self.asm_block['first_line'], self.asm_block['last_line'])
-
-            # write back to file
-            with open(in_filename, 'w') as in_file:
-                in_file.writelines(lines)
+            self.asm_block = iaca.iaca_instrumentation(in_filename, block_selection=asm_block,
+                                                       pointer_increment='auto_with_manual_fallback')
 
         try:
-            # Assamble all to a binary
+            # Assemble all to a binary
             subprocess.check_output(
-                [compiler, os.path.basename(in_file.name), 'dummy.s', '-o', out_filename],
-                cwd=os.path.dirname(os.path.realpath(in_file.name)))
+                [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename],
+                cwd=os.path.dirname(os.path.realpath(in_filename)))
         except subprocess.CalledProcessError as e:
-            print(u"Assemblation failed:", e, file=sys.stderr)
+            print("Assembly failed:", e, file=sys.stderr)
             sys.exit(1)
-        finally:
-            in_file.close()
 
         return out_filename
 
     def compile(self, compiler, compiler_args=None):
-        '''
+        """
         Compiles source (from as_code(type_)) to assembly.
 
         Returns two-tuple (filepointer, filename) to assembly file.
 
         Output can be used with Kernel.assemble()
-        '''
+        """
         # Making sure compiler is available:
         if find_executable(compiler) is None:
             print("Compiler ({}) was not found. Choose different one in machine file "
@@ -1102,7 +1075,7 @@ class KernelCode(Kernel):
                     '-S'],
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
         except subprocess.CalledProcessError as e:
-            print(u"Compilation failed:", e, file=sys.stderr)
+            print("Compilation failed:", e, file=sys.stderr)
             sys.exit(1)
         finally:
             in_file.close()
@@ -1110,12 +1083,18 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def build(self, compiler, cflags=None, lflags=None, verbose=False):
-        '''
+    def iaca_analysis(self, compiler, compiler_args, micro_architecture, asm_block='auto', asm_increment=0):
+        asmFile = self.compile(compiler, compiler_args)
+        bin_name = self.assemble(compiler, asmFile, iaca_markers=True,
+                                 asm_block=asm_block, asm_increment=asm_increment)
+        return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
+
+    def build(self, compiler, compiler_args=None, verbose=False):
+        """
         compiles source to executable with likwid capabilities
 
         returns the executable name
-        '''
+        """
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                 'LIKWID_LIB' in os.environ):
             print('Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables',
@@ -1128,17 +1107,15 @@ class KernelCode(Kernel):
                   "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
             sys.exit(1)
 
-        if cflags is None:
-            cflags = []
-        cflags += ['-std=c99',
+        if compiler_args is None:
+            compiler_args = []
+        compiler_args += ['-std=c99',
                    '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
                    os.environ.get('LIKWID_INCLUDE', ''),
                    os.environ.get('LIKWID_INC', ''),
                    '-llikwid']
 
-        if lflags is None:
-            lflags = []
-        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
+        compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(
@@ -1156,7 +1133,7 @@ class KernelCode(Kernel):
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
             outfile = tempfile.mkstemp(suffix='.likwid_marked')
-        cmd = [compiler] + infiles + cflags + lflags + ['-o', outfile]
+        cmd = [compiler] + infiles + compiler_args + ['-o', outfile]
         # remove empty arguments
         cmd = list(filter(bool, cmd))
         if verbose:
@@ -1173,11 +1150,11 @@ class KernelCode(Kernel):
 
 
 class KernelDescription(Kernel):
-    '''
+    """
     Kernel information gathered from YAML kernel description file
 
     This class does NOT allow compilation (required by iaca analysis and likwid benchmarking).
-    '''
+    """
     def __init__(self, description):
         super(KernelDescription, self).__init__()
 
@@ -1198,7 +1175,7 @@ class KernelDescription(Kernel):
         # Data sources
         self._sources = {
             var_name: list([self.string_to_sympy(idx) for idx in v])
-            for var_name,v in description['data sources'].items()
+            for var_name, v in description['data sources'].items()
         }
 
         # Data destinations
