@@ -142,13 +142,14 @@ class LayerConditionPredictor(CachePredictor):
         results['cache'] = []
         
         sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-        
-        for c in  self.machine.get_cachesim().levels(with_mem=False):
+
+        for c in self.machine.get_cachesim().levels(with_mem=False):
             # Assuming increasing order of cache sizes
             hits = 0
             misses = len(distances_bytes)
             cache_requirement = 0
-            
+
+            tail = 0
             # Test for full caching
             if c.size() > sum_array_sizes:
                 hits = misses
@@ -176,7 +177,7 @@ class LayerConditionPredictor(CachePredictor):
                 'name': c.name,
                 'hits': hits,
                 'misses': misses,
-                'evicts': len(destinations),
+                'evicts': len(destinations) if c.size() < sum_array_sizes else 0,
                 'requirement': cache_requirement,
                 'tail': tail})
         
@@ -264,14 +265,11 @@ class CacheSimulationPredictor(CachePredictor):
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
 
-        # Force write-back on all cache levels
-        csim.force_write_back()
-
         # Reset stats to conclude warm-up phase
         csim.reset_stats()
 
         # Benchmark iterations:
-        # Strting point is one past the last warmup element
+        # Starting point is one past the last warmup element
         bench_iteration_start = warmup_iteration_count
         # End point is the end of the current dimension (cacheline alligned)
         first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
@@ -285,9 +283,6 @@ class CacheSimulationPredictor(CachePredictor):
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-
-        # Force write-back on all cache levels
-        csim.force_write_back()
         
         # use stats to build results
         self.stats = list(csim.stats())
@@ -305,7 +300,7 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_evicts(self):
         '''Returns a list with cache lines of misses per cache level'''
-        return [self.stats[cache_level+1]['STORE_count']/self.first_dim_factor
+        return [self.stats[cache_level]['EVICT_count']/self.first_dim_factor
                 for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_infos(self):
@@ -319,10 +314,9 @@ class CacheSimulationPredictor(CachePredictor):
                 'level': '{}'.format(cache_info['level']),
                 'total misses': self.stats[cache_level]['MISS_byte']/first_dim_factor,
                 'total hits': self.stats[cache_level]['HIT_byte']/first_dim_factor,
-                'total evicts': self.stats[cache_level]['STORE_byte']/first_dim_factor,
+                'total evicts': self.stats[cache_level]['EVICT_byte']/first_dim_factor,
                 'total lines misses': self.stats[cache_level]['MISS_count']/first_dim_factor,
                 'total lines hits': self.stats[cache_level]['HIT_count']/first_dim_factor,
-                # FIXME assumption for line evicts: all stores are consecutive
-                'total lines evicts': self.stats[cache_level+1]['STORE_count']/first_dim_factor,
+                'total lines evicts': self.stats[cache_level]['EVICT_count']/first_dim_factor,
                 'cycles': None})
         return infos

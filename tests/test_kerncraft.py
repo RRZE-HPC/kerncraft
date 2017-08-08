@@ -40,7 +40,7 @@ class TestKerncraft(unittest.TestCase):
         assert os.path.exists(name)
         return name
 
-    def test_2d5pt_ECMData(self):
+    def test_2d5pt_ECMData_SIM(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
         output_stream = StringIO()
 
@@ -69,6 +69,49 @@ class TestKerncraft(unittest.TestCase):
                  (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
 
         # Output of first result:
+        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c']
+                                      if (sympy.var('N'), 1000) in k][0]]
+
+        six.assertCountEqual(self, result, ['ECMData'])
+
+        ecmd = result['ECMData']
+        # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
+        # -> fully cached in L3
+        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
+
+
+    def test_2d5pt_ECMData_LC(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
+        output_stream = StringIO()
+
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'ECMData',
+                                  self._find_file('2d-5pt.c'),
+                                  '-D', 'N', '10000-100000:2log10',
+                                  '-D', 'N', '1000',
+                                  '-D', 'M', '50',
+                                  '-vvv',
+                                  '--cache-predictor=LC',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+
+        results = pickle.load(open(store_file, 'rb'))
+
+        # Check if results contains correct kernel
+        self.assertEqual(list(results), ['2d-5pt.c'])
+
+        # Check for correct variations of constants
+        six.assertCountEqual(self,
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [
+                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
+                 (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+
+        # Output of first result:
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
 
         six.assertCountEqual(self, result, ['ECMData'])
@@ -76,10 +119,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        # FIXME 3.9cy in L3-MEM should be 0, but full caching is not respected in stores atm
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 3.9, places=0) # FIXME should be 0.0
+        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
 
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
@@ -126,19 +168,20 @@ class TestKerncraft(unittest.TestCase):
                              u'bw kernel': 'copy',
                              u'level': u'L2',
                              u'performance': PrefixedUnit(6192000000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': 0.16666666666666666,
-                             u'bandwidth': PrefixedUnit(34815.0, u'M', u'B/s'),
+                            {u'arithmetic intensity': 1.0/6.0,
+                             u'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
                              u'bw kernel': 'copy',
                              u'level': u'L3',
                              u'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': float(0.5),
+                            {u'arithmetic intensity': float('inf'),
                              u'bandwidth': PrefixedUnit(12.01, u'G', u'B/s'),
                              u'bw kernel': 'load',
                              u'level': u'MEM',
-                             u'performance': PrefixedUnit(6005000000.0, u'', u'FLOP/s')}]
+                             u'performance': PrefixedUnit(float('inf'), u'', u'FLOP/s')}]
         
         for i, btlnck in enumerate(expected_btlncks):
             for k,v in btlnck.items():
+                print(k, roofline['mem bottlenecks'][i][k], v)
                 self.assertEqual(roofline['mem bottlenecks'][i][k], v)
 
     def test_sclar_product_ECMData(self):
@@ -187,10 +230,37 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        # FIXME 2.3cy in L3 due to evicts not respecting cache, should be 0.0
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 2.3, places=0)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
+    
+    def test_copy_ECMData_LC(self):
+        store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
+        output_stream = StringIO()
+
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('hasep1.yaml'),
+                                  '-p', 'ECMData',
+                                  self._find_file('copy.c'),
+                                  '-D', 'N', '1000000',
+                                  '-vvv',
+                                  '--unit=cy/CL',
+                                  '--cache-predictor=LC',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+
+        results = pickle.load(open(store_file, 'rb'))
+
+        # Output of first result:
+        ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
+
+        # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
+        # -> L3
+        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
 
     @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")

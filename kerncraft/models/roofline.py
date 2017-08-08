@@ -5,18 +5,10 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import division
 
-from functools import reduce
-import operator
-import subprocess
-import re
 import sys
 from pprint import pformat  # Do not use pprint, breaks in combination with --store and StringIO
-from distutils.spawn import find_executable
-
-import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
-from kerncraft.kernel import KernelCode
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
 
 
@@ -143,7 +135,7 @@ class Roofline(object):
 
             self.results['mem bottlenecks'].append({
                 'performance': PrefixedUnit(performance, 'FLOP/s'),
-                'level': (self.machine['memory hierarchy'][cache_level+1]['level']),
+                'level': (self.machine['memory hierarchy'][cache_level + 1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw,
@@ -242,64 +234,27 @@ class RooflineIACA(Roofline):
         *args* (optional) are the parsed arguments from the comand line
         if *args* is given also *parser* has to be provided
         """
-        if not isinstance(kernel, KernelCode):
-            raise ValueError("Kernel was not derived from code, can not perform RooflineIACA "
-                             "analysis. Try Roofline.")
         Roofline.__init__(self, kernel, machine, args, parser)
 
     def analyze(self):
         self.results = self.calculate_cache_access()
 
-        # For the IACA/CPU analysis we need to compile and assemble
-        asm_name = self.kernel.compile()
-        bin_name = self.kernel.assemble(asm_name, iaca_markers=True, asm_block=self._args.asm_block,
-           asm_increment=self._args.asm_increment)
-
-        # Making sure iaca.sh is available:
-        if find_executable('iaca.sh') is None:
-            print("iaca.sh was not found. Make sure it is found in PATH.", file=sys.stderr)
-            sys.exit(1)
-
-        # Get total cycles per loop iteration
         try:
-            cmd = ['iaca.sh', '-64', '-arch', self.machine['micro-architecture'], bin_name]
-            iaca_output = subprocess.check_output(cmd).decode('utf-8')
-        except OSError as e:
-            print("IACA execution failed:", ' '.join(cmd), file=sys.stderr)
-            print(e, file=sys.stderr)
-            sys.exit(1)
-        except subprocess.CalledProcessError as e:
-            print("IACA throughput analysis failed:", e, file=sys.stderr)
+            iaca_analysis, asm_block = self.kernel.iaca_analysis(
+                micro_architecture=self.machine['micro-architecture'],
+                asm_block=self._args.asm_block,
+                asm_increment=self._args.asm_increment)
+        except RuntimeError as e:
+            print("IACA analysis failed: " + str(e))
             sys.exit(1)
 
-        match = re.search(
-            r'^Block Throughput: ([0-9\.]+) Cycles', iaca_output, re.MULTILINE)
-        assert match, "Could not find Block Throughput in IACA output."
-        block_throughput = float(match.groups()[0])
-
-        # Find ports and cyles per port
-        ports = [l for l in iaca_output.split('\n') if l.startswith('|  Port  |')]
-        cycles = [l for l in iaca_output.split('\n') if l.startswith('| Cycles |')]
-        assert ports and cycles, "Could not find ports/cylces lines in IACA output."
-        ports = [p.strip() for p in ports[0].split('|')][2:]
-        cycles = [p.strip() for p in cycles[0].split('|')][2:]
-        port_cycles = []
-        for i in range(len(ports)):
-            if '-' in ports[i] and ' ' in cycles[i]:
-                subports = [p.strip() for p in ports[i].split('-')]
-                subcycles = [c for c in cycles[i].split(' ') if bool(c)]
-                port_cycles.append((subports[0], float(subcycles[0])))
-                port_cycles.append((subports[0]+subports[1], float(subcycles[1])))
-            elif ports[i] and cycles[i]:
-                port_cycles.append((ports[i], float(cycles[i])))
-        port_cycles = dict(port_cycles)
-
-        match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
-        assert match, "Could not find Uops in IACA output."
-        uops = float(match.groups()[0])
+        block_throughput = iaca_analysis['throughput']
+        uops = iaca_analysis['uops']
+        iaca_output = iaca_analysis['output']
+        port_cycles = iaca_analysis['port cycles']
 
         # Normalize to cycles per cacheline
-        elements_per_block = abs(self.kernel.asm_block['pointer_increment']
+        elements_per_block = abs(asm_block['pointer_increment']
                                  / self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         try:
