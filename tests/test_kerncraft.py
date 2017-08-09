@@ -232,7 +232,6 @@ class TestKerncraft(unittest.TestCase):
         # -> L3
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 2.3, places=0)
         self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
     
     def test_copy_ECMData_LC(self):
