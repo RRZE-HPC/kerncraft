@@ -295,8 +295,8 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 9.375, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 8, places=1)
 
     @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -337,8 +337,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 9.375, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 8, places=1)
         self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
