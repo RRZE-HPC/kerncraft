@@ -382,7 +382,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
-    @unittest.skipUnless(find_executable('likwid-perfctr'), "GCC not available")
+    @unittest.skipUnless(find_executable('likwid-perfctr'), "LIKWID not available")
     @unittest.skipIf(platform.system() == "Darwin", "Won't build on OS X.")
     def test_2d5pt_Benchmark(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Benchmark.pickle')
