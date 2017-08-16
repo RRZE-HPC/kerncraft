@@ -275,6 +275,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'M', '1000',
                                   '-vvv',
                                   '--unit=cy/CL',
+                                  '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -295,8 +296,8 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
 
     @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -311,7 +312,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '2000',
                                   '-D', 'M', '1000',
                                   '-vvv',
-                                  '--asm-block=manual',  # DEBUGGING!
+                                  '--compiler=gcc',
                                   '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
@@ -338,8 +339,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        self.assertAlmostEqual(ecmd['T_OL'], 24.8, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 20, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
         self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
@@ -358,6 +359,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'M', '1000',
                                   '-vvv',
                                   '--unit=FLOP/s',
+                                  '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -401,6 +403,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '1000',
                                   '-D', 'M', '1000',
                                   '-vvv',
+                                  '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
