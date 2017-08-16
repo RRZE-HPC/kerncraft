@@ -311,6 +311,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '2000',
                                   '-D', 'M', '1000',
                                   '-vvv',
+                                  '--asm-block=manual',  # DEBUGGING!
                                   '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
