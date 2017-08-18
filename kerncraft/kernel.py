@@ -981,7 +981,7 @@ class KernelCode(Kernel):
         return code
 
     def assemble(self, in_filename, out_filename=None, iaca_markers=True,
-                 asm_block='auto', asm_increment=0):
+                 asm_block='auto', asm_increment=0, verbose=False):
         """
         Assembles *in_filename* to *out_filename*.
 
@@ -1017,10 +1017,14 @@ class KernelCode(Kernel):
 
         compiler, compiler_args = self._machine.get_compiler()
 
+        cmd = [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename]
+        if verbose:
+            print('Executing (assemble): ', ' '.join(cmd))
+
         try:
             # Assemble all to a binary
             subprocess.check_output(
-                [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename],
+                cmd,
                 cwd=os.path.dirname(os.path.realpath(in_filename)))
         except subprocess.CalledProcessError as e:
             print("Assembly failed:", e, file=sys.stderr)
@@ -1028,7 +1032,7 @@ class KernelCode(Kernel):
 
         return out_filename
 
-    def compile(self):
+    def compile(self, verbose=False):
         """
         Compiles source (from as_code(type_)) to assembly.
 
@@ -1050,13 +1054,18 @@ class KernelCode(Kernel):
 
         compiler_args += ['-std=c99']
 
+        cmd = ([compiler] +
+               compiler_args +
+               [os.path.basename(in_file.name),
+                '-S',
+                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'])
+
+        if verbose:
+            print('Executing (compile): ', ' '.join(cmd))
+
         try:
             subprocess.check_output(
-                [compiler] +
-                compiler_args +
-                [os.path.basename(in_file.name),
-                 '-S',
-                 '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],
+                cmd,
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(
@@ -1073,10 +1082,11 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def iaca_analysis(self, micro_architecture, asm_block='auto', asm_increment=0):
-        asmFile = self.compile()
+    def iaca_analysis(self, micro_architecture, asm_block='auto', asm_increment=0, verbose=False):
+        asmFile = self.compile(verbose=verbose)
         bin_name = self.assemble(asmFile, iaca_markers=True,
-                                 asm_block=asm_block, asm_increment=asm_increment)
+                                 asm_block=asm_block, asm_increment=asm_increment,
+                                 verbose=verbose)
         return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
 
     def build(self, lflags=None, verbose=False):
@@ -1130,7 +1140,7 @@ class KernelCode(Kernel):
         # remove empty arguments
         cmd = list(filter(bool, cmd))
         if verbose:
-            print(' '.join(cmd))
+            print('Executing (build): ', ' '.join(cmd))
         try:
             subprocess.check_output(cmd)
         except subprocess.CalledProcessError as e:

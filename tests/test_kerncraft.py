@@ -157,7 +157,7 @@ class TestKerncraft(unittest.TestCase):
         roofline = result['Roofline']
         self.assertAlmostEqual(roofline['min performance'], 5802500000.0, places=0)
         self.assertEqual(roofline['bottleneck level'], 2)
-        
+
         expected_btlncks = [{u'arithmetic intensity': 0.11764705882352941,
                              u'bandwidth': PrefixedUnit(122.97, u'G', u'B/s'),
                              u'bw kernel': 'copy',
@@ -178,7 +178,7 @@ class TestKerncraft(unittest.TestCase):
                              u'bw kernel': 'load',
                              u'level': u'MEM',
                              u'performance': PrefixedUnit(float('inf'), u'', u'FLOP/s')}]
-        
+
         for i, btlnck in enumerate(expected_btlncks):
             for k,v in btlnck.items():
                 print(k, roofline['mem bottlenecks'][i][k], v)
@@ -233,7 +233,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
-    
+
     def test_copy_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
         output_stream = StringIO()
@@ -275,6 +275,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'M', '1000',
                                   '-vvv',
                                   '--unit=cy/CL',
+                                  '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -295,8 +296,8 @@ class TestKerncraft(unittest.TestCase):
         six.assertCountEqual(self, result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        self.assertAlmostEqual(ecmd['T_OL'], 9.375, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 8, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
 
     @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -311,6 +312,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '2000',
                                   '-D', 'M', '1000',
                                   '-vvv',
+                                  '--compiler=gcc',
                                   '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
@@ -337,8 +339,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        self.assertAlmostEqual(ecmd['T_OL'], 9.375, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 8, places=1)
+        self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
+        self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
         self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
@@ -357,6 +359,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'M', '1000',
                                   '-vvv',
                                   '--unit=FLOP/s',
+                                  '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -381,7 +384,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
-    @unittest.skipUnless(find_executable('likwid-perfctr'), "GCC not available")
+    @unittest.skipUnless(find_executable('likwid-perfctr'), "LIKWID not available")
     @unittest.skipIf(platform.system() == "Darwin", "Won't build on OS X.")
     def test_2d5pt_Benchmark(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Benchmark.pickle')
@@ -400,6 +403,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '1000',
                                   '-D', 'M', '1000',
                                   '-vvv',
+                                  '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
@@ -435,7 +439,7 @@ class TestKerncraft(unittest.TestCase):
 
         for k, v in correct_results.items():
             self.assertAlmostEqual(roofline[k], v, places=1)
-    
+
     def test_2d5pt_pragma(self):
         output_stream = StringIO()
 
