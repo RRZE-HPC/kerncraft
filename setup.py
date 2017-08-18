@@ -134,7 +134,7 @@ setup(
         'pycachesim>=0.1.5',
         'pylru',
         'numpy',
-        'pycparser>=2.14',
+        # 'pycparser>=2.14', patched version provided with kerncraft
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
