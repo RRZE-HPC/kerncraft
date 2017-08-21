@@ -204,6 +204,8 @@ benchmarks:
 cacheline size: 64 B
 clock: 2.2 GHz
 cores per socket: 10
+cores per NUMA domain: 10
+NUMA domains per socket: 1
 compiler:
     icc: -O3 -xAVX -fno-alias
     clang: -O3 -mavx -D_POSIX_C_SOURCE=200112L

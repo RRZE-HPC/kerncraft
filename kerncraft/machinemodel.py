@@ -84,7 +84,10 @@ class MachineModel(object):
             bw = bw_measurements['results'][measurement_kernel][run_index]
         else:
             # Used by ECM model
-            bw = max(bw_measurements['results'][measurement_kernel])
+            # Choose maximum number of cores to get bandwidth for
+            max_cores = min(self['memory hierarchy'][cache_level]['cores per group'],
+                            self['cores per NUMA domain'])
+            bw = max(bw_measurements['results'][measurement_kernel][:max_cores])
 
         # Correct bandwidth due to miss-measurement of write allocation
         # TODO support non-temporal stores and non-write-allocate architectures

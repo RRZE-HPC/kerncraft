@@ -4,6 +4,8 @@ FLOPs per cycle:
 cacheline size: 64 B
 clock: 2.3 GHz
 cores per socket: 14
+cores per NUMA domain: 7
+NUMA domains per socket: 2
 compiler:
     icc: -O3 -xCORE-AVX2 -fno-alias
     gcc: -O3 -march=haswell -D_POSIX_C_SOURCE=200112L

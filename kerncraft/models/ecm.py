@@ -188,6 +188,11 @@ class ECMData(object):
             print('{} = {}'.format(
                 level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
 
+        if self._args and self._args.verbose > 1:
+            if 'memory bandwidth kernel' in self.results:
+                print('memory cycles based on', self.results['memory bandwidth kernel'],
+                      'kernel with', self.results['memory bandwidth'], file=output_file)
+
 
 class ECMCPU(object):
     """
@@ -387,6 +392,12 @@ class ECM(object):
                                                 self.results['T_nOL'], self.results['T_OL']))
                             for i in range(len(self.results['cycles']))]))
 
+        if self._args and self._args.verbose > 1:
+            if 'memory bandwidth kernel' in self.results:
+                report += 'memory cycles based on {} kernel with {}\n'.format(
+                    self.results['memory bandwidth kernel'],
+                    self.results['memory bandwidth'])
+
         report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 
         print(report, file=output_file)
@@ -417,7 +428,7 @@ class ECM(object):
 
         i = 0
         # T_OL
-        colors = ([(254. / 255, 177. / 255., 178. / 255.)] + 
+        colors = ([(254. / 255, 177. / 255., 178. / 255.)] +
                   [(255. / 255., 255. / 255., 255. / 255.)] * (len(sorted_overlapping_ports) - 1))
         for p, c in sorted_overlapping_ports:
             ax.barh(i, c, height, align='center', color=colors.pop(),
