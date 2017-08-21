@@ -190,8 +190,10 @@ class ECMData(object):
 
         if self._args and self._args.verbose > 1:
             if 'memory bandwidth kernel' in self.results:
-                print('memory cycles based on', self.results['memory bandwidth kernel'],
-                      'kernel with', self.results['memory bandwidth'], file=output_file)
+                print('memory cycles based on {} kernel with {}'.format(
+                          self.results['memory bandwidth kernel'],
+                          self.results['memory bandwidth']),
+                      file=output_file)
 
 
 class ECMCPU(object):
