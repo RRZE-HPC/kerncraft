@@ -1,3 +1,11 @@
+# Kerncraft specific ignores
+examples/kernels/*.c_compilable.*
+examples/kernels/*_marked
+tests/test_files/*.c_compilable.*
+tests/test_files/*_marked
+lextab.py
+yacctab.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

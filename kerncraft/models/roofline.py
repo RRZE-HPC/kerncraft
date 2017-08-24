@@ -240,11 +240,11 @@ class RooflineIACA(Roofline):
         self.results = self.calculate_cache_access()
 
         try:
-            iaca_analysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
-                                                                 compiler_args=self.machine['compiler flags'],
-                                                                 micro_architecture=self.machine['micro-architecture'],
-                                                                 asm_block=self._args.asm_block,
-                                                                 asm_increment=self._args.asm_increment)
+            iaca_analysis, asm_block = self.kernel.iaca_analysis(
+                micro_architecture=self.machine['micro-architecture'],
+                asm_block=self._args.asm_block,
+                asm_increment=self._args.asm_increment,
+                verbose=self._args.verbose > 2)
         except RuntimeError as e:
             print("IACA analysis failed: " + str(e))
             sys.exit(1)

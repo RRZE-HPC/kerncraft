@@ -142,6 +142,13 @@ def create_parser():
                         help='Change cache predictor to use, options are LC (layer conditions) and '
                              'SIM (cache simulation with pycachesim), default is SIM.')
 
+    # Needed for ECM, RooflineIACA and Benchmark model:
+    parser.add_argument('--compiler', '-C', type=str, default=None,
+                        help='Compiler to use, default is first in machine description file.')
+    parser.add_argument('--compiler-flags', type=str, default=None,
+                        help='Compiler flags to use. If not set, flags are taken from machine '
+                             'description file (-std=c99 is always added).')
+
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)
@@ -170,17 +177,16 @@ def run(parser, args, output_file=sys.stdout):
 
     # machine information
     # Read machine description
-    machine = MachineModel(args.machine.name)
+    machine = MachineModel(args.machine.name, args=args)
 
     # process kernel
     if not args.kernel_description:
         code = six.text_type(args.code_file.read())
         code = clean_code(code)
-        kernel = KernelCode(code, filename=args.code_file.name)
+        kernel = KernelCode(code, filename=args.code_file.name, machine=machine)
     else:
         description = six.text_type(args.code_file.read())
-        kernel = KernelDescription(yaml.load(description))
-
+        kernel = KernelDescription(yaml.load(description), machine=machine)
     # if no defines were given, guess suitable defines in-mem
     # TODO support in-cache
     # TODO broaden cases to n-dimensions

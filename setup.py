@@ -128,13 +128,13 @@ setup(
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'ruamel.yaml>=0.13.4,<0.15',
+        'ruamel.yaml>=0.13.4,<0.14.0',
         'six',
         'sympy>=0.7.7',
         'pycachesim>=0.1.5',
         'pylru',
         'numpy',
-        'pycparser>=2.14',
+        # 'pycparser>=2.14', patched version provided with kerncraft
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
@@ -177,6 +177,6 @@ setup(
             'cachetile=kerncraft.cachetile:main'
         ],
     },
-    
+
     cmdclass={'build_py': build_py, 'sdist': sdist},
 )

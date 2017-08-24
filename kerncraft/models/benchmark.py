@@ -21,6 +21,7 @@ class Benchmark(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
+        # TODO disable ECM model building
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
@@ -41,7 +42,7 @@ class Benchmark(object):
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
         '''
         runs *cmd* with likwid-perfctr and returns result as dict
-        
+
         *group* may be a performance group known to likwid-perfctr or an event string.
         Only works with single core!
         '''
@@ -84,7 +85,7 @@ class Benchmark(object):
             try:
                 # Event counters
                 counter_value = int(l[2])
-                if re.fullmatch(r'[A-Z_]+', l[0]) and re.fullmatch(r'[A-Z0-9]+', l[1]):
+                if re.fullmatch(r'[A-Z0-9_]+', l[0]) and re.fullmatch(r'[A-Z0-9]+', l[1]):
                     results.setdefault(l[0], {})
                     results[l[0]][l[1]] = counter_value
             except (IndexError, ValueError):
@@ -93,9 +94,7 @@ class Benchmark(object):
         return results
 
     def analyze(self):
-        bench = self.kernel.build(self.machine['compiler'],
-                                  compiler_args=self.machine['compiler flags'],
-                                  verbose=self._args.verbose > 1)
+        bench = self.kernel.build(verbose=self._args.verbose > 1)
 
         # Build arguments to pass to command:
         args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
@@ -111,11 +110,100 @@ class Benchmark(object):
             else:
                 repetitions *= 10
 
-            result = self.perfctr(args+[six.text_type(repetitions)])
+            result = self.perfctr(args+[six.text_type(repetitions)], group="MEM")
             runtime = result['Runtime (RDTSC) [s]']
             time_per_repetition = runtime/float(repetitions)
+        results = {'MEM': result}
 
-        self.results = {'raw output': result}
+        # Gather remaining counters counters
+        # TODO read information from machine file
+        if self.machine['micro-architecture'] in ['IVB', 'BDW']:
+            event_counters = {'nOL': [('UOPS_DISPATCHED_PORT_PORT_0', 'PMC0'),
+                                      ('UOPS_DISPATCHED_PORT_PORT_1', 'PMC1'),
+                                      ('UOPS_DISPATCHED_PORT_PORT_4', 'PMC2'),
+                                      ('UOPS_DISPATCHED_PORT_PORT_5', 'PMC3')],
+                              'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
+                                     ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
+                              'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
+                                       ('L1D_M_EVICT', 'PMC1'),
+                                       ('L2_LINES_IN_ALL', 'PMC2'),
+                                       ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
+        elif self.machine['micro-architecture'] in ['HSW']:
+            event_counters = {'nOL': [('UOPS_EXECUTED_PORT_PORT_0', 'PMC0'),
+                                      ('UOPS_EXECUTED_PORT_PORT_1', 'PMC1'),
+                                      ('UOPS_EXECUTED_PORT_PORT_4', 'PMC2'),
+                                      ('UOPS_EXECUTED_PORT_PORT_5', 'PMC3')],
+                              'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
+                                     ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
+                              'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
+                                       ('L1D_M_EVICT', 'PMC1'),
+                                       ('L2_LINES_IN_ALL', 'PMC2'),
+                                       ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
+        else:
+            event_counters = {}
+
+        for group_name, ctrs in event_counters.items():
+            ctrs = ','.join([':'.join(c) for c in ctrs])
+            results[group_name] = self.perfctr(args+[six.text_type(repetitions)], group=ctrs)
+
+        self.results = {'raw output': results}
+
+        # Build phenomenological ECM model:
+        # TODO read information from machine file
+        if self.machine['micro-architecture'] in ['IVB', 'BDW']:
+            element_size = self.kernel.datatypes_size[self.kernel.datatype]
+            elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+            total_iterations = self.kernel.iteration_length() * repetitions
+            total_cachelines = total_iterations/elements_per_cacheline
+            self.results['ECM'] = {
+                'T_nOL': max(results['nOL']['UOPS_DISPATCHED_PORT_PORT_0']['PMC0'],
+                             results['nOL']['UOPS_DISPATCHED_PORT_PORT_1']['PMC1'],
+                             results['nOL']['UOPS_DISPATCHED_PORT_PORT_4']['PMC2'],
+                             results['nOL']['UOPS_DISPATCHED_PORT_PORT_5']['PMC3'])
+                         / total_cachelines,
+                # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
+                'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
+                        / total_cachelines,
+                'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
+                           results['L2L3']['L1D_M_EVICT']['PMC1'])
+                          * 2.0 # two cycles per CL
+                          / total_cachelines,
+                'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
+                           results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
+                          * 2.0 # two cycles per CL
+                          / total_cachelines,
+                'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
+                           /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
+                           / total_cachelines
+            }
+        elif self.machine['micro-architecture'] in ['HSW']:
+            element_size = self.kernel.datatypes_size[self.kernel.datatype]
+            elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+            total_iterations = self.kernel.iteration_length() * repetitions
+            total_cachelines = total_iterations/elements_per_cacheline
+            self.results['ECM'] = {
+                'T_nOL': max(results['nOL']['UOPS_EXECUTED_PORT_PORT_0']['PMC0'],
+                             results['nOL']['UOPS_EXECUTED_PORT_PORT_1']['PMC1'],
+                             results['nOL']['UOPS_EXECUTED_PORT_PORT_4']['PMC2'],
+                             results['nOL']['UOPS_EXECUTED_PORT_PORT_5']['PMC3'])
+                         / total_cachelines,
+                # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
+                'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
+                        / total_cachelines,
+                'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
+                           results['L2L3']['L1D_M_EVICT']['PMC1'])
+                          * 2.0 # two cycles per CL
+                          / total_cachelines,
+                'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
+                           results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
+                          * 2.0 # two cycles per CL
+                          / total_cachelines,
+                'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
+                           /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
+                           / total_cachelines
+            }
+        else:
+            self.results['ECM'] = None
 
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constant names
@@ -131,13 +219,13 @@ class Benchmark(object):
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
             (cys_per_repetition/iterations_per_repetition)*iterations_per_cacheline
         self.results['MEM volume (per repetition) [B]'] = \
-            result['Memory data volume [GBytes]']*1e9/repetitions
+            results['MEM']['Memory data volume [GBytes]']*1e9/repetitions
         self.results['Performance [MFLOP/s]'] = \
             sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
-        if 'Memory bandwidth [MBytes/s]' in result:
-            self.results['MEM BW [MByte/s]'] = result['Memory bandwidth [MBytes/s]']
+        if 'Memory bandwidth [MBytes/s]' in results['MEM']:
+            self.results['MEM BW [MByte/s]'] = results['MEM']['Memory bandwidth [MBytes/s]']
         else:
-            self.results['MEM BW [MByte/s]'] = result['Memory BW [MBytes/s]']
+            self.results['MEM BW [MByte/s]'] = results['MEM']['Memory BW [MBytes/s]']
         self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
         self.results['Performance [MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
@@ -153,7 +241,7 @@ class Benchmark(object):
         print('Runtime (per cacheline update): {:.2f} cy/CL'.format(
                   self.results['Runtime (per cacheline update) [cy/CL]']),
               file=output_file)
-        print('MEM volume (per repetition): {:.2f} Byte'.format(
+        print('MEM volume (per repetition): {:.0f} Byte'.format(
                   self.results['MEM volume (per repetition) [B]']),
               file=output_file)
         print('Performance: {:.2f} MFLOP/s'.format(self.results['Performance [MFLOP/s]']),
@@ -166,3 +254,11 @@ class Benchmark(object):
             print('MEM bandwidth: {:.2f} MByte/s'.format(self.results['MEM BW [MByte/s]']),
                   file=output_file)
         print('', file=output_file)
+
+        # TODO read information from machine file
+        if self.results['ECM']:
+            print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
+                  '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
+                **self.results['ECM']))
+            print('T_OL assumes that only 1 Load per cycle may be retiered, which is not true for '
+                  'SSE loads on SNB, IVY, HSW and BDW.')

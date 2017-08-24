@@ -13,8 +13,8 @@ class PrefixedUnit(yaml.YAMLObject):
     PREFIXES = {'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e13, 'P': 1e16, 'E': 1e19, 'Z': 1e21, 'Y': 1e24,
                 '': 1}
 
-    yaml_loader = yaml.Loader
-    yaml_dumper = yaml.Dumper
+    yaml_loader = yaml.RoundTripLoader
+    yaml_dumper = yaml.RoundTripDumper
 
     yaml_tag = u'!prefixed'
     yaml_implicit_pattern = re.compile(re.compile(
@@ -32,7 +32,8 @@ class PrefixedUnit(yaml.YAMLObject):
         if len(args) == 1:
             if isinstance(args[0], six.string_types):
                 m = re.match(
-                    r'^(?P<value>(?:[0-9]+(?:\.[0-9]+)?|inf)) (?P<prefix>[kMGTP])?(?P<unit>.*)$', args[0])
+                    r'^(?P<value>(?:[0-9]+(?:\.[0-9]+)?|inf)) (?P<prefix>[kMGTP])?(?P<unit>.*)$',
+                    args[0])
                 assert m, "Could not parse unit parameter "+repr(args[0])
                 g = m.groups()
                 args = [float(g[0]), g[1], g[2]]

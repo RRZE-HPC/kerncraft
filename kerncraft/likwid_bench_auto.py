@@ -34,12 +34,18 @@ def get_machine_topology():
         print('likwid-topology execution failed, is it installed and loaded?', file=sys.stderr)
         sys.exit(1)
     cpuinfo = open('/proc/cpuinfo', 'r').read()
+    sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
+    cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
+    numa_domains_per_socket = int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0])/sockets
+    cores_per_numa_domain = numa_domains_per_socket/cores_per_socket
     machine = {
         'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
         'model name': get_match_or_break(r'^model name\s+:\s+(.+?)\s*$', cpuinfo)[0],
-        'sockets': int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0]),
-        'cores per socket': int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0]),
+        'sockets': sockets,
+        'cores per socket': cores_per_socket,
         'threads per core': int(get_match_or_break(r'^Threads per core:\s+([0-9]+)\s*$', topo)[0]),
+        'NUMA domains per socket': numa_domains_per_socket,
+        'cores per NUMA domain': codes_per_numa_domain,
         'clock': 'INFORMATION_REQUIRED (e.g., 2.7 GHz)',
         'FLOPs per cycle': {'SP': {'total': 'INFORMATION_REQUIRED',
                                    'FMA': 'INFORMATION_REQUIRED',
@@ -50,12 +56,27 @@ def get_machine_topology():
                                    'ADD': 'INFORMATION_REQUIRED',
                                    'MUL': 'INFORMATION_REQUIRED'}},
         'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW)',
-        'compiler': 'INFORMATION_REQUIRED (e.g., gcc)',
-        'compiler flags': 'INFORMATION_REQUIRED (list of flags, e.g., [-O3, -xACX, -fno-alias])',
+        # TODO retrive flags automatically from compiler with -march=native
+        'compiler': {'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)',],
+                     'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L',],
+                     'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)',]},
         'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
-        'overlapping ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)' + \
-                             ', ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"])',
-        'non-overlapping ports': 'INFORMATION_REQUIRED (like overlapping ports)',
+        'overlapping model': {
+            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+            'performance counter metric':
+                     'INFORAMTION_REQUIRED Example:'
+                     'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+        },
+        'non-overlapping model': {
+            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+            'performance counter metric':
+                     'INFORAMTION_REQUIRED Example:'
+                     'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+        }
     }
 
     threads_start = topo.find('HWThread')
@@ -94,6 +115,11 @@ def get_machine_topology():
             mem_level['threads per group'] = \
                 mem_level['cores per group'] * machine['threads per core']
         mem_level['cycles per cacheline transfer'] = 'INFORMATION_REQUIRED'
+        mem_level['performance counter metrics'] = {
+            'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
+            'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
+            'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
+            }
 
     # Remove last caches load_from and store_to:
     del machine['memory hierarchy'][-1]['cache per group']['load_from']

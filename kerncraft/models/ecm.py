@@ -188,6 +188,13 @@ class ECMData(object):
             print('{} = {}'.format(
                 level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
 
+        if self._args and self._args.verbose > 1:
+            if 'memory bandwidth kernel' in self.results:
+                print('memory cycles based on {} kernel with {}'.format(
+                          self.results['memory bandwidth kernel'],
+                          self.results['memory bandwidth']),
+                      file=output_file)
+
 
 class ECMCPU(object):
     """
@@ -224,11 +231,11 @@ class ECMCPU(object):
 
     def analyze(self):
         try:
-            iaca_analysis, asm_block = self.kernel.iaca_analysis(self.machine['compiler'],
-                                                                 compiler_args=self.machine['compiler flags'],
-                                                                 micro_architecture=self.machine['micro-architecture'],
-                                                                 asm_block=self._args.asm_block,
-                                                                 asm_increment=self._args.asm_increment)
+            iaca_analysis, asm_block = self.kernel.iaca_analysis(
+                micro_architecture=self.machine['micro-architecture'],
+                asm_block=self._args.asm_block,
+                asm_increment=self._args.asm_increment,
+                verbose=self._args.verbose > 2)
         except RuntimeError as e:
             print("IACA analysis failed: " + str(e))
             sys.exit(1)
@@ -252,10 +259,10 @@ class ECMCPU(object):
         cl_throughput = block_throughput*block_to_cl_ratio
 
         # Compile most relevant information
-        T_OL = max(
-            [v for k, v in list(port_cycles.items()) if k in self.machine['overlapping ports']])
-        T_nOL = max(
-            [v for k, v in list(port_cycles.items()) if k in self.machine['non-overlapping ports']])
+        T_OL = max([v for k, v in list(port_cycles.items())
+                    if k in self.machine['overlapping model']['ports']])
+        T_nOL = max([v for k, v in list(port_cycles.items())
+                     if k in self.machine['non-overlapping model']['ports']])
 
         # Use IACA throughput prediction if it is slower then T_nOL
         if T_nOL < cl_throughput:
@@ -387,6 +394,12 @@ class ECM(object):
                                                 self.results['T_nOL'], self.results['T_OL']))
                             for i in range(len(self.results['cycles']))]))
 
+        if self._args and self._args.verbose > 1:
+            if 'memory bandwidth kernel' in self.results:
+                report += 'memory cycles based on {} kernel with {}\n'.format(
+                    self.results['memory bandwidth kernel'],
+                    self.results['memory bandwidth'])
+
         report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
 
         print(report, file=output_file)
@@ -417,7 +430,7 @@ class ECM(object):
 
         i = 0
         # T_OL
-        colors = ([(254. / 255, 177. / 255., 178. / 255.)] + 
+        colors = ([(254. / 255, 177. / 255., 178. / 255.)] +
                   [(255. / 255., 255. / 255., 255. / 255.)] * (len(sorted_overlapping_ports) - 1))
         for p, c in sorted_overlapping_ports:
             ax.barh(i, c, height, align='center', color=colors.pop(),

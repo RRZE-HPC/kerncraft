@@ -34,39 +34,39 @@ class TestKernel(unittest.TestCase):
             self.twod_description = yaml.load(f.read(),Loader=yaml.Loader)
         with open(self._find_file('copy-2d-linearized.c')) as f:
             self.twod_linear = f.read()
-       
+
     def _find_file(self, name):
         testdir = os.path.dirname(__file__)
         name = os.path.join(testdir, 'test_files', name)
         assert os.path.exists(name)
         return name
-        
+
     def test_array_sizes_2d(self):
-        k = KernelCode(self.twod_code)
+        k = KernelCode(self.twod_code, machine=None)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
         # 8 byte per double
         checked_sizes = {'a': 20*10*8, 'b': 20*10*8}
         self.assertEqual(sizes, checked_sizes)
-    
+
     def test_array_sizes_3d(self):
-        k = KernelCode(self.threed_code)
+        k = KernelCode(self.threed_code, machine=None)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
         # 8 byte per double
         checked_sizes = {'a': 20*10*10*8, 'b': 20*10*10*8}
         self.assertEqual(sizes, checked_sizes)
-    
+
     def test_iterations_sizes_2d_linear(self):
-        k = KernelCode(self.twod_linear)
+        k = KernelCode(self.twod_linear, machine=None)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         self.assertEqual(k.iteration_length(), 200)
-    
+
     def test_global_offsets_2d(self):
-        k = KernelCode(self.twod_code)
+        k = KernelCode(self.twod_code, machine=None)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
@@ -82,9 +82,9 @@ class TestKernel(unittest.TestCase):
             self,
             [sizes['a']+(1*10+1)*8],
             write_offsets)
-        
+
     def test_global_offsets_3d(self):
-        k = KernelCode(self.threed_code)
+        k = KernelCode(self.threed_code, machine=None)
         k.set_constant('N', 10)
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
@@ -102,8 +102,8 @@ class TestKernel(unittest.TestCase):
 
     def test_from_description(self):
         k_descr = KernelDescription(self.twod_description)
-        k_code = KernelCode(self.twod_code)
-        
+        k_code = KernelCode(self.twod_code, machine=None)
+
         self.assertEqual(k_descr._flops, k_code._flops)
         self.assertEqual(k_descr._sources, k_code._sources)
         self.assertEqual(k_descr._destinations, k_code._destinations)

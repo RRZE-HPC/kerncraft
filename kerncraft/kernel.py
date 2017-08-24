@@ -16,7 +16,6 @@ import numbers
 import collections
 from functools import reduce
 from string import ascii_letters
-from distutils.spawn import find_executable
 from itertools import chain
 from collections import defaultdict
 
@@ -525,9 +524,10 @@ class KernelCode(Kernel):
 
     This version allows compilation and generation of code for iaca and likwid benchmarking
     """
-    def __init__(self, kernel_code, filename=None):
+    def __init__(self, kernel_code, machine, filename=None):
         super(KernelCode, self).__init__()
 
+        self._machine = machine
         # Initialize state
         self.asm_block = None
 
@@ -683,8 +683,6 @@ class KernelCode(Kernel):
             iter_max = sympy.Integer(floop.cond.right.value)
         else:  # type(floop.cond.right) is c_ast.BinaryOp
             bop = floop.cond.right
-            #assert type(bop.left) is c_ast.ID, 'left of operator has to be a variable'
-            #assert type(bop.right) is c_ast.Constant, 'right of operator has to be a constant'
             assert bop.op in '+-*', ('only addition (+), substraction (-) and multiplications (*) '
                                      'are accepted operators')
             iter_max = self.conv_ast_to_sym(bop)
@@ -722,18 +720,14 @@ class KernelCode(Kernel):
         # Traverse tree
         if type(floop.stmt) is c_ast.For:
             self._p_for(floop.stmt)
-        elif type(floop.stmt) is c_ast.Compound and \
-                len(floop.stmt.block_items) == 1 and \
-                type(floop.stmt.block_items[0]) is c_ast.For:
-            self._p_for(floop.stmt.block_items[0])
-        elif type(floop.stmt) is c_ast.Compound and \
-                len(floop.stmt.block_items) == 2 and \
-                type(floop.stmt.block_items[0]) is c_ast.Pragma and \
-                type(floop.stmt.block_items[1]) is c_ast.For:
-            self._p_for(floop.stmt.block_items[1])
         elif type(floop.stmt) is c_ast.Assignment:
             self._p_assignment(floop.stmt)
+        # Handle For if it is the last statement, only preceeded by Pragmas
+        elif type(floop.stmt.block_items[-1]) is c_ast.For and \
+                all([type(s) == c_ast.Pragma for s in floop.stmt.block_items[:-1]]):
+            self._p_for(floop.stmt.block_items[-1])
         else:  # type(floop.stmt) is c_ast.Compound
+            # Handle Assignments
             for assgn in floop.stmt.block_items:
                 self._p_assignment(assgn)
 
@@ -986,8 +980,8 @@ class KernelCode(Kernel):
 
         return code
 
-    def assemble(self, compiler, in_filename,
-                 out_filename=None, iaca_markers=True, asm_block='auto', asm_increment=0):
+    def assemble(self, in_filename, out_filename=None, iaca_markers=True,
+                 asm_block='auto', asm_increment=0, verbose=False):
         """
         Assembles *in_filename* to *out_filename*.
 
@@ -1021,10 +1015,16 @@ class KernelCode(Kernel):
             self.asm_block = iaca.iaca_instrumentation(in_filename, block_selection=asm_block,
                                                        pointer_increment='auto_with_manual_fallback')
 
+        compiler, compiler_args = self._machine.get_compiler()
+
+        cmd = [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename]
+        if verbose:
+            print('Executing (assemble): ', ' '.join(cmd))
+
         try:
             # Assemble all to a binary
             subprocess.check_output(
-                [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename],
+                cmd,
                 cwd=os.path.dirname(os.path.realpath(in_filename)))
         except subprocess.CalledProcessError as e:
             print("Assembly failed:", e, file=sys.stderr)
@@ -1032,7 +1032,7 @@ class KernelCode(Kernel):
 
         return out_filename
 
-    def compile(self, compiler, compiler_args=None):
+    def compile(self, verbose=False):
         """
         Compiles source (from as_code(type_)) to assembly.
 
@@ -1040,11 +1040,7 @@ class KernelCode(Kernel):
 
         Output can be used with Kernel.assemble()
         """
-        # Making sure compiler is available:
-        if find_executable(compiler) is None:
-            print("Compiler ({}) was not found. Choose different one in machine file "
-                  "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
-            sys.exit(1)
+        compiler, compiler_args = self._machine.get_compiler()
 
         if not self._filename:
             in_file = tempfile.NamedTemporaryFile(
@@ -1056,17 +1052,20 @@ class KernelCode(Kernel):
         in_file.write(self.as_code())
         in_file.flush()
 
-        if compiler_args is None:
-            compiler_args = []
         compiler_args += ['-std=c99']
+
+        cmd = ([compiler] +
+               compiler_args +
+               [os.path.basename(in_file.name),
+                '-S',
+                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'])
+
+        if verbose:
+            print('Executing (compile): ', ' '.join(cmd))
 
         try:
             subprocess.check_output(
-                [compiler] +
-                compiler_args +
-                [os.path.basename(in_file.name),
-                 '-S',
-                 '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'],
+                cmd,
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(
@@ -1083,39 +1082,43 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def iaca_analysis(self, compiler, compiler_args, micro_architecture, asm_block='auto', asm_increment=0):
-        asmFile = self.compile(compiler, compiler_args)
-        bin_name = self.assemble(compiler, asmFile, iaca_markers=True,
-                                 asm_block=asm_block, asm_increment=asm_increment)
+    def iaca_analysis(self, micro_architecture, asm_block='auto', asm_increment=0, verbose=False):
+        asmFile = self.compile(verbose=verbose)
+        bin_name = self.assemble(asmFile, iaca_markers=True,
+                                 asm_block=asm_block, asm_increment=asm_increment,
+                                 verbose=verbose)
         return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
 
-    def build(self, compiler, compiler_args=None, verbose=False):
+    def build(self, lflags=None, verbose=False):
         """
         compiles source to executable with likwid capabilities
 
         returns the executable name
         """
+        compiler, compiler_args = self._machine.get_compiler()
+
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                 'LIKWID_LIB' in os.environ):
             print('Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables',
                   file=sys.stderr)
             sys.exit(1)
 
-        # Making sure compiler is available:
-        if find_executable(compiler) is None:
-            print("Compiler ({}) was not found. Choose different one in machine file "
-                  "or make sure it is found in PATH.".format(compiler), file=sys.stderr)
-            sys.exit(1)
+        compiler_args += [
+            '-std=c99',
+            '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
+            os.environ.get('LIKWID_INCLUDE', ''),
+            os.environ.get('LIKWID_INC', ''),
+            '-llikwid']
 
-        if compiler_args is None:
-            compiler_args = []
-        compiler_args += ['-std=c99',
-                   '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
-                   os.environ.get('LIKWID_INCLUDE', ''),
-                   os.environ.get('LIKWID_INC', ''),
-                   '-llikwid']
+        # This is a special case for unittesting
+        if os.environ.get('LIKWID_LIB') == '':
+            compiler_args = compiler_args[:-1]
 
+        if lflags is None:
+            lflags = []
+        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
         compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
+
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(
@@ -1137,7 +1140,7 @@ class KernelCode(Kernel):
         # remove empty arguments
         cmd = list(filter(bool, cmd))
         if verbose:
-            print(' '.join(cmd))
+            print('Executing (build): ', ' '.join(cmd))
         try:
             subprocess.check_output(cmd)
         except subprocess.CalledProcessError as e:

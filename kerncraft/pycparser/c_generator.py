@@ -3,7 +3,7 @@
 #
 # C code generator from pycparser AST nodes.
 #
-# Copyright (C) 2008-2015, Eli Bendersky
+# Eli Bendersky [http://eli.thegreenplace.net]
 # License: BSD
 #------------------------------------------------------------------------------
 from . import c_ast
@@ -177,6 +177,10 @@ class CGenerator(object):
         self.indent_level -= 2
         s += self._make_indent() + '}\n'
         return s
+
+    def visit_CompoundLiteral(self, n):
+        return '(' + self.visit(n.type) + '){' + self.visit(n.init) + '}'
+
 
     def visit_EmptyStatement(self, n):
         return ';'
