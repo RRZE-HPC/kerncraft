@@ -368,7 +368,7 @@ class ECM(object):
             self.results['scaling cores'] = (
                 max(self.results['T_OL'],
                     self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
-                self.results['cycles'][-1][1]))
+                self.results['cycles'][-1][1])
 
     def report(self, output_file=sys.stdout):
         report = ''
