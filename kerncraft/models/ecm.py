@@ -365,10 +365,10 @@ class ECM(object):
             # Full caching in higher cache level
             self.results['scaling cores'] = float('inf')
         else:
-            self.results['scaling cores'] = int(math.ceil(
+            self.results['scaling cores'] = (
                 max(self.results['T_OL'],
                     self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
-                self.results['cycles'][-1][1]))
+                self.results['cycles'][-1][1])
 
     def report(self, output_file=sys.stdout):
         report = ''
@@ -400,7 +400,7 @@ class ECM(object):
                     self.results['memory bandwidth kernel'],
                     self.results['memory bandwidth'])
 
-        report += '\nsaturating at {} cores'.format(self.results['scaling cores'])
+        report += '\nsaturating at {:.1f} cores'.format(self.results['scaling cores'])
 
         print(report, file=output_file)
 
