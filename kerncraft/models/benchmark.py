@@ -17,12 +17,13 @@ class Benchmark(object):
     this will produce a benchmarkable binary to be used with likwid
     """
 
-    name = "benchmark"
+    name = "Benchmark"
 
     @classmethod
     def configure_arggroup(cls, parser):
-        # TODO disable ECM model building
-        pass
+        parser.add_argument(
+            '--phenoecm', action='store_true',
+            help='Enables the phenomenological ECM model building.')
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
@@ -34,7 +35,30 @@ class Benchmark(object):
         self.machine = machine
         self._args = args
         self._parser = parser
-
+        
+        cpuinfo = open('/proc/cpuinfo').read()
+        try:
+            current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
+                                          cpuinfo,
+                                          flags=re.MULTILINE).groups()[0]
+        except AttributeError:
+            current_cpu_model = None
+        if self.machine['model name'] != current_cpu_model:
+            print("WARNING: current CPU model and machine description do not "
+                  "match. ({!r} vs {!r})".format(self.machine['model name'],
+                                                 current_cpu_model))
+        try:
+            current_cpu_freq = re.search(r'^cpu MHz\s+:\s+'
+                                         r'([0-9]+(?:\.[0-9]+)?)\s*$',
+                                         cpuinfo,
+                                         flags=re.MULTILINE).groups()[0]
+            current_cpu_freq = float(current_cpu_freq)*1e6
+        except AttributeError:
+            current_cpu_freq = None
+        if float(self.machine['clock']) != current_cpu_freq:
+            print("WARNING: current CPU frequency and machine description do "
+                  "not match. ({!r} vs {!r})".format(float(self.machine['clock']),
+                                                     current_cpu_freq))
         if args:
             # handle CLI info
             pass
@@ -117,28 +141,29 @@ class Benchmark(object):
 
         # Gather remaining counters counters
         # TODO read information from machine file
-        if self.machine['micro-architecture'] in ['IVB', 'BDW']:
-            event_counters = {'nOL': [('UOPS_DISPATCHED_PORT_PORT_0', 'PMC0'),
-                                      ('UOPS_DISPATCHED_PORT_PORT_1', 'PMC1'),
-                                      ('UOPS_DISPATCHED_PORT_PORT_4', 'PMC2'),
-                                      ('UOPS_DISPATCHED_PORT_PORT_5', 'PMC3')],
-                              'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
-                                     ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
-                              'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
-                                       ('L1D_M_EVICT', 'PMC1'),
-                                       ('L2_LINES_IN_ALL', 'PMC2'),
-                                       ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
-        elif self.machine['micro-architecture'] in ['HSW']:
-            event_counters = {'nOL': [('UOPS_EXECUTED_PORT_PORT_0', 'PMC0'),
-                                      ('UOPS_EXECUTED_PORT_PORT_1', 'PMC1'),
-                                      ('UOPS_EXECUTED_PORT_PORT_4', 'PMC2'),
-                                      ('UOPS_EXECUTED_PORT_PORT_5', 'PMC3')],
-                              'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
-                                     ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
-                              'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
-                                       ('L1D_M_EVICT', 'PMC1'),
-                                       ('L2_LINES_IN_ALL', 'PMC2'),
-                                       ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
+        if self._args.phenoecm:
+            if self.machine['micro-architecture'] in ['IVB', 'BDW']:
+                event_counters = {'nOL': [('UOPS_DISPATCHED_PORT_PORT_0', 'PMC0'),
+                                          ('UOPS_DISPATCHED_PORT_PORT_1', 'PMC1'),
+                                          ('UOPS_DISPATCHED_PORT_PORT_4', 'PMC2'),
+                                          ('UOPS_DISPATCHED_PORT_PORT_5', 'PMC3')],
+                                  'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
+                                         ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
+                                  'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
+                                           ('L1D_M_EVICT', 'PMC1'),
+                                           ('L2_LINES_IN_ALL', 'PMC2'),
+                                           ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
+            elif self.machine['micro-architecture'] in ['HSW']:
+                event_counters = {'nOL': [('UOPS_EXECUTED_PORT_PORT_0', 'PMC0'),
+                                          ('UOPS_EXECUTED_PORT_PORT_1', 'PMC1'),
+                                          ('UOPS_EXECUTED_PORT_PORT_4', 'PMC2'),
+                                          ('UOPS_EXECUTED_PORT_PORT_5', 'PMC3')],
+                                  'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
+                                         ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
+                                  'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
+                                           ('L1D_M_EVICT', 'PMC1'),
+                                           ('L2_LINES_IN_ALL', 'PMC2'),
+                                           ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
         else:
             event_counters = {}
 
@@ -150,58 +175,59 @@ class Benchmark(object):
 
         # Build phenomenological ECM model:
         # TODO read information from machine file
-        if self.machine['micro-architecture'] in ['IVB', 'BDW']:
-            element_size = self.kernel.datatypes_size[self.kernel.datatype]
-            elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-            total_iterations = self.kernel.iteration_length() * repetitions
-            total_cachelines = total_iterations/elements_per_cacheline
-            self.results['ECM'] = {
-                'T_nOL': max(results['nOL']['UOPS_DISPATCHED_PORT_PORT_0']['PMC0'],
-                             results['nOL']['UOPS_DISPATCHED_PORT_PORT_1']['PMC1'],
-                             results['nOL']['UOPS_DISPATCHED_PORT_PORT_4']['PMC2'],
-                             results['nOL']['UOPS_DISPATCHED_PORT_PORT_5']['PMC3'])
-                         / total_cachelines,
-                # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
-                'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
-                        / total_cachelines,
-                'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
-                           results['L2L3']['L1D_M_EVICT']['PMC1'])
-                          * 2.0 # two cycles per CL
-                          / total_cachelines,
-                'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
-                           results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
-                          * 2.0 # two cycles per CL
-                          / total_cachelines,
-                'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
-                           /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
-                           / total_cachelines
-            }
-        elif self.machine['micro-architecture'] in ['HSW']:
-            element_size = self.kernel.datatypes_size[self.kernel.datatype]
-            elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-            total_iterations = self.kernel.iteration_length() * repetitions
-            total_cachelines = total_iterations/elements_per_cacheline
-            self.results['ECM'] = {
-                'T_nOL': max(results['nOL']['UOPS_EXECUTED_PORT_PORT_0']['PMC0'],
-                             results['nOL']['UOPS_EXECUTED_PORT_PORT_1']['PMC1'],
-                             results['nOL']['UOPS_EXECUTED_PORT_PORT_4']['PMC2'],
-                             results['nOL']['UOPS_EXECUTED_PORT_PORT_5']['PMC3'])
-                         / total_cachelines,
-                # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
-                'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
-                        / total_cachelines,
-                'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
-                           results['L2L3']['L1D_M_EVICT']['PMC1'])
-                          * 2.0 # two cycles per CL
-                          / total_cachelines,
-                'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
-                           results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
-                          * 2.0 # two cycles per CL
-                          / total_cachelines,
-                'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
-                           /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
-                           / total_cachelines
-            }
+        if self._args.phenoecm:
+            if self.machine['micro-architecture'] in ['IVB', 'BDW']:
+                element_size = self.kernel.datatypes_size[self.kernel.datatype]
+                elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+                total_iterations = self.kernel.iteration_length() * repetitions
+                total_cachelines = total_iterations/elements_per_cacheline
+                self.results['ECM'] = {
+                    'T_nOL': max(results['nOL']['UOPS_DISPATCHED_PORT_PORT_0']['PMC0'],
+                                 results['nOL']['UOPS_DISPATCHED_PORT_PORT_1']['PMC1'],
+                                 results['nOL']['UOPS_DISPATCHED_PORT_PORT_4']['PMC2'],
+                                 results['nOL']['UOPS_DISPATCHED_PORT_PORT_5']['PMC3'])
+                             / total_cachelines,
+                    # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
+                    'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
+                            / total_cachelines,
+                    'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
+                               results['L2L3']['L1D_M_EVICT']['PMC1'])
+                              * 2.0 # two cycles per CL
+                              / total_cachelines,
+                    'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
+                               results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
+                              * 2.0 # two cycles per CL
+                              / total_cachelines,
+                    'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
+                               /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
+                               / total_cachelines
+                }
+            elif self.machine['micro-architecture'] in ['HSW']:
+                element_size = self.kernel.datatypes_size[self.kernel.datatype]
+                elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+                total_iterations = self.kernel.iteration_length() * repetitions
+                total_cachelines = total_iterations/elements_per_cacheline
+                self.results['ECM'] = {
+                    'T_nOL': max(results['nOL']['UOPS_EXECUTED_PORT_PORT_0']['PMC0'],
+                                 results['nOL']['UOPS_EXECUTED_PORT_PORT_1']['PMC1'],
+                                 results['nOL']['UOPS_EXECUTED_PORT_PORT_4']['PMC2'],
+                                 results['nOL']['UOPS_EXECUTED_PORT_PORT_5']['PMC3'])
+                             / total_cachelines,
+                    # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
+                    'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
+                            / total_cachelines,
+                    'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
+                               results['L2L3']['L1D_M_EVICT']['PMC1'])
+                              * 2.0 # two cycles per CL
+                              / total_cachelines,
+                    'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
+                               results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
+                              * 2.0 # two cycles per CL
+                              / total_cachelines,
+                    'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
+                               /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
+                               / total_cachelines
+                }
         else:
             self.results['ECM'] = None
 
@@ -256,7 +282,7 @@ class Benchmark(object):
         print('', file=output_file)
 
         # TODO read information from machine file
-        if self.results['ECM']:
+        if self._args.phenoecm:
             print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
                   '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
                 **self.results['ECM']))
