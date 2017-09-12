@@ -68,26 +68,41 @@ class LayerConditionPredictor(CachePredictor):
     '''
     def __init__(self, kernel, machine):
         CachePredictor.__init__(self, kernel, machine)
-        
+
         # check that layer conditions can be applied on this kernel:
         # 1. All iterations may only have a step width of 1
         loop_stack = list(self.kernel.get_loop_stack())
         if any([l['increment'] != 1 for l in loop_stack]):
             raise ValueError("Can not apply layer-condition, since not all loops are of step "
                              "length 1.")
-        
+
         # 2. The order of iterations must be reflected in the order of indices in all array 
         #    references containing the inner loop index. If the inner loop index is not part of the
         #    reference, the reference is simply ignored
         # TODO support flattend array indexes
-        references = list(self.kernel.index_order())
-        for aref in references:
-            for i, idx_names in enumerate(aref):
-                if any([loop_stack[i]['index'] != idx.name for idx in idx_names]):
-                    raise ValueError("Can not apply layer-condition, order of indices in array "
-                                     "does not follow order of loop indices. Single-dimension is "
-                                     "currently not supported.")
-        
+        index_order = [sympy.Symbol(l['index'], positive=True) for l in loop_stack]
+        for var_name, arefs in chain(self.kernel._sources.items(), self.kernel._destinations.items()):
+            if arefs[0] is None: continue
+            for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
+                for t in a.expand().as_ordered_terms():
+                    # Check each and every term if they are valid according to loop order and array
+                    # initialization
+                    idx = t.free_symbols.intersection(index_order)
+
+                    # Terms without any indices can be treat as constant offsets and are acceptable
+                    if not idx: continue
+
+                    if len(idx) != 1:
+                        raise ValueError("Only one loop counter may appear per term. "
+                                         "Problematic term: {}.".format(t))
+                    else:  # len(idx) == 1
+                        # Check that number of multiplication match access order of iterator
+                        stride_dim = len(t.as_ordered_factors())
+                        if loop_stack[len(loop_stack)-stride_dim]['index'] != idx.pop().name:
+                            raise ValueError("Number of multiplications in index term does not "
+                                             "match loop counter order. "
+                                             "Problematic term: {}.".format(t))
+
         # 3. Indices may only increase with one
         # TODO use a public interface, not self.kernel._*
         for arefs in chain(chain(*self.kernel._sources.values()),

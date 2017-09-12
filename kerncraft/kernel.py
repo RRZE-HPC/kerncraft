@@ -246,7 +246,11 @@ class Kernel(object):
         return offset
 
     def access_to_sympy(self, var_name, access):
-        """Transforms a variable access to a sympy expression"""
+        """
+        Transforms a (multidimensional) variable access to a flattend sympy expression.
+
+        Also works with flat array accesses.
+        """
         base_sizes = self.variables[var_name][1]
 
         expr = sympy.Number(0)
@@ -259,10 +263,12 @@ class Kernel(object):
         return expr
 
     def iteration_length(self, dimension=None):
-        """Returns the number of global loop iterations that are performed
+        """
+        Returns the number of global loop iterations that are performed
 
         If dimension is not None, it is the loop dimension that is returned
-        (-1 is the inner most loop and 0 the outermost)"""
+        (-1 is the inner most loop and 0 the outermost)
+        """
 
         total_length = 1
 
@@ -292,7 +298,7 @@ class Kernel(object):
         """
         Returns the order of indices as they appear in array references
 
-        Use *source* and *destination* to reduce output
+        Use *source* and *destination* to filter output
         """
         if sources:
             arefs = chain(*self._sources.values())
@@ -311,7 +317,11 @@ class Kernel(object):
         return ret
 
     def compile_sympy_accesses(self, sources=True, destinations=True):
-        """Returns a dictionary of lists of sympy accesses, for each variable"""
+        """
+        Returns a dictionary of lists of sympy accesses, for each variable
+
+        Use *source* and *destination* to filter output
+        """
         sympy_accesses = defaultdict(list)
         # Compile sympy accesses
         for var_name in self.variables:
