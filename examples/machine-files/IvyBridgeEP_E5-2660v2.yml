@@ -252,9 +252,9 @@ memory hierarchy:
       cycles per cacheline transfer: null
       performance counter metrics:
           accesses: L2_LINES_IN_ALL:PMC[0-3]
-          misses: (CAS_COUNT_LD:MBOX0C[01] + CAS_COUNT_LD:MBOX1C[01] + CAS_COUNT_LD:MBOX2C[01] + 
-                   CAS_COUNT_LD:MBOX3C[01] + CAS_COUNT_LD:MBOX4C[01] + CAS_COUNT_LD:MBOX5C[01] + 
-                   CAS_COUNT_LD:MBOX6C[01] + CAS_COUNT_LD:MBOX6C[01])
+          misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01] + 
+                   CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01] + 
+                   CAS_COUNT_RD:MBOX6C[01] + CAS_COUNT_RD:MBOX6C[01])
           evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01] + 
                    CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01] + 
                    CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
@@ -271,7 +271,8 @@ threads per core: 2
 overlapping model:
     ports: ["0", "0DV", "1", "2", "3", "4", "5"]
     performance counter metric:
-        max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
+        # sympy notaion requires a Capitalized Max:
+        Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
             UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
             UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3],
             UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])

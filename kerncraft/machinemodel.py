@@ -12,6 +12,13 @@ from sympy.parsing.sympy_parser import parse_expr
 from . import prefixedunit
 
 
+def sanitize_symbolname(name):
+    '''
+    Sanitizes all characters not matched to a symbol by sympy's parse_expr
+    (same rules apply as for python variables)
+    '''
+    return re.subn('(^[0-9])|[^0-9a-zA-Z_]', '_', name)[0]
+
 class MachineModel(object):
     def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
         if not path_to_yaml and not machine_yaml:
@@ -134,7 +141,7 @@ class MachineModel(object):
 
         Examples:
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]')
-        ('PERF_EVENT', 'REG[0-3]')
+        ('PERF_EVENT', 'REG[0-3]', None)
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]:STAY:FOO=23:BAR=0x23')
         ('PERF_EVENT', 'REG[0-3]', {'STAY': None, 'FOO': 23, 'BAR': 35})
         '''
@@ -151,8 +158,7 @@ class MachineModel(object):
                     parameters[k] = int(v)
             else:
                 parameters[p] = None
-        if parameters:
-            event_tuple.append(parameters)
+        event_tuple.append(parameters)
         return tuple(event_tuple)
 
     @staticmethod
@@ -169,7 +175,7 @@ class MachineModel(object):
 
         # Build a temporary metric, with parser-friendly Symbol names
         temp_metric = metric
-        temp_pc_names = {"SYM{}".format(i): pc for i, pc in enumerate(perfcounters)}
+        temp_pc_names = {sanitize_symbolname(pc): pc for pc in perfcounters}
         for var_name, pc in temp_pc_names.items():
             temp_metric = temp_metric.replace(pc, var_name)
         # Parse temporary expression

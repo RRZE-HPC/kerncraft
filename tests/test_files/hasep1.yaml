@@ -333,7 +333,7 @@ model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
 overlapping model:
     ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
     performance counter metric:
-        max(UMASK_UOPS_EXECUTED_PORT_PORT_0:PMC[0-3],
+        Max(UMASK_UOPS_EXECUTED_PORT_PORT_0:PMC[0-3],
             UMASK_UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
             UMASK_UOPS_EXECUTED_PORT_PORT_4:PMC[0-3],
             UMASK_UOPS_EXECUTED_PORT_PORT_5:PMC[0-3],

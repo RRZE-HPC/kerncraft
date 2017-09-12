@@ -9,7 +9,147 @@ import operator
 import sys
 from distutils.spawn import find_executable
 import re
+from collections import defaultdict
+from pprint import pprint
+import string
+from itertools import chain
+try:
+    # Python 3
+    from itertools import zip_longest
+except ImportError:
+    from itertools import izip_longest as zip_longest
+
 import six
+
+
+def group_iterator(group):
+    '''
+    Iterates over simple regex-like groups.
+
+    The only special character is a dash (-), which take the preceding and the following chars to
+    compute a range. If the range is non-sensical (e.g., b-a) it will be empty
+
+    Example:
+    >>> list(group_iterator('a-f'))
+    ['a', 'b', 'c', 'd', 'e', 'f']
+    >>> list(group_iterator('148'))
+    ['1', '4', '8']
+    >>> list(group_iterator('7-9ab'))
+    ['7', '8', '9', 'a', 'b']
+    >>> list(group_iterator('0B-A1'))
+    ['0', '1']
+    '''
+    ordered_chars = string.ascii_letters + string.digits
+    tokenizer = ('(?P<seq>[a-zA-Z0-9]-[a-zA-Z0-9])|'
+                 '(?P<chr>.)')
+    for m in re.finditer(tokenizer, group):
+        if m.group('seq'):
+            start, sep, end = m.group('seq')
+            for i in range(ordered_chars.index(start), ordered_chars.index(end)+1):
+                yield ordered_chars[i]
+        else:
+            yield m.group('chr')
+
+
+def register_options(regdescr):
+    '''
+    Very reduced regular expressions for describing a group of registers
+
+    Only groups in square bracktes and unions with pipes (|) are supported.
+
+    Examples:
+    >>> list(register_options('PMC[0-3]'))
+    ['PMC0', 'PMC1', 'PMC2', 'PMC3']
+    >>> list(register_options('MBOX0C[01]'))
+    ['MBOX0C0', 'MBOX0C1']
+    >>> list(register_options('CBOX2C1'))
+    ['CBOX2C1']
+    >>> list(register_options('CBOX[0-3]C[01]'))
+    ['CBOX0C0', 'CBOX0C1', 'CBOX1C0', 'CBOX1C1', 'CBOX2C0', 'CBOX2C1', 'CBOX3C0', 'CBOX3C1']
+    >>> list(register_options('PMC[0-1]|PMC[23]'))
+    ['PMC0', 'PMC1', 'PMC2', 'PMC3']
+    '''
+    if not regdescr:
+        yield None
+    tokenizer = ('\[(?P<grp>[^]]+)\]|'
+                 '(?P<chr>.)')
+    for u in regdescr.split('|'):
+        m = re.match(tokenizer, u)
+
+        if m.group('grp'):
+            current = group_iterator(m.group('grp'))
+        else:
+            current = [m.group('chr')]
+
+        for c in current:
+            if u[m.end():]:
+                for r in register_options(u[m.end():]):
+                    yield c + r
+            else:
+                yield c
+
+
+def eventstr(event_tuple=None, event=None, register=None, parameters=None):
+    '''
+    Returns a LIKWID event string from an event tuple or keyword arguments
+
+    *event_tuple* may have two or three arguments: (event, register) or
+    (event, register, parameters)
+
+    Keyword arguments will be overwritten by *event_tuple*.
+
+    >>> eventstr(('L1D_REPLACEMENT', 'PMC0', None))
+    'L1D_REPLACEMENT:PMC0'
+    >>> eventstr(('L1D_REPLACEMENT', 'PMC0'))
+    'L1D_REPLACEMENT:PMC0'
+    >>> eventstr(('MEM_UOPS_RETIRED_LOADS', 'PMC3', {'EDGEDETECT': None, 'THRESHOLD': 2342}))
+    'MEM_UOPS_RETIRED_LOADS:PMC3:EDGEDETECT:THRESHOLD=0x926'
+    >>> eventstr(event='DTLB_LOAD_MISSES_WALK_DURATION', register='PMC3')
+    'DTLB_LOAD_MISSES_WALK_DURATION:PMC3'
+    '''
+    if len(event_tuple) == 3:
+        event, register, parameters = event_tuple
+    elif len(event_tuple) == 2:
+        event, register = event_tuple
+    event_dscr = [event, register]
+
+    if parameters:
+        for k,v in sorted(event_tuple[2].items()):  # sorted for reproducability
+            if type(v) is int:
+                k += "={}".format(hex(v))
+            event_dscr.append(k)
+    return ":".join(event_dscr)
+
+
+def build_minimal_runs(events):
+    '''Compiles list of minimal runs for given events'''
+    # Eliminate multiples
+    events = [e for i, e in enumerate(events) if events.index(e) == i]
+
+    # Build list of runs per register group
+    scheduled_runs = {}
+    scheduled_events = []
+    cur_run = 0
+    while len(scheduled_events) != len(events):
+        for event_tpl in events:
+            event, registers, parameters = event_tpl
+            # Skip allready scheduled events
+            if event_tpl in scheduled_events: continue
+            # Compile explicit list of possible register locations
+            for possible_reg in register_options(registers):
+                # Schedule in current run, if register is not yet in use
+                s = scheduled_runs.setdefault(cur_run, {})
+                if possible_reg not in s:
+                    s[possible_reg] = (event, possible_reg, parameters)
+                    # ban from further scheduling attempts
+                    scheduled_events.append(event_tpl)
+                    break
+        cur_run += 1
+
+    # Collaps all register dicts to single runs
+    runs = [list(v.values()) for v in scheduled_runs.values()]
+
+    return runs
 
 
 class Benchmark(object):
@@ -134,102 +274,85 @@ class Benchmark(object):
             else:
                 repetitions *= 10
 
-            result = self.perfctr(args+[six.text_type(repetitions)], group="MEM")
-            runtime = result['Runtime (RDTSC) [s]']
+            mem_results = self.perfctr(args+[six.text_type(repetitions)], group="MEM")
+            runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime/float(repetitions)
-        results = {'MEM': result}
+        raw_results = [mem_results]
 
         # Gather remaining counters counters
-        # TODO read information from machine file
         if self._args.phenoecm:
-            if self.machine['micro-architecture'] in ['IVB', 'BDW']:
-                event_counters = {'nOL': [('UOPS_DISPATCHED_PORT_PORT_0', 'PMC0'),
-                                          ('UOPS_DISPATCHED_PORT_PORT_1', 'PMC1'),
-                                          ('UOPS_DISPATCHED_PORT_PORT_4', 'PMC2'),
-                                          ('UOPS_DISPATCHED_PORT_PORT_5', 'PMC3')],
-                                  'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
-                                         ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
-                                  'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
-                                           ('L1D_M_EVICT', 'PMC1'),
-                                           ('L2_LINES_IN_ALL', 'PMC2'),
-                                           ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
-            elif self.machine['micro-architecture'] in ['HSW']:
-                event_counters = {'nOL': [('UOPS_EXECUTED_PORT_PORT_0', 'PMC0'),
-                                          ('UOPS_EXECUTED_PORT_PORT_1', 'PMC1'),
-                                          ('UOPS_EXECUTED_PORT_PORT_4', 'PMC2'),
-                                          ('UOPS_EXECUTED_PORT_PORT_5', 'PMC3')],
-                                  'OL': [('MEM_UOPS_RETIRED_LOADS', 'PMC0'),
-                                         ('MEM_UOPS_RETIRED_STORES', 'PMC1')],
-                                  'L2L3': [('L1D_REPLACEMENT', 'PMC0'),
-                                           ('L1D_M_EVICT', 'PMC1'),
-                                           ('L2_LINES_IN_ALL', 'PMC2'),
-                                           ('L2_LINES_OUT_DIRTY_ALL', 'PMC3')]}
+            # Build events and sympy expressions for all model metrics
+            T_OL, event_counters = self.machine.parse_perfmetric(
+                self.machine['overlapping model']['performance counter metric'])
+            T_data, event_dict = self.machine.parse_perfmetric(
+                self.machine['non-overlapping model']['performance counter metric'])
+            event_counters.update(event_dict)
+            cache_metrics = defaultdict(dict)
+            for i in range(len(self.machine['memory hierarchy'])-1):
+                cache_info = self.machine['memory hierarchy'][i]
+                name = cache_info['level']
+                inter_name = '{}{}'.format(
+                    name, self.machine['memory hierarchy'][i+1])
+
+                for k,v in cache_info['performance counter metrics'].items():
+                    cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
+                    event_counters.update(event_dict)
+
+            # Compile minimal runs to gather all required events
+            minimal_runs = build_minimal_runs(list(event_counters.values()))
+            measured_ctrs = {}
+            for run in minimal_runs:
+                ctrs = ','.join([eventstr(e) for e in run])
+                r = self.perfctr(args+[six.text_type(repetitions)], group=ctrs)
+                raw_results.append(r)
+                measured_ctrs.update(r)
+            # Match measured counters to symbols
+            event_counter_results = {}
+            for sym, ctr in event_counters.items():
+                event, regs, parameter = ctr[0], register_options(ctr[1]), ctr[2]
+                for r in regs:
+                    if r in measured_ctrs[event]:
+                        event_counter_results[sym] = measured_ctrs[event][r]
+
+            # Analytical metrics needed for futher calculation
+            element_size = self.kernel.datatypes_size[self.kernel.datatype]
+            elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+            total_iterations = self.kernel.iteration_length() * repetitions
+            total_cachelines = total_iterations/elements_per_cacheline
+
+            T_OL_result = T_OL.subs(event_counter_results) / total_cachelines
+            cache_metric_results = defaultdict(dict)
+            for cache, mtrcs in cache_metrics.items():
+                for m, e in mtrcs.items():
+                    cache_metric_results[cache][m] = e.subs(event_counter_results)
+
+            data_transfers = {
+                'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines),
+                        # Assuming 1 cy / LOAD
+                'T_L1L2': ((cache_metric_results['L1']['misses'] +
+                            cache_metric_results['L1']['evicts']) /
+                           total_cachelines *
+                           self.machine['memory hierarchy'][0]['cycles per cacheline transfer']),
+                'T_L2L3': ((cache_metric_results['L2']['misses'] +
+                            cache_metric_results['L2']['evicts']) /
+                           total_cachelines *
+                           self.machine['memory hierarchy'][1]['cycles per cacheline transfer']),
+                'T_L3MEM': ((cache_metric_results['L3']['misses'] +
+                             cache_metric_results['L3']['evicts']) *
+                            float(self.machine['cacheline size']) /
+                            total_cachelines / 40e9 *  # TODO use more approriate bandwidth
+                            float(self.machine['clock']))
+            }
+            T_data_result = T_data.subs(data_transfers)
+            
+            # Build phenomenological ECM model:
+            ecm_model = {'T_OL': T_OL_result}
+            ecm_model.update(data_transfers)
         else:
             event_counters = {}
+            model = None
 
-        for group_name, ctrs in event_counters.items():
-            ctrs = ','.join([':'.join(c) for c in ctrs])
-            results[group_name] = self.perfctr(args+[six.text_type(repetitions)], group=ctrs)
-
-        self.results = {'raw output': results}
-
-        # Build phenomenological ECM model:
-        # TODO read information from machine file
-        if self._args.phenoecm:
-            if self.machine['micro-architecture'] in ['IVB', 'BDW']:
-                element_size = self.kernel.datatypes_size[self.kernel.datatype]
-                elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-                total_iterations = self.kernel.iteration_length() * repetitions
-                total_cachelines = total_iterations/elements_per_cacheline
-                self.results['ECM'] = {
-                    'T_nOL': max(results['nOL']['UOPS_DISPATCHED_PORT_PORT_0']['PMC0'],
-                                 results['nOL']['UOPS_DISPATCHED_PORT_PORT_1']['PMC1'],
-                                 results['nOL']['UOPS_DISPATCHED_PORT_PORT_4']['PMC2'],
-                                 results['nOL']['UOPS_DISPATCHED_PORT_PORT_5']['PMC3'])
-                             / total_cachelines,
-                    # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
-                    'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
-                            / total_cachelines,
-                    'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
-                               results['L2L3']['L1D_M_EVICT']['PMC1'])
-                              * 2.0 # two cycles per CL
-                              / total_cachelines,
-                    'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
-                               results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
-                              * 2.0 # two cycles per CL
-                              / total_cachelines,
-                    'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
-                               /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
-                               / total_cachelines
-                }
-            elif self.machine['micro-architecture'] in ['HSW']:
-                element_size = self.kernel.datatypes_size[self.kernel.datatype]
-                elements_per_cacheline = float(self.machine['cacheline size']) // element_size
-                total_iterations = self.kernel.iteration_length() * repetitions
-                total_cachelines = total_iterations/elements_per_cacheline
-                self.results['ECM'] = {
-                    'T_nOL': max(results['nOL']['UOPS_EXECUTED_PORT_PORT_0']['PMC0'],
-                                 results['nOL']['UOPS_EXECUTED_PORT_PORT_1']['PMC1'],
-                                 results['nOL']['UOPS_EXECUTED_PORT_PORT_4']['PMC2'],
-                                 results['nOL']['UOPS_EXECUTED_PORT_PORT_5']['PMC3'])
-                             / total_cachelines,
-                    # TODO check for AVX,SSE,.. loads to determin cy/uop, currently assuming 1cy/uop
-                    'T_OL': results['OL']['MEM_UOPS_RETIRED_LOADS']['PMC0']
-                            / total_cachelines,
-                    'T_L1L2': (results['L2L3']['L1D_REPLACEMENT']['PMC0'] +
-                               results['L2L3']['L1D_M_EVICT']['PMC1'])
-                              * 2.0 # two cycles per CL
-                              / total_cachelines,
-                    'T_L2L3': (results['L2L3']['L2_LINES_IN_ALL']['PMC2'] +
-                               results['L2L3']['L2_LINES_OUT_DIRTY_ALL']['PMC3'])
-                              * 2.0 # two cycles per CL
-                              / total_cachelines,
-                    'T_L3MEM': results['MEM']['Memory data volume [GBytes]']*1e9
-                               /  (40e9/float(self.machine['clock'])) # 40GB/s / GHz = B/cy
-                               / total_cachelines
-                }
-        else:
-            self.results['ECM'] = None
+        self.results = {'raw output': raw_results, 'ECM': ecm_model}
 
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constant names
@@ -245,13 +368,13 @@ class Benchmark(object):
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
             (cys_per_repetition/iterations_per_repetition)*iterations_per_cacheline
         self.results['MEM volume (per repetition) [B]'] = \
-            results['MEM']['Memory data volume [GBytes]']*1e9/repetitions
+            mem_results['Memory data volume [GBytes]']*1e9/repetitions
         self.results['Performance [MFLOP/s]'] = \
             sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
-        if 'Memory bandwidth [MBytes/s]' in results['MEM']:
-            self.results['MEM BW [MByte/s]'] = results['MEM']['Memory bandwidth [MBytes/s]']
+        if 'Memory bandwidth [MBytes/s]' in mem_results:
+            self.results['MEM BW [MByte/s]'] = mem_results['Memory bandwidth [MBytes/s]']
         else:
-            self.results['MEM BW [MByte/s]'] = results['MEM']['Memory BW [MBytes/s]']
+            self.results['MEM BW [MByte/s]'] = mem_results['Memory BW [MBytes/s]']
         self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
         self.results['Performance [MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
