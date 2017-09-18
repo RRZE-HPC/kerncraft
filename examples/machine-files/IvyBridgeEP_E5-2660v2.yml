@@ -271,7 +271,7 @@ threads per core: 2
 overlapping model:
     ports: ["0", "0DV", "1", "2", "3", "4", "5"]
     performance counter metric:
-        # sympy notaion requires a Capitalized Max:
+        # sympy notation requires a Capitalized Max:
         Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
             UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
             UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3],

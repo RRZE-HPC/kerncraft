@@ -278,6 +278,8 @@ class Benchmark(object):
             runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime/float(repetitions)
         raw_results = [mem_results]
+        
+        # TODO collect inter-cache transfers and report for comparison with LC and SIM prediction
 
         # Gather remaining counters counters
         if self._args.phenoecm:
@@ -326,9 +328,16 @@ class Benchmark(object):
                 for m, e in mtrcs.items():
                     cache_metric_results[cache][m] = e.subs(event_counter_results)
 
+            # Select appropriate bandwidth
+            mem_bw, mem_bw_kernel = self.machine.get_bandwidth(
+                3,  # mem
+                cache_metric_results['L3']['misses'],  # load_streams
+                cache_metric_results['L3']['evicts'],  # store_streams
+                1)
+
             data_transfers = {
-                'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines),
-                        # Assuming 1 cy / LOAD
+                'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
+                        # Assuming 0.5 cy / LOAD (SSE on SNB or IVB; AVX on HSW, BDW, SKL or SKX)
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
                            total_cachelines *
@@ -340,7 +349,7 @@ class Benchmark(object):
                 'T_L3MEM': ((cache_metric_results['L3']['misses'] +
                              cache_metric_results['L3']['evicts']) *
                             float(self.machine['cacheline size']) /
-                            total_cachelines / 40e9 *  # TODO use more approriate bandwidth
+                            total_cachelines / mem_bw *
                             float(self.machine['clock']))
             }
             T_data_result = T_data.subs(data_transfers)
@@ -409,5 +418,6 @@ class Benchmark(object):
             print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
                   '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
                 **self.results['ECM']))
-            print('T_OL assumes that only 1 Load per cycle may be retiered, which is not true for '
-                  'SSE loads on SNB, IVY, HSW and BDW.')
+            print('T_OL assumes that two loads per cycle may be retiered, which is true for '
+                  '128bit SSE/half-AVX loads on SNB and IVY, and 256bit full-AVX loads on HSW, '
+                  'BDW, SKL and SKX, but it also depends on AGU availability.')
