@@ -36,7 +36,7 @@ if __name__ == '__main__':
         'form_id': 'intel_licensed_dls_step_1'}
     r = s.post(URL, data=response_data)
     download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-2.2-'+version+'\.zip)"', r.text).group(1)
+            r'"(https://software.intel.com/[^"]*iaca-version-2.3-'+version+'\.zip)"', r.text).group(1)
     print("Downloading", download_url)
     r = s.get(download_url, stream=True)
     zfile = zipfile.ZipFile(BytesIO(r.content))
