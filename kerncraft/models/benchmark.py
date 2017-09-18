@@ -21,6 +21,8 @@ except ImportError:
 
 import six
 
+from kerncraft.prefixedunit import PrefixedUnit
+
 
 def group_iterator(group):
     '''
@@ -279,8 +281,6 @@ class Benchmark(object):
             time_per_repetition = runtime/float(repetitions)
         raw_results = [mem_results]
         
-        # TODO collect inter-cache transfers and report for comparison with LC and SIM prediction
-
         # Gather remaining counters counters
         if self._args.phenoecm:
             # Build events and sympy expressions for all model metrics
@@ -328,9 +328,15 @@ class Benchmark(object):
                 for m, e in mtrcs.items():
                     cache_metric_results[cache][m] = e.subs(event_counter_results)
 
+            # Inter-cache transfers per CL
+            cache_transfers_per_cl = {cache: {k: PrefixedUnit(v/total_cachelines, 'CL/CL')
+                                              for k,v in d.items()}
+                                      for cache, d in cache_metric_results.items()}
+            cache_transfers_per_cl['L1']['accesses'].unit = 'LOAD/CL'
+
             # Select appropriate bandwidth
             mem_bw, mem_bw_kernel = self.machine.get_bandwidth(
-                3,  # mem
+                -1,  # mem
                 cache_metric_results['L3']['misses'],  # load_streams
                 cache_metric_results['L3']['evicts'],  # store_streams
                 1)
@@ -353,7 +359,7 @@ class Benchmark(object):
                             float(self.machine['clock']))
             }
             T_data_result = T_data.subs(data_transfers)
-            
+
             # Build phenomenological ECM model:
             ecm_model = {'T_OL': T_OL_result}
             ecm_model.update(data_transfers)
@@ -361,7 +367,9 @@ class Benchmark(object):
             event_counters = {}
             model = None
 
-        self.results = {'raw output': raw_results, 'ECM': ecm_model}
+        self.results = {'raw output': raw_results,
+                        'ECM': ecm_model,
+                        'data transfers': cache_transfers_per_cl}
 
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constant names
@@ -415,9 +423,24 @@ class Benchmark(object):
 
         # TODO read information from machine file
         if self._args.phenoecm:
+            print("Data Transfers:")
+            print("{:^8} |".format("cache"), end ='')
+            for metrics in self.results['data transfers'].values():
+                for metric_name in metrics:
+                    print(" {:^14}".format(metric_name), end='')
+                print()
+                break
+            for cache, metrics in self.results['data transfers'].items():
+                print("{!s:^8} |".format(cache), end='')
+                for v in metrics.values():
+                    print(" {!s:^14}".format(v), end='')
+                print()
+            print()
+
             print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
-                  '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
-                **self.results['ECM']))
+                  '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(**self.results['ECM']),
+                  file=output_file)
             print('T_OL assumes that two loads per cycle may be retiered, which is true for '
                   '128bit SSE/half-AVX loads on SNB and IVY, and 256bit full-AVX loads on HSW, '
-                  'BDW, SKL and SKX, but it also depends on AGU availability.')
+                  'BDW, SKL and SKX, but it also depends on AGU availability.',
+                  file=output_file)
