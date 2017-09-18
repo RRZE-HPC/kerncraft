@@ -164,8 +164,8 @@ class Benchmark(object):
     @classmethod
     def configure_arggroup(cls, parser):
         parser.add_argument(
-            '--phenoecm', action='store_true',
-            help='Enables the phenomenological ECM model building.')
+            '--no-phenoecm', action='store_true',
+            help='Disables the phenomenological ECM model building.')
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
@@ -282,7 +282,7 @@ class Benchmark(object):
         raw_results = [mem_results]
         
         # Gather remaining counters counters
-        if self._args.phenoecm:
+        if not self._args.no_phenoecm:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
@@ -365,7 +365,8 @@ class Benchmark(object):
             ecm_model.update(data_transfers)
         else:
             event_counters = {}
-            model = None
+            ecm_model = None
+            cache_transfers_per_cl = None
 
         self.results = {'raw output': raw_results,
                         'ECM': ecm_model,
@@ -421,8 +422,7 @@ class Benchmark(object):
                   file=output_file)
         print('', file=output_file)
 
-        # TODO read information from machine file
-        if self._args.phenoecm:
+        if not self._args.no_phenoecm:
             print("Data Transfers:")
             print("{:^8} |".format("cache"), end ='')
             for metrics in self.results['data transfers'].values():
