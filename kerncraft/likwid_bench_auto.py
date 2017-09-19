@@ -45,7 +45,7 @@ def get_machine_topology():
         'cores per socket': cores_per_socket,
         'threads per core': int(get_match_or_break(r'^Threads per core:\s+([0-9]+)\s*$', topo)[0]),
         'NUMA domains per socket': numa_domains_per_socket,
-        'cores per NUMA domain': codes_per_numa_domain,
+        'cores per NUMA domain': cores_per_numa_domain,
         'clock': 'INFORMATION_REQUIRED (e.g., 2.7 GHz)',
         'FLOPs per cycle': {'SP': {'total': 'INFORMATION_REQUIRED',
                                    'FMA': 'INFORMATION_REQUIRED',
