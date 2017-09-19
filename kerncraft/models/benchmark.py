@@ -343,7 +343,7 @@ class Benchmark(object):
 
             data_transfers = {
                 'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
-                        # Assuming 0.5 cy / LOAD (SSE on SNB or IVB; AVX on HSW, BDW, SKL or SKX)
+                         # Assuming 0.5 cy / LOAD (SSE on SNB or IVB; AVX on HSW, BDW, SKL or SKX)
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
                            total_cachelines *
