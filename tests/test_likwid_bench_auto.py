@@ -37,6 +37,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
         environ_orig = os.environ
         os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
         
+        self.maxDiff = None
         self.assertEqual(
             lba.get_machine_topology(cpuinfo_path=self._find_file('cpuinfo')),
             {'FLOPs per cycle': {'DP': {'ADD': 'INFORMATION_REQUIRED',
