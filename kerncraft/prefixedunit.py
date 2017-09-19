@@ -135,6 +135,8 @@ class PrefixedUnit(yaml.YAMLObject):
 
         v = self.__class__(float(self)/float(other), unit)
         return v.reduced()
+    
+    __div__ = __truediv__
 
     def __floordiv__(self, other):
         if isinstance(other, self.__class__):
