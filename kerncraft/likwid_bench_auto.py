@@ -27,13 +27,14 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
     return m.groups()
 
 
-def get_machine_topology():
+def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
     try:
         topo = subprocess.Popen(['likwid-topology'], stdout=subprocess.PIPE).communicate()[0].decode("utf-8")
     except OSError as e:
         print('likwid-topology execution failed, is it installed and loaded?', file=sys.stderr)
         sys.exit(1)
-    cpuinfo = open('/proc/cpuinfo', 'r').read()
+    with open(cpuinfo_path, 'r') as f:
+        cpuinfo = f.read()
     sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
     numa_domains_per_socket = int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0])/sockets

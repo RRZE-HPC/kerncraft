@@ -11,7 +11,8 @@ suite = unittest.TestLoader().loadTestsFromNames(
         'test_kerncraft',
         'test_intervals',
         'test_kernel',
-        'test_layer_condition'
+        'test_layer_condition',
+        'test_likwid_bench_auto'
     ]
 )
 
