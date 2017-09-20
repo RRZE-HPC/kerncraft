@@ -70,13 +70,13 @@ class LC(object):
         if args:
             # handle CLI info
             pass
-    
+
     def calculate_cache_access(self):
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        
+
         results = {'dimensions': {}}
-        
+
         def sympy_compare(a,b):
             c = 0
             for i in range(min(len(a), len(b))):
@@ -89,7 +89,7 @@ class LC(object):
                     c = 1
                 if c != 0: break
             return c
-        
+
         accesses = defaultdict(list)
         sympy_accesses = defaultdict(list)
         for var_name in self.kernel.variables:
@@ -103,14 +103,14 @@ class LC(object):
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
             # order accesses by increasing order
             accesses[var_name].sort(key=cmp_to_key(sympy_compare))#cmp=sympy_compare)
-        
+
         results['accesses'] = accesses
         results['sympy_accesses'] = sympy_accesses
-        
+
         # For each dimension (1D, 2D, 3D ... nD)
         for dimension in range(1, len(list(self.kernel.get_loop_stack()))+1):
             results['dimensions'][dimension] = {}
-            
+
             slices = defaultdict(list)
             slices_accesses = defaultdict(list)
             for var_name in accesses:
@@ -121,22 +121,22 @@ class LC(object):
                     slices_accesses[slice_id].append(self.kernel.access_to_sympy(var_name, a))
             results['dimensions'][dimension]['slices'] = slices
             results['dimensions'][dimension]['slices_accesses'] = slices_accesses
-            
+
             slices_distances = defaultdict(list)
             for k,v in slices_accesses.items():
                 for i in range(1, len(v)):
                     slices_distances[k].append((v[i-1] - v[i]).simplify())
             results['dimensions'][dimension]['slices_distances'] = slices_distances
-            
+
             # Check that distances contain only free_symbols based on constants
             for dist in chain(*slices_distances.values()):
                 if any([s not in self.kernel.constants.keys() for s in dist.free_symbols]):
                     raise ValueError("Some distances are not based on non-constants: "+str(dist))
-            
+
             # Sum of lengths between relative distances
             slices_sum = sum([sum(dists) for dists in slices_distances.values()])
             results['dimensions'][dimension]['slices_sum'] = slices_sum
-            
+
             # Max of lengths between relative distances
             # Work-around, the arguments with the most symbols get to stay
             # FIXME, may not be correct in all cases. e.g., N+M vs. N*M
@@ -169,11 +169,11 @@ class LC(object):
             slices_max = FuckedUpMax(sympy.Integer(0),
                                      *[FuckedUpMax(*dists) for dists in slices_distances.values()])
             results['dimensions'][dimension]['slices_sum'] = slices_sum
-            
+
             # Nmber of slices
             slices_count = len(slices_accesses)
             results['dimensions'][dimension]['slices_count'] = slices_count
-            
+
             # Cache requirement expression
             cache_requirement_bytes = (slices_sum + slices_max*slices_count)*element_size
             results['dimensions'][dimension]['cache_requirement_bytes'] = cache_requirement_bytes
@@ -194,7 +194,7 @@ class LC(object):
                     'lt': inequality,
                     'eq': sympy.solve(inequality, *self.kernel.constants.keys(), dict=True)
                 }
-        
+
         return results
 
     def analyze(self):
@@ -204,8 +204,8 @@ class LC(object):
         if any([l['increment'] != 1 for l in loop_stack]):
             raise ValueError("Can not apply layer-condition, since not all loops are of step "
                              "length 1.")
-        
-        # 2. The order of iterations must be reflected in the order of indices in all array 
+
+        # 2. The order of iterations must be reflected in the order of indices in all array
         #    references containing the inner loop index. If the inner loop index is not part of the
         #    reference, the reference is simply ignored
         # TODO support flattend array indexes
@@ -216,7 +216,7 @@ class LC(object):
                     raise ValueError("Can not apply layer-condition, order of indices in array "
                                      "does not follow order of loop indices. Single-dimension is "
                                      "currently not supported.")
-        
+
         # 3. Indices may only increase with one
         # TODO use a public interface, not self.kernel._*
         for arefs in chain(chain(*self.kernel._sources.values()),
@@ -229,13 +229,13 @@ class LC(object):
                     # TODO support -1 aswell
                     raise ValueError("Can not apply layer-condition, array references may not "
                                      "increment more then one per iteration.")
-        
+
         self.results = self.calculate_cache_access()
 
     def report(self, output_file=sys.stdout):
         if self._args and self._args.verbose > 2:
             pprint(self.results)
-        
+
         for dimension, lc_info in self.results['dimensions'].items():
             print("{}D Layer-Condition:".format(dimension), file=output_file)
             for cache, lc_solution in sorted(lc_info['caches'].items()):
