@@ -10,6 +10,8 @@ from pprint import pprint
 
 import sympy
 
+from kerncraft.kernel import symbol_pos_int
+
 
 # Not useing functools.cmp_to_key, because it does not exit in python 2.x
 def cmp_to_key(mycmp):
@@ -80,7 +82,7 @@ class LayerConditionPredictor(CachePredictor):
         #    references containing the inner loop index. If the inner loop index is not part of the
         #    reference, the reference is simply ignored
         # TODO support flattend array indexes
-        index_order = [sympy.Symbol(l['index'], positive=True) for l in loop_stack]
+        index_order = [symbol_pos_int(l['index']) for l in loop_stack]
         for var_name, arefs in chain(self.kernel._sources.items(), self.kernel._destinations.items()):
             if arefs[0] is None: continue
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
@@ -110,7 +112,7 @@ class LayerConditionPredictor(CachePredictor):
             if arefs is None:
                 continue
             for i, expr in enumerate(arefs):
-                diff = sympy.diff(expr, sympy.Symbol(loop_stack[i]['index']))
+                diff = sympy.diff(expr, symbol_pos_int(loop_stack[i]['index']))
                 if diff != 0 and diff != 1:
                     # TODO support -1 aswell
                     raise ValueError("Can not apply layer-condition, array references may not "
@@ -231,7 +233,7 @@ class CacheSimulationPredictor(CachePredictor):
         
         # Gathering some loop information:
         inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
-        inner_index = sympy.Symbol(inner_loop['index'], positive=True)
+        inner_index = symbol_pos_int(inner_loop['index'])
         inner_increment = inner_loop['increment']# Calculate the number of iterations for warm-up
         max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
@@ -244,13 +246,13 @@ class CacheSimulationPredictor(CachePredictor):
 
         # Regular Initialization
         warmup_indices = {
-            sympy.Symbol(l['index'], positive=True): ((l['stop']-l['start'])//l['increment'])//3
+            symbol_pos_int(l['index']): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
         warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
         
         # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
         while warmup_iteration_count*element_size > max_cache_size*1.5:
-            for index in [sympy.Symbol(l['index'], positive=True)
+            for index in [symbol_pos_int(l['index'])
                           for l in self.kernel.get_loop_stack()]:
                 if warmup_indices[index] > 1:
                     warmup_indices[index] -= 1

@@ -18,7 +18,8 @@ from collections import defaultdict
 import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
-from kerncraft.kernel import KernelCode
+from kerncraft.kernel import KernelCode, symbol_pos_int
+from kerncraft.cacheprediction import LayerConditionPredictor
 
 
 # Not useing functools.cmp_to_key, because it does not exit in python 2.x
@@ -176,7 +177,6 @@ class LC(object):
             # Cache requirement expression
             cache_requirement_bytes = (slices_sum + slices_max*slices_count)*element_size
             results['dimensions'][dimension]['cache_requirement_bytes'] = cache_requirement_bytes
-            
             # Apply to all cache sizes
             csim = self.machine.get_cachesim()
             results['dimensions'][dimension]['caches'] = {}
@@ -192,7 +192,7 @@ class LC(object):
                     'cache_size': cl.size(),
                     'equation': cache_equation,
                     'lt': inequality,
-                    'eq': sympy.solve(cache_equation, *self.kernel.constants.keys(), dict=True)
+                    'eq': sympy.solve(inequality, *self.kernel.constants.keys(), dict=True)
                 }
         
         return results
@@ -243,9 +243,9 @@ class LC(object):
                 if lc_solution['lt'] is sympy.true:
                     print("unconditionally fulfilled", file=output_file)
                 else:
-                    for solu in lc_solution['eq']:
-                        for s, v in solu.items():
-                            if v.n().is_Float:
-                                print("{} <= {:.0f}".format(s, v.n()), file=output_file)
-                            else:
+                    if type(lc_solution['eq']) is not list:
+                        print("{}".format(lc_solution['eq']), file=output_file)
+                    else:
+                        for solu in lc_solution['eq']:
+                            for s, v in solu.items():
                                 print("{} <= {}".format(s, v), file=output_file)

@@ -35,6 +35,12 @@ from .pycparser.c_generator import CGenerator
 from . import iaca
 
 
+def symbol_pos_int(*args, **kwargs):
+    '''Creates a sympy.Symbol with positive and integer assumptions'''
+    kwargs.update({'positive': True,
+                   'integer': True})
+    return sympy.Symbol(*args, **kwargs)
+
 def prefix_indent(prefix, textblock, later_prefix=' '):
     textblock = textblock.split('\n')
     s = prefix + textblock[0] + '\n'
@@ -167,7 +173,7 @@ class Kernel(object):
         if isinstance(name, sympy.Symbol):
             self.constants[name] = value
         else:
-            self.constants[sympy.Symbol(name, positive=True)] = value
+            self.constants[symbol_pos_int(name)] = value
 
     def set_variable(self, name, type_, size):
         assert type_ in self.datatypes_size, 'only float and double variables are supported'
@@ -360,14 +366,14 @@ class Kernel(object):
         # unwind global iteration count into loop counters:
         base_loop_counters = {}
         if git is None:
-            global_iterator = sympy.Symbol('global_iterator', positive=True)
+            global_iterator = symbol_pos_int('global_iterator')
         else:
             global_iterator = git
         idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
         last_incr = 1
         for var_name, start, end, incr in reversed(self._loop_stack):
-            loop_var = sympy.Symbol(var_name, positive=True)
+            loop_var = symbol_pos_int(var_name)
 
             # This unspools the iterations:
             length = end-start  # FIXME is incr handled correct here?
@@ -394,7 +400,7 @@ class Kernel(object):
         global_iterator = sympy.Integer(0)
         total_length = 1
         for var_name, start, end, incr in reversed(self._loop_stack):
-            loop_var = sympy.Symbol(var_name, positive=True)
+            loop_var = symbol_pos_int(var_name)
             length = end-start  # FIXME is incr handled correct here?
             global_iterator += (indices[loop_var] - start)*total_length
             total_length = total_length*length
@@ -606,7 +612,7 @@ class KernelCode(Kernel):
         multiplication from AST to a sympy representation.
         """
         if type(math_ast) is c_ast.ID:
-            return sympy.Symbol(math_ast.name, positive=True)
+            return symbol_pos_int(math_ast.name)
         elif type(math_ast) is c_ast.Constant:
             return sympy.Integer(math_ast.value)
         else:  # elif type(dim) is c_ast.BinaryOp:
@@ -688,7 +694,7 @@ class KernelCode(Kernel):
 
         if type(floop.cond.right) is c_ast.ID:
             const_name = floop.cond.right.name
-            iter_max = sympy.Symbol(const_name, positive=True)
+            iter_max = symbol_pos_int(const_name)
         elif type(floop.cond.right) is c_ast.Constant:
             iter_max = sympy.Integer(floop.cond.right.value)
         else:  # type(floop.cond.right) is c_ast.BinaryOp
@@ -1212,5 +1218,5 @@ class KernelDescription(Kernel):
             return None
         else:
             # TODO find nicer solution for N and other pre-mapped letters
-            return parse_expr(s, local_dict={c: sympy.Symbol(c, positive=True)
+            return parse_expr(s, local_dict={c: symbol_pos_int(c)
                                              for c in s if c in ascii_letters})

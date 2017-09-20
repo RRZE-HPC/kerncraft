@@ -29,7 +29,7 @@ from six.moves import range
 from ruamel import yaml
 
 from . import models
-from .kernel import KernelCode, KernelDescription
+from .kernel import KernelCode, KernelDescription, symbol_pos_int
 from .machinemodel import MachineModel
 
 
@@ -192,34 +192,10 @@ def run(parser, args, output_file=sys.stdout):
     # TODO broaden cases to n-dimensions
     # TODO make configurable (no hardcoded 512MB/1GB/min. 3 iteration ...)
     # works only for up to 3 dimensions
-    if not args.define:
-        required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
-        assert all([1 <= len(rc) <= 3 for rc in required_consts]), "Automatic selection of " + \
-            "defines only works with up to 3 dimensions."
-        inner_loop_syms = kernel._loop_stack[-1][2].free_symbols
-        assert len(inner_loop_syms) == 1, "Automatic selection can only work, if " + \
-            "inner-most loop's max statement contains exactly one constant/define (e.g. N)."
-        inner_loop_const = inner_loop_syms.pop()
-        define_product = []
-
-        # From 100 elements to 512MB of data with 150 data points on log10 scale
-        for inner_dim_size in space(
-                100, int(0.5*1025**3/kernel.datatypes_size[kernel.datatype]), 150, log=True):
-            # we choose all other constants, such that the largest array consumes 1-3GB of memory:
-            array_dims = sorted(required_consts, key=len)[-1]
-            array_size = reduce(operator.mul, array_dims).subs(inner_loop_const, inner_dim_size)
-            assert 0 <= len(array_size.free_symbols) <= 1, "Automatic selection can only  " + \
-                "work, if arrays depend only on the inner-loop constant and one more " + \
-                "constant (at most)."
-
-            if len(array_size.free_symbols) == 1:
-                define_product.append([
-                    (inner_loop_const, inner_dim_size),
-                    (array_size.free_symbols.pop(),
-                     max(int(sympy.solve(sympy.Eq(array_size, 1024**3))[0]), 3))]) # min 3 it.
-            else:
-                define_product.append([(inner_loop_const, inner_dim_size)])
-    else:
+    required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
+    required_consts = set([i for l in required_consts for i in l])
+    print(required_consts)
+    if len(required_consts) > 0:
         # build defines permutations
         define_dict = {}
         for name, values in args.define:
@@ -230,6 +206,13 @@ def run(parser, args, output_file=sys.stdout):
                 if v not in define_dict[name]:
                     define_dict[name].append([name, v])
         define_product = list(itertools.product(*list(define_dict.values())))
+
+        # Check that all consts have been defined
+        if set(required_consts).difference(set([symbol_pos_int(k) for k in define_dict.keys()])):
+            raise ValueError("Not all constants have been defined. Required are: {}".format(
+                required_consts))
+    else:
+        define_product = [{}]
 
     for define in define_product:
         # Reset state of kernel
