@@ -41,7 +41,7 @@ Usage
 
 1. Get an example kernel and machine file from the examples directory
 
-``wget https://raw.githubusercontent.com/RRZE-HPC/kerncraft/master/examples/machine-files/phinally.yaml``
+``wget https://raw.githubusercontent.com/RRZE-HPC/kerncraft/master/examples/machine-files/SandyBridgeEP_E5-2680.yml``
 
 ``wget https://raw.githubusercontent.com/RRZE-HPC/kerncraft/master/examples/kernels/2d-5pt.c``
 
@@ -49,7 +49,7 @@ Usage
 
 3. Run kerncraft
 
-``kerncraft -p ECM -m phinally.yaml 2d-5pt.c -D N 10000 -D M 10000``
+``kerncraft -p ECM -m SandyBridgeEP_E5-2680.yml 2d-5pt.c -D N 10000 -D M 10000``
 add `-vv` for more information on the kernel and ECM model analysis.
 
 Credits
