@@ -44,9 +44,10 @@ class CachePredictor(object):
     
     Only stubs here.
     '''
-    def __init__(self, kernel, machine):
+    def __init__(self, kernel, machine, cores=1):
         self.kernel = kernel
         self.machine = machine
+        self.cores = cores
 
     def get_hits(self):
         '''Returns a list with cache lines of hits per cache level'''
@@ -68,8 +69,8 @@ class LayerConditionPredictor(CachePredictor):
     '''
     Predictor class based on layer condition analysis.
     '''
-    def __init__(self, kernel, machine):
-        CachePredictor.__init__(self, kernel, machine)
+    def __init__(self, kernel, machine, cores=1):
+        CachePredictor.__init__(self, kernel, machine, cores=1)
 
         # check that layer conditions can be applied on this kernel:
         # 1. All iterations may only have a step width of 1
@@ -160,7 +161,7 @@ class LayerConditionPredictor(CachePredictor):
         
         sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
 
-        for c in self.machine.get_cachesim().levels(with_mem=False):
+        for c in self.machine.get_cachesim(self.cores).levels(with_mem=False):
             # Assuming increasing order of cache sizes
             hits = 0
             misses = len(distances_bytes)
@@ -221,10 +222,10 @@ class CacheSimulationPredictor(CachePredictor):
     '''
     Predictor class based on layer condition analysis.
     '''
-    def __init__(self, kernel, machine):
-        CachePredictor.__init__(self, kernel, machine)
+    def __init__(self, kernel, machine, cores=1):
+        CachePredictor.__init__(self, kernel, machine, cores)
         # Get the machine's cache model and simulator
-        csim = self.machine.get_cachesim()
+        csim = self.machine.get_cachesim(self.cores)
         
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]

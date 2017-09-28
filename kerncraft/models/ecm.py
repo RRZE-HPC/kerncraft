@@ -84,9 +84,9 @@ class ECMData(object):
 
     def calculate_cache_access(self):
         if self._args.cache_predictor == 'SIM':
-            self.predictor = CacheSimulationPredictor(self.kernel, self.machine)
+            self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self._args.cores)
         elif self._args.cache_predictor == 'LC':
-            self.predictor = LayerConditionPredictor(self.kernel, self.machine)
+            self.predictor = LayerConditionPredictor(self.kernel, self.machine, self._args.cores)
         else:
             raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
                                       "SIM (cache simulation with pycachesim) is supported.")

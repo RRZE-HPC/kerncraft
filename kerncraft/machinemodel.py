@@ -43,16 +43,25 @@ class MachineModel(object):
         )
 
     def get_cachesim(self, cores=1):
-        '''Returns a cachesim.CacheSimulator object based on the machine description
-        and used core count'''
+        '''
+        Returns a cachesim.CacheSimulator object based on the machine description
+        and used core count
+        '''
         cache_stack = []
         cache = None
         cl_size = int(self['cacheline size'])
 
-        cs, caches, mem = cachesim.CacheSimulator.from_dict(
-            {c['level']: c['cache per group']
-             for c in self['memory hierarchy']
-             if 'cache per group' in c})
+        cache_dict = {}
+        for c in self['memory hierarchy']:
+            # Skip main memory
+            if 'cache per group' not in c:
+                continue
+            cache_dict[c['level']] = c['cache per group']
+            # Scale size of shared caches according to cores
+            if c['cores per group'] > 1:
+                cache_dict[c['level']]['sets'] //= cores
+
+        cs, caches, mem = cachesim.CacheSimulator.from_dict(cache_dict)
 
         return cs
 

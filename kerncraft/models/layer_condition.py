@@ -178,7 +178,7 @@ class LC(object):
             cache_requirement_bytes = (slices_sum + slices_max*slices_count)*element_size
             results['dimensions'][dimension]['cache_requirement_bytes'] = cache_requirement_bytes
             # Apply to all cache sizes
-            csim = self.machine.get_cachesim()
+            csim = self.machine.get_cachesim(self._args.cores)
             results['dimensions'][dimension]['caches'] = {}
             for cl in  csim.levels(with_mem=False):
                 cache_equation = sympy.Eq(cache_requirement_bytes, cl.size())
