@@ -53,7 +53,7 @@ class PrefixedUnit(yaml.YAMLObject):
         self.value, self.prefix, self.unit = args
 
     def base_value(self):
-        '''gives value without prefix'''
+        """gives value without prefix"""
         return self.value*self.PREFIXES[self.prefix]
 
     __float__ = base_value
@@ -62,7 +62,7 @@ class PrefixedUnit(yaml.YAMLObject):
         return int(self.base_value())
 
     def good_prefix(self, max_error=0.01, round_length=2, min_prefix='', max_prefix=None):
-        '''
+        """
         returns the largest prefix where the relative error is bellow *max_error* although rounded
         by *round_length*
 
@@ -70,7 +70,7 @@ class PrefixedUnit(yaml.YAMLObject):
         prefix.
         if *min_prefix* is given, returned value will atleast be of that prefix (no matter the
         error)
-        '''
+        """
         good_prefix = min_prefix
         base_value = self.base_value()
 

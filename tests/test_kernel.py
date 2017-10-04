@@ -1,6 +1,6 @@
-'''
+"""
 High-level tests for the overall functionallity and things in kc.py
-'''
+"""
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import

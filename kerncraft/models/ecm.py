@@ -33,7 +33,7 @@ def round_to_next(x, base):
 
 
 def blocking(indices, block_size, initial_boundary=0):
-    '''
+    """
     splits list of integers into blocks of block_size. returns block indices.
 
     first block element is located at initial_boundary (default 0).
@@ -42,7 +42,7 @@ def blocking(indices, block_size, initial_boundary=0):
     [0,-1]
     >>> blocking([0], 8)
     [0]
-    '''
+    """
     blocks = []
 
     for idx in indices:
@@ -155,7 +155,7 @@ class ECMData(object):
         return self.results
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
-        '''Convert cycles (cy/CL) to other units, such as FLOP/s or It/s'''
+        """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s"""
         if not isinstance(cy_cl, PrefixedUnit):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
         if not unit:
@@ -278,7 +278,7 @@ class ECMCPU(object):
             'IACA output': iaca_analysis['output']}
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
-        '''Convert cycles (cy/CL) to other units, such as FLOP/s or It/s'''
+        """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s"""
         if not isinstance(cy_cl, PrefixedUnit):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
         if not unit:

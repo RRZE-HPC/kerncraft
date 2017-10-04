@@ -36,7 +36,7 @@ from . import iaca
 
 
 def symbol_pos_int(*args, **kwargs):
-    '''Creates a sympy.Symbol with positive and integer assumptions'''
+    """Creates a sympy.Symbol with positive and integer assumptions"""
     kwargs.update({'positive': True,
                    'integer': True})
     return sympy.Symbol(*args, **kwargs)

@@ -30,9 +30,9 @@ END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER 
 
 
 def find_asm_blocks(asm_lines):
-    '''
+    """
     finds blocks probably corresponding to loops in assembly
-    '''
+    """
     blocks = []
 
     last_label_line = -1

@@ -166,7 +166,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
 def cli():
     # TODO support everything described here
     if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
-        print('''Usage:', sys.argv[0], '[-h] {collect|measure} [machinefile] | upgrade machinefile
+        print("""Usage:', sys.argv[0], '[-h] {collect|measure} [machinefile] | upgrade machinefile
 
         collect will retrieve as much hardware information as possible, without benchmarking
         measure will do the same as collect, but also include memory benchmarks
@@ -178,7 +178,7 @@ def cli():
         If no machinefile is given, the information will be printed to stdout.
 
         upgrade will transform machinefile to the most up-to-date machine file version.
-        ''')
+        """)
 
 
 def main():

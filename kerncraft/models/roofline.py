@@ -150,7 +150,7 @@ class Roofline(object):
         self.calculate_cache_access()
 
     def conv_perf(self, performance, unit, default='FLOP/s'):
-        '''Convert performance (FLOP/s) to other units, such as It/s or cy/CL'''
+        """Convert performance (FLOP/s) to other units, such as It/s or cy/CL"""
         if not unit:
             unit = default
 

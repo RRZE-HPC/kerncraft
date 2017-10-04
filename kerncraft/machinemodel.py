@@ -13,10 +13,10 @@ from . import prefixedunit
 
 
 def sanitize_symbolname(name):
-    '''
+    """
     Sanitizes all characters not matched to a symbol by sympy's parse_expr
     (same rules apply as for python variables)
-    '''
+    """
     return re.subn('(^[0-9])|[^0-9a-zA-Z_]', '_', name)[0]
 
 class MachineModel(object):
@@ -43,10 +43,10 @@ class MachineModel(object):
         )
 
     def get_cachesim(self, cores=1):
-        '''
+        """
         Returns a cachesim.CacheSimulator object based on the machine description
         and used core count
-        '''
+        """
         cache_stack = []
         cache = None
         cl_size = int(self['cacheline size'])
@@ -66,10 +66,10 @@ class MachineModel(object):
         return cs
 
     def get_bandwidth(self, cache_level, read_streams, write_streams, threads_per_core, cores=None):
-        '''Returns best fitting bandwidth according to parameters
+        """Returns best fitting bandwidth according to parameters
 
         :param cores: if not given, will choose maximum bandwidth
-        '''
+        """
         # try to find best fitting kernel (closest to stream seen stream counts):
         # write allocate has to be handled in kernel information (all writes are also reads)
         # TODO support for non-write-allocate architectures
@@ -118,11 +118,11 @@ class MachineModel(object):
         return bw, measurement_kernel
 
     def get_compiler(self, compiler=None, flags=None):
-        '''
+        """
         Returns tuple of compiler and compiler flags
 
         Selects compiler and flags from machine description file, commandline arguments or params
-        '''
+        """
         if self._args:
             compiler = compiler or self._args.compiler
             flags = flags or self._args.compiler_flags
@@ -145,7 +145,7 @@ class MachineModel(object):
 
     @staticmethod
     def parse_perfctr_event(perfctr):
-        '''
+        """
         Parses events in machine description to tuple representation used in Benchmark module
 
         Examples:
@@ -153,7 +153,7 @@ class MachineModel(object):
         ('PERF_EVENT', 'REG[0-3]', None)
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]:STAY:FOO=23:BAR=0x23')
         ('PERF_EVENT', 'REG[0-3]', {'STAY': None, 'FOO': 23, 'BAR': 35})
-        '''
+        """
         split_perfctr = perfctr.split(':')
         assert len(split_perfctr) >= 2, "Atleast one colon (:) is required in the event name"
         event_tuple = split_perfctr[:2]
@@ -172,13 +172,13 @@ class MachineModel(object):
 
     @staticmethod
     def parse_perfmetric(metric):
-        '''
+        """
         Takes a performance metric describing string and constructs sympy and perf. counter
         representation from it.
 
         Returns a tuple containing the sympy expression and a dict with performance counters and
         symbols the expression depends on.
-        '''
+        """
         # Find all perfs counter references
         perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]\|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
 

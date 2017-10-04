@@ -1,6 +1,6 @@
-'''
+"""
 Unit tests for intervals module
-'''
+"""
 from __future__ import print_function
 
 import sys

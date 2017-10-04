@@ -45,7 +45,7 @@ def create_parser():
 
 
 def simulate(kernel, model, define_dict, blocking_constant, blocking_length):
-    '''Setup and execute model with given blocking length'''
+    """Setup and execute model with given blocking length"""
     kernel.clear_state()
 
     # Add constants from define arguments
