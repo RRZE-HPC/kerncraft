@@ -209,7 +209,7 @@ NUMA domains per socket: 1
 compiler:
     icc: -O3 -xAVX -fno-alias
     clang: -O3 -mavx -D_POSIX_C_SOURCE=200112L
-    gcc: -O3 -march=ivybridge -D_POSIX_C_SOURCE=200112L
+    gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200112L
 write-allocate: True
 
 memory hierarchy:
