@@ -5,8 +5,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 from itertools import chain
-from collections import defaultdict
-from pprint import pprint
 
 import sympy
 
@@ -17,7 +15,7 @@ from kerncraft.kernel import symbol_pos_int
 def cmp_to_key(mycmp):
     'Convert a cmp= function into a key= function'
     class K(object):
-        def __init__(self, obj, *args):
+        def __init__(self, obj):
             self.obj = obj
         def __lt__(self, other):
             return mycmp(self.obj, other.obj) < 0
@@ -84,7 +82,7 @@ class LayerConditionPredictor(CachePredictor):
         #    reference, the reference is simply ignored
         # TODO support flattend array indexes
         index_order = [symbol_pos_int(l['index']) for l in loop_stack]
-        for var_name, arefs in chain(self.kernel._sources.items(), self.kernel._destinations.items()):
+        for var_name, arefs in chain(self.kernel.sources.items(), self.kernel.destinations.items()):
             if arefs[0] is None: continue
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
                 for t in a.expand().as_ordered_terms():
@@ -108,8 +106,8 @@ class LayerConditionPredictor(CachePredictor):
 
         # 3. Indices may only increase with one
         # TODO use a public interface, not self.kernel._*
-        for arefs in chain(chain(*self.kernel._sources.values()),
-                           chain(*self.kernel._destinations.values())):
+        for arefs in chain(chain(*self.kernel.sources.values()),
+                           chain(*self.kernel.destinations.values())):
             if arefs is None:
                 continue
             for i, expr in enumerate(arefs):
@@ -130,13 +128,13 @@ class LayerConditionPredictor(CachePredictor):
                    'destinations': destinations}
         for var_name in self.kernel.variables:
             # Gather all access to current variable/array
-            accesses[var_name] = self.kernel._sources.get(var_name, []) + \
-                                 self.kernel._destinations.get(var_name, [])
+            accesses[var_name] = self.kernel.sources.get(var_name, []) + \
+                                 self.kernel.destinations.get(var_name, [])
             # Skip non-variable offsets (acs is [None, None, None] or the like)
             if not any(accesses[var_name]):
                 continue
             destinations.update(
-                [(var_name, tuple(r)) for r in self.kernel._destinations.get(var_name, [])])
+                [(var_name, tuple(r)) for r in self.kernel.destinations.get(var_name, [])])
             acs = accesses[var_name]
             # Transform them into sympy expressions
             acs = [self.kernel.access_to_sympy(var_name, r) for r in acs]

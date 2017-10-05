@@ -25,7 +25,7 @@ from kerncraft.prefixedunit import PrefixedUnit
 
 
 def group_iterator(group):
-    '''
+    """
     Iterates over simple regex-like groups.
 
     The only special character is a dash (-), which take the preceding and the following chars to
@@ -40,7 +40,7 @@ def group_iterator(group):
     ['7', '8', '9', 'a', 'b']
     >>> list(group_iterator('0B-A1'))
     ['0', '1']
-    '''
+    """
     ordered_chars = string.ascii_letters + string.digits
     tokenizer = ('(?P<seq>[a-zA-Z0-9]-[a-zA-Z0-9])|'
                  '(?P<chr>.)')
@@ -54,7 +54,7 @@ def group_iterator(group):
 
 
 def register_options(regdescr):
-    '''
+    """
     Very reduced regular expressions for describing a group of registers
 
     Only groups in square bracktes and unions with pipes (|) are supported.
@@ -70,7 +70,7 @@ def register_options(regdescr):
     ['CBOX0C0', 'CBOX0C1', 'CBOX1C0', 'CBOX1C1', 'CBOX2C0', 'CBOX2C1', 'CBOX3C0', 'CBOX3C1']
     >>> list(register_options('PMC[0-1]|PMC[23]'))
     ['PMC0', 'PMC1', 'PMC2', 'PMC3']
-    '''
+    """
     if not regdescr:
         yield None
     tokenizer = ('\[(?P<grp>[^]]+)\]|'
@@ -92,7 +92,7 @@ def register_options(regdescr):
 
 
 def eventstr(event_tuple=None, event=None, register=None, parameters=None):
-    '''
+    """
     Returns a LIKWID event string from an event tuple or keyword arguments
 
     *event_tuple* may have two or three arguments: (event, register) or
@@ -108,7 +108,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     'MEM_UOPS_RETIRED_LOADS:PMC3:EDGEDETECT:THRESHOLD=0x926'
     >>> eventstr(event='DTLB_LOAD_MISSES_WALK_DURATION', register='PMC3')
     'DTLB_LOAD_MISSES_WALK_DURATION:PMC3'
-    '''
+    """
     if len(event_tuple) == 3:
         event, register, parameters = event_tuple
     elif len(event_tuple) == 2:
@@ -124,7 +124,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
 
 def build_minimal_runs(events):
-    '''Compiles list of minimal runs for given events'''
+    """Compiles list of minimal runs for given events"""
     # Eliminate multiples
     events = [e for i, e in enumerate(events) if events.index(e) == i]
 
@@ -206,12 +206,12 @@ class Benchmark(object):
             pass
 
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
-        '''
+        """
         runs *cmd* with likwid-perfctr and returns result as dict
 
         *group* may be a performance group known to likwid-perfctr or an event string.
         Only works with single core!
-        '''
+        """
 
         # Making sure iaca.sh is available:
         if find_executable('likwid-perfctr') is None:

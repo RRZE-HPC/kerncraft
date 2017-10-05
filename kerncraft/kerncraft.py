@@ -19,11 +19,8 @@ import shutil
 import math
 import re
 import itertools
-import operator
-from functools import reduce
 
 from .pycparser import clean_code
-import sympy
 import six
 from six.moves import range
 from ruamel import yaml
@@ -62,6 +59,14 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
         else:
             yield int(round(start + i*steplength))
         i += 1
+
+
+def int_or_str(s):
+    """Takes a string and casts to int if possible, otherwise returns original string"""
+    try:
+        return int(s)
+    except ValueError:
+        return s
 
 
 class AppendStringRange(argparse.Action):
@@ -124,10 +129,11 @@ def create_parser():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
-    parser.add_argument('--asm-increment', metavar='INCR', default=0, type=int,
-                        help='Increment of stor pointer within one ASM block in bytes. If 0, '
-                             'automatic detetection will be used and can lead to user input being '
-                             'required.')
+    parser.add_argument('--asm-increment', metavar='INCR', default='auto', type=int_or_str,
+                        help='Increment of store pointer within one ASM block in bytes. If "auto": '
+                             'automatic detection, error on failure to detect, if '
+                             '"auto_with_manual_fallback": fallback to manual input, or if '
+                             '"manual": always prompt user.')
     parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
                         help='Addes results to PICKLE file for later processing.')
     parser.add_argument('--unit', '-u', choices=['cy/CL', 'cy/It', 'It/s', 'FLOP/s'],

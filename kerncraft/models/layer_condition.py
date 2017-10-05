@@ -93,11 +93,11 @@ class LC(object):
         accesses = defaultdict(list)
         sympy_accesses = defaultdict(list)
         for var_name in self.kernel.variables:
-            for r in self.kernel._sources.get(var_name, []):
+            for r in self.kernel.sources.get(var_name, []):
                 if r is None: continue
                 accesses[var_name].append(r)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, r))
-            for w in self.kernel._destinations.get(var_name, []):
+            for w in self.kernel.destinations.get(var_name, []):
                 if w is None: continue
                 accesses[var_name].append(w)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
@@ -219,8 +219,8 @@ class LC(object):
 
         # 3. Indices may only increase with one
         # TODO use a public interface, not self.kernel._*
-        for arefs in chain(chain(*self.kernel._sources.values()),
-                           chain(*self.kernel._destinations.values())):
+        for arefs in chain(chain(*self.kernel.sources.values()),
+                           chain(*self.kernel.destinations.values())):
             if arefs is None:
                 continue
             for i, expr in enumerate(arefs):

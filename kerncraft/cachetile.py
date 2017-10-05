@@ -7,22 +7,13 @@ from __future__ import division
 
 import argparse
 import sys
-import os.path
-import pickle
-import shutil
-import math
-import re
-import itertools
-import operator
-from functools import reduce
 
 import sympy
 import six
-from six.moves import range
 from ruamel import yaml
 
 from . import models
-from .kernel import KernelCode, KernelDescription
+from .kernel import KernelDescription
 from .machinemodel import MachineModel
 
 
@@ -126,7 +117,6 @@ def run(parser, args):
             min_runtime = runtime
             min_length = length
         else:
-            max_runtime = runtime
             max_length = length
     
     if length <= max_length:

@@ -105,8 +105,8 @@ class TestKernel(unittest.TestCase):
         k_code = KernelCode(self.twod_code, machine=None)
 
         self.assertEqual(k_descr._flops, k_code._flops)
-        self.assertEqual(k_descr._sources, k_code._sources)
-        self.assertEqual(k_descr._destinations, k_code._destinations)
+        self.assertEqual(k_descr.sources, k_code.sources)
+        self.assertEqual(k_descr.destinations, k_code.destinations)
         self.assertEqual(k_descr.datatype, k_code.datatype)
         self.assertEqual(k_descr.variables, k_code.variables)
         self.assertEqual(k_descr._loop_stack, k_code._loop_stack)

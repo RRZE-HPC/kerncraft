@@ -153,8 +153,8 @@ class Kernel(object):
         self._machine = machine
         self._loop_stack = []
         self.variables = {}
-        self._sources = {}
-        self._destinations = {}
+        self.sources = {}
+        self.destinations = {}
         self._flops = {}
         self.datatype = None
 
@@ -308,11 +308,11 @@ class Kernel(object):
         Use *source* and *destination* to filter output
         """
         if sources:
-            arefs = chain(*self._sources.values())
+            arefs = chain(*self.sources.values())
         else:
             arefs = []
         if destinations:
-            arefs = chain(arefs, *self._destinations.values())
+            arefs = chain(arefs, *self.destinations.values())
 
         ret = []
         for a in [aref for aref in arefs if aref is not None]:
@@ -333,11 +333,11 @@ class Kernel(object):
         # Compile sympy accesses
         for var_name in self.variables:
             if sources:
-                for r in self._sources.get(var_name, []):
+                for r in self.sources.get(var_name, []):
                     if r is None: continue
                     sympy_accesses[var_name].append(self.access_to_sympy(var_name, r))
             if destinations:
-                for w in self._destinations.get(var_name, []):
+                for w in self.destinations.get(var_name, []):
                     if w is None: continue
                     sympy_accesses[var_name].append(self.access_to_sympy(var_name, w))
 
@@ -386,7 +386,7 @@ class Kernel(object):
                 try:  # Try to resolve to integer if global_iterator was given
                     base_loop_counters[loop_var] = sympy.Integer(self.subs_consts(counter))
                     continue
-                except:
+                except (ValueError, TypeError):
                     pass
             base_loop_counters[loop_var] = sympy.lambdify(
                 global_iterator,
@@ -454,7 +454,7 @@ class Kernel(object):
         # Gather all read and write accesses to the array:
         for var_name, var_size in var_sizes.items():
             element_size = self.datatypes_size[self.variables[var_name][0]]
-            for r in self._sources.get(var_name, []):
+            for r in self.sources.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, r)
                 offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
@@ -463,7 +463,7 @@ class Kernel(object):
                         + base_offsets[var_name]), numpy))
                 # TODO possibly differentiate between index order
                 global_load_offsets.append(offset)
-            for w in self._destinations.get(var_name, []):
+            for w in self.destinations.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, w)
                 offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
@@ -491,7 +491,7 @@ class Kernel(object):
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
-        for name, offsets in list(self._sources.items()):
+        for name, offsets in list(self.sources.items()):
             prefix = '{:>8} | '.format(name)
             right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
@@ -499,7 +499,7 @@ class Kernel(object):
 
         table = ('    name |  offsets   ...\n' +
                  '---------+------------...\n')
-        for name, offsets in list(self._destinations.items()):
+        for name, offsets in list(self.destinations.items()):
             prefix = '{:>8} | '.format(name)
             right_side = '\n'.join(['{!r:}'.format(o) for o in offsets])
             table += prefix_indent(prefix, right_side, later_prefix='         | ')
@@ -761,21 +761,21 @@ class KernelCode(Kernel):
             self._flops[op] = self._flops.get(op, 0)+1
 
         # Document data destination
-        # self._destinations[dest name] = [dest offset, ...])
-        self._destinations.setdefault(self._get_basename(stmt.lvalue), [])
-        self._destinations[self._get_basename(stmt.lvalue)].append(
+        # self.destinations[dest name] = [dest offset, ...])
+        self.destinations.setdefault(self._get_basename(stmt.lvalue), [])
+        self.destinations[self._get_basename(stmt.lvalue)].append(
             self._get_offsets(stmt.lvalue))
 
         if write_and_read:
             # this means that +=, -= or something of that sort was used
-            self._sources.setdefault(self._get_basename(stmt.lvalue), [])
-            self._sources[self._get_basename(stmt.lvalue)].append(
+            self.sources.setdefault(self._get_basename(stmt.lvalue), [])
+            self.sources[self._get_basename(stmt.lvalue)].append(
                 self._get_offsets(stmt.lvalue))
 
         # Traverse tree
-        self._p_sources(stmt.rvalue)
+        self._psources(stmt.rvalue)
 
-    def _p_sources(self, stmt):
+    def _psources(self, stmt):
         sources = []
         assert type(stmt) in \
             [c_ast.ArrayRef, c_ast.Constant, c_ast.ID, c_ast.BinaryOp, c_ast.UnaryOp], \
@@ -787,16 +787,16 @@ class KernelCode(Kernel):
         if type(stmt) in [c_ast.ArrayRef, c_ast.ID]:
             # Document data source
             bname = self._get_basename(stmt)
-            self._sources.setdefault(bname, [])
-            self._sources[bname].append(self._get_offsets(stmt))
+            self.sources.setdefault(bname, [])
+            self.sources[bname].append(self._get_offsets(stmt))
         elif type(stmt) is c_ast.BinaryOp:
             # Traverse tree
-            self._p_sources(stmt.left)
-            self._p_sources(stmt.right)
+            self._psources(stmt.left)
+            self._psources(stmt.right)
 
             self._flops[stmt.op] = self._flops.get(stmt.op, 0)+1
         elif type(stmt) is c_ast.UnaryOp:
-            self._p_sources(stmt.expr)
+            self._psources(stmt.expr)
             self._flops[stmt.op] = self._flops.get(stmt.op[-1], 0)+1
 
         return sources
@@ -997,7 +997,7 @@ class KernelCode(Kernel):
         return code
 
     def assemble(self, in_filename, out_filename=None, iaca_markers=True,
-                 asm_block='auto', asm_increment=0, verbose=False):
+                 asm_block='auto', pointer_increment='auto_with_manual_fallback', verbose=False):
         """
         Assembles *in_filename* to *out_filename*.
 
@@ -1011,9 +1011,10 @@ class KernelCode(Kernel):
         *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
 
-        *asm_increment* is the increment of the store pointer during each iteration of the ASM block
-        if it is 0 (default), automatic detection will be use and might lead to an interactive user
-        interface.
+        *pointer_increment* is the number of bytes the pointer is incremented after the loop or 
+           - 'auto': automatic detection, RuntimeError is raised in case of failure
+           - 'auto_with_manual_fallback': automatic detection, fallback to manual input
+           - 'manual': prompt user
 
         Returns two-tuple (filepointer, filename) to temp binary file.
         """
@@ -1028,8 +1029,9 @@ class KernelCode(Kernel):
 
         # insert iaca markers
         if iaca_markers:
-            self.asm_block = iaca.iaca_instrumentation(in_filename, block_selection=asm_block,
-                                                       pointer_increment='auto_with_manual_fallback')
+            self.asm_block = iaca.iaca_instrumentation(
+                in_filename, block_selection=asm_block,
+                pointer_increment=pointer_increment)
 
         compiler, compiler_args = self._machine.get_compiler()
 
@@ -1098,11 +1100,22 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def iaca_analysis(self, micro_architecture, asm_block='auto', asm_increment=0, verbose=False):
+    def iaca_analysis(self, micro_architecture, asm_block='auto',
+                      pointer_increment='auto_with_manual_fallback', verbose=False):
+        """
+        Runs an IACA analysis and returns its outcome
+
+        *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
+        the largest block, "manual" results in interactive and a number in the according block.
+
+        *pointer_increment* is the number of bytes the pointer is incremented after the loop or 
+           - 'auto': automatic detection, RuntimeError is raised in case of failure
+           - 'auto_with_manual_fallback': automatic detection, fallback to manual input
+           - 'manual': prompt user
+        """
         asmFile = self.compile(verbose=verbose)
-        bin_name = self.assemble(asmFile, iaca_markers=True,
-                                 asm_block=asm_block, asm_increment=asm_increment,
-                                 verbose=verbose)
+        bin_name = self.assemble(asmFile, iaca_markers=True, asm_block=asm_block,
+                                 pointer_increment='auto_with_manual_fallback', verbose=verbose)
         return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
 
     def build(self, lflags=None, verbose=False):
@@ -1192,13 +1205,13 @@ class KernelDescription(Kernel):
         self.datatype = list(self.variables.values())[0][0]
 
         # Data sources
-        self._sources = {
+        self.sources = {
             var_name: list([self.string_to_sympy(idx) for idx in v])
             for var_name, v in description['data sources'].items()
         }
 
         # Data destinations
-        self._destinations = {
+        self.destinations = {
             var_name: list([self.string_to_sympy(idx) for idx in v])
             for var_name,v in description['data destinations'].items()
         }
