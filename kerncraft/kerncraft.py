@@ -34,14 +34,14 @@ from .machinemodel import MachineModel
 
 
 def space(start, stop, num, endpoint=True, log=False, base=10):
-    '''
+    """
     Returns list of evenly spaced integers over an interval.
 
     Numbers can either be evenlty distributed in a linear space (if *log* is False) or in a log
     space (if *log* is True). If *log* is True, base is used to define the log space basis.
 
     If *endpoint* is True, *stop* will be the last retruned value, as long as *num* >= 2.
-    '''
+    """
     assert type(start) is int and type(stop) is int and type(num) is int, \
         "start, stop and num need to be intergers"
     assert num >= 2, "num has to be atleast 2"

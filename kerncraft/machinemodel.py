@@ -4,6 +4,7 @@ from __future__ import division
 
 from distutils.spawn import find_executable
 import re
+import sys
 
 import ruamel
 import cachesim
