@@ -41,16 +41,24 @@ def symbol_pos_int(*args, **kwargs):
                    'integer': True})
     return sympy.Symbol(*args, **kwargs)
 
+
 def prefix_indent(prefix, textblock, later_prefix=' '):
+    """
+    Prefixes and indents all lines in *textblock*.
+
+    *prefix* is a prefix string
+    *later_prefix* is used on all but the first line, if it is a single character
+                   it will be repeated to match length of *prefix*
+    """
     textblock = textblock.split('\n')
-    s = prefix + textblock[0] + '\n'
+    line = prefix + textblock[0] + '\n'
     if len(later_prefix) == 1:
         later_prefix = ' '*len(prefix)
-    s = s+'\n'.join([later_prefix+x for x in textblock[1:]])
-    if s[-1] != '\n':
-        return s + '\n'
+    line = line + '\n'.join([later_prefix + x for x in textblock[1:]])
+    if line[-1] != '\n':
+        return line + '\n'
     else:
-        return s
+        return line
 
 
 def transform_multidim_to_1d_decl(decl):
@@ -61,15 +69,15 @@ def transform_multidim_to_1d_decl(decl):
     Returns name and dimensions of array (to be used with transform_multidim_to_1d_ref())
     """
     dims = []
-    t = decl.type
-    while type(t) is c_ast.ArrayDecl:
-        dims.append(t.dim)
-        t = t.type
+    type_ = decl.type
+    while type(type_) is c_ast.ArrayDecl:
+        dims.append(type_.dim)
+        type_ = type_.type
 
     if dims:
         # Multidimensional array
         decl.type.dim = reduce(lambda l, r: c_ast.BinaryOp('*', l, r), dims)
-        decl.type.type = t
+        decl.type.type = type_
 
     return decl.name, dims
 
@@ -146,6 +154,7 @@ def force_iterable(f):
 
 class Kernel(object):
     """This class captures the kernel information, analyzes it and reports access pattern"""
+
     # Datatype sizes in bytes
     datatypes_size = {'double': 8, 'float': 4}
 
@@ -161,7 +170,7 @@ class Kernel(object):
         self.clear_state()
 
     def check(self):
-        """Checks that information about kernel makes sens and is valid."""
+        """Check that information about kernel makes sens and is valid."""
         datatypes = [v[0] for v in self.variables.values()]
         assert len(set(datatypes)) <= 1, 'mixing of datatypes within a kernel is not supported.'
 
@@ -202,9 +211,9 @@ class Kernel(object):
             return expr.subs(self.constants)
 
     def array_sizes(self, in_bytes=False, subs_consts=False):
-        """Returns a dictionary with all arrays sizes (optionally in bytes, otherwise in elements).
+        """Returns a dictionary with all arrays sizes.
 
-        :param in_bytes: If True, output will be in bytes, not in element counts.
+        :param in_bytes: If True, output will be in bytes, not element counts.
         :param subs_consts: If True, output will be numbers and not symbolic.
 
         Scalar variables are ignored.
@@ -226,14 +235,14 @@ class Kernel(object):
                 var_sizes[var_name] *= element_size
 
         if subs_consts:
-            return {k: self.subs_consts(v) for k,v in var_sizes.items()}
+            return {k: self.subs_consts(v) for k, v in var_sizes.items()}
         else:
             return var_sizes
 
     def _calculate_relative_offset(self, name, access_dimensions):
         """
-        Returns the offset from the iteration center in number of elements and the order of indices
-        used in access.
+        Returns the offset from the iteration center in number of elements and
+        the order of indices used in access.
         """
         # TODO to be replaced with compile_global_offsets
         offset = 0
@@ -245,7 +254,7 @@ class Kernel(object):
 
             if offset_type == 'rel':
                 offset += self.kernel.subs_consts(
-                   dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
+                    dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
             else:
                 # should not happen
                 pass
@@ -334,11 +343,13 @@ class Kernel(object):
         for var_name in self.variables:
             if sources:
                 for r in self.sources.get(var_name, []):
-                    if r is None: continue
+                    if r is None:
+                        continue
                     sympy_accesses[var_name].append(self.access_to_sympy(var_name, r))
             if destinations:
                 for w in self.destinations.get(var_name, []):
-                    if w is None: continue
+                    if w is None:
+                        continue
                     sympy_accesses[var_name].append(self.access_to_sympy(var_name, w))
 
         return sympy_accesses
@@ -532,7 +543,8 @@ class Kernel(object):
                                   "Try a different model or kernel input format.")
 
     def build(self, *args, **kwargs):
-        raise NotImplementedError("Kernel does not support compilation. Try a different model or kernel input format.")
+        raise NotImplementedError("Kernel does not support compilation. Try a different model or "
+                                  "kernel input format.")
 
 
 class KernelCode(Kernel):
@@ -569,8 +581,9 @@ class KernelCode(Kernel):
         if filename is None:
             filename = ''
         else:
-            filename ='"{}"'.format(filename)
-        return '#line 0 \nvoid {}() {{\n#line 1 {}\n{}\n#line 999 \n}}'.format(func_name, filename, self.kernel_code)
+            filename = '"{}"'.format(filename)
+        return '#line 0 \nvoid {}() {{\n#line 1 {}\n{}\n#line 999 \n}}'.format(
+            func_name, filename, self.kernel_code)
 
     def clear_state(self):
         """Clears mutable internal states"""
@@ -586,7 +599,8 @@ class KernelCode(Kernel):
             'last statement in kernel code must be a loop'
 
         for item in self.kernel_ast.block_items[:-1]:
-            if type(item) is c_ast.Pragma: continue
+            if type(item) is c_ast.Pragma:
+                continue
             array = type(item.type) is c_ast.ArrayDecl
 
             if array:
@@ -946,7 +960,7 @@ class KernelCode(Kernel):
                 'repeat', ['const'], [], [],
                 type_decl, init, None))
             # for(; repeat > 0; repeat--) {...}
-            cond = c_ast.BinaryOp( '>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
+            cond = c_ast.BinaryOp('>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
             next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
             stmt = c_ast.Compound([ast.block_items.pop(-2)]+dummies)
 
@@ -1011,7 +1025,7 @@ class KernelCode(Kernel):
         *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
 
-        *pointer_increment* is the number of bytes the pointer is incremented after the loop or 
+        *pointer_increment* is the number of bytes the pointer is incremented after the loop or
            - 'auto': automatic detection, RuntimeError is raised in case of failure
            - 'auto_with_manual_fallback': automatic detection, fallback to manual input
            - 'manual': prompt user
@@ -1108,7 +1122,7 @@ class KernelCode(Kernel):
         *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
 
-        *pointer_increment* is the number of bytes the pointer is incremented after the loop or 
+        *pointer_increment* is the number of bytes the pointer is incremented after the loop or
            - 'auto': automatic detection, RuntimeError is raised in case of failure
            - 'auto_with_manual_fallback': automatic detection, fallback to manual input
            - 'manual': prompt user
@@ -1147,7 +1161,6 @@ class KernelCode(Kernel):
             lflags = []
         lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
         compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
-
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(
@@ -1213,7 +1226,7 @@ class KernelDescription(Kernel):
         # Data destinations
         self.destinations = {
             var_name: list([self.string_to_sympy(idx) for idx in v])
-            for var_name,v in description['data destinations'].items()
+            for var_name, v in description['data destinations'].items()
         }
 
         # Flops

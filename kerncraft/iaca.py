@@ -131,7 +131,7 @@ def find_asm_blocks(asm_lines):
                                     len(set(xmm_references)) + len(set(ymm_references)) +
                                     len(set(gp_references))),
                            'pointer_increment': pointer_increment,
-                           'lines': asm_lines[last_label_line:i+1],})
+                           'lines': asm_lines[last_label_line:i+1], })
 
     return list(enumerate(blocks))
 
@@ -198,14 +198,15 @@ def iaca_instrumentation(input_file, output_file=None,
     """
     Add IACA markers to an assembly file. If instrumentation fails
     because loop increment could not determined automatically, a ValueError is raised
-    
+
     :param input_file: path to assembly file used as input
     :param output_file: output path, if None the input is overwritten
-    :param block_selection: index of the assembly block to instrument, or 'auto' for automatically using block with the
+    :param block_selection: index of the assembly block to instrument, or 'auto' for automatically
+                            using block with the
                             most vector instructions, or 'manual' to read index to prompt user
-    :param pointer_increment: number of bytes the pointer is incremented after the loop or 
-                              - 'auto': automatic detection, RuntimeError is raised in case of failure
-                              - 'auto_with_manual_fallback': automatic detection, fallback to manual input
+    :param pointer_increment: number of bytes the pointer is incremented after the loop or
+                              - 'auto': automatic detection, otherwise RuntimeError is raised
+                              - 'auto_with_manual_fallback': like auto with fallback to manual input
                               - 'manual': prompt user
     :return: the instrumented assembly block
     """
@@ -238,7 +239,8 @@ def iaca_instrumentation(input_file, output_file=None,
     elif isinstance(pointer_increment, int):
         block['pointer_increment'] = pointer_increment
     else:
-        raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  'auto_with_manual_fallback' ")
+        raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
+                         "'auto_with_manual_fallback' ")
 
     instrumentedAsm = insert_markers(assembly, block['first_line'], block['last_line'])
     with open(output_file, 'w') as in_file:
@@ -250,9 +252,9 @@ def iaca_instrumentation(input_file, output_file=None,
 def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architecture):
     """
     Runs IACA analysis on an instrumented binary
-    
-    :param instrumented_binary_file: path of binary that was built with IACA markers 
-    :param micro_architecture: micro architecture string as taken by IACA. 
+
+    :param instrumented_binary_file: path of binary that was built with IACA markers
+    :param micro_architecture: micro architecture string as taken by IACA.
                                one of: NHM, WSM, SNB, IVB, HSW, BDW
     :return: a dictionary with the following keys:
         - 'output': the output of the iaca executable
@@ -312,6 +314,7 @@ def main():
                          block_selection='manual', pointer_increment=1)
 
     print("Markers inserted.")
+
 
 if __name__ == '__main__':
     main()

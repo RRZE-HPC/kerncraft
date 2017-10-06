@@ -31,7 +31,9 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
 
 def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
     try:
-        topo = subprocess.Popen(['likwid-topology'], stdout=subprocess.PIPE).communicate()[0].decode("utf-8")
+        topo = subprocess.Popen(
+                ['likwid-topology'], stdout=subprocess.PIPE
+            ).communicate()[0].decode("utf-8")
     except OSError as e:
         print('likwid-topology execution failed, is it installed and loaded?', file=sys.stderr)
         sys.exit(1)
@@ -39,7 +41,8 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
         cpuinfo = f.read()
     sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
-    numa_domains_per_socket = int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0])/sockets
+    numa_domains_per_socket = \
+        int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0])/sockets
     cores_per_numa_domain = numa_domains_per_socket/cores_per_socket
     machine = {
         'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
@@ -60,9 +63,9 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
                                    'MUL': 'INFORMATION_REQUIRED'}},
         'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW)',
         # TODO retrive flags automatically from compiler with -march=native
-        'compiler': {'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)',],
-                     'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L',],
-                     'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)',]},
+        'compiler': {'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'],
+                     'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],
+                     'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)']},
         'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
         'overlapping model': {
             'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
@@ -264,6 +267,7 @@ def main():
                     sys.stderr.flush()
 
     print(yaml.dump(machine))
+
 
 if __name__ == '__main__':
     main()

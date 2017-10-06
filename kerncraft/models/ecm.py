@@ -124,8 +124,8 @@ class ECMData(object):
 
                 # calculate cycles
                 cycles = float(misses[cache_level] + evicts[cache_level]) * \
-                         float(elements_per_cacheline) * float(element_size) * \
-                         float(self.machine['clock']) / float(bw)
+                    float(elements_per_cacheline) * float(element_size) * \
+                    float(self.machine['clock']) / float(bw)
                 # add penalty cycles for each read stream
                 if 'penalty cycles per read stream' in cache_info:
                     cycles += misses[cache_level] * \
@@ -138,7 +138,8 @@ class ECMData(object):
 
             self.results['cycles'].append((
                 '{}-{}'.format(
-                    cache_info['level'], self.machine['memory hierarchy'][cache_level + 1]['level']),
+                    cache_info['level'],
+                    self.machine['memory hierarchy'][cache_level + 1]['level']),
                 cycles))
 
             # TODO remove the following by makeing testcases more versatile:
@@ -388,11 +389,10 @@ class ECM(object):
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
 
         report += '\n{{ {} \ {} }} cy/CL'.format(
-            max(self.results['T_OL'],
-                self.results['T_nOL']),
-                ' \ '.join(['{:.1f}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
-                                                self.results['T_nOL'], self.results['T_OL']))
-                            for i in range(len(self.results['cycles']))]))
+            max(self.results['T_OL'], self.results['T_nOL']),
+            ' \ '.join(['{:.1f}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
+                                            self.results['T_nOL'], self.results['T_OL']))
+                        for i in range(len(self.results['cycles']))]))
 
         if self._args and self._args.verbose > 1:
             if 'memory bandwidth kernel' in self.results:

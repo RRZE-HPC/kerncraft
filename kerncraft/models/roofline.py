@@ -57,7 +57,7 @@ class Roofline(object):
                         'verbose infos': self.predictor.get_infos(),  # only for verbose outputs
                         'bottleneck level': 0,
                         'mem bottlenecks': []}
-        
+
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = float(self.machine['cacheline size'])
         elements_per_cacheline = int(cacheline_size // element_size)
@@ -75,9 +75,9 @@ class Roofline(object):
             iteration=range(0, elements_per_cacheline))))
         read_offsets = set([item for sublist in read_offsets for item in sublist])
         write_offsets = set([item for sublist in write_offsets for item in sublist])
-        
+
         write_streams = len(write_offsets)
-        read_streams = len(read_offsets) + write_streams # write-allocate
+        read_streams = len(read_offsets) + write_streams  # write-allocate
         total_loads = read_streams * element_size
         total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
@@ -143,7 +143,7 @@ class Roofline(object):
             if performance < self.results.get('min performance', performance):
                 self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
                 self.results['min performance'] = performance
-        
+
         return self.results
 
     def analyze(self):
@@ -172,13 +172,13 @@ class Roofline(object):
 
     def report(self, output_file=sys.stdout):
         precision = 'DP' if self.kernel.datatype == 'double' else 'SP'
-        max_flops = self.machine['clock']*self._args.cores * \
-                    self.machine['FLOPs per cycle'][precision]['total']
+        max_flops = self.machine['clock'] * self._args.cores * \
+            self.machine['FLOPs per cycle'][precision]['total']
         max_flops.unit = "FLOP/s"
-        
+
         if self._args and self._args.verbose >= 3:
             print('{}'.format(pformat(self.results)), file=output_file)
-        
+
         if self._args and self._args.verbose >= 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
             print('Bottlenecks:', file=output_file)
@@ -280,17 +280,17 @@ class RooflineIACA(Roofline):
                 'uops': uops,
                 'performance throughput':
                     self.machine['clock']/block_throughput*elements_per_block*flops_per_element
-                    *self._args.cores,
+                    * self._args.cores,
                 'IACA output': iaca_output}})
         self.results['cpu bottleneck']['performance throughput'].unit = 'FLOP/s'
 
     def report(self, output_file=sys.stdout):
         cpu_flops = PrefixedUnit(
             self.results['cpu bottleneck']['performance throughput'], "FLOP/s")
-        
+
         if self._args and self._args.verbose >= 3:
             print('{}'.format(pformat(self.results)), file=output_file)
-        
+
         if self._args and self._args.verbose >= 1:
             print('Bottlenecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
@@ -301,7 +301,9 @@ class RooflineIACA(Roofline):
                       self.conv_perf(cpu_flops, self._args.unit)),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
-                if b is None: continue # Skip CPU-L1 from Roofline model
+                # Skip CPU-L1 from Roofline model
+                if b is None:
+                    continue
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {!s:>15} |'
                       ' {bandwidth!s:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),

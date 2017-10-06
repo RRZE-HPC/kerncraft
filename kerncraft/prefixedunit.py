@@ -135,7 +135,7 @@ class PrefixedUnit(yaml.YAMLObject):
 
         v = self.__class__(float(self)/float(other), unit)
         return v.reduced()
-    
+
     __div__ = __truediv__
 
     def __floordiv__(self, other):
@@ -170,6 +170,7 @@ class PrefixedUnit(yaml.YAMLObject):
             return float(self) != float(other)
         except TypeError:
             return True
+
 
 # Make this tag automatic
 yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)

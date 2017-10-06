@@ -28,19 +28,24 @@ def cmp_to_key(mycmp):
     class K(object):
         def __init__(self, obj, *args):
             self.obj = obj
+
         def __lt__(self, other):
             return mycmp(self.obj, other.obj) < 0
+
         def __gt__(self, other):
             return mycmp(self.obj, other.obj) > 0
+
         def __eq__(self, other):
             return mycmp(self.obj, other.obj) == 0
+
         def __le__(self, other):
             return mycmp(self.obj, other.obj) <= 0
+
         def __ge__(self, other):
             return mycmp(self.obj, other.obj) >= 0
+
         def __ne__(self, other):
             return mycmp(self.obj, other.obj) != 0
-    return K
 
 
 class LC(object):
@@ -77,7 +82,7 @@ class LC(object):
 
         results = {'dimensions': {}}
 
-        def sympy_compare(a,b):
+        def sympy_compare(a, b):
             c = 0
             for i in range(min(len(a), len(b))):
                 s = a[i] - b[i]
@@ -87,22 +92,25 @@ class LC(object):
                     c = 0
                 else:
                     c = 1
-                if c != 0: break
+                if c != 0:
+                    break
             return c
 
         accesses = defaultdict(list)
         sympy_accesses = defaultdict(list)
         for var_name in self.kernel.variables:
             for r in self.kernel.sources.get(var_name, []):
-                if r is None: continue
+                if r is None:
+                    continue
                 accesses[var_name].append(r)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, r))
             for w in self.kernel.destinations.get(var_name, []):
-                if w is None: continue
+                if w is None:
+                    continue
                 accesses[var_name].append(w)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
             # order accesses by increasing order
-            accesses[var_name].sort(key=cmp_to_key(sympy_compare))#cmp=sympy_compare)
+            accesses[var_name].sort(key=cmp_to_key(sympy_compare))
 
         results['accesses'] = accesses
         results['sympy_accesses'] = sympy_accesses
@@ -123,7 +131,7 @@ class LC(object):
             results['dimensions'][dimension]['slices_accesses'] = slices_accesses
 
             slices_distances = defaultdict(list)
-            for k,v in slices_accesses.items():
+            for k, v in slices_accesses.items():
                 for i in range(1, len(v)):
                     slices_distances[k].append((v[i-1] - v[i]).simplify())
             results['dimensions'][dimension]['slices_distances'] = slices_distances
@@ -155,6 +163,7 @@ class LC(object):
                 for a in args:
                     for s in a.free_symbols:
                         max_coeffs = max(max_coeffs, len(sympy.Poly(a, s).all_coeffs()))
+
                 def coeff_filter(a):
                     return max(
                         0, 0,
@@ -162,8 +171,8 @@ class LC(object):
                 args = list(filter(coeff_filter, args))
 
                 m = sympy.Max(*args)
-                #if m.is_Function:
-                #    raise ValueError("Could not resolve {} to maximum.".format(m))
+                # if m.is_Function:
+                #     raise ValueError("Could not resolve {} to maximum.".format(m))
                 return m
 
             slices_max = FuckedUpMax(sympy.Integer(0),
@@ -180,7 +189,7 @@ class LC(object):
             # Apply to all cache sizes
             csim = self.machine.get_cachesim(self._args.cores)
             results['dimensions'][dimension]['caches'] = {}
-            for cl in  csim.levels(with_mem=False):
+            for cl in csim.levels(with_mem=False):
                 cache_equation = sympy.Eq(cache_requirement_bytes, cl.size())
                 if len(self.kernel.constants.keys()) <= 1:
                     inequality = sympy.solve(sympy.LessThan(cache_requirement_bytes, cl.size()),

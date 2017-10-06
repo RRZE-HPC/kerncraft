@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
@@ -11,7 +10,6 @@ if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
         sys.version_info[0] == 3 and sys.version_info < (3, 4):
     print("Must use python 2.7 or 3.4 and greater.", file=sys.stderr)
     sys.exit(1)
-
 import argparse
 import os.path
 import pickle
@@ -233,7 +231,7 @@ def run(parser, args, output_file=sys.stdout):
             print('{:=^80}'.format(' kerncraft '), file=output_file)
             print('{:<40}{:>40}'.format(args.code_file.name, '-m '+args.machine.name),
                   file=output_file)
-            print(' '.join(['-D {} {}'.format(k,v) for k,v in define]), file=output_file)
+            print(' '.join(['-D {} {}'.format(k, v) for k, v in define]), file=output_file)
             print('{:-^80}'.format(' '+model_name+' '), file=output_file)
 
             if args.verbose > 1:

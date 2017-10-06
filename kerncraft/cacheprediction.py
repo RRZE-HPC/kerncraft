@@ -11,35 +11,14 @@ import sympy
 from kerncraft.kernel import symbol_pos_int
 
 
-# Not useing functools.cmp_to_key, because it does not exit in python 2.x
-def cmp_to_key(mycmp):
-    'Convert a cmp= function into a key= function'
-    class K(object):
-        def __init__(self, obj):
-            self.obj = obj
-        def __lt__(self, other):
-            return mycmp(self.obj, other.obj) < 0
-        def __gt__(self, other):
-            return mycmp(self.obj, other.obj) > 0
-        def __eq__(self, other):
-            return mycmp(self.obj, other.obj) == 0
-        def __le__(self, other):
-            return mycmp(self.obj, other.obj) <= 0
-        def __ge__(self, other):
-            return mycmp(self.obj, other.obj) >= 0
-        def __ne__(self, other):
-            return mycmp(self.obj, other.obj) != 0
-    return K
-
-
 class CachePredictor(object):
     """
     Predictor class used to interface LayerCondition and CacheSimulation with model classes.
-    
+
     It's goal is to predict the amount of hits and misses it takes to process one cache line worth
     of work under a steady state assumption.
-    
-    
+
+
     Only stubs here.
     """
     def __init__(self, kernel, machine, cores=1):
@@ -63,10 +42,10 @@ class CachePredictor(object):
         """Returns verbose information about the predictor"""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
+
 class LayerConditionPredictor(CachePredictor):
-    """
-    Predictor class based on layer condition analysis.
-    """
+    """Predictor class based on layer condition analysis."""
+
     def __init__(self, kernel, machine, cores=1):
         CachePredictor.__init__(self, kernel, machine, cores=1)
 
@@ -77,13 +56,14 @@ class LayerConditionPredictor(CachePredictor):
             raise ValueError("Can not apply layer-condition, since not all loops are of step "
                              "length 1.")
 
-        # 2. The order of iterations must be reflected in the order of indices in all array 
+        # 2. The order of iterations must be reflected in the order of indices in all array
         #    references containing the inner loop index. If the inner loop index is not part of the
         #    reference, the reference is simply ignored
         # TODO support flattend array indexes
         index_order = [symbol_pos_int(l['index']) for l in loop_stack]
         for var_name, arefs in chain(self.kernel.sources.items(), self.kernel.destinations.items()):
-            if arefs[0] is None: continue
+            if arefs[0] is None:
+                continue
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
                 for t in a.expand().as_ordered_terms():
                     # Check each and every term if they are valid according to loop order and array
@@ -91,7 +71,8 @@ class LayerConditionPredictor(CachePredictor):
                     idx = t.free_symbols.intersection(index_order)
 
                     # Terms without any indices can be treat as constant offsets and are acceptable
-                    if not idx: continue
+                    if not idx:
+                        continue
 
                     if len(idx) != 1:
                         raise ValueError("Only one loop counter may appear per term. "
@@ -116,10 +97,10 @@ class LayerConditionPredictor(CachePredictor):
                     # TODO support -1 aswell
                     raise ValueError("Can not apply layer-condition, array references may not "
                                      "increment more then one per iteration.")
-                
+
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        
+
         accesses = {}
         destinations = set()
         distances = []
@@ -144,19 +125,19 @@ class LayerConditionPredictor(CachePredictor):
             acs.sort(reverse=True)
 
             # Create reuse distances by substracting accesses pairwise in decreasing order
-            distances += [(acs[i-1]-acs[i]).simplify() for i in range(1,len(acs))]
+            distances += [(acs[i-1]-acs[i]).simplify() for i in range(1, len(acs))]
             # Add infinity for each array
             distances.append(sympy.oo)
-            
+
         # Sort distances by decreasing order
         distances.sort(reverse=True)
         # Create copy of distances in bytes:
         distances_bytes = [d*element_size for d in distances]
         # CAREFUL! From here on we are working in byte offsets and not in indices anymore.
-        
+
         results['distances_bytes'] = distances_bytes
         results['cache'] = []
-        
+
         sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
 
         for c in self.machine.get_cachesim(self.cores).levels(with_mem=False):
@@ -178,16 +159,18 @@ class LayerConditionPredictor(CachePredictor):
                     if tail is sympy.oo:
                         continue
                     cache_requirement = (
-                        sum([d for d in distances_bytes if d<=tail]) +  # Sum of inter-access caches
-                        tail*len([d for d in distances_bytes if d>tail]))  # Tails
-                    
+                        # Sum of inter-access caches
+                        sum([d for d in distances_bytes if d <= tail]) +
+                        # Tails
+                        tail*len([d for d in distances_bytes if d > tail]))
+
                     if cache_requirement <= c.size():
                         # If we found a tail that fits into our available cache size
                         # note hits and misses and break
-                        hits = len([d for d in distances_bytes if d<=tail])
-                        misses = len([d for d in distances_bytes if d>tail])
+                        hits = len([d for d in distances_bytes if d <= tail])
+                        misses = len([d for d in distances_bytes if d > tail])
                         break
-            
+
             # Resulting analysis for current cache level
             results['cache'].append({
                 'name': c.name,
@@ -196,7 +179,7 @@ class LayerConditionPredictor(CachePredictor):
                 'evicts': len(destinations) if c.size() < sum_array_sizes else 0,
                 'requirement': cache_requirement,
                 'tail': tail})
-        
+
         self.results = results
 
     def get_hits(self):
@@ -224,16 +207,16 @@ class CacheSimulationPredictor(CachePredictor):
         CachePredictor.__init__(self, kernel, machine, cores)
         # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim(self.cores)
-        
+
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
         elements_per_cacheline = int(cacheline_size // element_size)
-        
+
         # Gathering some loop information:
         inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
         inner_index = symbol_pos_int(inner_loop['index'])
-        inner_increment = inner_loop['increment']# Calculate the number of iterations for warm-up
+        inner_increment = inner_loop['increment']  # Calculate the number of iterations for warm-up
         max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
 
@@ -248,7 +231,7 @@ class CacheSimulationPredictor(CachePredictor):
             symbol_pos_int(l['index']): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
         warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        
+
         # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
         while warmup_iteration_count*element_size > max_cache_size*1.5:
             for index in [symbol_pos_int(l['index'])
@@ -257,7 +240,7 @@ class CacheSimulationPredictor(CachePredictor):
                     warmup_indices[index] -= 1
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        
+
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads:
         # Assumption: writes (and reads) increase linearly
@@ -270,7 +253,7 @@ class CacheSimulationPredictor(CachePredictor):
             first_offset = min(o[0])
         # Distance from cacheline boundary (in bytes)
         diff = first_offset - \
-               (int(first_offset)>>csim.first_level.cl_bits<<csim.first_level.cl_bits)
+            (int(first_offset) >> csim.first_level.cl_bits << csim.first_level.cl_bits)
         warmup_iteration_count -= (diff//element_size)//inner_increment
         warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
 
@@ -288,12 +271,12 @@ class CacheSimulationPredictor(CachePredictor):
         # Starting point is one past the last warmup element
         bench_iteration_start = warmup_iteration_count
         # End point is the end of the current dimension (cacheline alligned)
-        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1) 
+        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1)
                                // (elements_per_cacheline//inner_increment))
         # If end point is less than one cacheline away, go beyond for 100 cachelines and
         # warn user of potentially inaccurate results
         if first_dim_factor == 0:
-            # TODO a nicer solution woul be to do less warmup iterations to select a 
+            # TODO a nicer solution woul be to do less warmup iterations to select a
             # cacheline within a first dimension, if possible
             print('Warning: (automatic) warmup vs benchmark interation choice was not perfect '
                   'and may lead to inaccurate cache miss predictions. This is most likely the '
@@ -301,7 +284,7 @@ class CacheSimulationPredictor(CachePredictor):
                       inner_loop['index'], inner_loop['start'], inner_loop['stop']
                   ))
             first_dim_factor = 100
-        bench_iteration_end = (bench_iteration_start + 
+        bench_iteration_end = (bench_iteration_start +
                                elements_per_cacheline*inner_increment*first_dim_factor)
 
         # compile access needed for one cache-line
@@ -310,7 +293,7 @@ class CacheSimulationPredictor(CachePredictor):
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
-        
+
         # use stats to build results
         self.stats = list(csim.stats())
         self.first_dim_factor = first_dim_factor
@@ -334,7 +317,7 @@ class CacheSimulationPredictor(CachePredictor):
         """Returns verbose information about the predictor"""
         first_dim_factor = self.first_dim_factor
         infos = {'memory hierarchy': [], 'cache stats': self.stats,
-                        'cachelines in stats': first_dim_factor}
+                 'cachelines in stats': first_dim_factor}
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             infos['memory hierarchy'].append({
                 'index': len(infos['memory hierarchy']),

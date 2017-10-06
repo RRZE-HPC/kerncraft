@@ -116,7 +116,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     event_dscr = [event, register]
 
     if parameters:
-        for k,v in sorted(event_tuple[2].items()):  # sorted for reproducability
+        for k, v in sorted(event_tuple[2].items()):  # sorted for reproducability
             if type(v) is int:
                 k += "={}".format(hex(v))
             event_dscr.append(k)
@@ -136,7 +136,8 @@ def build_minimal_runs(events):
         for event_tpl in events:
             event, registers, parameters = event_tpl
             # Skip allready scheduled events
-            if event_tpl in scheduled_events: continue
+            if event_tpl in scheduled_events:
+                continue
             # Compile explicit list of possible register locations
             for possible_reg in register_options(registers):
                 # Schedule in current run, if register is not yet in use
@@ -177,7 +178,7 @@ class Benchmark(object):
         self.machine = machine
         self._args = args
         self._parser = parser
-        
+
         cpuinfo = open('/proc/cpuinfo').read()
         try:
             current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
@@ -280,7 +281,7 @@ class Benchmark(object):
             runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime/float(repetitions)
         raw_results = [mem_results]
-        
+
         # Gather remaining counters counters
         if not self._args.no_phenoecm:
             # Build events and sympy expressions for all model metrics
@@ -296,7 +297,7 @@ class Benchmark(object):
                 inter_name = '{}{}'.format(
                     name, self.machine['memory hierarchy'][i+1])
 
-                for k,v in cache_info['performance counter metrics'].items():
+                for k, v in cache_info['performance counter metrics'].items():
                     cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
                     event_counters.update(event_dict)
 
@@ -330,7 +331,7 @@ class Benchmark(object):
 
             # Inter-cache transfers per CL
             cache_transfers_per_cl = {cache: {k: PrefixedUnit(v/total_cachelines, 'CL/CL')
-                                              for k,v in d.items()}
+                                              for k, v in d.items()}
                                       for cache, d in cache_metric_results.items()}
             cache_transfers_per_cl['L1']['accesses'].unit = 'LOAD/CL'
 
@@ -342,8 +343,8 @@ class Benchmark(object):
                 1)
 
             data_transfers = {
+                # Assuming 0.5 cy / LOAD (SSE on SNB or IVB; AVX on HSW, BDW, SKL or SKX)
                 'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
-                         # Assuming 0.5 cy / LOAD (SSE on SNB or IVB; AVX on HSW, BDW, SKL or SKX)
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
                            total_cachelines *
@@ -424,7 +425,7 @@ class Benchmark(object):
 
         if not self._args.no_phenoecm:
             print("Data Transfers:")
-            print("{:^8} |".format("cache"), end ='')
+            print("{:^8} |".format("cache"), end='')
             for metrics in self.results['data transfers'].values():
                 for metric_name in metrics:
                     print(" {:^14}".format(metric_name), end='')
