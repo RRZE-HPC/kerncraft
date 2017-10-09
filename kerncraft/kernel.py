@@ -1129,7 +1129,7 @@ class KernelCode(Kernel):
         """
         asmFile = self.compile(verbose=verbose)
         bin_name = self.assemble(asmFile, iaca_markers=True, asm_block=asm_block,
-                                 pointer_increment='auto_with_manual_fallback', verbose=verbose)
+                                 pointer_increment=pointer_increment, verbose=verbose)
         return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
 
     def build(self, lflags=None, verbose=False):
