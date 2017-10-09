@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""Cache prediction interface classes are gathered in this module."""
+
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
@@ -18,28 +20,28 @@ class CachePredictor(object):
     It's goal is to predict the amount of hits and misses it takes to process one cache line worth
     of work under a steady state assumption.
 
-
     Only stubs here.
     """
+
     def __init__(self, kernel, machine, cores=1):
         self.kernel = kernel
         self.machine = machine
         self.cores = cores
 
     def get_hits(self):
-        """Returns a list with cache lines of hits per cache level"""
+        """Return a list with cache lines of hits per cache level."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
     def get_misses(self):
-        """Returns a list with cache lines of misses per cache level"""
+        """Return a list with cache lines of misses per cache level."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
     def get_evicts(self):
-        """Returns a list with cache lines of misses per cache level"""
+        """Return a list with cache lines of misses per cache level."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
     def get_infos(self):
-        """Returns verbose information about the predictor"""
+        """Return verbose information about the predictor."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
 
@@ -47,6 +49,7 @@ class LayerConditionPredictor(CachePredictor):
     """Predictor class based on layer condition analysis."""
 
     def __init__(self, kernel, machine, cores=1):
+        """Initialize layer condition based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores=1)
 
         # check that layer conditions can be applied on this kernel:
@@ -183,27 +186,27 @@ class LayerConditionPredictor(CachePredictor):
         self.results = results
 
     def get_hits(self):
-        """Returns a list with cache lines of hits per cache level"""
+        """Return a list with cache lines of hits per cache level."""
         return [c['hits'] for c in self.results['cache']]
 
     def get_misses(self):
-        """Returns a list with cache lines of misses per cache level"""
+        """Return a list with cache lines of misses per cache level."""
         return [c['misses'] for c in self.results['cache']]
 
     def get_evicts(self):
-        """Returns a list with cache lines of misses per cache level"""
+        """Return a list with cache lines of misses per cache level."""
         return [c['evicts'] for c in self.results['cache']]
 
     def get_infos(self):
-        """Returns verbose information about the predictor"""
+        """Return verbose information about the predictor."""
         return self.results
 
 
 class CacheSimulationPredictor(CachePredictor):
-    """
-    Predictor class based on layer condition analysis.
-    """
+    """Predictor class based on layer condition analysis."""
+
     def __init__(self, kernel, machine, cores=1):
+        """Initialize cache simulation based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores)
         # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim(self.cores)
@@ -299,22 +302,22 @@ class CacheSimulationPredictor(CachePredictor):
         self.first_dim_factor = first_dim_factor
 
     def get_hits(self):
-        """Returns a list with cache lines of hits per cache level"""
+        """Return a list with cache lines of hits per cache level."""
         return [self.stats[cache_level]['HIT_count']/self.first_dim_factor
                 for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_misses(self):
-        """Returns a list with cache lines of misses per cache level"""
+        """Return a list with cache lines of misses per cache level."""
         return [self.stats[cache_level]['MISS_count']/self.first_dim_factor
                 for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_evicts(self):
-        """Returns a list with cache lines of misses per cache level"""
+        """Return a list with cache lines of misses per cache level."""
         return [self.stats[cache_level]['EVICT_count']/self.first_dim_factor
                 for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
 
     def get_infos(self):
-        """Returns verbose information about the predictor"""
+        """Return verbose information about the predictor."""
         first_dim_factor = self.first_dim_factor
         infos = {'memory hierarchy': [], 'cache stats': self.stats,
                  'cachelines in stats': first_dim_factor}

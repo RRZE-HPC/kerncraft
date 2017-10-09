@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+"""Roofline model and helper functions."""
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
@@ -14,7 +14,7 @@ from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPr
 
 class Roofline(object):
     """
-    class representation of the Roofline Model
+    Representation of the Roofline model.
 
     more info to follow...
     """
@@ -23,10 +23,13 @@ class Roofline(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure argument parser."""
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create roofline model from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -44,6 +47,7 @@ class Roofline(object):
             raise ValueError("The Roofline model requires that the sum of FLOPs is non-zero.")
 
     def calculate_cache_access(self):
+        """Apply cache prediction to generate cache access behaviour."""
         if self._args.cache_predictor == 'SIM':
             self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self._args.cores)
         elif self._args.cache_predictor == 'LC':

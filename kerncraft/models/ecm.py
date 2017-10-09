@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""Execution-Cache-Memory model class and helper functions."""
+
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
@@ -23,20 +25,23 @@ from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPr
 
 
 def round_to_next(x, base):
+    """Round float to next multiple of base."""
     # Based on: http://stackoverflow.com/a/2272174
     return int(base * math.ceil(float(x)/base))
 
 
 def blocking(indices, block_size, initial_boundary=0):
     """
-    splits list of integers into blocks of block_size. returns block indices.
+    Split list of integers into blocks of block_size and return block indices.
 
-    first block element is located at initial_boundary (default 0).
+    First block element will be located at initial_boundary (default 0).
 
     >>> blocking([0, -1, -2, -3, -4, -5, -6, -7, -8, -9], 8)
     [0,-1]
     >>> blocking([0], 8)
     [0]
+    >>> blocking([0], 8, initial_boundary=32)
+    [-4]
     """
     blocks = []
 
@@ -50,20 +55,19 @@ def blocking(indices, block_size, initial_boundary=0):
 
 
 class ECMData(object):
-    """
-    class representation of the Execution-Cache-Memory Model (only the data part)
-
-    more info to follow...
-    """
+    """Representation of Data portion of the Execution-Cache-Memory Model."""
 
     name = "Execution-Cache-Memory (data transfers only)"
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure argument group of parser."""
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create Execcution-Cache-Memory data model from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -78,6 +82,7 @@ class ECMData(object):
             pass
 
     def calculate_cache_access(self):
+        """Dispatch to cache predictor to get cache stats."""
         if self._args.cache_predictor == 'SIM':
             self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self._args.cores)
         elif self._args.cache_predictor == 'LC':
@@ -92,6 +97,11 @@ class ECMData(object):
                         'verbose infos': self.predictor.get_infos()}  # only for verbose outputs
 
     def calculate_cycles(self):
+        """
+        Calculate performance model cycles from cache stats.
+
+        calculate_cache_access() needs to have been execute before.
+        """
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
 
@@ -145,13 +155,14 @@ class ECMData(object):
         return self.results
 
     def analyze(self):
+        """Run complete anaylysis and return results."""
         self.calculate_cache_access()
         self.calculate_cycles()
 
         return self.results
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
-        """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s"""
+        """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s."""
         if not isinstance(cy_cl, PrefixedUnit):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
         if not unit:
@@ -177,6 +188,7 @@ class ECMData(object):
                 'FLOP/s': performance}[unit]
 
     def report(self, output_file=sys.stdout):
+        """Print generated model data in human readable format."""
         if self._args and self._args.verbose > 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
 
@@ -193,11 +205,7 @@ class ECMData(object):
 
 
 class ECMCPU(object):
-    """
-    class representation of the Execution-Cache-Memory Model (only the operation part)
-
-    more info to follow...
-    """
+    """Representation of the In-core execution part of the Execution-Cache-Memory model."""
 
     name = "Execution-Cache-Memory (CPU operations only)"
 
@@ -207,6 +215,8 @@ class ECMCPU(object):
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create Execution-Cache-Memory model from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -226,6 +236,7 @@ class ECMCPU(object):
                     parser.error('--asm-block can only be "auto", "manual" or an integer')
 
     def analyze(self):
+        """Run complete analysis and return results."""
         try:
             iaca_analysis, asm_block = self.kernel.iaca_analysis(
                 micro_architecture=self.machine['micro-architecture'],
@@ -272,9 +283,10 @@ class ECMCPU(object):
             'T_nOL': T_nOL,
             'T_OL': T_OL,
             'IACA output': iaca_analysis['output']}
+        return self.results
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
-        """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s"""
+        """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s."""
         if not isinstance(cy_cl, PrefixedUnit):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
         if not unit:
@@ -297,6 +309,7 @@ class ECMCPU(object):
                 'FLOP/s': performance}[unit]
 
     def report(self, output_file=sys.stdout):
+        """Print generated model data in human readable format."""
         if self._args and self._args.verbose > 2:
             print("IACA Output:", file=output_file)
             print(self.results['IACA output'], file=output_file)
@@ -316,7 +329,7 @@ class ECMCPU(object):
 
 class ECM(object):
     """
-    class representation of the Execution-Cache-Memory Model (data and operations)
+    Complete representation of the Execution-Cache-Memory Model (data and operations).
 
     more info to follow...
     """
@@ -325,6 +338,7 @@ class ECM(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure argument parser."""
         # others are being configured in ECMData and ECMCPU
         parser.add_argument(
             '--ecm-plot',
@@ -332,6 +346,8 @@ class ECM(object):
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create complete Execution-Cache-Memory model from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -348,6 +364,7 @@ class ECM(object):
         self._data = ECMData(kernel, machine, args, parser)
 
     def analyze(self):
+        """Run complete analysis."""
         self._CPU.analyze()
         self._data.analyze()
         self.results = copy.deepcopy(self._CPU.results)
@@ -367,6 +384,7 @@ class ECM(object):
                 self.results['cycles'][-1][1])
 
     def report(self, output_file=sys.stdout):
+        """Print generated model data in human readable format."""
         report = ''
         if self._args and self._args.verbose > 1:
             self._CPU.report()
@@ -405,6 +423,7 @@ class ECM(object):
             self.plot(fig)
 
     def plot(self, fig=None):
+        """Plot visualization of model prediction."""
         if not fig:
             fig = plt.gcf()
 

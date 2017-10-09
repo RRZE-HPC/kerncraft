@@ -1,3 +1,4 @@
+"""Benchmark model and helper functions."""
 from __future__ import print_function
 from __future__ import division
 from __future__ import unicode_literals
@@ -24,7 +25,7 @@ from kerncraft.prefixedunit import PrefixedUnit
 
 def group_iterator(group):
     """
-    Iterates over simple regex-like groups.
+    Iterate over simple regex-like groups.
 
     The only special character is a dash (-), which take the preceding and the following chars to
     compute a range. If the range is non-sensical (e.g., b-a) it will be empty
@@ -53,7 +54,7 @@ def group_iterator(group):
 
 def register_options(regdescr):
     """
-    Very reduced regular expressions for describing a group of registers
+    Very reduced regular expressions for describing a group of registers.
 
     Only groups in square bracktes and unions with pipes (|) are supported.
 
@@ -91,7 +92,7 @@ def register_options(regdescr):
 
 def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     """
-    Returns a LIKWID event string from an event tuple or keyword arguments
+    Return a LIKWID event string from an event tuple or keyword arguments.
 
     *event_tuple* may have two or three arguments: (event, register) or
     (event, register, parameters)
@@ -122,7 +123,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
 
 def build_minimal_runs(events):
-    """Compiles list of minimal runs for given events"""
+    """Compile list of minimal runs for given events."""
     # Eliminate multiples
     events = [e for i, e in enumerate(events) if events.index(e) == i]
 
@@ -154,20 +155,21 @@ def build_minimal_runs(events):
 
 
 class Benchmark(object):
-    """
-    this will produce a benchmarkable binary to be used with likwid
-    """
+    """Produce a benchmarkable binary to be used with likwid."""
 
     name = "Benchmark"
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure argument parser."""
         parser.add_argument(
             '--no-phenoecm', action='store_true',
             help='Disables the phenomenological ECM model building.')
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create Benchmark model from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -206,12 +208,11 @@ class Benchmark(object):
 
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
         """
-        runs *cmd* with likwid-perfctr and returns result as dict
+        Run *cmd* with likwid-perfctr and returns result as dict.
 
         *group* may be a performance group known to likwid-perfctr or an event string.
         Only works with single core!
         """
-
         # Making sure iaca.sh is available:
         if find_executable('likwid-perfctr') is None:
             print("likwid-perfctr was not found. Make sure likwid is installed and found in PATH.",
@@ -239,7 +240,6 @@ class Benchmark(object):
             sys.exit(1)
 
         results = {}
-        ignore = True
         for l in output:
             l = l.split(',')
             try:
@@ -260,6 +260,7 @@ class Benchmark(object):
         return results
 
     def analyze(self):
+        """Run analysis."""
         bench = self.kernel.build(verbose=self._args.verbose > 1)
 
         # Build arguments to pass to command:
@@ -293,8 +294,6 @@ class Benchmark(object):
             for i in range(len(self.machine['memory hierarchy'])-1):
                 cache_info = self.machine['memory hierarchy'][i]
                 name = cache_info['level']
-                inter_name = '{}{}'.format(
-                    name, self.machine['memory hierarchy'][i+1])
 
                 for k, v in cache_info['performance counter metrics'].items():
                     cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
@@ -358,7 +357,6 @@ class Benchmark(object):
                             total_cachelines / mem_bw *
                             float(self.machine['clock']))
             }
-            T_data_result = T_data.subs(data_transfers)
 
             # Build phenomenological ECM model:
             ecm_model = {'T_OL': T_OL_result}
@@ -397,6 +395,7 @@ class Benchmark(object):
         self.results['Performance [MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
 
     def report(self, output_file=sys.stdout):
+        """Report gathered analysis data in human readable form."""
         if self._args.verbose > 0:
             print('Runtime (per repetition): {:.2g} s'.format(
                       self.results['Runtime (per repetition) [s]']),

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Layer condition model and helper functions"""
 
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -41,7 +42,7 @@ def cmp_to_key(mycmp):
 
 class LC(object):
     """
-    class representation of the Layer-Condition Model
+    Representation of the Layer-Condition model.
 
     See https://rrze-hpc.github.io/layer-condition/ for information about this analytical model.
     """
@@ -50,10 +51,13 @@ class LC(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure arugment parser"""
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create layer condition model from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -68,6 +72,7 @@ class LC(object):
             pass
 
     def calculate_cache_access(self):
+        """Apply layer condition model to calculate cache accesses."""
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
@@ -198,6 +203,7 @@ class LC(object):
         return results
 
     def analyze(self):
+        """Run complete analysis."""
         # check that layer conditions can be applied on this kernel:
         # 1. All iterations may only have a step width of 1
         loop_stack = list(self.kernel.get_loop_stack())
@@ -233,6 +239,7 @@ class LC(object):
         self.results = self.calculate_cache_access()
 
     def report(self, output_file=sys.stdout):
+        """Report generated model in human readable form."""
         if self._args and self._args.verbose > 2:
             pprint(self.results)
 
