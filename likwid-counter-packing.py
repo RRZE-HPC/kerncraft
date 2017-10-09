@@ -2,8 +2,6 @@
 from pprint import pprint
 import re
 import string
-from collections import defaultdict
-from itertools import chain
 try:
     # Python 3
     from itertools import zip_longest

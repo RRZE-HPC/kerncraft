@@ -10,9 +10,7 @@ import sys
 from distutils.spawn import find_executable
 import re
 from collections import defaultdict
-from pprint import pprint
 import string
-from itertools import chain
 try:
     # Python 3
     from itertools import zip_longest
@@ -247,7 +245,8 @@ class Benchmark(object):
             try:
                 # Metrics
                 results[l[0]] = float(l[1])
-            except:
+            except ValueError:
+                # Would not convert to float
                 pass
             try:
                 # Event counters

@@ -5,26 +5,17 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import division
 
-from functools import reduce
-import operator
-import subprocess
-import re
 import sys
 from itertools import chain
 from pprint import pprint
-from copy import deepcopy
 from collections import defaultdict
 
 import sympy
 
-from kerncraft.prefixedunit import PrefixedUnit
-from kerncraft.kernel import KernelCode, symbol_pos_int
-from kerncraft.cacheprediction import LayerConditionPredictor
-
 
 # Not useing functools.cmp_to_key, because it does not exit in python 2.x
 def cmp_to_key(mycmp):
-    'Convert a cmp= function into a key= function'
+    """Convert a cmp= function into a key= function"""
     class K(object):
         def __init__(self, obj, *args):
             self.obj = obj

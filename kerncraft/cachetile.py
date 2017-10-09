@@ -42,7 +42,7 @@ def simulate(kernel, model, define_dict, blocking_constant, blocking_length):
     # Add constants from define arguments
     for k, v in define_dict.items():
         kernel.set_constant(k, v)
-    
+
     kernel.set_constant(blocking_constant, blocking_length)
 
     model.analyze()
@@ -53,7 +53,7 @@ def run(parser, args):
     # machine information
     # Read machine description
     machine = MachineModel(args.machine.name)
-    
+
     # process kernel description
     description = six.text_type(args.description_file.read())
     kernel = KernelDescription(yaml.load(description))
@@ -65,7 +65,7 @@ def run(parser, args):
         define_dict[name] = int(value)
 
     model = models.ECMData(kernel, machine, args, parser)
-    
+
     # Select constant to search blocksize for
     undefined_constants = set()
     for var_name, var_info in kernel.variables.items():
@@ -77,14 +77,14 @@ def run(parser, args):
     assert len(undefined_constants) == 1, "There are multiple or none undefined constants {!r}. " \
         "Exactly one must be undefined.".format(undefined_constants)
     blocking_constant = undefined_constants.pop()
-    
+
     if args.verbose >= 1:
         print("blocking constant:", blocking_constant)
-        
+
     # min and max block lengths
     min_length = args.min_block_length
     min_runtime = simulate(kernel, model, define_dict, blocking_constant, min_length)
-    
+
     # determain max search length
     # upper bound: number of floats that fit into the last level cache
     max_length = int(machine['memory hierarchy'][-2]['size per group'])//4
@@ -95,30 +95,30 @@ def run(parser, args):
         runtime = simulate(kernel, model, define_dict, blocking_constant, length)
         if args.verbose >= 1:
             print("min", min_length, min_runtime, "current", length, runtime, "max", max_length)
-        
+
         # Increase search window
         if runtime > min_runtime:
             max_length = length  # and break
         else:
             length *= 2  # continue search
-    
+
     # search end of block
     while max_length - min_length > 10:
         # Take median for benchmark:
         length = (max_length - min_length) // 2 + min_length
-        
+
         # Execute simulation
         runtime = simulate(kernel, model, define_dict, blocking_constant, length)
         if args.verbose >= 1:
             print("min", min_length, min_runtime, "current", length, runtime, "max", max_length)
-        
+
         # Narrow search area
         if runtime <= min_runtime:
             min_runtime = runtime
             min_length = length
         else:
             max_length = length
-    
+
     if length <= max_length:
         if args.verbose:
             print("found for {}:".format(blocking_constant))
@@ -128,7 +128,7 @@ def run(parser, args):
         if args.verbose:
             print("nothing found. exceeded search window and not change in performance found.")
         sys.exit(1)
-        
+
 
 def main():
     # Create and populate parser

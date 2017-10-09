@@ -6,13 +6,8 @@ from __future__ import division
 
 import copy
 import sys
-import subprocess
-import re
 import math
-from pprint import pprint, pformat
-from distutils.spawn import find_executable
-from itertools import chain
-from copy import deepcopy
+from pprint import pformat
 
 import six
 try:
