@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Merge two pickle files containing dictionarys recursively."""
 
 from __future__ import print_function
 from __future__ import absolute_import
@@ -10,9 +11,9 @@ import collections
 
 def update(d, u):
     """
-    Updated dictionary recursivly
-    Origin:
-    http://stackoverflow.com/a/3233356/2754040
+    Update dictionary recursivly.
+
+    Origin: http://stackoverflow.com/a/3233356/2754040
     """
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
@@ -24,6 +25,7 @@ def update(d, u):
 
 
 def main():
+    """Comand line interface of picklemerge."""
     parser = argparse.ArgumentParser(
         description='Recursively merges two or more pickle files. Only supports pickles consisting '
         'of a single dictionary object.')

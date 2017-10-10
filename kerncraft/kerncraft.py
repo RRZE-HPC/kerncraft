@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Comand line interface of Kerncraft."""
 from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import absolute_import
@@ -30,7 +31,7 @@ from .machinemodel import MachineModel
 
 def space(start, stop, num, endpoint=True, log=False, base=10):
     """
-    Returns list of evenly spaced integers over an interval.
+    Return list of evenly spaced integers over an interval.
 
     Numbers can either be evenlty distributed in a linear space (if *log* is False) or in a log
     space (if *log* is True). If *log* is True, base is used to define the log space basis.
@@ -60,7 +61,7 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
 
 
 def int_or_str(s):
-    """Takes a string and casts to int if possible, otherwise returns original string"""
+    """Casts string to int if possible, otherwise return original string."""
     try:
         return int(s)
     except ValueError:
@@ -69,7 +70,7 @@ def int_or_str(s):
 
 class AppendStringRange(argparse.Action):
     """
-    Action to append a string and a range discription
+    Argparse Action to append integer range from string.
 
     A range discription must have the following format: start[-stop[:num[log[base]]]]
     if stop is given, a list of integers is compiled
@@ -77,7 +78,9 @@ class AppendStringRange(argparse.Action):
     if log is given, the integers are evenly spaced on a log space
     if base is given, the integers are evently spaced on that base (default: 10)
     """
+
     def __call__(self, parser, namespace, values, option_string=None):
+        """Execute action."""
         message = ''
         if len(values) != 2:
             message = 'requires 2 arguments'
@@ -109,6 +112,7 @@ class AppendStringRange(argparse.Action):
 
 
 def create_parser():
+    """Return argparse parser."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=True,
                         help='Path to machine description yaml file.')
@@ -161,6 +165,7 @@ def create_parser():
 
 
 def check_arguments(args, parser):
+    """Check arguments passed by user that are not checked by argparse itself."""
     if args.asm_block not in ['auto', 'manual']:
         try:
             args.asm_block = int(args.asm_block)
@@ -169,6 +174,7 @@ def check_arguments(args, parser):
 
 
 def run(parser, args, output_file=sys.stdout):
+    """Run command line interface."""
     # Try loading results file (if requested)
     result_storage = {}
     if args.store:
@@ -268,6 +274,7 @@ def run(parser, args, output_file=sys.stdout):
 
 
 def main():
+    """Initialize and run command line interface."""
     # Create and populate parser
     parser = create_parser()
 

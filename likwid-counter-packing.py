@@ -11,7 +11,7 @@ except ImportError:
 
 def group_iterator(group):
     """
-    Iterates over simple regex-like groups.
+    Yild all groups of simple regex-like expression.
 
     The only special character is a dash (-), which take the preceding and the following chars to
     compute a range. If the range is non-sensical (e.g., b-a) it will be empty
@@ -40,7 +40,7 @@ def group_iterator(group):
 
 def register_options(regdescr):
     """
-    Very reduced regular expressions for describing a group of registers
+    Very reduced regular expressions for describing a group of registers.
 
     Only groups in square bracktes and unions with pipes (|) are supported.
 
@@ -55,6 +55,7 @@ def register_options(regdescr):
     ['CBOX0C0', 'CBOX0C1', 'CBOX1C0', 'CBOX1C1', 'CBOX2C0', 'CBOX2C1', 'CBOX3C0', 'CBOX3C1']
     >>> list(register_options('PMC[0-1]|PMC[23]'))
     ['PMC0', 'PMC1', 'PMC2', 'PMC3']
+
     """
     if not regdescr:
         yield None
@@ -78,7 +79,7 @@ def register_options(regdescr):
 
 def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     """
-    Returns a LIKWID event string from an event tuple or keyword arguments
+    Return a LIKWID event string from an event tuple or keyword arguments.
 
     *event_tuple* may have two or three arguments: (event, register) or
     (event, register, parameters)
@@ -101,7 +102,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     event_dscr = [event, register]
 
     if parameters:
-        for k,v in sorted(event_tuple[2].items()):  # sorted for reproducability
+        for k, v in sorted(event_tuple[2].items()):  # sorted for reproducability
             if type(v) is int:
                 k += "={}".format(hex(v))
             event_dscr.append(k)
@@ -109,7 +110,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
 
 def build_minimal_runs(events):
-    """Compiles list of minimal runs for given events"""
+    """Compile list of minimal runs for given events."""
     # Eliminate multiples
     events = [e for i, e in enumerate(events) if events.index(e) == i]
 
@@ -121,7 +122,8 @@ def build_minimal_runs(events):
         for event_tpl in events:
             event, registers, parameters = event_tpl
             # Skip allready scheduled events
-            if event_tpl in scheduled_events: continue
+            if event_tpl in scheduled_events:
+                continue
             # Compile explicit list of possible register locations
             for possible_reg in register_options(registers):
                 # Schedule in current run, if register is not yet in use

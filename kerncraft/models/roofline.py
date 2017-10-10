@@ -14,7 +14,7 @@ from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPr
 
 class Roofline(object):
     """
-    Representation of the Roofline model.
+    Representation of the Roofline model based on simplistic FLOP analysis.
 
     more info to follow...
     """
@@ -151,10 +151,11 @@ class Roofline(object):
         return self.results
 
     def analyze(self):
+        """Run analysis."""
         self.calculate_cache_access()
 
     def conv_perf(self, performance, unit, default='FLOP/s'):
-        """Convert performance (FLOP/s) to other units, such as It/s or cy/CL"""
+        """Convert performance (FLOP/s) to other units, such as It/s or cy/CL."""
         if not unit:
             unit = default
 
@@ -175,6 +176,7 @@ class Roofline(object):
                 'FLOP/s': performance}[unit]
 
     def report(self, output_file=sys.stdout):
+        """Report analysis outcome in human readable form."""
         precision = 'DP' if self.kernel.datatype == 'double' else 'SP'
         max_flops = self.machine['clock'] * self._args.cores * \
             self.machine['FLOPs per cycle'][precision]['total']
@@ -220,7 +222,7 @@ class Roofline(object):
 
 class RooflineIACA(Roofline):
     """
-    class representation of the Roofline Model (with IACA throughput analysis)
+    Representation of the Roofline model based on IACA throughput analysis.
 
     more info to follow...
     """
@@ -229,10 +231,13 @@ class RooflineIACA(Roofline):
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure argument parser."""
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None):
         """
+        Create Roofline model with IACA analysis from kernel and machine objects.
+
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
@@ -241,8 +246,8 @@ class RooflineIACA(Roofline):
         Roofline.__init__(self, kernel, machine, args, parser)
 
     def analyze(self):
+        """Run complete analysis."""
         self.results = self.calculate_cache_access()
-
         try:
             iaca_analysis, asm_block = self.kernel.iaca_analysis(
                 micro_architecture=self.machine['micro-architecture'],
@@ -289,6 +294,7 @@ class RooflineIACA(Roofline):
         self.results['cpu bottleneck']['performance throughput'].unit = 'FLOP/s'
 
     def report(self, output_file=sys.stdout):
+        """Print human readable report of model."""
         cpu_flops = PrefixedUnit(
             self.results['cpu bottleneck']['performance throughput'], "FLOP/s")
 

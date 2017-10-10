@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-"""
-A simple interval implementation
-"""
+"""A simple interval implementation."""
 
 
 class Intervals(object):
-    """Very simple interval implementation for integers (might also work on floats)"""
+    """Very simple interval implementation for integers (might also work on floats)."""
 
     def __init__(self, *args, **kwargs):
         """If keywords *sane* is True (default: False), checks will not be done on given data."""
@@ -16,11 +14,11 @@ class Intervals(object):
             self._enforce_no_overlap()
 
     def _enforce_order(self):
-        """Enforces the order of all entries in internal storage"""
+        """Enforce the order of all entries in internal storage."""
         self.data.sort(key=lambda d: d[0])
 
     def _enforce_no_overlap(self, start_at=0):
-        """Enforces that no ranges overlap in internal storage"""
+        """Enforce that no ranges overlap in internal storage."""
         i = start_at
         while i+1 < len(self.data):
             if self.data[i][1] >= self.data[i+1][0]:
@@ -34,18 +32,21 @@ class Intervals(object):
             i += 1
 
     def __and__(self, other):
-        """Combines two intervals, under the assumption that they are sane"""
+        """Combine two intervals, under the assumption that they are sane."""
         return Intervals(*(self.data+other.data))
 
     def __len__(self):
-        """Returns sum of range lengths"""
+        """Return sum of range lengths."""
         return int(sum(upper-lower for (lower, upper) in self.data))
 
     def __contains__(self, needle):
+        """Return True if needle is contained in intervals."""
         return any(lower <= needle < upper for (lower, upper) in self.data)
 
     def __repr__(self):
+        """Return string representation of object."""
         return str(self.__class__) + '(' + ', '.join([list.__repr__(d) for d in self.data]) + ')'
 
     def __eq__(self, other):
+        """Return True if other contains exactly the same interval regions."""
         return self.data == other.data

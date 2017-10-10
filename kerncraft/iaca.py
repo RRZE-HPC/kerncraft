@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+"""Helper functions to instumentalize assembly code for and analyze with IACA."""
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -30,9 +30,7 @@ END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER 
 
 
 def find_asm_blocks(asm_lines):
-    """
-    finds blocks probably corresponding to loops in assembly
-    """
+    """Find blocks probably corresponding to loops in assembly."""
     blocks = []
 
     last_label_line = -1
@@ -137,6 +135,7 @@ def find_asm_blocks(asm_lines):
 
 
 def select_best_block(blocks):
+    """Return best block selected based on simple heuristic."""
     # TODO make this cleverer with more stats
     best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
     if best_block[1]['packed_instr'] == 0:
@@ -146,6 +145,7 @@ def select_best_block(blocks):
 
 
 def userselect_increment(block):
+    """Let user interactively select byte increment."""
     print("Selected block:")
     print('\n    '+('    '.join(block['lines'])))
     print()
@@ -163,6 +163,7 @@ def userselect_increment(block):
 
 
 def userselect_block(blocks, default=None):
+    """Let user interactively select block."""
     print("Blocks found in assembly file:")
     print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
           "-----------+-----+------+-----++-----------+----------+----------+---------++-------|")
@@ -186,6 +187,7 @@ def userselect_block(blocks, default=None):
 
 
 def insert_markers(asm_lines, start_line, end_line):
+    """Insert IACA marker into list of ASM instructions at given indices."""
     asm_lines = asm_lines[:start_line] + START_MARKER + \
         asm_lines[start_line:end_line+1] + END_MARKER + \
         asm_lines[end_line+1:]
@@ -196,8 +198,10 @@ def iaca_instrumentation(input_file, output_file=None,
                          block_selection='auto',
                          pointer_increment='auto_with_manual_fallback'):
     """
-    Add IACA markers to an assembly file. If instrumentation fails
-    because loop increment could not determined automatically, a ValueError is raised
+    Add IACA markers to an assembly file.
+
+    If instrumentation fails because loop increment could not determined automatically, a ValueError
+    is raised.
 
     :param input_file: path to assembly file used as input
     :param output_file: output path, if None the input is overwritten
@@ -251,7 +255,7 @@ def iaca_instrumentation(input_file, output_file=None,
 
 def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architecture):
     """
-    Runs IACA analysis on an instrumented binary
+    Run IACA analysis on an instrumented binary.
 
     :param instrumented_binary_file: path of binary that was built with IACA markers
     :param micro_architecture: micro architecture string as taken by IACA.
@@ -306,6 +310,7 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
 
 
 def main():
+    """Execute command line interface."""
     if len(sys.argv) != 2:
         print("Usage:", sys.argv[0], "filename.s")
         sys.exit(1)
