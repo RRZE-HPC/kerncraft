@@ -6,6 +6,12 @@ tests/test_files/*_marked
 lextab.py
 yacctab.py
 
+# Temporary files
+*.~
+*.swp
+*.lprof
+.ipynb_checkpoints
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
