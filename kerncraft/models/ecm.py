@@ -211,6 +211,7 @@ class ECMCPU(object):
 
     @classmethod
     def configure_arggroup(cls, parser):
+        """Configure argument parser."""
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None):

@@ -24,6 +24,7 @@ class CachePredictor(object):
     """
 
     def __init__(self, kernel, machine, cores=1):
+        """Initialize cache predictor."""
         self.kernel = kernel
         self.machine = machine
         self.cores = cores
