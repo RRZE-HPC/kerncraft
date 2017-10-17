@@ -1,4 +1,5 @@
-"""Collection of performance models
+"""
+Collection of performance models.
 
 This model combines all performance models currently supported by kerncraft. Only the performace
 model class is exported, so please add new models to __all__.
