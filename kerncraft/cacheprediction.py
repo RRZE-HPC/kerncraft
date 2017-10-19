@@ -95,8 +95,10 @@ class LayerConditionPredictor(CachePredictor):
                            chain(*self.kernel.destinations.values())):
             if arefs is None:
                 continue
-            for i, expr in enumerate(arefs):
-                diff = sympy.diff(expr, symbol_pos_int(loop_stack[i]['index']))
+            for expr in arefs:
+                inner_index = symbol_pos_int(loop_stack[-1]['index'])
+                inner_increment = loop_stack[-1]['increment']
+                diff = expr.subs(inner_index, 1+inner_increment) - expr.subs(inner_index, 1)
                 if diff != 0 and diff != 1:
                     # TODO support -1 aswell
                     raise ValueError("Can not apply layer-condition, array references may not "
