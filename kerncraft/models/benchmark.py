@@ -134,11 +134,7 @@ def build_minimal_runs(events):
     cur_run = 0
     while len(scheduled_events) != len(events):
         for event_tpl in events:
-            if len(event_tpl) == 3:
-                event, registers, parameters = event_tpl
-            else:
-                event, registers = event_tpl
-                parameters = None
+            event, registers, parameters = event_tpl
             # Skip allready scheduled events
             if event_tpl in scheduled_events:
                 continue
@@ -302,7 +298,6 @@ class Benchmark(object):
             for i in range(len(self.machine['memory hierarchy'])-1):
                 cache_info = self.machine['memory hierarchy'][i]
                 name = cache_info['level']
-
                 for k, v in cache_info['performance counter metrics'].items():
                     cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
                     event_counters.update(event_dict)

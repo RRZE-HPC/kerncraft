@@ -188,7 +188,7 @@ class MachineModel(object):
 
         # Build a temporary metric, with parser-friendly Symbol names
         temp_metric = metric
-        temp_pc_names = {"SYM{}".format(i): pc for i, pc in enumerate(perfcounters)}
+        temp_pc_names = {"SYM{}".format(re.sub("[\[\]\-\|=:]", "_", pc)): pc for i, pc in enumerate(perfcounters)}
         for var_name, pc in temp_pc_names.items():
             temp_metric = temp_metric.replace(pc, var_name)
         # Parse temporary expression
@@ -203,3 +203,4 @@ class MachineModel(object):
                   if s.name in perfcounters}
 
         return expr, events
+
