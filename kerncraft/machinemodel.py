@@ -159,7 +159,7 @@ class MachineModel(object):
 
         Examples:
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]')
-        ('PERF_EVENT', 'REG[0-3]', None)
+        ('PERF_EVENT', 'REG[0-3]')
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]:STAY:FOO=23:BAR=0x23')
         ('PERF_EVENT', 'REG[0-3]', {'STAY': None, 'FOO': 23, 'BAR': 35})
 
@@ -188,7 +188,7 @@ class MachineModel(object):
 
         # Build a temporary metric, with parser-friendly Symbol names
         temp_metric = metric
-        temp_pc_names = {sanitize_symbolname(pc): pc for pc in perfcounters}
+        temp_pc_names = {"SYM{}".format(i): pc for i, pc in enumerate(perfcounters)}
         for var_name, pc in temp_pc_names.items():
             temp_metric = temp_metric.replace(pc, var_name)
         # Parse temporary expression

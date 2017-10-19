@@ -19,6 +19,7 @@ except ImportError:
     from itertools import izip_longest as zip_longest
 
 import six
+import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
 
@@ -133,7 +134,11 @@ def build_minimal_runs(events):
     cur_run = 0
     while len(scheduled_events) != len(events):
         for event_tpl in events:
-            event, registers, parameters = event_tpl
+            if len(event_tpl) == 3:
+                event, registers, parameters = event_tpl
+            else:
+                event, registers = event_tpl
+                parameters = None
             # Skip allready scheduled events
             if event_tpl in scheduled_events:
                 continue
@@ -157,7 +162,7 @@ def build_minimal_runs(events):
 class Benchmark(object):
     """Produce a benchmarkable binary to be used with likwid."""
 
-    name = "Benchmark"
+    name = "benchmark"
 
     @classmethod
     def configure_arggroup(cls, parser):
@@ -248,6 +253,9 @@ class Benchmark(object):
             except ValueError:
                 # Would not convert to float
                 pass
+            except IndexError:
+                # Not a parable line (did not contain any commas)
+                continue
             try:
                 # Event counters
                 counter_value = int(l[2])
@@ -282,7 +290,7 @@ class Benchmark(object):
             time_per_repetition = runtime/float(repetitions)
         raw_results = [mem_results]
 
-        # Gather remaining counters counters
+        # Gather remaining counters
         if not self._args.no_phenoecm:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
@@ -437,9 +445,11 @@ class Benchmark(object):
             print()
 
             print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
-                  '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(**self.results['ECM']),
+                  '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
+                       **{k: float(v) for k, v in self.results['ECM'].items()}),
                   file=output_file)
             print('T_OL assumes that two loads per cycle may be retiered, which is true for '
                   '128bit SSE/half-AVX loads on SNB and IVY, and 256bit full-AVX loads on HSW, '
                   'BDW, SKL and SKX, but it also depends on AGU availability.',
                   file=output_file)
+

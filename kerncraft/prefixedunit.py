@@ -106,17 +106,13 @@ class PrefixedUnit(yaml.YAMLObject):
     def __str__(self):
         good_prefix = self.good_prefix()
         if self.prefix == good_prefix:
-            return '{0.value:.2f} {0.prefix}{0.unit}'.format(self).strip()
+            return '{0:.2f} {1}{2}'.format(self.value, self.prefix, self.unit).strip()
         else:
             return self.with_prefix(good_prefix).__str__()
 
     def __repr__(self):
-        if self.prefix:
-            return '{0}({1.value!r}, {1.prefix!r}, {1.unit!r})'.format(
-                self.__class__.__name__, self)
-        else:
-            return '{0}({1.value!r}, {1.unit!r})'.format(
-                self.__class__.__name__, self)
+        return '{0}({1!r}, {2!r}, {3!r})'.format(
+            self.__class__.__name__, self.value, self.prefix, self.unit)
 
     def __mul__(self, other):
         if isinstance(other, self.__class__):
