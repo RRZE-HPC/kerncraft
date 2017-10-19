@@ -84,10 +84,10 @@ class LayerConditionPredictor(CachePredictor):
                     else:  # len(idx) == 1
                         # Check that number of multiplication match access order of iterator
                         stride_dim = len(t.as_ordered_factors())
-                        if loop_stack[len(loop_stack)-stride_dim]['index'] != idx.pop().name:
-                            raise ValueError("Number of multiplications in index term does not "
-                                             "match loop counter order. "
-                                             "Problematic term: {}.".format(t))
+                        #if loop_stack[len(loop_stack)-stride_dim]['index'] != idx.pop().name:
+                        #    raise ValueError("Number of multiplications in index term does not "
+                        #                     "match loop counter order. "
+                        #                     "Problematic term: {}.".format(t))
 
         # 3. Indices may only increase with one
         # TODO use a public interface, not self.kernel._*
