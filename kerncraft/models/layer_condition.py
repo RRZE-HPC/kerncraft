@@ -129,7 +129,7 @@ class LC(object):
             slices_distances = defaultdict(list)
             for k, v in slices_accesses.items():
                 for i in range(1, len(v)):
-                    slices_distances[k].append((v[i-1] - v[i]).simplify())
+                    slices_distances[k].append((v[i] - v[i-1]).simplify())
             results['dimensions'][dimension]['slices_distances'] = slices_distances
 
             # Check that distances contain only free_symbols based on constants
