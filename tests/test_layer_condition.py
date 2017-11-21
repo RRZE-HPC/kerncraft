@@ -26,6 +26,7 @@ from kerncraft.prefixedunit import PrefixedUnit
 
 
 def recursive_dict_get(d, key_path):
+    """Return element at key_path (tuple) in recursive dictionary d."""
     if len(key_path) > 1:
         return recursive_dict_get(d[key_path[0]], key_path[1:])
     else:
@@ -118,6 +119,7 @@ class TestLayerCondition(unittest.TestCase):
             else:
                 self.assertEqual(value, recursive_dict_get(result, key_path),
                                  msg="at key_path={}".format(key_path))
+
 
 if __name__ == '__main__':
     unittest.main()

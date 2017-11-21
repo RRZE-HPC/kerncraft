@@ -266,13 +266,14 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
         - 'port cycles': dict, mapping port name to number of active cycles
         - 'uops': total number of Uops
     """
-    if find_executable('iaca.sh') is None:
-        raise RuntimeError("iaca.sh was not found. Make sure it is found in PATH.")
+    if find_executable('iaca') is None:
+        raise RuntimeError("iaca was not found. Make sure that one is found in "
+                           "PATH.")
 
     result = {}
 
     try:
-        cmd = ['iaca.sh', '-64', '-arch', micro_architecture, instrumented_binary_file]
+        cmd = ['iaca', '-arch', micro_architecture, instrumented_binary_file]
         iaca_output = subprocess.check_output(cmd).decode('utf-8')
         result['output'] = iaca_output
     except OSError as e:
