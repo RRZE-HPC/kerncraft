@@ -262,11 +262,9 @@ class RooflineIACA(Roofline):
             # handle CLI info
             self.asm_block = self._args.asm_block
             self.pointer_increment = self._args.pointer_increment
-            self.verbose = self._args.verbose
         else:
             self.asm_block = asm_block
             self.pointer_increment = pointer_increment
-            self.verbose = verbose
 
         # Validate arguments
         if self.asm_block not in ['auto', 'manual']:
