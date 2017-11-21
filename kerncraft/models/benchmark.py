@@ -220,7 +220,7 @@ class Benchmark(object):
         *group* may be a performance group known to likwid-perfctr or an event string.
         Only works with single core!
         """
-        # Making sure iaca.sh is available:
+        # Making sure likwid-perfctr is available:
         if find_executable('likwid-perfctr') is None:
             print("likwid-perfctr was not found. Make sure likwid is installed and found in PATH.",
                   file=sys.stderr)

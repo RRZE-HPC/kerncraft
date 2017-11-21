@@ -36,30 +36,22 @@ if __name__ == '__main__':
         'form_id': 'intel_licensed_dls_step_1'}
     r = s.post(URL, data=response_data)
     download_url = re.search(
-            r'"(https://software.intel.com/[^"]*iaca-version-2.3-'+version+'\.zip)"', r.text).group(1)
+            r'"(https://software.intel.com/[^"]*iaca-version-[v]?3.0-'+version+'\.zip)"', r.text).group(1)
     print("Downloading", download_url)
     r = s.get(download_url, stream=True)
+    print("Reading zip file")
     zfile = zipfile.ZipFile(BytesIO(r.content))
     members = [n
                for n in zfile.namelist()
                if '/.' not in n and n.startswith('iaca-{:}/'.format(version))]
+    print("Extracting: {}".format(members))
     zfile.extractall(members=members)
 
-    st = os.stat('iaca-{:}/bin/iaca'.format(version))
+    print("Correcting permissions of binary")
+    st = os.stat('iaca-{:}/iaca'.format(version))
     os.chmod(
-        'iaca-{:}/bin/iaca'.format(version),
-        st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
-    )
-    st = os.stat('iaca-{:}/bin/iaca.sh'.format(version))
-    os.chmod(
-        'iaca-{:}/bin/iaca.sh'.format(version),
+        'iaca-{:}/iaca'.format(version),
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
 
-    # Fixing iaca.sh
-    iaca_sh = open('iaca-{:}/bin/iaca.sh'.format(version)).read()
-    iaca_sh = iaca_sh.replace('realpath', 'readlink -f', 1)
-    iaca_sh = iaca_sh.replace('mypath=`pwd`', 'mypath=`dirname $0`', 1)
-    open('iaca-{:}/bin/iaca.sh'.format(version), 'w').write(iaca_sh)
-
-    print("{:}/iaca-{:}/bin/".format(os.getcwd(), version))
+    print("{:}/iaca-{:}/".format(os.getcwd(), version))
