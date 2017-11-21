@@ -167,18 +167,27 @@ class Benchmark(object):
             '--no-phenoecm', action='store_true',
             help='Disables the phenomenological ECM model building.')
 
-    def __init__(self, kernel, machine, args=None, parser=None):
+    def __init__(self, kernel, machine, args=None, parser=None, no_phenoecm=False, verbose=0):
         """
         Create Benchmark model from kernel and machine objects.
 
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
+
+        If *args* is None, *no_phenoecm* and *verbose* are used.
         """
         self.kernel = kernel
         self.machine = machine
         self._args = args
         self._parser = parser
+
+        if args:
+            self.no_phenoecm = args.no_phenoecm
+            self.verbose = args.verbose
+        else:
+            self.no_phenoecm = no_phenoecm
+            self.verbose = verbose
 
         cpuinfo = open('/proc/cpuinfo').read()
         try:
@@ -203,9 +212,6 @@ class Benchmark(object):
             print("WARNING: current CPU frequency and machine description do "
                   "not match. ({!r} vs {!r})".format(float(self.machine['clock']),
                                                      current_cpu_freq))
-        if args:
-            # handle CLI info
-            pass
 
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
         """
@@ -232,7 +238,7 @@ class Benchmark(object):
             perf_cmd.append('-m')
 
         perf_cmd += cmd
-        if self._args.verbose > 1:
+        if self.verbose > 1:
             print(' '.join(perf_cmd))
         try:
             output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
@@ -265,7 +271,7 @@ class Benchmark(object):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build(verbose=self._args.verbose > 1)
+        bench = self.kernel.build(verbose=self.verbose > 1)
 
         # Build arguments to pass to command:
         args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
@@ -287,7 +293,7 @@ class Benchmark(object):
         raw_results = [mem_results]
 
         # Gather remaining counters
-        if not self._args.no_phenoecm:
+        if not self.no_phenoecm:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
@@ -399,11 +405,11 @@ class Benchmark(object):
 
     def report(self, output_file=sys.stdout):
         """Report gathered analysis data in human readable form."""
-        if self._args.verbose > 0:
+        if self.verbose > 0:
             print('Runtime (per repetition): {:.2g} s'.format(
                       self.results['Runtime (per repetition) [s]']),
                   file=output_file)
-        if self._args.verbose > 0:
+        if self.verbose > 0:
             print('Iterations per repetition: {!s}'.format(
                      self.results['Iterations per repetition']),
                   file=output_file)
@@ -419,12 +425,12 @@ class Benchmark(object):
               file=output_file)
         print('Performance: {:.2f} It/s'.format(self.results['Performance [MIt/s]']),
               file=output_file)
-        if self._args.verbose > 0:
+        if self.verbose > 0:
             print('MEM bandwidth: {:.2f} MByte/s'.format(self.results['MEM BW [MByte/s]']),
                   file=output_file)
         print('', file=output_file)
 
-        if not self._args.no_phenoecm:
+        if self.no_phenoecm:
             print("Data Transfers:")
             print("{:^8} |".format("cache"), end='')
             for metrics in self.results['data transfers'].values():
@@ -447,4 +453,3 @@ class Benchmark(object):
                   '128bit SSE/half-AVX loads on SNB and IVY, and 256bit full-AVX loads on HSW, '
                   'BDW, SKL and SKX, but it also depends on AGU availability.',
                   file=output_file)
-

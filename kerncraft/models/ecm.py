@@ -64,13 +64,15 @@ class ECMData(object):
         """Configure argument group of parser."""
         pass
 
-    def __init__(self, kernel, machine, args=None, parser=None):
+    def __init__(self, kernel, machine, args=None, parser=None, verbose=0):
         """
         Create Execcution-Cache-Memory data model from kernel and machine objects.
 
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
+
+        If *args* is None, *verbose* is taken into account, otherwise *args* takes precedence.
         """
         self.kernel = kernel
         self.machine = machine
@@ -78,8 +80,9 @@ class ECMData(object):
         self._parser = parser
 
         if args:
-            # handle CLI info
-            pass
+            self.verbose = self._args.verbose
+        else:
+            self.verbose = verbose
 
     def calculate_cache_access(self):
         """Dispatch to cache predictor to get cache stats."""
@@ -189,14 +192,14 @@ class ECMData(object):
 
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
-        if self._args and self._args.verbose > 1:
+        if self.verbose > 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
 
         for level, cycles in self.results['cycles']:
             print('{} = {}'.format(
                 level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
 
-        if self._args and self._args.verbose > 1:
+        if self.verbose > 1:
             if 'memory bandwidth kernel' in self.results:
                 print('memory cycles based on {} kernel with {}'.format(
                           self.results['memory bandwidth kernel'],
@@ -214,7 +217,8 @@ class ECMCPU(object):
         """Configure argument parser."""
         pass
 
-    def __init__(self, kernel, machine, args=None, parser=None):
+    def __init__(self, kernel, machine, args=None, parser=None, asm_block='auto',
+                 pointer_increment='auto', verbose=0):
         """
         Create Execution-Cache-Memory model from kernel and machine objects.
 
@@ -222,6 +226,9 @@ class ECMCPU(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
         if *args* is given also *parser* has to be provided
+
+        If *args* is None, *asm_block*, *pointer_increment* and *verbose* will be used, otherwise
+        *args* takes precedence.
         """
         self.kernel = kernel
         self.machine = machine
@@ -230,20 +237,35 @@ class ECMCPU(object):
 
         if args:
             # handle CLI info
-            if self._args.asm_block not in ['auto', 'manual']:
-                try:
-                    self._args.asm_block = int(args.asm_block)
-                except ValueError:
-                    parser.error('--asm-block can only be "auto", "manual" or an integer')
+            self.asm_block = self._args.asm_block
+            self.pointer_increment = self._args.pointer_increment
+            self.verbose = self._args.verbose
+        else:
+            self.asm_block = asm_block
+            self.pointer_increment = pointer_increment
+            self.verbose = verbose
+        if self.asm_block not in ['auto', 'manual']:
+            try:
+                self._args.asm_block = int(args.asm_block)
+            except ValueError:
+                parser.error('asm_block can only be "auto", "manual" or an integer')
+        if self.pointer_increment not in ['auto', 'auto_with_manual_fallback', 'manual']:
+            try:
+                self._args.asm_block = int(args.asm_block)
+            except ValueError:
+                parser.error('pointer_increment can only be "auto", '
+                             '"auto_with_manual_fallback", "manual" or an integer')
 
     def analyze(self):
-        """Run complete analysis and return results."""
+        """
+        Run complete analysis and return results.
+        """
         try:
             iaca_analysis, asm_block = self.kernel.iaca_analysis(
                 micro_architecture=self.machine['micro-architecture'],
-                asm_block=self._args.asm_block,
-                pointer_increment=self._args.asm_increment,
-                verbose=self._args.verbose > 2)
+                asm_block=self.asm_block,
+                pointer_increment=self.pointer_increment,
+                verbose=self.verbose > 2)
         except RuntimeError as e:
             print("IACA analysis failed: " + str(e))
             sys.exit(1)
@@ -311,12 +333,12 @@ class ECMCPU(object):
 
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
-        if self._args and self._args.verbose > 2:
+        if self.verbose > 2:
             print("IACA Output:", file=output_file)
             print(self.results['IACA output'], file=output_file)
             print('', file=output_file)
 
-        if self._args and self._args.verbose > 1:
+        if self.verbose > 1:
             print('Ports and cycles:', six.text_type(self.results['port cycles']), file=output_file)
             print('Uops:', six.text_type(self.results['uops']), file=output_file)
 
@@ -345,13 +367,17 @@ class ECM(object):
             '--ecm-plot',
             help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
 
-    def __init__(self, kernel, machine, args=None, parser=None):
+    def __init__(self, kernel, machine, args=None, parser=None, asm_block="auto",
+                 pointer_increment="auto", verbose=0):
         """
         Create complete Execution-Cache-Memory model from kernel and machine objects.
 
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
+
+        If *args* is None, *asm_block*, *pointer_increment* and *verbose* will be used, otherwise
+        *args* takes precedence.
         """
         self.kernel = kernel
         self.machine = machine
@@ -361,8 +387,9 @@ class ECM(object):
             # handle CLI info
             pass
 
-        self._CPU = ECMCPU(kernel, machine, args, parser)
-        self._data = ECMData(kernel, machine, args, parser)
+        self._CPU = ECMCPU(kernel, machine, args, parser, asm_block=asm_block,
+                           pointer_increment=pointer_increment, verbose=verbose)
+        self._data = ECMData(kernel, machine, args, parser, verbose=verbose)
 
     def analyze(self):
         """Run complete analysis."""
@@ -387,7 +414,7 @@ class ECM(object):
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
         report = ''
-        if self._args and self._args.verbose > 1:
+        if self.verbose > 1:
             self._CPU.report()
             self._data.report()
 
@@ -408,7 +435,7 @@ class ECM(object):
                                             self.results['T_nOL'], self.results['T_OL']))
                         for i in range(len(self.results['cycles']))]))
 
-        if self._args and self._args.verbose > 1:
+        if self.verbose > 1:
             if 'memory bandwidth kernel' in self.results:
                 report += 'memory cycles based on {} kernel with {}\n'.format(
                     self.results['memory bandwidth kernel'],
