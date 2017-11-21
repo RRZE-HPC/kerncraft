@@ -131,7 +131,7 @@ def create_parser():
     parser.add_argument('--asm-block', metavar='BLOCK', default='auto',
                         help='Number of ASM block to mark for IACA, "auto" for automatic '
                              'selection or "manual" for interactiv selection.')
-    parser.add_argument('--asm-increment', metavar='INCR', default='auto', type=int_or_str,
+    parser.add_argument('--pointer-increment', metavar='INCR', default='auto', type=int_or_str,
                         help='Increment of store pointer within one ASM block in bytes. If "auto": '
                              'automatic detection, error on failure to detect, if '
                              '"auto_with_manual_fallback": fallback to manual input, or if '
