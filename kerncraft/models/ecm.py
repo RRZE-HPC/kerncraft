@@ -390,10 +390,10 @@ class ECM(object):
         self.kernel = kernel
         self.machine = machine
         self._args = args
+        self.verbose = verbose
 
         if args:
-            # handle CLI info
-            pass
+            self.verbose = self._args.verbose
 
         self._CPU = ECMCPU(kernel, machine, args, parser, asm_block=asm_block,
                            pointer_increment=pointer_increment, verbose=verbose)
