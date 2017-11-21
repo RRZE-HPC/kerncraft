@@ -26,13 +26,18 @@ class Roofline(object):
         """Configure argument parser."""
         pass
 
-    def __init__(self, kernel, machine, args=None, parser=None):
+    def __init__(self, kernel, machine, args=None, parser=None, cores=1,
+                 predictor=LayerConditionPredictor, verbose=0):
         """
         Create roofline model from kernel and machine objects.
 
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
+
+
+        If *args* is None, *asm_block*, *pointer_increment* and *verbose* will be used, otherwise
+        *args* takes precedence.
         """
         self.kernel = kernel
         self.machine = machine
@@ -40,21 +45,25 @@ class Roofline(object):
         self._parser = parser
 
         if args:
-            # handle CLI info
-            pass
+            self.verbose = self._args.verbose
+            self.cores = self._args.cores
+            if self._args.cache_predictor == 'SIM':
+                self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self.cores)
+            elif self._args.cache_predictor == 'LC':
+                self.predictor = LayerConditionPredictor(self.kernel, self.machine, self.cores)
+            else:
+                raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
+                                          "SIM (cache simulation with pycachesim) is supported.")
+        else:
+            self.cores = cores
+            self.predictor = cache_predictor(self.kernel, self.machine, self.cores)
+            self.verbose = verbose
 
         if sum(self.kernel._flops.values()) == 0:
             raise ValueError("The Roofline model requires that the sum of FLOPs is non-zero.")
 
     def calculate_cache_access(self):
         """Apply cache prediction to generate cache access behaviour."""
-        if self._args.cache_predictor == 'SIM':
-            self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self._args.cores)
-        elif self._args.cache_predictor == 'LC':
-            self.predictor = LayerConditionPredictor(self.kernel, self.machine, self._args.cores)
-        else:
-            raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
-                                      "SIM (cache simulation with pycachesim) is supported.")
         self.results = {'misses': self.predictor.get_misses(),
                         'hits': self.predictor.get_hits(),
                         'evicts': self.predictor.get_evicts(),
@@ -234,7 +243,8 @@ class RooflineIACA(Roofline):
         """Configure argument parser."""
         pass
 
-    def __init__(self, kernel, machine, args=None, parser=None):
+    def __init__(self, kernel, machine, args=None, parser=None, asm_block='auto',
+                 pointer_increment='auto', cores=1, predictor=LayerConditionPredictor, verbose=0):
         """
         Create Roofline model with IACA analysis from kernel and machine objects.
 
@@ -242,8 +252,34 @@ class RooflineIACA(Roofline):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
         if *args* is given also *parser* has to be provided
+
+        If *args* is None, *asm_block*, *pointer_increment* and *verbose* will be used, otherwise
+        *args* takes precedence.
         """
-        Roofline.__init__(self, kernel, machine, args, parser)
+        Roofline.__init__(self, kernel, machine, args, parser, cores, predictor, verbose)
+
+        if args:
+            # handle CLI info
+            self.asm_block = self._args.asm_block
+            self.pointer_increment = self._args.pointer_increment
+            self.verbose = self._args.verbose
+        else:
+            self.asm_block = asm_block
+            self.pointer_increment = pointer_increment
+            self.verbose = verbose
+
+        # Validate arguments
+        if self.asm_block not in ['auto', 'manual']:
+            try:
+                self.asm_block = int(args.asm_block)
+            except ValueError:
+                parser.error('asm_block can only be "auto", "manual" or an integer')
+        if self.pointer_increment not in ['auto', 'auto_with_manual_fallback', 'manual']:
+            try:
+                self.pointer_increment = int(args.pointer_increment)
+            except ValueError:
+                parser.error('pointer_increment can only be "auto", '
+                             '"auto_with_manual_fallback", "manual" or an integer')
 
     def analyze(self):
         """Run complete analysis."""
@@ -251,9 +287,9 @@ class RooflineIACA(Roofline):
         try:
             iaca_analysis, asm_block = self.kernel.iaca_analysis(
                 micro_architecture=self.machine['micro-architecture'],
-                asm_block=self._args.asm_block,
-                pointer_increment=self._args.asm_increment,
-                verbose=self._args.verbose > 2)
+                asm_block=self.asm_block,
+                pointer_increment=self.pointer_increment,
+                verbose=self.verbose > 2)
         except RuntimeError as e:
             print("IACA analysis failed: " + str(e))
             sys.exit(1)
@@ -289,7 +325,7 @@ class RooflineIACA(Roofline):
                 'uops': uops,
                 'performance throughput':
                     self.machine['clock']/block_throughput*elements_per_block*flops_per_element
-                    * self._args.cores,
+                    * self.cores,
                 'IACA output': iaca_output}})
         self.results['cpu bottleneck']['performance throughput'].unit = 'FLOP/s'
 
@@ -298,10 +334,10 @@ class RooflineIACA(Roofline):
         cpu_flops = PrefixedUnit(
             self.results['cpu bottleneck']['performance throughput'], "FLOP/s")
 
-        if self._args and self._args.verbose >= 3:
+        if self.verbose >= 3:
             print('{}'.format(pformat(self.results)), file=output_file)
 
-        if self._args and self._args.verbose >= 1:
+        if self.verbose >= 1:
             print('Bottlenecks:', file=output_file)
             print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
                   file=output_file)
@@ -328,12 +364,12 @@ class RooflineIACA(Roofline):
 
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
-            print('CPU bound with {} core(s)'.format(self._args.cores), file=output_file)
+            print('CPU bound with {} core(s)'.format(self.cores), file=output_file)
             print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)),
                   file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with {} core(s)'.format(self._args.cores), file=output_file)
+            print('Cache or mem bound with {} core(s)'.format(self.cores), file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(

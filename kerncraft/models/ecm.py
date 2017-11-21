@@ -64,7 +64,8 @@ class ECMData(object):
         """Configure argument group of parser."""
         pass
 
-    def __init__(self, kernel, machine, args=None, parser=None, verbose=0):
+    def __init__(self, kernel, machine, args=None, parser=None, cores=1,
+                 cache_predictor=CacheSimulationPredictor, verbose=0):
         """
         Create Execcution-Cache-Memory data model from kernel and machine objects.
 
@@ -72,7 +73,8 @@ class ECMData(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
 
-        If *args* is None, *verbose* is taken into account, otherwise *args* takes precedence.
+        If *args* is None, *cores*, *cache_predictor* and *verbose* are taken into account,
+        otherwise *args* takes precedence.
         """
         self.kernel = kernel
         self.machine = machine
@@ -81,18 +83,21 @@ class ECMData(object):
 
         if args:
             self.verbose = self._args.verbose
+            self.cores = self._args.cores
+            if self._args.cache_predictor == 'SIM':
+                self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self.cores)
+            elif self._args.cache_predictor == 'LC':
+                self.predictor = LayerConditionPredictor(self.kernel, self.machine, self.cores)
+            else:
+                raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
+                                          "SIM (cache simulation with pycachesim) is supported.")
         else:
+            self.cores = cores
+            self.predictor = cache_predictor(self.kernel, self.machine, self.cores)
             self.verbose = verbose
 
     def calculate_cache_access(self):
         """Dispatch to cache predictor to get cache stats."""
-        if self._args.cache_predictor == 'SIM':
-            self.predictor = CacheSimulationPredictor(self.kernel, self.machine, self._args.cores)
-        elif self._args.cache_predictor == 'LC':
-            self.predictor = LayerConditionPredictor(self.kernel, self.machine, self._args.cores)
-        else:
-            raise NotImplementedError("Unknown cache predictor, only LC (layer condition) and "
-                                      "SIM (cache simulation with pycachesim) is supported.")
         self.results = {'cycles': [],  # will be filled by caclculate_cycles()
                         'misses': self.predictor.get_misses(),
                         'hits': self.predictor.get_hits(),
@@ -244,14 +249,16 @@ class ECMCPU(object):
             self.asm_block = asm_block
             self.pointer_increment = pointer_increment
             self.verbose = verbose
+
+        # Validate arguments
         if self.asm_block not in ['auto', 'manual']:
             try:
-                self._args.asm_block = int(args.asm_block)
+                self.asm_block = int(args.asm_block)
             except ValueError:
                 parser.error('asm_block can only be "auto", "manual" or an integer')
         if self.pointer_increment not in ['auto', 'auto_with_manual_fallback', 'manual']:
             try:
-                self._args.asm_block = int(args.asm_block)
+                self.pointer_increment = int(args.pointer_increment)
             except ValueError:
                 parser.error('pointer_increment can only be "auto", '
                              '"auto_with_manual_fallback", "manual" or an integer')
@@ -368,7 +375,8 @@ class ECM(object):
             help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
 
     def __init__(self, kernel, machine, args=None, parser=None, asm_block="auto",
-                 pointer_increment="auto", verbose=0):
+                 pointer_increment="auto", cores=1, cache_predictor=CacheSimulationPredictor,
+                 verbose=0):
         """
         Create complete Execution-Cache-Memory model from kernel and machine objects.
 
@@ -376,8 +384,8 @@ class ECM(object):
         *machine* describes the machine (cpu, cache and memory) characteristics
         *args* (optional) are the parsed arguments from the comand line
 
-        If *args* is None, *asm_block*, *pointer_increment* and *verbose* will be used, otherwise
-        *args* takes precedence.
+        If *args* is None, *asm_block*, *pointer_increment*, *cores*, *cache_predictor* and
+        *verbose* will be used, otherwise *args* takes precedence.
         """
         self.kernel = kernel
         self.machine = machine
@@ -389,7 +397,8 @@ class ECM(object):
 
         self._CPU = ECMCPU(kernel, machine, args, parser, asm_block=asm_block,
                            pointer_increment=pointer_increment, verbose=verbose)
-        self._data = ECMData(kernel, machine, args, parser, verbose=verbose)
+        self._data = ECMData(kernel, machine, args, parser,
+                             cache_predictor=CacheSimulationPredictor, cores=1, verbose=verbose)
 
     def analyze(self):
         """Run complete analysis."""
