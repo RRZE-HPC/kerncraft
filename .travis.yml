@@ -16,7 +16,7 @@ before_install:
 - pip install requests
 install:
 - python ./setup.py install
-- python iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
+- iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
 cache: pip
 script:
 - coverage run -p tests/all_tests.py
