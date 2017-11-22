@@ -4,9 +4,9 @@ float gosa, ss, s0;
 float a[4][L][M][N], b[3][L][M][N], c[3][L][M][N];
 float p[L][M][N], bnd[L][M][N], wrk1[L][M][N], wrk2[L][M][N];
 
-for(i=1 ; i<L; i++)
-  for(j=1 ; j<M ; j++)
-    for(k=1 ; k<N ; k++){
+for(int i=1 ; i<L; i++)
+  for(int j=1 ; j<M ; j++)
+    for(int k=1 ; k<N ; k++){
           s0 = a[0][i][j][k]*p[0][i+1][j][k]
              + a[1][i][j][k]*p[0][i][j+1][k]
              + a[2][i][j][k]*p[0][i][j][k+1]
