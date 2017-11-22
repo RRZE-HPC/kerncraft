@@ -16,7 +16,7 @@ import subprocess
 from distutils.spawn import find_executable
 from six.moves import input
 
-from . import iaca_get
+from kerncraft import iaca_get
 
 
 # Within loop

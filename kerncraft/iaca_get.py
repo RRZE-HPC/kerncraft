@@ -45,16 +45,18 @@ def serach_path():
 
 def find_iaca():
     """Return (hopefully) valid installation of IACA."""
-    requires = ['bin/iaca2.2', 'bin/iaca2.3', 'bin/iaca3.0']
+    requires = ['iaca2.2', 'iaca2.3', 'iaca3.0']
     for path in serach_path():
+        path += 'bin/'
         valid = True
         for r in requires:
             if not os.path.exists(path+r):
                 valid = False
                 break
         if valid:
-            return path+'bin/'
-    raise RuntimeError("No IACA installation found, run iaca_get command to fix this issue.")
+            return path
+    raise RuntimeError("No IACA installation found in {}. Run iaca_get command to fix this issue."
+                       "".format(serach_path()))
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] != \
@@ -211,7 +213,6 @@ def main():
     os.symlink('../v2.3/bin/iaca.sh', base_dir+'bin/iaca2.3')
     os.symlink('../v3.0/iaca', base_dir+'bin/iaca3.0')
     print('export PATH='+base_dir+'bin/:$PATH')
-    print('find_iaca() reports:', find_iaca(), file=sys.stderr)
 
 
 if __name__ == '__main__':
