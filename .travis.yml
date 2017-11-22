@@ -16,8 +16,7 @@ before_install:
 - pip install requests
 install:
 - python ./setup.py install
-- python get-iaca.py --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
-  lin64
+- python iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
 cache: pip
 before_script:
 - export PATH=$PATH:$PWD/iaca-lin64/bin
