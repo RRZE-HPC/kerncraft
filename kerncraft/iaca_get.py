@@ -59,6 +59,16 @@ def find_iaca():
                        "".format(serach_path()))
 
 def main():
+    try:
+        path = find_iaca()
+        print('IACA already installed at', path)
+        if '--force' in sys.argv:
+            sys.argv.remove('--force')
+        else:
+            print('For forced installation add --force')
+            sys.exit()
+    except RuntimeError:
+        pass
     if len(sys.argv) < 2 or sys.argv[1] != \
             "--I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul":
         print("Go to https://software.intel.com/protected-download/267266/157552 and read the"
