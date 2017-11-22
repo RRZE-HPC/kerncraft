@@ -1,9 +1,6 @@
 #!/usr/bin/env python
-# as found in pycparser
-import sys
-sys.path[0:0] = ['.', '..']
-
 import unittest
+import sys
 
 
 suite = unittest.TestLoader().loadTestsFromNames(

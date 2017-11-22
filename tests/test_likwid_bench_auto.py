@@ -20,7 +20,6 @@ import platform
 import six
 import sympy
 
-sys.path.insert(0, '..')
 from kerncraft import likwid_bench_auto as lba
 from kerncraft.prefixedunit import PrefixedUnit
 
@@ -36,7 +35,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
         # patch environment to include dummy likwid
         environ_orig = os.environ
         os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
-        
+
         self.maxDiff = None
         self.assertEqual(
             lba.get_machine_topology(cpuinfo_path=self._find_file('cpuinfo')),
@@ -154,7 +153,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
              'sockets': 2,
              'threads per core': 2})
 
-        
+
         # restore enviornment
         os.environ = environ_orig
 

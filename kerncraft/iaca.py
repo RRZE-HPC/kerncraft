@@ -12,9 +12,12 @@ if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
 
 import re
 import subprocess
+import os
 
 from distutils.spawn import find_executable
 from six.moves import input
+
+from kerncraft import iaca_get
 
 
 # Within loop
@@ -266,13 +269,35 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
         - 'port cycles': dict, mapping port name to number of active cycles
         - 'uops': total number of Uops
     """
-    if find_executable('iaca.sh') is None:
-        raise RuntimeError("iaca.sh was not found. Make sure it is found in PATH.")
+    # Select IACA version and executable based on micro_architecture:
+    arch_map = {
+        # arch: (binary name, version string, required additional arguments)
+        'NHM': ('iaca2.2', 'v2.2', ['-64']),
+        'WSM': ('iaca2.2', 'v2.2', ['-64']),
+        'SNB': ('iaca2.3', 'v2.3', ['-64']),
+        'IVB': ('iaca2.3', 'v2.3', ['-64']),
+        'HSW': ('iaca3.0', 'v3.0', []),
+        'BDW': ('iaca3.0', 'v3.0', []),
+        'SKL': ('iaca3.0', 'v3.0', []),
+        'SKX': ('iaca3.0', 'v3.0', []),
+    }
+
+    if micro_architecture not in arch_map:
+        raise ValueError('Invalid micro_architecture selected ({}), valid options are {}'.format(
+            micro_architecture, ', '.join(arch_map.keys())))
+
+    iaca_path = iaca_get.find_iaca()  # Throws exception if not found
+    os.environ['PATH'] += ':' + iaca_path
+
+    iaca_exec, iaca_version, base_args = arch_map[micro_architecture]
+    if find_executable(iaca_exec) is None:
+        raise RuntimeError("{} executable was not found. Make sure that {} is found in "
+                               "{}. Install using iaca_get.".format(iaca_exec, iaca_path))
 
     result = {}
 
     try:
-        cmd = ['iaca.sh', '-64', '-arch', micro_architecture, instrumented_binary_file]
+        cmd = [iaca_exec] + base_args + ['-arch', micro_architecture, instrumented_binary_file]
         iaca_output = subprocess.check_output(cmd).decode('utf-8')
         result['output'] = iaca_output
     except OSError as e:

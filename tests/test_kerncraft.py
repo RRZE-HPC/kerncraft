@@ -20,7 +20,6 @@ import platform
 import six
 import sympy
 
-sys.path.insert(0, '..')
 from kerncraft import kerncraft as kc
 from kerncraft.prefixedunit import PrefixedUnit
 
@@ -261,7 +260,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
 
-    @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECMCPU(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMCPU.pickle')
@@ -299,7 +297,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
         self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
 
-    @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECM(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECM.pickle')
@@ -345,7 +342,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
 
-    @unittest.skipUnless(find_executable('iaca.sh'), "IACA not available")
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_RooflineIACA(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineIACA.pickle')
