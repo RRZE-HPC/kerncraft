@@ -286,7 +286,7 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
             micro_architecture, ', '.join(arch_map.keys())))
 
     iaca_path = iaca_get.find_iaca()  # Throws exception if not found
-    sys.environ['path'] += ':' + iaca_path
+    os.environ['path'] += ':' + iaca_path
 
     iaca_exec, iaca_version, base_args = arch_map[micro_architecture]
     if find_executable(iaca_exec) is None:
