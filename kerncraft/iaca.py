@@ -297,7 +297,7 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
     result = {}
 
     try:
-        cmd = [iaca_exec] + base-args + ['-arch', micro_architecture, instrumented_binary_file]
+        cmd = [iaca_exec] + base_args + ['-arch', micro_architecture, instrumented_binary_file]
         iaca_output = subprocess.check_output(cmd).decode('utf-8')
         result['output'] = iaca_output
     except OSError as e:
