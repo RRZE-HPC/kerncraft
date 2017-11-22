@@ -119,7 +119,7 @@ def main():
     print("Extracting...", file=sys.stderr)
     with TemporaryDirectory() as tempdir:
         zfile.extractall(tempdir, members=members)
-        shutil.copytree(tempdir+'/iaca-mac', base_dir+'v2.2')
+        shutil.copytree(tempdir+'/iaca-{}'.format(operating_system), base_dir+'v2.2')
     # Correct permissions of executables
     print("Correcting permissions of binary...")
     st = os.stat(base_dir+'v2.2/bin/iaca')
@@ -157,7 +157,7 @@ def main():
     print("Extracting...", file=sys.stderr)
     with TemporaryDirectory() as tempdir:
         zfile.extractall(tempdir, members=members)
-        shutil.copytree(tempdir+'/iaca-mac', base_dir+'v2.3')
+        shutil.copytree(tempdir+'/iaca-{}'.format(operating_system), base_dir+'v2.3')
     # Correct permissions of executables
     print("Correcting permissions of binary...")
     st = os.stat(base_dir+'v2.3/bin/iaca')
@@ -195,7 +195,7 @@ def main():
     print("Extracting...", file=sys.stderr)
     with TemporaryDirectory() as tempdir:
         zfile.extractall(tempdir, members=members)
-        shutil.copytree(tempdir+'/iaca-mac', base_dir+'v3.0')
+        shutil.copytree(tempdir+'/iaca-{}'.format(operating_system), base_dir+'v3.0')
 
     print("Correcting permissions of binary...", file=sys.stderr)
     st = os.stat(base_dir+'v3.0/iaca')
