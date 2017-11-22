@@ -18,8 +18,6 @@ install:
 - python ./setup.py install
 - python iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
 cache: pip
-before_script:
-- export PATH=$PATH:$PWD/iaca-lin64/bin
 script:
 - coverage run -p tests/all_tests.py
 - coverage run -p `which kerncraft` --help
