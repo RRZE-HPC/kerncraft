@@ -38,8 +38,8 @@ def serach_path():
     operating_system = get_os()
     # 1st choice: in ~/.kerncraft/iaca-{}
     # 2nd choice: in package directory / iaca-{}
-    return [os.path.expanduser("~/.kerncraft/iaca-{}/".format(operating_system)),
-            os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/iaca-{}/'.format(
+    return [os.path.expanduser("~/.kerncraft/iaca/{}/".format(operating_system)),
+            os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/iaca/{}/'.format(
                 operating_system)]
 
 
@@ -211,6 +211,7 @@ def main():
     os.symlink('../v2.3/bin/iaca.sh', base_dir+'bin/iaca2.3')
     os.symlink('../v3.0/iaca', base_dir+'bin/iaca3.0')
     print('export PATH='+base_dir+'bin/:$PATH')
+    print('find_iaca() reports:', find_iaca(), file=sys.stderr)
 
 
 if __name__ == '__main__':
