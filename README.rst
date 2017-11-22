@@ -3,10 +3,10 @@ kerncraft
 
 Loop Kernel Analysis and Performance Modeling Toolkit
 
-This tool allows automatic analysis of loop kernels using the Execution Cache Memory (ECM) model, 
+This tool allows automatic analysis of loop kernels using the Execution Cache Memory (ECM) model,
 the Roofline model and actual benchmarks. kerncraft provides a framework to investigate the
 data reuse and cache requirements by static code analysis. In combination with the Intel IACA tool
-kerncraft can give a good overview of both in-core and memory bottlenecks and use that data to 
+kerncraft can give a good overview of both in-core and memory bottlenecks and use that data to
 apply performance models.
 
 For a detailed documentation see publications in `<doc/>`_.
@@ -16,7 +16,7 @@ For a detailed documentation see publications in `<doc/>`_.
 
 .. image:: https://codecov.io/github/RRZE-HPC/kerncraft/coverage.svg?branch=master
     :target: https://codecov.io/github/RRZE-HPC/kerncraft?branch=master
-    
+
 .. image:: https://landscape.io/github/RRZE-HPC/kerncraft/master/landscape.svg?style=flat
    :target: https://landscape.io/github/RRZE-HPC/kerncraft/master
    :alt: Code Health
@@ -33,7 +33,7 @@ Clone this repository and run ``python ./setup.py install``.
 If you are unfamiliar with python, here is a tutorial on how to install python packages: https://packaging.python.org/installing/ . The use of virtual enviornments is usually a good choice.
 
 Additional requirements are:
- * `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_, with (working) ``iaca.sh`` in PATH environment variable (used by ECM, ECMCPU and RooflineIACA models)
+ * `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_. Run `iaca_get`, provided by kerncraft, to install the required versions [sic!] in the package or `~/.kerncraft` directory.
  * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto.py``)
 
 Usage
