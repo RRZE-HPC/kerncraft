@@ -19,9 +19,7 @@ install:
 - iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
 cache: pip
 script:
-- kerncraft -p ECMCPU --compiler gcc examples/kernels/2d-5pt.c -m examples/machine-files/BroadwellEP_E5-2697_CoD.yml -D N 1024 -D M 1024
-- cd tests/
-- coverage run -p all_tests.py
+- coverage run -p tests/all_tests.py
 - coverage run -p `which kerncraft` --help
 after_success:
 - coverage combine
