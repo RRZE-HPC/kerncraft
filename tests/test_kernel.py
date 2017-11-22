@@ -20,7 +20,6 @@ import six
 import sympy
 from ruamel import yaml
 
-sys.path.insert(0, '..')
 from kerncraft.kernel import Kernel, KernelCode, KernelDescription
 
 

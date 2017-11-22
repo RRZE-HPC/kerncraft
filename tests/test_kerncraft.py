@@ -20,7 +20,6 @@ import platform
 import six
 import sympy
 
-sys.path.insert(0, '..')
 from kerncraft import kerncraft as kc
 from kerncraft.prefixedunit import PrefixedUnit
 
