@@ -12,6 +12,7 @@ if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
 
 import re
 import subprocess
+import os
 
 from distutils.spawn import find_executable
 from six.moves import input
