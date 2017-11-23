@@ -113,14 +113,18 @@ class MachineModel(object):
                             self['cores per NUMA domain'])
             bw = max(bw_measurements['results'][measurement_kernel][:max_cores])
 
+        measurement_kernel_info = self['benchmarks']['kernels'][measurement_kernel]
         # Correct bandwidth due to miss-measurement of write allocation
         # TODO support non-temporal stores and non-write-allocate architectures
-        measurement_kernel_info = self['benchmarks']['kernels'][measurement_kernel]
-        factor = (float(measurement_kernel_info['read streams']['bytes']) +
-                  2.0*float(measurement_kernel_info['write streams']['bytes']) -
-                  float(measurement_kernel_info['read+write streams']['bytes'])) / \
-                 (float(measurement_kernel_info['read streams']['bytes']) +
-                  float(measurement_kernel_info['write streams']['bytes']))
+        if cache_level == 0:
+            # L1 does not have write-allocate, so everything is measured correctly
+            factor = 1.0
+        else:
+            factor = (float(measurement_kernel_info['read streams']['bytes']) +
+                      2.0*float(measurement_kernel_info['write streams']['bytes']) -
+                      float(measurement_kernel_info['read+write streams']['bytes'])) / \
+                     (float(measurement_kernel_info['read streams']['bytes']) +
+                      float(measurement_kernel_info['write streams']['bytes']))
         bw = bw * factor
 
         return bw, measurement_kernel
@@ -203,4 +207,3 @@ class MachineModel(object):
                   if s.name in perfcounters}
 
         return expr, events
-

@@ -94,8 +94,11 @@ class Roofline(object):
         total_loads = read_streams * element_size
         total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
-            0, read_streams, write_streams,
-            threads_per_core, cores=self._args.cores)
+            0,
+            read_streams - write_streams,  # no write-allocate in L1
+            write_streams,
+            threads_per_core,
+            cores=self._args.cores)
 
         # Calculate performance (arithmetic intensity * bandwidth with
         # arithmetic intensity = flops / bytes loaded )
