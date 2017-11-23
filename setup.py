@@ -134,6 +134,7 @@ setup(
         'pycachesim>=0.1.5',
         'pylru',
         'numpy',
+        'requests',
         # 'pycparser>=2.14', patched version provided with kerncraft
     ],
 
