@@ -140,7 +140,16 @@ def find_asm_blocks(asm_lines):
 
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
-                        pointer_increment = mem_scales[0]*increments[idx_reg]
+                        try:
+                            pointer_increment = mem_scales[0]*increments[idx_reg]
+                        except:
+                            print("label", label)
+                            print("lines", repr(lines))
+                            print("increments", increments)
+                            print("mem_references", mem_references)
+                            print("possible_idx_regs", possible_idx_regs)
+                            print("mem_scales", mem_scales)
+                            raise
 
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
