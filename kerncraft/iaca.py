@@ -13,6 +13,7 @@ if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
 import re
 import subprocess
 import os
+from copy import copy
 
 from distutils.spawn import find_executable
 from six.moves import input
@@ -264,9 +265,9 @@ def iaca_instrumentation(input_file, output_file=None,
         output_file = input_file
 
     with open(input_file, 'r') as f:
-        assembly = f.readlines()
+        assembly_orig = f.readlines()
 
-    assembly = strip_and_uncomment(assembly)
+    assembly = strip_and_uncomment(copy(assembly_orig))
     assembly = strip_unreferenced_labels(assembly)
     blocks = find_asm_blocks(assembly)
     if block_selection == 'auto':
@@ -294,7 +295,7 @@ def iaca_instrumentation(input_file, output_file=None,
         raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
                          "'auto_with_manual_fallback' ")
 
-    instrumentedAsm = insert_markers(assembly, block['first_line'], block['last_line'])
+    instrumentedAsm = insert_markers(assembly_orig, block['first_line'], block['last_line'])
     with open(output_file, 'w') as in_file:
         in_file.writelines(instrumentedAsm)
 
