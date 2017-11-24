@@ -25,15 +25,14 @@ Installation
 ============
 
 On most systems with python pip and setuputils installed, just run:
-``pip install --user kerncraft`` for the latest release.
 
-If you want to build from source:
-Clone this repository and run ``python ./setup.py install``.
+``pip install --user kerncraft``
 
-If you are unfamiliar with python, here is a tutorial on how to install python packages: https://packaging.python.org/installing/ . The use of virtual enviornments is usually a good choice.
+for the latest release. In order to get the `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_, required by the `ECM`, `ECMCPU` and `RooflineIACA` performance models, read `this <https://software.intel.com/protected-download/267266/157552>`_ and run:
+
+``iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul``
 
 Additional requirements are:
- * `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_. Run `iaca_get`, provided by kerncraft, to install the required versions [sic!] in the package or `~/.kerncraft` directory.
  * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto.py``)
 
 Usage
