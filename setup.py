@@ -152,11 +152,8 @@ setup(
     package_data={
         'kerncraft': ['headers/dummy.c', 'headers/kerncraft.h', 'README.rst', 'LICENSE',
                       'pycparser/*.cfg'],
-        'examples': [
-            'machine-files/*.yaml',
-            'kernels/*.c',
-            'kernels/*.testcases'],
-        'tests': ['test_files/*.c', 'test_files/*.yaml', '*.py'],
+        'examples': ['machine-files/*.yaml', 'machine-files/*.yml', 'kernels/*.c'],
+        'tests': ['test_files/*.c', 'test_files/*.yaml', 'test_files/*.yml', '*.py'],
     },
     include_package_data=True,
 

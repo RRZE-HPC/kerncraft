@@ -1,7 +1,8 @@
 include tox.ini
-recursive-include examples/machine-files *.yaml
-recursive-include examples/kernels *.c *.testcases
-recursive-include tests *.py
-recursive-include tests/test_files *.c *.yaml *.yml
-recursive-include tests/test_files/dummy_likwid *
-recursive-include kerncraft/headers/ *.h *.c
+include examples/machine-files/*.yaml examples/machine-files/*.yml
+include examples/kernels/*.c
+exclude examples/kernels/*.c_compilable.c
+include tests/*.py
+include tests/test_files/*.c tests/test_files/*.yaml tests/test_files/*.yml
+include tests/test_files/dummy_likwid/*
+include kerncraft/headers/*.h kerncraft/headers/*.c
