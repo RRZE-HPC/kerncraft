@@ -136,7 +136,8 @@ def find_asm_blocks(asm_lines):
                     # good, exactly one register was found
                     idx_reg = possible_idx_regs[0]
 
-                    mem_scales = [mref[3] for mref in mem_references if idx_reg == mref[2]]
+                    mem_scales = [mref[3] for mref in mem_references
+                                  if idx_reg == mref[2] or idx_reg == mref[1]]
 
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
@@ -147,7 +148,7 @@ def find_asm_blocks(asm_lines):
                             print("lines", repr(asm_lines[last_label_line:i+1]))
                             print("increments", increments)
                             print("mem_references", mem_references)
-                            print("possible_idx_regs", possible_idx_regs)
+                            print("idx_reg", idx_reg)
                             print("mem_scales", mem_scales)
                             raise
 
