@@ -32,6 +32,31 @@ END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER 
               '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
 
 
+def strip_and_uncomment(asm_lines):
+    """Strip whitespaces and comments from asm lines."""
+    asm_stripped = []
+    for line in asm_lines:
+        # Strip comments and whitespaces
+        asm_stripped.append(line.split('#')[0].strip()+'\n')
+    return asm_stripped
+
+
+def strip_unreferenced_labels(asm_lines):
+    """Strip all labels, which are never referenced."""
+    asm_code = ''.join(asm_lines)  # Needed for search of references
+    asm_stripped = []
+    for line in asm_lines:
+        if re.match(r'^\S+:', line):
+            # Found label
+            label = line[0:line.find(':')]
+            # Search for references to current label
+            if not re.search(' '+re.escape(label)+'[ ,]?.*$', asm_code, re.MULTILINE):
+                # Skip labels without seen reference
+                line = ''
+        asm_stripped.append(line)
+    return asm_stripped
+
+
 def find_asm_blocks(asm_lines):
     """Find blocks probably corresponding to loops in assembly."""
     blocks = []
@@ -50,10 +75,6 @@ def find_asm_blocks(asm_lines):
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
-
-        # Strip comments and whitespaces
-        line = line.split('#')[0]
-        line = line.strip()
 
         if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line):
             if line.startswith('v'):
@@ -143,7 +164,6 @@ def select_best_block(blocks):
     best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
     if best_block[1]['packed_instr'] == 0:
         best_block = max(blocks, key=lambda b: b[1]['ops']+b[1]['packed_instr']+b[1]['avx_instr'])
-
     return best_block[0]
 
 
@@ -223,6 +243,8 @@ def iaca_instrumentation(input_file, output_file=None,
     with open(input_file, 'r') as f:
         assembly = f.readlines()
 
+    assembly = strip_and_uncomment(assembly)
+    assembly = strip_unreferenced_labels(assembly)
     blocks = find_asm_blocks(assembly)
     if block_selection == 'auto':
         block_idx = select_best_block(blocks)
