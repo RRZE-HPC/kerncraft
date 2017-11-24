@@ -50,7 +50,7 @@ def strip_unreferenced_labels(asm_lines):
             # Found label
             label = line[0:line.find(':')]
             # Search for references to current label
-            if not re.search(' '+re.escape(label)+'[ ,]?.*$', asm_code, re.MULTILINE):
+            if not re.search('\s'+re.escape(label)+'[\s,]?.*$', asm_code, re.MULTILINE):
                 # Skip labels without seen reference
                 line = ''
         asm_stripped.append(line)
