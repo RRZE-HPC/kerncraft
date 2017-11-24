@@ -144,7 +144,7 @@ def find_asm_blocks(asm_lines):
                             pointer_increment = mem_scales[0]*increments[idx_reg]
                         except:
                             print("label", last_label)
-                            print("lines", repr(lines))
+                            print("lines", repr(asm_lines[last_label_line:i+1]))
                             print("increments", increments)
                             print("mem_references", mem_references)
                             print("possible_idx_regs", possible_idx_regs)
