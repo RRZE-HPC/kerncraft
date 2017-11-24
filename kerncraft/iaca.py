@@ -37,13 +37,13 @@ def strip_and_uncomment(asm_lines):
     asm_stripped = []
     for line in asm_lines:
         # Strip comments and whitespaces
-        asm_stripped.append(line.split('#')[0].strip()+'\n')
+        asm_stripped.append(line.split('#')[0].strip())
     return asm_stripped
 
 
 def strip_unreferenced_labels(asm_lines):
     """Strip all labels, which are never referenced."""
-    asm_code = ''.join(asm_lines)  # Needed for search of references
+    asm_code = '\n'.join(asm_lines)  # Needed for search of references
     asm_stripped = []
     for line in asm_lines:
         if re.match(r'^\S+:', line):
@@ -75,6 +75,15 @@ def find_asm_blocks(asm_lines):
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
+
+        if re.search(r'\d*\(%\w+,%\w+(,\d)?\)', line):
+            m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)',
+                          line)
+            mem_references.append((
+                int(m.group('off')) if m.group('off') else 0,
+                m.group('basep'),
+                m.group('idx'),
+                int(m.group('scale')) if m.group('scale') else 1))
 
         if re.match(r"^[v]?(mul|add|sub|div)[h]?p[ds]", line):
             if line.startswith('v'):
@@ -108,18 +117,11 @@ def find_asm_blocks(asm_lines):
             const_end = line[const_start+1:].find(',')+const_start+1
             reg_start = line.find('%')+1
             increments[line[reg_start:]] = -int(line[const_start:const_end])
-        elif re.search(r'\d*\(%\w+,%\w+(,\d)?\)$', line):
-            m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)$',
-                          line)
-            mem_references.append((
-                int(m.group('off')) if m.group('off') else 0,
-                m.group('basep'),
-                m.group('idx'),
-                int(m.group('scale')) if m.group('scale') else 1))
         elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s*', line):
             # End of block
             # deduce loop increment from memory index register
             pointer_increment = None  # default -> can not decide, let user choose
+            possible_idx_regs = None
             if mem_references:
                 # we found memory references to work with
                 possible_idx_regs = list(increments.keys())
@@ -153,8 +155,19 @@ def find_asm_blocks(asm_lines):
                                     len(set(xmm_references)) + len(set(ymm_references)) +
                                     len(set(gp_references))),
                            'pointer_increment': pointer_increment,
-                           'lines': asm_lines[last_label_line:i+1], })
+                           'lines': asm_lines[last_label_line:i+1],
+                           'possible_idx_regs': possible_idx_regs,
+                           'mem_references': mem_references,
+                           'increments': increments,})
 
+            # Reset counters
+            packed_ctr = 0
+            avx_ctr = 0
+            xmm_references = []
+            ymm_references = []
+            gp_references = []
+            mem_references = []
+            increments = {}
     return list(enumerate(blocks))
 
 
