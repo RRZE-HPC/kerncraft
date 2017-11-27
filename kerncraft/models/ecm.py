@@ -446,7 +446,7 @@ class ECM(object):
 
         if self.verbose > 1:
             if 'memory bandwidth kernel' in self.results:
-                report += 'memory cycles based on {} kernel with {}\n'.format(
+                report += '\nmemory cycles based on {} kernel with {}\n'.format(
                     self.results['memory bandwidth kernel'],
                     self.results['memory bandwidth'])
 
