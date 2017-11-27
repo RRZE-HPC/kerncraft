@@ -310,7 +310,6 @@ class Kernel(object):
             # This unspools the iterations:
             length = end-start
             total_length = total_length*length
-
         return self.subs_consts(total_length)
 
     def get_loop_stack(self, subs_consts=False):
@@ -431,13 +430,12 @@ class Kernel(object):
         Inverse of global_iterator_to_indices().
         """
         global_iterator = sympy.Integer(0)
-        total_length = 1
+        total_length = sympy.Integer(1)
         for var_name, start, end, incr in reversed(self._loop_stack):
             loop_var = symbol_pos_int(var_name)
             length = end-start  # FIXME is incr handled correct here?
             global_iterator += (indices[loop_var] - start)*total_length
-            total_length = total_length*length
-
+            total_length *= length
         return self.subs_consts(global_iterator)
 
     def compile_global_offsets(self, iteration=0, spacing=0):

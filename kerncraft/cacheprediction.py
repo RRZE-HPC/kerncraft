@@ -237,16 +237,14 @@ class CacheSimulationPredictor(CachePredictor):
             symbol_pos_int(l['index']): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
         warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-
         # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
         while warmup_iteration_count*element_size > max_cache_size*1.5:
-            for index in [symbol_pos_int(l['index'])
-                          for l in self.kernel.get_loop_stack()]:
-                if warmup_indices[index] > 1:
+            for l in self.kernel.get_loop_stack():
+                index = symbol_pos_int(l['index'])
+                if warmup_indices[index] > l['start']:
                     warmup_indices[index] -= 1
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads:
         # Assumption: writes (and reads) increase linearly
