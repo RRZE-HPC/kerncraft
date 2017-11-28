@@ -25,6 +25,7 @@ from six.moves import range
 from ruamel import yaml
 
 from . import models
+from . import __version__
 from .kernel import KernelCode, KernelDescription, symbol_pos_int
 from .machinemodel import MachineModel
 
@@ -113,7 +114,11 @@ class AppendStringRange(argparse.Action):
 
 def create_parser():
     """Return argparse parser."""
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description='Analytical performance modelling and benchmarking toolkit.',
+        epilog='For help, examples, documenataion and bug reports go to:\nhttps://github.com'
+               '/RRZE-HPC/kerncraft\nLicense: AGPLv3')
+    parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=True,
                         help='Path to machine description yaml file.')
     parser.add_argument('--pmodel', '-p', choices=models.__all__, required=True, action='append',
