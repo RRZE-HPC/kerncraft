@@ -201,7 +201,7 @@ def run(parser, args, output_file=sys.stdout):
         kernel = KernelCode(code, filename=args.code_file.name, machine=machine)
     else:
         description = six.text_type(args.code_file.read())
-        kernel = KernelDescription(yaml.load(description), machine=machine)
+        kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
     # if no defines were given, guess suitable defines in-mem
     # TODO support in-cache
     # TODO broaden cases to n-dimensions
