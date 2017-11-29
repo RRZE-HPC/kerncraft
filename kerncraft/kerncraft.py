@@ -208,6 +208,7 @@ def run(parser, args, output_file=sys.stdout):
     # TODO make configurable (no hardcoded 512MB/1GB/min. 3 iteration ...)
     # works only for up to 3 dimensions
     required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
+    required_consts += [[l['start'], l['stop']] for l in kernel.get_loop_stack()]
     # split into individual consts
     required_consts = [i for l in required_consts for i in l]
     required_consts = set([i for l in required_consts for i in l.free_symbols])

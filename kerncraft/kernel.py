@@ -16,7 +16,7 @@ import sys
 import numbers
 import collections
 from functools import reduce
-from string import ascii_letters
+import string
 from itertools import chain
 from collections import defaultdict
 
@@ -1220,7 +1220,8 @@ class KernelDescription(Kernel):
     """
     Kernel information gathered from YAML kernel description file.
 
-    This class does NOT allow compilation (required by iaca analysis and likwid benchmarking).
+    This class does NOT allow compilation, required for IACA analysis (ECMCPU and RooflineIACA)
+    and LIKWID benchmarking (benchmark).
     """
 
     def __init__(self, description, machine=None):
@@ -1272,6 +1273,11 @@ class KernelDescription(Kernel):
         elif s is None:
             return None
         else:
+            # Step 1 build expression with the whole alphabet redefined:
+            local_dict = {c: symbol_pos_int(c) for c in s if c in string.ascii_letters}
             # TODO find nicer solution for N and other pre-mapped letters
-            return parse_expr(s, local_dict={c: symbol_pos_int(c)
-                                             for c in s if c in ascii_letters})
+            preliminary_expr = parse_expr(s, local_dict=local_dict)
+            # Replace all free symbols with positive integer versions:
+            local_dict.update(
+                {s.name: symbol_pos_int(s.name) for s in preliminary_expr.free_symbols})
+            return parse_expr(s, local_dict=local_dict)
