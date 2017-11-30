@@ -193,11 +193,15 @@ class LC(object):
                 else:
                     # Sympy does not solve for multiple constants
                     inequality = sympy.LessThan(cache_requirement_bytes, cl.size())
+                try:
+                    eq = sympy.solve(inequality, *self.kernel.constants.keys(), dict=True)
+                except NotImplementedError:
+                    eq = None
                 results['dimensions'][dimension]['caches'][cl.name] = {
                     'cache_size': cl.size(),
                     'equation': cache_equation,
                     'lt': inequality,
-                    'eq': sympy.solve(inequality, *self.kernel.constants.keys(), dict=True)
+                    'eq': eq
                 }
 
         return results
@@ -215,10 +219,15 @@ class LC(object):
         #    references containing the inner loop index. If the inner loop index is not part of the
         #    reference, the reference is simply ignored
         # TODO support flattend array indexes
-        references = list(self.kernel.index_order())
-        for aref in references:
+        for aref in list(self.kernel.index_order()):
+            # Strip left most empty sets (refereces without index)
+            while len(aref[0]) == 0:
+                aref.pop(0)
             for i, idx_names in enumerate(aref):
-                if any([loop_stack[i]['index'] != idx.name for idx in idx_names]):
+                # 1. Check for that there are enough loops to handle access dimensions
+                # 2. Check that offset index matches loop index (in same order)
+                if i >= len(loop_stack) or \
+                        any([loop_stack[i]['index'] != idx.name for idx in idx_names]):
                     raise ValueError("Can not apply layer-condition, order of indices in array "
                                      "does not follow order of loop indices. Single-dimension is "
                                      "currently not supported.")
@@ -229,6 +238,13 @@ class LC(object):
                            chain(*self.kernel.destinations.values())):
             if arefs is None:
                 continue
+
+            # Strip left most constant offsets (refereces without index) to support things like:
+            # a[0][i+1][j][k-1] with an i, j and k loop-nest
+            while not arefs[0].free_symbols:
+                arefs.pop(0)
+
+            # Check that remaining indices are in orde
             for i, expr in enumerate(arefs):
                 diff = sympy.diff(expr, sympy.Symbol(loop_stack[i]['index']))
                 if diff != 0 and diff != 1:
@@ -250,7 +266,9 @@ class LC(object):
                 if lc_solution['lt'] is sympy.true:
                     print("unconditionally fulfilled", file=output_file)
                 else:
-                    if type(lc_solution['eq']) is not list:
+                    if lc_solution['eq'] is None:
+                        print("{}".format(lc_solution['lt']), file=output_file)
+                    elif type(lc_solution['eq']) is not list:
                         print("{}".format(lc_solution['eq']), file=output_file)
                     else:
                         for solu in lc_solution['eq']:

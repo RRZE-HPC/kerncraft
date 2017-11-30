@@ -246,7 +246,7 @@ class CacheSimulationPredictor(CachePredictor):
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
         # Align iteration count with cachelines
-        # do this by aligning either writes (preferred) or reads:
+        # do this by aligning either writes (preferred) or reads
         # Assumption: writes (and reads) increase linearly
         o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
         if o[1]:
