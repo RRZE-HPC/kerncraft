@@ -283,7 +283,9 @@ def iaca_instrumentation(input_file, output_file=None,
 
     if pointer_increment == 'auto':
         if block['pointer_increment'] is None:
-            raise RuntimeError("pointer_increment could not be detected automatically")
+            raise RuntimeError("pointer_increment could not be detected automatically. Use "
+                               "--pointer-increment to set manually to byte offset of store "
+                               "pointer address between consecutive assembly block iterations.")
     elif pointer_increment == 'auto_with_manual_fallback':
         if block['pointer_increment'] is None:
             block['pointer_increment'] = userselect_increment(block)
