@@ -57,7 +57,7 @@ class LayerConditionPredictor(CachePredictor):
         # 1. All iterations may only have a step width of 1
         loop_stack = list(self.kernel.get_loop_stack())
         if any([l['increment'] != 1 for l in loop_stack]):
-            raise ValueError("Can not apply layer-condition, since not all loops are of step "
+            raise ValueError("Can not apply layer condition, since not all loops are of step "
                              "length 1.")
 
         # 2. The order of iterations must be reflected in the order of indices in all array
@@ -67,6 +67,7 @@ class LayerConditionPredictor(CachePredictor):
         index_order = [symbol_pos_int(l['index']) for l in loop_stack]
         for var_name, arefs in chain(self.kernel.sources.items(), self.kernel.destinations.items()):
             if arefs[0] is None:
+                # Anything that is a sclar may be ignored
                 continue
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
                 for t in a.expand().as_ordered_terms():
@@ -101,7 +102,7 @@ class LayerConditionPredictor(CachePredictor):
                 diff = expr.subs(inner_index, 1+inner_increment) - expr.subs(inner_index, 1)
                 if diff != 0 and diff != 1:
                     # TODO support -1 aswell
-                    raise ValueError("Can not apply layer-condition, array references may not "
+                    raise ValueError("Can not apply layer condition, array references may not "
                                      "increment more then one per iteration.")
 
         # FIXME handle multiple datatypes
