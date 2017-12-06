@@ -9,11 +9,10 @@ import os.path
 import sys
 import numbers
 import collections
-from functools import reduce
+from functools import reduce, lru_cache
 import string
-from itertools import chain
 from collections import defaultdict
-from itertools import zip_longest, lru_cache
+from itertools import zip_longest, chain
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
