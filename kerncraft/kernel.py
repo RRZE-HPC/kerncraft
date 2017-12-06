@@ -1164,7 +1164,8 @@ class KernelCode(Kernel):
 
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                 'LIKWID_LIB' in os.environ):
-            print('Could not find LIKWID_INCLUDE and LIKWID_LIB environment variables',
+            print('Could not find LIKWID_INCLUDE (e.g., "-I/app/likwid/4.1.2/include") and '
+                  'LIKWID_LIB (e.g., "-L/apps/likwid/4.1.2/lib") environment variables',
                   file=sys.stderr)
             sys.exit(1)
 
