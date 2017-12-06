@@ -1,9 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Machine model and helper functions."""
-
-from __future__ import absolute_import
-from __future__ import division
-
 from distutils.spawn import find_executable
 import re
 import sys

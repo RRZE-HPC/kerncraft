@@ -1,9 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Merge two pickle files containing dictionarys recursively."""
-
-from __future__ import print_function
-from __future__ import absolute_import
-
 import argparse
 import pickle
 import collections

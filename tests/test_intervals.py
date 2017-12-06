@@ -1,9 +1,7 @@
+#!/usr/bin/env python3
 """
 Unit tests for intervals module
 """
-from __future__ import print_function
-
-import sys
 import unittest
 
 from kerncraft.intervals import Intervals

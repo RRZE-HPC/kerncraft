@@ -1,16 +1,5 @@
-#!/usr/bin/env python
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from __future__ import division
-
-# Version check
+#!/usr/bin/env python3
 import sys
-if sys.version_info[0] == 2 and sys.version_info < (2, 6) or \
-        sys.version_info[0] == 3 and sys.version_info < (3, 4):
-    print("Must use python 2.6 or 3.4 and greater.", file=sys.stderr)
-    sys.exit(1)
-
 import subprocess
 import re
 from copy import copy
@@ -19,7 +8,6 @@ from pprint import pprint
 from ruamel import yaml
 
 from .prefixedunit import PrefixedUnit
-from six.moves import range
 
 
 def get_match_or_break(regex, haystack, flags=re.MULTILINE):

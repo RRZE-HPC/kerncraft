@@ -1,23 +1,16 @@
+#!/usr/bin/env python3
 """
 High-level tests for the overall functionallity and things in kc.py
 """
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
-import sys
 import os
 import unittest
 import tempfile
 import shutil
 import pickle
-from pprint import pprint
 from io import StringIO
 from distutils.spawn import find_executable
 import platform
 
-import six
 import sympy
 
 from kerncraft import kerncraft as kc
@@ -61,7 +54,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
                 ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
@@ -71,7 +64,7 @@ class TestKerncraft(unittest.TestCase):
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c']
                                       if (sympy.var('N'), 1000) in k][0]]
 
-        six.assertCountEqual(self, result, ['ECMData'])
+        self.assertCountEqual(result, ['ECMData'])
 
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
@@ -104,7 +97,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
                 ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
@@ -113,7 +106,7 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
 
-        six.assertCountEqual(self, result, ['ECMData'])
+        self.assertCountEqual(result, ['ECMData'])
 
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
@@ -143,7 +136,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
                 ((sympy.var('M'), 50), (sympy.var('N'), 1024)), ((sympy.var('M'), 50), (sympy.var('N'), 2048)), ((sympy.var('M'), 50), (sympy.var('N'), 4096))]])
@@ -151,7 +144,7 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 4096) in k][0]]
 
-        six.assertCountEqual(self, result, ['Roofline'])
+        self.assertCountEqual(result, ['Roofline'])
 
         roofline = result['Roofline']
         self.assertAlmostEqual(roofline['min performance'], 5802500000.0, places=0)
@@ -285,14 +278,14 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
 
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
 
-        six.assertCountEqual(self, result, ['ECMCPU'])
+        self.assertCountEqual(result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
         self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
@@ -322,14 +315,14 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
 
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
 
-        six.assertCountEqual(self, result, ['ECM'])
+        self.assertCountEqual(result, ['ECM'])
 
         ecmd = result['ECM']
         # 2 * 2000*1000 * 8 = 31MB
@@ -367,14 +360,14 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 4000))]])
 
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
 
-        six.assertCountEqual(self, result, ['RooflineIACA'])
+        self.assertCountEqual(result, ['RooflineIACA'])
 
         roofline = result['RooflineIACA']
         self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
@@ -414,14 +407,14 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(results), ['2d-5pt.c'])
 
         # Check for correct variations of constants
-        six.assertCountEqual(self,
+        self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 1000))]])
 
         # Output of first result:
         result = list(results['2d-5pt.c'].values())[0]
 
-        six.assertCountEqual(self, result, ['Benchmark'])
+        self.assertCountEqual(result, ['Benchmark'])
 
         roofline = result['Benchmark']
         correct_results = {

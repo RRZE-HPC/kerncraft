@@ -1,24 +1,9 @@
+#!/usr/bin/env python3
 """
 High-level tests for the overall functionallity and things in kc.py
 """
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
-import sys
 import os
 import unittest
-import tempfile
-import shutil
-import pickle
-from pprint import pprint
-from io import StringIO
-from distutils.spawn import find_executable
-import platform
-
-import six
-import sympy
 
 from kerncraft import likwid_bench_auto as lba
 from kerncraft.prefixedunit import PrefixedUnit
