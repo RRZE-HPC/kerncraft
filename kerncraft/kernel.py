@@ -1168,11 +1168,15 @@ class KernelCode(Kernel):
                   file=sys.stderr)
             sys.exit(1)
 
+        likwid_include = os.environ.get('LIKWID_INCLUDE', '')
+        likwid_include = '-I' + likwid_include if likwid_include != '' else ''
+        likwid_inc = os.environ.get('LIKWID_INC', '')
+        likwid_inc = '-I' + likwid_include if likwid_inc != '' else ''
         compiler_args += [
             '-std=c99',
             '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
-            os.environ.get('LIKWID_INCLUDE', ''),
-            os.environ.get('LIKWID_INC', ''),
+            likwid_include,
+            likwid_inc,
             '-llikwid']
 
         # This is a special case for unittesting
@@ -1181,8 +1185,9 @@ class KernelCode(Kernel):
 
         if lflags is None:
             lflags = []
-        lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
-        compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
+        likwid_lib = [''.join(['-L', path]) for path in os.environ['LIKWID_LIB'].split(' ')]
+        lflags += likwid_lib + ['-pthread']
+        compiler_args += likwid_lib + ['-pthread']
 
         if not self._filename:
             source_file = tempfile.NamedTemporaryFile(
