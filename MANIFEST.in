@@ -1,4 +1,6 @@
 include tox.ini
+include LICENSE
+include README.rst
 include examples/machine-files/*.yaml examples/machine-files/*.yml
 include examples/kernels/*.c
 exclude examples/kernels/*.c_compilable.c

@@ -150,8 +150,7 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'kerncraft': ['headers/dummy.c', 'headers/kerncraft.h', 'README.rst', 'LICENSE',
-                      'pycparser/*.cfg'],
+        'kerncraft': ['headers/dummy.c', 'headers/kerncraft.h', 'pycparser/*.cfg'],
         'examples': ['machine-files/*.yaml', 'machine-files/*.yml', 'kernels/*.c'],
         'tests': ['test_files/*.c', 'test_files/*.yaml', 'test_files/*.yml', '*.py'],
     },
