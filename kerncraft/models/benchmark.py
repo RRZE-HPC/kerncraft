@@ -100,10 +100,10 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
 
     Keyword arguments will be overwritten by *event_tuple*.
 
-    >>> eventstr(('L1D_REPLACEMENT', 'PMC0', None))
-    'L1D_REPLACEMENT:PMC0'
-    >>> eventstr(('L1D_REPLACEMENT', 'PMC0'))
-    'L1D_REPLACEMENT:PMC0'
+    >>> eventstr(('L1D_RE'+'PLACEMENT', 'PMC0', None))
+    'L1D_RE'+'PLACEMENT:PMC0'
+    >>> eventstr(('L1D_RE'+'PLACEMENT', 'PMC0'))
+    'L1D_RE'+'PLACEMENT:PMC0'
     >>> eventstr(('MEM_UOPS_RETIRED_LOADS', 'PMC3', {'EDGEDETECT': None, 'THRESHOLD': 2342}))
     'MEM_UOPS_RETIRED_LOADS:PMC3:EDGEDETECT:THRESHOLD=0x926'
     >>> eventstr(event='DTLB_LOAD_MISSES_WALK_DURATION', register='PMC3')
