@@ -42,12 +42,12 @@ def cmp_to_key(mycmp):
 
 class LC(object):
     """
-    Representation of the Layer-Condition model.
+    Representation of the layer condition model.
 
-    See https://rrze-hpc.github.io/layer-condition/ for information about this analytical model.
+    See https://rrze-hpc.github.io/layer condition/ for information about this analytical model.
     """
 
-    name = "Layer-Condition"
+    name = "Layer Condition"
 
     @classmethod
     def configure_arggroup(cls, parser):
@@ -212,7 +212,7 @@ class LC(object):
         # 1. All iterations may only have a step width of 1
         loop_stack = list(self.kernel.get_loop_stack())
         if any([l['increment'] != 1 for l in loop_stack]):
-            raise ValueError("Can not apply layer-condition, since not all loops are of step "
+            raise ValueError("Can not apply layer condition, since not all loops are of step "
                              "length 1.")
 
         # 2. The order of iterations must be reflected in the order of indices in all array
@@ -228,7 +228,7 @@ class LC(object):
                 # 2. Check that offset index matches loop index (in same order)
                 if i >= len(loop_stack) or \
                         any([loop_stack[i]['index'] != idx.name for idx in idx_names]):
-                    raise ValueError("Can not apply layer-condition, order of indices in array "
+                    raise ValueError("Can not apply layer condition, order of indices in array "
                                      "does not follow order of loop indices. Single-dimension is "
                                      "currently not supported.")
 
@@ -249,7 +249,7 @@ class LC(object):
                 diff = sympy.diff(expr, sympy.Symbol(loop_stack[i]['index']))
                 if diff != 0 and diff != 1:
                     # TODO support -1 aswell
-                    raise ValueError("Can not apply layer-condition, array references may not "
+                    raise ValueError("Can not apply layer condition, array references may not "
                                      "increment more then one per iteration.")
 
         self.results = self.calculate_cache_access()
@@ -260,7 +260,7 @@ class LC(object):
             pprint(self.results)
 
         for dimension, lc_info in self.results['dimensions'].items():
-            print("{}D Layer-Condition:".format(dimension), file=output_file)
+            print("{}D layer condition:".format(dimension), file=output_file)
             for cache, lc_solution in sorted(lc_info['caches'].items()):
                 print(cache+": ", end='', file=output_file)
                 if lc_solution['lt'] is sympy.true:
