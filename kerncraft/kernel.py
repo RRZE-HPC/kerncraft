@@ -1016,7 +1016,7 @@ class KernelCode(Kernel):
         # add dummy function declaration
         decl = c_ast.Decl('dummy', [], [], [], c_ast.FuncDecl(
             c_ast.ParamList([c_ast.Typename(None, [], c_ast.PtrDecl(
-                [], c_ast.TypeDecl(None, [], c_ast.IdentifierType(['double']))))]),
+                [], c_ast.TypeDecl(None, [], c_ast.IdentifierType(['void']))))]),
             c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
             None, None)
         ast.ext.insert(0, decl)

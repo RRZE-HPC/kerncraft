@@ -1,2 +1,2 @@
-void dummy(double* a) {}
+void dummy(void* a) {}
 int var_false = 0;

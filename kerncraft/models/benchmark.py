@@ -17,6 +17,7 @@ try:
     from itertools import zip_longest
 except ImportError:
     from itertools import izip_longest as zip_longest
+from pprint import pprint
 
 import six
 import sympy
@@ -272,6 +273,7 @@ class Benchmark(object):
     def analyze(self):
         """Run analysis."""
         bench = self.kernel.build(verbose=self.verbose > 1)
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
         args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
@@ -325,7 +327,6 @@ class Benchmark(object):
                         event_counter_results[sym] = measured_ctrs[event][r]
 
             # Analytical metrics needed for futher calculation
-            element_size = self.kernel.datatypes_size[self.kernel.datatype]
             elements_per_cacheline = float(self.machine['cacheline size']) // element_size
             total_iterations = self.kernel.iteration_length() * repetitions
             total_cachelines = total_iterations/elements_per_cacheline
@@ -381,14 +382,13 @@ class Benchmark(object):
 
         self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constant names
-        # TODO support SP (devide by 4 instead of 8.0)
         iterations_per_repetition = reduce(
             operator.mul,
             [self.kernel.subs_consts(max_-min_)/self.kernel.subs_consts(step)
              for idx, min_, max_, step in self.kernel._loop_stack],
             1)
         self.results['Iterations per repetition'] = iterations_per_repetition
-        iterations_per_cacheline = float(self.machine['cacheline size'])/8.0
+        iterations_per_cacheline = float(self.machine['cacheline size'])/element_size
         cys_per_repetition = time_per_repetition*float(self.machine['clock'])
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
             (cys_per_repetition/iterations_per_repetition)*iterations_per_cacheline
@@ -405,6 +405,9 @@ class Benchmark(object):
 
     def report(self, output_file=sys.stdout):
         """Report gathered analysis data in human readable form."""
+        if self.verbose > 1:
+            pprint(self.results)
+
         if self.verbose > 0:
             print('Runtime (per repetition): {:.2g} s'.format(
                       self.results['Runtime (per repetition) [s]']),
@@ -430,7 +433,7 @@ class Benchmark(object):
                   file=output_file)
         print('', file=output_file)
 
-        if self.no_phenoecm:
+        if not self.no_phenoecm:
             print("Data Transfers:")
             print("{:^8} |".format("cache"), end='')
             for metrics in self.results['data transfers'].values():
