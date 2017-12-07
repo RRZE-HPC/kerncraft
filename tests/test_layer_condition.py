@@ -33,8 +33,8 @@ class TestLayerCondition(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     def _find_file(self, name):
-        testdir = os.path.dirname(__file__)
-        name = os.path.join(testdir, 'test_files', name)
+        test_dir = os.path.dirname(__file__)
+        name = os.path.join(test_dir, 'test_files', name)
         assert os.path.exists(name)
         return name
 
@@ -104,7 +104,7 @@ class TestLayerCondition(unittest.TestCase):
         # Iterate over expected results and validate with generated results
         stack = [((k,), v) for k, v in result_expected.items()]
         while stack:
-            key_path, value = stack.pop()#
+            key_path, value = stack.pop()
             if isinstance(value, dict):
                 stack.extend([(key_path + (k,), v) for k, v in value.items()])
             else:
