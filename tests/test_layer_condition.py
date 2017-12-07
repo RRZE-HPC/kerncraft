@@ -32,7 +32,8 @@ class TestLayerCondition(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(self.temp_dir)
 
-    def _find_file(self, name):
+    @staticmethod
+    def _find_file(name):
         test_dir = os.path.dirname(__file__)
         name = os.path.join(test_dir, 'test_files', name)
         assert os.path.exists(name)

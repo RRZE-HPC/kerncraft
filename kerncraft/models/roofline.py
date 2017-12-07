@@ -22,7 +22,7 @@ class Roofline(object):
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None, cores=1,
-                 predictor=LayerConditionPredictor, verbose=0):
+                 cache_predictor=LayerConditionPredictor, verbose=0):
         """
         Create roofline model from kernel and machine objects.
 
@@ -88,7 +88,7 @@ class Roofline(object):
         write_streams = len(write_offsets)
         read_streams = len(read_offsets) + write_streams  # write-allocate
         total_loads = read_streams * element_size
-        total_evicts = write_streams * element_size
+        # total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
             0,
             read_streams - write_streams,  # no write-allocate in L1

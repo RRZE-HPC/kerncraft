@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # Always prefer setuptools over distutils
+import io
+import os
+import re
+import sys
+from codecs import open  # To use a consistent encoding
+from distutils.dir_util import mkpath
+
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py as _build_py
 from setuptools.command.sdist import sdist as _sdist
-from distutils.dir_util import mkpath
-from codecs import open  # To use a consistent encoding
-import sys, os, io, re
-
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -14,8 +17,8 @@ here = os.path.abspath(os.path.dirname(__file__))
 # Stolen from pip
 def read(*names, **kwargs):
     with io.open(
-        os.path.join(os.path.dirname(__file__), *names),
-        encoding=kwargs.get("encoding", "utf8")
+            os.path.join(os.path.dirname(__file__), *names),
+            encoding=kwargs.get("encoding", "utf8")
     ) as fp:
         return fp.read()
 
@@ -31,8 +34,8 @@ def find_version(*file_paths):
 
 
 # Stolen from pycparser
-def _run_build_tables(dir):
-    targetdir = os.path.join(dir, 'kerncraft', 'pycparser')
+def _run_build_tables(directory):
+    targetdir = os.path.join(directory, 'kerncraft', 'pycparser')
     # mkpath is a distutils helper to create directories
     mkpath(targetdir)
     from subprocess import call
@@ -55,10 +58,11 @@ class sdist(_sdist):
     def make_release_tree(self, base_dir, files):
         self.execute(_run_build_tables, (os.getcwd(),),
                      msg="Build the lexing/parsing tables")
-        dir = os.path.join('kerncraft', 'pycparser')
-        files.append(os.path.join(dir, 'yacctab.py'))
-        files.append(os.path.join(dir, 'lextab.py'))
+        directory = os.path.join('kerncraft', 'pycparser')
+        files.append(os.path.join(directory, 'yacctab.py'))
+        files.append(os.path.join(directory, 'lextab.py'))
         _sdist.make_release_tree(self, base_dir, files)
+
 
 # Get the long description from the relevant file
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
@@ -120,7 +124,7 @@ setup(
     # project is installed. For an analysis of "install_requires" vs pip's
 
     # what is not found or up-to-date on pypi we get from github:
-    #dependency_links = ['https://github.com/sympy/sympy/tarball/master#egg=sympy-0.7.7.dev0'],
+    # dependency_links = ['https://github.com/sympy/sympy/tarball/master#egg=sympy-0.7.7.dev0'],
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[

@@ -17,7 +17,7 @@ class TemporaryDirectory:
         self.tempdir = tempfile.mkdtemp()
         return self.tempdir
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type_, value, traceback):
         shutil.rmtree(self.tempdir)
 
 
@@ -35,7 +35,7 @@ def serach_path():
     # 1st choice: in ~/.kerncraft/iaca-{}
     # 2nd choice: in package directory / iaca-{}
     return [os.path.expanduser("~/.kerncraft/iaca/{}/".format(operating_system)),
-            os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/iaca/{}/'.format(
+            os.path.abspath(os.path.dirname(os.path.realpath(__file__))) + '/iaca/{}/'.format(
                 operating_system)]
 
 
@@ -46,13 +46,14 @@ def find_iaca():
         path += 'bin/'
         valid = True
         for r in requires:
-            if not os.path.exists(path+r):
+            if not os.path.exists(path + r):
                 valid = False
                 break
         if valid:
             return path
     raise RuntimeError("No IACA installation found in {}. Run iaca_get command to fix this issue."
                        "".format(serach_path()))
+
 
 def main():
     try:
@@ -115,7 +116,7 @@ def main():
 
     print("IACA v2.2 (for NHM and WSM support):", file=sys.stderr)
     download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-2.2-'+operating_system+'\.zip)"',
+        r'"(https://software.intel.com/[^"]*iaca-version-2.2-' + operating_system + '\.zip)"',
         donwload_list).group(1)
     print("Downloading", download_url, "...", file=sys.stderr)
     r = s.get(download_url, stream=True)
@@ -127,32 +128,32 @@ def main():
     print("Extracting...", file=sys.stderr)
     with TemporaryDirectory() as tempdir:
         zfile.extractall(tempdir, members=members)
-        shutil.copytree(tempdir+'/iaca-{}'.format(operating_system), base_dir+'v2.2')
+        shutil.copytree(tempdir + '/iaca-{}'.format(operating_system), base_dir + 'v2.2')
     # Correct permissions of executables
     print("Correcting permissions of binary...")
-    st = os.stat(base_dir+'v2.2/bin/iaca')
+    st = os.stat(base_dir + 'v2.2/bin/iaca')
     os.chmod(
-        base_dir+'v2.2/bin/iaca',
+        base_dir + 'v2.2/bin/iaca',
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
-    st = os.stat(base_dir+'v2.2/bin/iaca.sh')
+    st = os.stat(base_dir + 'v2.2/bin/iaca.sh')
     os.chmod(
-        base_dir+'v2.2/bin/iaca.sh',
+        base_dir + 'v2.2/bin/iaca.sh',
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
     # Fix iaca.sh
     print("Fixing iaca.sh...", file=sys.stderr)
-    iaca_sh = open(base_dir+'v2.2/bin/iaca.sh').read()
+    iaca_sh = open(base_dir + 'v2.2/bin/iaca.sh').read()
     iaca_sh = iaca_sh.replace('realpath', 'readlink -f', 1)
     iaca_sh = iaca_sh.replace('mypath=`pwd`', 'mypath=`dirname $0`', 1)
     iaca_sh = iaca_sh.replace('path=$(cd "$(dirname "$0")"; pwd)',
                               'script=`readlink -f $0`\n\tpath=`dirname "$script"`', 1)
-    open(base_dir+'v2.2/bin/iaca.sh', 'w').write(iaca_sh)
-    print("IACA v2.2 installed to", os.getcwd()+'/'+base_dir+'v2.3', file=sys.stderr)
+    open(base_dir + 'v2.2/bin/iaca.sh', 'w').write(iaca_sh)
+    print("IACA v2.2 installed to", os.getcwd() + '/' + base_dir + 'v2.3', file=sys.stderr)
 
     print("IACA v2.3 (for SNB and IVY support):", file=sys.stderr)
     download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-2.3-'+operating_system+'\.zip)"',
+        r'"(https://software.intel.com/[^"]*iaca-version-2.3-' + operating_system + '\.zip)"',
         donwload_list).group(1)
     print("Downloading", download_url, "...", file=sys.stderr)
     r = s.get(download_url, stream=True)
@@ -165,32 +166,32 @@ def main():
     print("Extracting...", file=sys.stderr)
     with TemporaryDirectory() as tempdir:
         zfile.extractall(tempdir, members=members)
-        shutil.copytree(tempdir+'/iaca-{}'.format(operating_system), base_dir+'v2.3')
+        shutil.copytree(tempdir + '/iaca-{}'.format(operating_system), base_dir + 'v2.3')
     # Correct permissions of executables
     print("Correcting permissions of binary...")
-    st = os.stat(base_dir+'v2.3/bin/iaca')
+    st = os.stat(base_dir + 'v2.3/bin/iaca')
     os.chmod(
-        base_dir+'v2.3/bin/iaca',
+        base_dir + 'v2.3/bin/iaca',
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
-    st = os.stat(base_dir+'v2.3/bin/iaca.sh')
+    st = os.stat(base_dir + 'v2.3/bin/iaca.sh')
     os.chmod(
-        base_dir+'v2.3/bin/iaca.sh',
+        base_dir + 'v2.3/bin/iaca.sh',
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
     # Fix iaca.sh
     print("Fixing iaca.sh...", file=sys.stderr)
-    iaca_sh = open(base_dir+'v2.3/bin/iaca.sh').read()
+    iaca_sh = open(base_dir + 'v2.3/bin/iaca.sh').read()
     iaca_sh = iaca_sh.replace('realpath', 'readlink -f', 1)
     iaca_sh = iaca_sh.replace('mypath=`pwd`', 'mypath=`dirname $0`', 1)
     iaca_sh = iaca_sh.replace('path=$(cd "$(dirname "$0")"; pwd)',
                               'script=`readlink -f $0`\n\tpath=`dirname "$script"`', 1)
-    open(base_dir+'v2.3/bin/iaca.sh', 'w').write(iaca_sh)
-    print("IACA v2.3 installed to", os.getcwd()+'/'+base_dir+'v2.3', file=sys.stderr)
+    open(base_dir + 'v2.3/bin/iaca.sh', 'w').write(iaca_sh)
+    print("IACA v2.3 installed to", os.getcwd() + '/' + base_dir + 'v2.3', file=sys.stderr)
 
     print("IACA v3.0 (for HSW, BDW, SKL and SKX support):", file=sys.stderr)
     download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-v3.0-'+operating_system+'\.zip)"',
+        r'"(https://software.intel.com/[^"]*iaca-version-v3.0-' + operating_system + '\.zip)"',
         donwload_list).group(1)
     print("Downloading...", download_url, "...", file=sys.stderr)
     r = s.get(download_url, stream=True)
@@ -203,22 +204,22 @@ def main():
     print("Extracting...", file=sys.stderr)
     with TemporaryDirectory() as tempdir:
         zfile.extractall(tempdir, members=members)
-        shutil.copytree(tempdir+'/iaca-{}'.format(operating_system), base_dir+'v3.0')
+        shutil.copytree(tempdir + '/iaca-{}'.format(operating_system), base_dir + 'v3.0')
 
     print("Correcting permissions of binary...", file=sys.stderr)
-    st = os.stat(base_dir+'v3.0/iaca')
+    st = os.stat(base_dir + 'v3.0/iaca')
     os.chmod(
-        base_dir+'v3.0/iaca'.format(operating_system),
+        base_dir + 'v3.0/iaca'.format(operating_system),
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
-    print("IACA v3.0 installed to", os.getcwd()+'/'+base_dir+'v3.0', file=sys.stderr)
+    print("IACA v3.0 installed to", os.getcwd() + '/' + base_dir + 'v3.0', file=sys.stderr)
 
     # Create unified bin directory to access both operating_systems
-    os.mkdir(base_dir+'bin')
-    os.symlink('../v2.2/bin/iaca.sh', base_dir+'bin/iaca2.2')
-    os.symlink('../v2.3/bin/iaca.sh', base_dir+'bin/iaca2.3')
-    os.symlink('../v3.0/iaca', base_dir+'bin/iaca3.0')
-    print('export PATH='+base_dir+'bin/:$PATH')
+    os.mkdir(base_dir + 'bin')
+    os.symlink('../v2.2/bin/iaca.sh', base_dir + 'bin/iaca2.2')
+    os.symlink('../v2.3/bin/iaca.sh', base_dir + 'bin/iaca2.3')
+    os.symlink('../v3.0/iaca', base_dir + 'bin/iaca3.0')
+    print('export PATH=' + base_dir + 'bin/:$PATH')
 
 
 if __name__ == '__main__':

@@ -10,7 +10,8 @@ from kerncraft.prefixedunit import PrefixedUnit
 
 
 class TestLikwidBenchAuto(unittest.TestCase):
-    def _find_file(self, name):
+    @staticmethod
+    def _find_file(name):
         testdir = os.path.dirname(__file__)
         name = os.path.join(testdir, 'test_files', name)
         assert os.path.exists(name)
@@ -19,7 +20,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
     def test_get_machine_topology(self):
         # patch environment to include dummy likwid
         environ_orig = os.environ
-        os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
+        os.environ['PATH'] = self._find_file('dummy_likwid') + ':' + os.environ['PATH']
 
         self.maxDiff = None
         self.assertEqual(
@@ -35,9 +36,10 @@ class TestLikwidBenchAuto(unittest.TestCase):
              'NUMA domains per socket': 1.0,
              'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
              'clock': 'INFORMATION_REQUIRED (e.g., 2.7 GHz)',
-             'compiler': {'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],
-                          'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)'],
-                          'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)']},
+             'compiler': {
+                 'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],
+                 'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)'],
+                 'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)']},
              'cores per NUMA domain': 0.1,
              'cores per socket': 10,
              'memory hierarchy': [{'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
@@ -56,12 +58,13 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                    'cycles per cacheline transfer': 'INFORMATION_REQUIRED',
                                    'groups': 20,
                                    'level': 'L1',
-                                   'performance counter metrics': {'accesses': 'INFORMATION_REQUIRED (e.g., '
-                                                                               'L1D_REPLACEMENT__PMC0)',
-                                                                   'evicts': 'INFORMATION_REQUIRED (e.g., '
-                                                                             'L2_LINES_OUT_DIRTY_ALL__PMC2)',
-                                                                   'misses': 'INFORMATION_REQUIRED (e.g., '
-                                                                             'L2_LINES_IN_ALL__PMC1)'},
+                                   'performance counter metrics': {
+                                       'accesses': 'INFORMATION_REQUIRED (e.g., '
+                                                   'L1D_REPLACEMENT__PMC0)',
+                                       'evicts': 'INFORMATION_REQUIRED (e.g., '
+                                                 'L2_LINES_OUT_DIRTY_ALL__PMC2)',
+                                       'misses': 'INFORMATION_REQUIRED (e.g., '
+                                                 'L2_LINES_IN_ALL__PMC1)'},
                                    'size per group': PrefixedUnit(32.0, 'k', 'B'),
                                    'threads per group': 2.0},
                                   {'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
@@ -80,12 +83,13 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                    'cycles per cacheline transfer': 'INFORMATION_REQUIRED',
                                    'groups': 20,
                                    'level': 'L2',
-                                   'performance counter metrics': {'accesses': 'INFORMATION_REQUIRED (e.g., '
-                                                                               'L1D_REPLACEMENT__PMC0)',
-                                                                   'evicts': 'INFORMATION_REQUIRED (e.g., '
-                                                                             'L2_LINES_OUT_DIRTY_ALL__PMC2)',
-                                                                   'misses': 'INFORMATION_REQUIRED (e.g., '
-                                                                             'L2_LINES_IN_ALL__PMC1)'},
+                                   'performance counter metrics': {
+                                       'accesses': 'INFORMATION_REQUIRED (e.g., '
+                                                   'L1D_REPLACEMENT__PMC0)',
+                                       'evicts': 'INFORMATION_REQUIRED (e.g., '
+                                                 'L2_LINES_OUT_DIRTY_ALL__PMC2)',
+                                       'misses': 'INFORMATION_REQUIRED (e.g., '
+                                                 'L2_LINES_IN_ALL__PMC1)'},
                                    'size per group': PrefixedUnit(256.0, 'k', 'B'),
                                    'threads per group': 2.0},
                                   {'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
@@ -102,12 +106,13 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                    'cycles per cacheline transfer': 'INFORMATION_REQUIRED',
                                    'groups': 2,
                                    'level': 'L3',
-                                   'performance counter metrics': {'accesses': 'INFORMATION_REQUIRED (e.g., '
-                                                                               'L1D_REPLACEMENT__PMC0)',
-                                                                   'evicts': 'INFORMATION_REQUIRED (e.g., '
-                                                                             'L2_LINES_OUT_DIRTY_ALL__PMC2)',
-                                                                   'misses': 'INFORMATION_REQUIRED (e.g., '
-                                                                             'L2_LINES_IN_ALL__PMC1)'},
+                                   'performance counter metrics': {
+                                       'accesses': 'INFORMATION_REQUIRED (e.g., '
+                                                   'L1D_REPLACEMENT__PMC0)',
+                                       'evicts': 'INFORMATION_REQUIRED (e.g., '
+                                                 'L2_LINES_OUT_DIRTY_ALL__PMC2)',
+                                       'misses': 'INFORMATION_REQUIRED (e.g., '
+                                                 'L2_LINES_IN_ALL__PMC1)'},
                                    'size per group': PrefixedUnit(25.0, 'M', 'B'),
                                    'threads per group': 20.0},
                                   {'cores per group': 10,
@@ -137,7 +142,6 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                             '"7"])'},
              'sockets': 2,
              'threads per core': 2})
-
 
         # restore enviornment
         os.environ = environ_orig

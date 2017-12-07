@@ -258,7 +258,7 @@ class Kernel(object):
             assert offset_type == 'rel', 'Only relative access to arrays is supported at the moment'
 
             if offset_type == 'rel':
-                offset += self.kernel.subs_consts(
+                offset += self.subs_consts(
                     dim_offset*reduce(operator.mul, base_dims[dim+1:], sympy.Integer(1)))
             else:
                 # should not happen
@@ -678,10 +678,8 @@ class KernelCode(Kernel):
         assert type(aref.subscript) in [c_ast.ID, c_ast.Constant, c_ast.BinaryOp], \
             'array subscript must only contain variables or binary operations'
 
-        idxs = []
-
         # Convert subscript to sympy and append
-        idxs.append(self.conv_ast_to_sym(aref.subscript))
+        idxs = list(self.conv_ast_to_sym(aref.subscript))
 
         # Check for more indices (multi-dimensional access)
         if type(aref.name) is c_ast.ArrayRef:
@@ -1216,6 +1214,13 @@ class KernelDescription(Kernel):
     and LIKWID benchmarking (benchmark).
     """
 
+    def iaca_analysis(self, *args, **kwargs):
+        raise NotImplementedError("IACA analysis is not possible based on a Kernel Description")
+
+    def build(self, *args, **kwargs):
+        raise NotImplementedError("Building and compilation is not possible based on a Kernel "
+                                  "Description")
+
     def __init__(self, description, machine=None):
         """
         Create kernel representation from a description dictionary.
@@ -1273,3 +1278,4 @@ class KernelDescription(Kernel):
             local_dict.update(
                 {s.name: symbol_pos_int(s.name) for s in preliminary_expr.free_symbols})
             return parse_expr(s, local_dict=local_dict)
+

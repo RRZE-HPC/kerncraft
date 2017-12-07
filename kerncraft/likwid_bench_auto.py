@@ -13,25 +13,26 @@ from .prefixedunit import PrefixedUnit
 def get_match_or_break(regex, haystack, flags=re.MULTILINE):
     m = re.search(regex, haystack, flags)
     if not m:
-        raise ValueError("could not find "+repr(regex)+" in "+repr(haystack))
+        raise ValueError("could not find " + repr(regex) + " in " + repr(haystack))
     return m.groups()
 
 
 def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
     try:
         topo = subprocess.Popen(
-                ['likwid-topology'], stdout=subprocess.PIPE
-            ).communicate()[0].decode("utf-8")
+            ['likwid-topology'], stdout=subprocess.PIPE
+        ).communicate()[0].decode("utf-8")
     except OSError as e:
-        print('likwid-topology execution failed, is it installed and loaded?', file=sys.stderr)
+        print('likwid-topology execution failed ({}), is it installed and loaded?'.format(e),
+              file=sys.stderr)
         sys.exit(1)
     with open(cpuinfo_path, 'r') as f:
         cpuinfo = f.read()
     sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
     numa_domains_per_socket = \
-        int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0])/sockets
-    cores_per_numa_domain = numa_domains_per_socket/cores_per_socket
+        int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0]) / sockets
+    cores_per_numa_domain = numa_domains_per_socket / cores_per_socket
     machine = {
         'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
         'model name': get_match_or_break(r'^model name\s+:\s+(.+?)\s*$', cpuinfo)[0],
@@ -59,17 +60,17 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
             'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
                      ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
             'performance counter metric':
-                     'INFORAMTION_REQUIRED Example:'
-                     'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
-                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+                'INFORAMTION_REQUIRED Example:'
+                'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
         },
         'non-overlapping model': {
             'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
                      ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
             'performance counter metric':
-                     'INFORAMTION_REQUIRED Example:'
-                     'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
-                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+                'INFORAMTION_REQUIRED Example:'
+                'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
         }
     }
 
@@ -92,14 +93,14 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
         elif line.startswith('Size:'):
             size = PrefixedUnit(line.split(':')[1].strip())
             mem_level['cache per group'] = {
-                'sets': 'INFORMATION_REQUIRED (sets*ways*cl_size='+str(size)+')',
-                'ways': 'INFORMATION_REQUIRED (sets*ways*cl_size='+str(size)+')',
-                'cl_size': 'INFORMATION_REQUIRED (sets*ways*cl_size='+str(size)+')',
+                'sets': 'INFORMATION_REQUIRED (sets*ways*cl_size=' + str(size) + ')',
+                'ways': 'INFORMATION_REQUIRED (sets*ways*cl_size=' + str(size) + ')',
+                'cl_size': 'INFORMATION_REQUIRED (sets*ways*cl_size=' + str(size) + ')',
                 'replacement_policy': 'INFORMATION_REQUIRED (options: LRU, FIFO, MRU, RR)',
                 'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                 'write_back': 'INFORMATION_REQUIRED (True/False)',
-                'load_from': 'L'+str(int(mem_level['level'][1:])+1),
-                'store_to': 'L'+str(int(mem_level['level'][1:])+1)}
+                'load_from': 'L' + str(int(mem_level['level'][1:]) + 1),
+                'store_to': 'L' + str(int(mem_level['level'][1:]) + 1)}
             mem_level['size per group'] = size
         elif line.startswith('Cache groups:'):
             mem_level['groups'] = line.count('(')
@@ -112,7 +113,7 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
             'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
             'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
             'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
-            }
+        }
 
     # Remove last caches load_from and store_to:
     del machine['memory hierarchy'][-1]['cache per group']['load_from']
@@ -139,14 +140,14 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
             '-w',
             'S' + str(s) + ':' + str(total_size) + 'kB:' +
             str(threads_per_core * cores_per_socket) +
-            ':1:'+str(int(max_threads_per_core/threads_per_core))]
+            ':1:' + str(int(max_threads_per_core / threads_per_core))]
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
-    cmd = ['likwid-bench', '-t', type_]+groups
+    cmd = ['likwid-bench', '-t', type_] + groups
     sys.stderr.write(' '.join(cmd))
     output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
     if not output:
         print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
-              '(requires 4.0 or later)', file=sys.stderr)
+                              '(requires 4.0 or later)', file=sys.stderr)
         sys.exit(1)
     bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
     print(' ', PrefixedUnit(bw, 'MB/s'), file=sys.stderr)
@@ -175,55 +176,55 @@ def main():
     machine = get_machine_topology()
     pprint(machine)
 
-    benchmarks = {'kernels': {}, 'measurements': {}}
-    machine['benchmarks'] = benchmarks
-    benchmarks['kernels'] = {
-        'load': {
-            'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
-            'write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
-            'FLOPs per iteration': 0},
-        'copy': {
-            'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
-            'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'FLOPs per iteration': 0},
-        'update': {
-            'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'FLOPs per iteration': 0},
-        'triad': {
-            'read streams': {'streams': 3, 'bytes': PrefixedUnit(24, 'B')},
-            'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
-            'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'FLOPs per iteration': 2},
-        'daxpy': {
-            'read streams': {'streams': 2, 'bytes': PrefixedUnit(16, 'B')},
-            'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-            'FLOPs per iteration': 2}, }
+    machine['benchmarks'] = {
+        'kernels': {
+            'load': {
+                'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                'write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                'FLOPs per iteration': 0},
+            'copy': {
+                'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'FLOPs per iteration': 0},
+            'update': {
+                'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'FLOPs per iteration': 0},
+            'triad': {
+                'read streams': {'streams': 3, 'bytes': PrefixedUnit(24, 'B')},
+                'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'FLOPs per iteration': 2},
+            'daxpy': {
+                'read streams': {'streams': 2, 'bytes': PrefixedUnit(16, 'B')},
+                'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                'FLOPs per iteration': 2}, },
+        'measurements': {}}
 
     USAGE_FACTOR = 0.66
     MEM_FACTOR = 15.0
 
-    cores = list(range(1, machine['cores per socket']+1))
+    cores = list(range(1, machine['cores per socket'] + 1))
     for mem in machine['memory hierarchy']:
         measurement = {}
         machine['benchmarks']['measurements'][mem['level']] = measurement
 
-        for threads_per_core in range(1, machine['threads per core']+1):
-            threads = [c*threads_per_core for c in cores]
+        for threads_per_core in range(1, machine['threads per core'] + 1):
+            threads = [c * threads_per_core for c in cores]
             if mem['size per group'] is not None:
                 total_sizes = [
-                    PrefixedUnit(max(int(mem['size per group'])*c/mem['cores per group'],
-                                 int(mem['size per group']))*USAGE_FACTOR, 'B')
+                    PrefixedUnit(max(int(mem['size per group']) * c / mem['cores per group'],
+                                     int(mem['size per group'])) * USAGE_FACTOR, 'B')
                     for c in cores]
             else:
                 last_mem = machine['memory hierarchy'][-2]
-                total_sizes = [last_mem['size per group']*MEM_FACTOR for c in cores]
-            sizes_per_core = [t/cores[i] for i, t in enumerate(total_sizes)]
-            sizes_per_thread = [t/threads[i] for i, t in enumerate(total_sizes)]
+                total_sizes = [last_mem['size per group'] * MEM_FACTOR for c in cores]
+            sizes_per_core = [t / cores[i] for i, t in enumerate(total_sizes)]
+            sizes_per_thread = [t / threads[i] for i, t in enumerate(total_sizes)]
 
             measurement[threads_per_core] = {
                 'threads per core': threads_per_core,
@@ -244,7 +245,7 @@ def main():
                 for i, total_size in enumerate(measurement['total size']):
                     measurement['results'][kernel].append(measure_bw(
                         kernel,
-                        int(float(total_size)/1000),
+                        int(float(total_size) / 1000),
                         threads_per_core,
                         machine['threads per core'],
                         measurement['cores'][i],

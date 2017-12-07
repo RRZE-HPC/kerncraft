@@ -36,7 +36,7 @@ def group_iterator(group):
     for m in re.finditer(tokenizer, group):
         if m.group('seq'):
             start, sep, end = m.group('seq')
-            for i in range(ordered_chars.index(start), ordered_chars.index(end)+1):
+            for i in range(ordered_chars.index(start), ordered_chars.index(end) + 1):
                 yield ordered_chars[i]
         else:
             yield m.group('chr')
@@ -195,7 +195,7 @@ class Benchmark(object):
                                          r'([0-9]+(?:\.[0-9]+)?)\s*$',
                                          cpuinfo,
                                          flags=re.MULTILINE).groups()[0]
-            current_cpu_freq = float(current_cpu_freq)*1e6
+            current_cpu_freq = float(current_cpu_freq) * 1e6
         except AttributeError:
             current_cpu_freq = None
         if float(self.machine['clock']) != current_cpu_freq:
@@ -237,11 +237,11 @@ class Benchmark(object):
             sys.exit(1)
 
         results = {}
-        for l in output:
-            l = l.split(',')
+        for line in output:
+            line = line.split(',')
             try:
                 # Metrics
-                results[l[0]] = float(l[1])
+                results[line[0]] = float(line[1])
             except ValueError:
                 # Would not convert to float
                 pass
@@ -250,10 +250,10 @@ class Benchmark(object):
                 continue
             try:
                 # Event counters
-                counter_value = int(l[2])
-                if re.fullmatch(r'[A-Z0-9_]+', l[0]) and re.fullmatch(r'[A-Z0-9]+', l[1]):
-                    results.setdefault(l[0], {})
-                    results[l[0]][l[1]] = counter_value
+                counter_value = int(line[2])
+                if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
+                    results.setdefault(line[0], {})
+                    results[line[0]][line[1]] = counter_value
             except (IndexError, ValueError):
                 pass
 
@@ -269,18 +269,20 @@ class Benchmark(object):
 
         # Determine base runtime with 100 iterations
         runtime = 0.0
-        time_per_repetition = 0.2/10.0
+        time_per_repetition = 0.2 / 10.0
+        repetitions = 10
+        mem_results = {}
 
         while runtime < 0.15:
             # Interpolate to a 0.2s run
-            if time_per_repetition != 0.0:
-                repetitions = 0.2//time_per_repetition
+            if time_per_repetition == 0.0:
+                repetitions = 0.2 // time_per_repetition
             else:
                 repetitions *= 10
 
-            mem_results = self.perfctr(args+[str(repetitions)], group="MEM")
+            mem_results = self.perfctr(args + [str(repetitions)], group="MEM")
             runtime = mem_results['Runtime (RDTSC) [s]']
-            time_per_repetition = runtime/float(repetitions)
+            time_per_repetition = runtime / float(repetitions)
         raw_results = [mem_results]
 
         # Gather remaining counters
@@ -292,7 +294,7 @@ class Benchmark(object):
                 self.machine['non-overlapping model']['performance counter metric'])
             event_counters.update(event_dict)
             cache_metrics = defaultdict(dict)
-            for i in range(len(self.machine['memory hierarchy'])-1):
+            for i in range(len(self.machine['memory hierarchy']) - 1):
                 cache_info = self.machine['memory hierarchy'][i]
                 name = cache_info['level']
                 for k, v in cache_info['performance counter metrics'].items():
@@ -304,7 +306,7 @@ class Benchmark(object):
             measured_ctrs = {}
             for run in minimal_runs:
                 ctrs = ','.join([eventstr(e) for e in run])
-                r = self.perfctr(args+[str(repetitions)], group=ctrs)
+                r = self.perfctr(args + [str(repetitions)], group=ctrs)
                 raw_results.append(r)
                 measured_ctrs.update(r)
             # Match measured counters to symbols
@@ -318,7 +320,7 @@ class Benchmark(object):
             # Analytical metrics needed for futher calculation
             elements_per_cacheline = float(self.machine['cacheline size']) // element_size
             total_iterations = self.kernel.iteration_length() * repetitions
-            total_cachelines = total_iterations/elements_per_cacheline
+            total_cachelines = total_iterations / elements_per_cacheline
 
             T_OL_result = T_OL.subs(event_counter_results) / total_cachelines
             cache_metric_results = defaultdict(dict)
@@ -327,7 +329,7 @@ class Benchmark(object):
                     cache_metric_results[cache][m] = e.subs(event_counter_results)
 
             # Inter-cache transfers per CL
-            cache_transfers_per_cl = {cache: {k: PrefixedUnit(v/total_cachelines, 'CL/CL')
+            cache_transfers_per_cl = {cache: {k: PrefixedUnit(v / total_cachelines, 'CL/CL')
                                               for k, v in d.items()}
                                       for cache, d in cache_metric_results.items()}
             cache_transfers_per_cl['L1']['accesses'].unit = 'LOAD/CL'
@@ -367,29 +369,33 @@ class Benchmark(object):
 
         self.results = {'raw output': raw_results, 'ECM': ecm_model,
                         'data transfers': cache_transfers_per_cl,
-                        'Runtime (per repetition) [s]': time_per_repetition}
+                        'Runtime (per repetition) [s]': time_per_repetition,
+                        'event counters': event_counters}
 
         # TODO make more generic to support other (and multiple) constant names
         iterations_per_repetition = reduce(
             operator.mul,
-            [self.kernel.subs_consts(max_-min_)/self.kernel.subs_consts(step)
+            [self.kernel.subs_consts(max_ - min_) / self.kernel.subs_consts(step)
              for idx, min_, max_, step in self.kernel._loop_stack],
             1)
         self.results['Iterations per repetition'] = iterations_per_repetition
-        iterations_per_cacheline = float(self.machine['cacheline size'])/element_size
-        cys_per_repetition = time_per_repetition*float(self.machine['clock'])
+        iterations_per_cacheline = float(self.machine['cacheline size']) / element_size
+        cys_per_repetition = time_per_repetition * float(self.machine['clock'])
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
-            (cys_per_repetition/iterations_per_repetition)*iterations_per_cacheline
+            (cys_per_repetition / iterations_per_repetition) * iterations_per_cacheline
         self.results['MEM volume (per repetition) [B]'] = \
-            mem_results['Memory data volume [GBytes]']*1e9/repetitions
+            mem_results['Memory data volume [GBytes]'] * 1e9 / repetitions
         self.results['Performance [MFLOP/s]'] = \
-            sum(self.kernel._flops.values())/(time_per_repetition/iterations_per_repetition)/1e6
+            sum(self.kernel._flops.values()) / (
+            time_per_repetition / iterations_per_repetition) / 1e6
         if 'Memory bandwidth [MBytes/s]' in mem_results:
             self.results['MEM BW [MByte/s]'] = mem_results['Memory bandwidth [MBytes/s]']
         else:
             self.results['MEM BW [MByte/s]'] = mem_results['Memory BW [MBytes/s]']
-        self.results['Performance [MLUP/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
-        self.results['Performance [MIt/s]'] = (iterations_per_repetition/time_per_repetition)/1e6
+        self.results['Performance [MLUP/s]'] = (
+                                               iterations_per_repetition / time_per_repetition) / 1e6
+        self.results['Performance [MIt/s]'] = (
+                                              iterations_per_repetition / time_per_repetition) / 1e6
 
     def report(self, output_file=sys.stdout):
         """Report gathered analysis data in human readable form."""
@@ -398,18 +404,18 @@ class Benchmark(object):
 
         if self.verbose > 0:
             print('Runtime (per repetition): {:.2g} s'.format(
-                      self.results['Runtime (per repetition) [s]']),
-                  file=output_file)
+                self.results['Runtime (per repetition) [s]']),
+                file=output_file)
         if self.verbose > 0:
             print('Iterations per repetition: {!s}'.format(
-                     self.results['Iterations per repetition']),
-                  file=output_file)
+                self.results['Iterations per repetition']),
+                file=output_file)
         print('Runtime (per cacheline update): {:.2f} cy/CL'.format(
-                  self.results['Runtime (per cacheline update) [cy/CL]']),
-              file=output_file)
+            self.results['Runtime (per cacheline update) [cy/CL]']),
+            file=output_file)
         print('MEM volume (per repetition): {:.0f} Byte'.format(
-                  self.results['MEM volume (per repetition) [B]']),
-              file=output_file)
+            self.results['MEM volume (per repetition) [B]']),
+            file=output_file)
         print('Performance: {:.2f} MFLOP/s'.format(self.results['Performance [MFLOP/s]']),
               file=output_file)
         print('Performance: {:.2f} MLUP/s'.format(self.results['Performance [MLUP/s]']),
@@ -438,8 +444,8 @@ class Benchmark(object):
 
             print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
                   '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
-                       **{k: float(v) for k, v in self.results['ECM'].items()}),
-                  file=output_file)
+                **{k: float(v) for k, v in self.results['ECM'].items()}),
+                file=output_file)
             print('T_OL assumes that two loads per cycle may be retiered, which is true for '
                   '128bit SSE/half-AVX loads on SNB and IVY, and 256bit full-AVX loads on HSW, '
                   'BDW, SKL and SKX, but it also depends on AGU availability.',
