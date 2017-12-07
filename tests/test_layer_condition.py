@@ -1,23 +1,14 @@
+#!/usr/bin/env python3
 """
 High-level tests for the overall functionallity and things in kc.py
 """
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
-import sys
 import os
 import unittest
 import tempfile
 import shutil
 import pickle
-from pprint import pprint
 from io import StringIO
-from distutils.spawn import find_executable
-import platform
 
-import six
 import sympy
 
 from kerncraft import kerncraft as kc
@@ -70,7 +61,8 @@ class TestLayerCondition(unittest.TestCase):
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
         result = next(iter(results['3d-7pt.c'].values()))['LC']
 
         N = sympy.var('N')
@@ -112,7 +104,7 @@ class TestLayerCondition(unittest.TestCase):
         # Iterate over expected results and validate with generated results
         stack = [((k,), v) for k, v in result_expected.items()]
         while stack:
-            key_path, value = stack.pop()
+            key_path, value = stack.pop()#
             if isinstance(value, dict):
                 stack.extend([(key_path + (k,), v) for k, v in value.items()])
             else:

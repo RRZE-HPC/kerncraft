@@ -1,16 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Comand line interface of Kerncraft."""
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
 # Version check
 import sys
-if sys.version_info[0] == 2 and sys.version_info < (2, 7) or \
-        sys.version_info[0] == 3 and sys.version_info < (3, 4):
-    print("Must use python 2.7 or 3.4 and greater.", file=sys.stderr)
-    sys.exit(1)
 import argparse
 import os.path
 import pickle
@@ -20,8 +11,6 @@ import re
 import itertools
 
 from .pycparser import clean_code
-import six
-from six.moves import range
 from ruamel import yaml
 
 from . import models
@@ -34,7 +23,7 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
     """
     Return list of evenly spaced integers over an interval.
 
-    Numbers can either be evenlty distributed in a linear space (if *log* is False) or in a log
+    Numbers can either be evenly distributed in a linear space (if *log* is False) or in a log
     space (if *log* is True). If *log* is True, base is used to define the log space basis.
 
     If *endpoint* is True, *stop* will be the last retruned value, as long as *num* >= 2.
@@ -48,16 +37,16 @@ def space(start, stop, num, endpoint=True, log=False, base=10):
         stop = math.log(stop, base)
 
     if endpoint:
-        steplength = float((stop-start))/float(num-1)
+        step_length = float((stop - start)) / float(num - 1)
     else:
-        steplength = float((stop-start))/float(num)
+        step_length = float((stop - start)) / float(num)
 
     i = 0
     while i < num:
         if log:
-            yield int(round(base**(start + i*steplength)))
+            yield int(round(base ** (start + i * step_length)))
         else:
-            yield int(round(start + i*steplength))
+            yield int(round(start + i * step_length))
         i += 1
 
 
@@ -73,11 +62,11 @@ class AppendStringRange(argparse.Action):
     """
     Argparse Action to append integer range from string.
 
-    A range discription must have the following format: start[-stop[:num[log[base]]]]
+    A range description must have the following format: start[-stop[:num[log[base]]]]
     if stop is given, a list of integers is compiled
-    if num is given, an evently spaced lsit of intergers from start to stop is compiled
+    if num is given, an evenly spaced list of integers from start to stop is compiled
     if log is given, the integers are evenly spaced on a log space
-    if base is given, the integers are evently spaced on that base (default: 10)
+    if base is given, the integers are evenly spaced on that base (default: 10)
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -94,7 +83,7 @@ class AppendStringRange(argparse.Action):
                 if gd['stop'] is None:
                     values[1] = [int(gd['start'])]
                 elif gd['num'] is None:
-                    values[1] = list(range(int(gd['start']), int(gd['stop'])+1))
+                    values[1] = list(range(int(gd['start']), int(gd['stop']) + 1))
                 else:
                     log = gd['log'] is not None
                     base = int(gd['base']) if gd['base'] is not None else 10
@@ -116,7 +105,7 @@ def create_parser():
     """Return argparse parser."""
     parser = argparse.ArgumentParser(
         description='Analytical performance modelling and benchmarking toolkit.',
-        epilog='For help, examples, documenataion and bug reports go to:\nhttps://github.com'
+        epilog='For help, examples, documentation and bug reports go to:\nhttps://github.com'
                '/RRZE-HPC/kerncraft\nLicense: AGPLv3')
     parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=True,
@@ -163,7 +152,7 @@ def create_parser():
                              'description file (-std=c99 is always added).')
 
     for m in models.__all__:
-        ag = parser.add_argument_group('arguments for '+m+' model', getattr(models, m).name)
+        ag = parser.add_argument_group('arguments for ' + m + ' model', getattr(models, m).name)
         getattr(models, m).configure_arggroup(ag)
 
     return parser
@@ -196,11 +185,11 @@ def run(parser, args, output_file=sys.stdout):
 
     # process kernel
     if not args.kernel_description:
-        code = six.text_type(args.code_file.read())
+        code = str(args.code_file.read())
         code = clean_code(code)
         kernel = KernelCode(code, filename=args.code_file.name, machine=machine)
     else:
-        description = six.text_type(args.code_file.read())
+        description = str(args.code_file.read())
         kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
     # if no defines were given, guess suitable defines in-mem
     # TODO support in-cache
@@ -241,11 +230,11 @@ def run(parser, args, output_file=sys.stdout):
 
         for model_name in set(args.pmodel):
             # print header
-            print('{:=^80}'.format(' kerncraft '), file=output_file)
-            print('{:<40}{:>40}'.format(args.code_file.name, '-m '+args.machine.name),
+            print('{:^80}'.format(' kerncraft '), file=output_file)
+            print('{:<40}{:>40}'.format(args.code_file.name, '-m ' + args.machine.name),
                   file=output_file)
             print(' '.join(['-D {} {}'.format(k, v) for k, v in define]), file=output_file)
-            print('{:-^80}'.format(' '+model_name+' '), file=output_file)
+            print('{:-^80}'.format(' ' + model_name + ' '), file=output_file)
 
             if args.verbose > 1:
                 if not args.kernel_description:
@@ -274,10 +263,10 @@ def run(parser, args, output_file=sys.stdout):
 
         # Save storage to file (if requested)
         if args.store:
-            tempname = args.store.name + '.tmp'
-            with open(tempname, 'wb+') as f:
+            temp_name = args.store.name + '.tmp'
+            with open(temp_name, 'wb+') as f:
                 pickle.dump(result_storage, f)
-            shutil.move(tempname, args.store.name)
+            shutil.move(temp_name, args.store.name)
 
 
 def main():

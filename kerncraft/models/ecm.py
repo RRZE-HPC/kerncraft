@@ -1,17 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Execution-Cache-Memory model class and helper functions."""
-
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
 import copy
 import sys
 import math
 from pprint import pformat
 
-import six
 try:
     import matplotlib
     matplotlib.use('Agg')
@@ -346,8 +339,8 @@ class ECMCPU(object):
             print('', file=output_file)
 
         if self.verbose > 1:
-            print('Ports and cycles:', six.text_type(self.results['port cycles']), file=output_file)
-            print('Uops:', six.text_type(self.results['uops']), file=output_file)
+            print('Ports and cycles:', str(self.results['port cycles']), file=output_file)
+            print('Uops:', str(self.results['uops']), file=output_file)
 
             print('Throughput: {}'.format(
                       self.conv_cy(self.results['cl throughput'], self._args.unit)),

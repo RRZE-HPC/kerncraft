@@ -1,26 +1,13 @@
+#!/usr/bin/env python3
 """
 High-level tests for the overall functionallity and things in kc.py
 """
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
-import sys
 import os
 import unittest
-import tempfile
-import shutil
-import pickle
-from pprint import pprint
-from io import StringIO
-from itertools import chain
 
-import six
-import sympy
 from ruamel import yaml
 
-from kerncraft.kernel import Kernel, KernelCode, KernelDescription
+from kerncraft.kernel import KernelCode, KernelDescription
 
 
 class TestKernel(unittest.TestCase):
@@ -72,13 +59,11 @@ class TestKernel(unittest.TestCase):
         offsets = k.compile_global_offsets(iteration=0, spacing=0)
         read_offsets, write_offsets = list(offsets)[0]
         # read access to a[j][i-1], a[j][i+1], a[j-1][i], a[j+1][i]
-        six.assertCountEqual(
-            self,
+        self.assertCountEqual(
             [(1*10+0)*8, (1*10+2)*8, (0*10+1)*8, (2*10+1)*8],
             read_offsets)
         # write access to b[i][j]
-        six.assertCountEqual(
-            self,
+        self.assertCountEqual(
             [sizes['a']+(1*10+1)*8],
             write_offsets)
 
@@ -91,13 +76,12 @@ class TestKernel(unittest.TestCase):
         read_offsets, write_offsets = list(offsets)[0]
         # read access to a[k][j][i], a[k][j][i-1], a[k][j][i+1], a[k][j-1][i],
         #                a[k][j+1][i], a[k+1][j][i], a[k-1][j][i]
-        six.assertCountEqual(self,
-                             [(1*10*10+1*10+1)*8, (1*10*10+1*10+0)*8, (1*10*10+1*10+2)*8,
-                              (1*10*10+0*10+1)*8, (1*10*10+2*10+1)*8, (2*10*10+1*10+1)*8,
-                              (0*10*10+1*10+1)*8],
-                             read_offsets)
+        self.assertCountEqual([(1*10*10+1*10+1)*8, (1*10*10+1*10+0)*8, (1*10*10+1*10+2)*8,
+                               (1*10*10+0*10+1)*8, (1*10*10+2*10+1)*8, (2*10*10+1*10+1)*8,
+                               (0*10*10+1*10+1)*8],
+                              read_offsets)
         # write access to b[i][j]
-        six.assertCountEqual(self, [sizes['a']+(1*10*10+1*10+1)*8], write_offsets)
+        self.assertCountEqual([sizes['a']+(1*10*10+1*10+1)*8], write_offsets)
 
     def test_from_description(self):
         k_descr = KernelDescription(self.twod_description)
@@ -111,6 +95,5 @@ class TestKernel(unittest.TestCase):
         self.assertEqual(k_descr._loop_stack, k_code._loop_stack)
 
 if __name__ == '__main__':
-    #unittest.main()
     suite = unittest.TestLoader().loadTestsFromTestCase(TestKernel)
     unittest.TextTestRunner(verbosity=2).run(suite)

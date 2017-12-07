@@ -1,11 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Representation of computational kernel for performance model analysis and helper functions."""
-
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
 from copy import deepcopy
 import operator
 import tempfile
@@ -15,20 +9,15 @@ import os.path
 import sys
 import numbers
 import collections
-from functools import reduce
+from functools import reduce, lru_cache
 import string
-from itertools import chain
 from collections import defaultdict
+from itertools import zip_longest, chain
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
 from sympy.parsing.sympy_parser import parse_expr
 import numpy
-from six.moves import filter
-from six.moves import map
-from six.moves import zip_longest
-import six
-from pylru import lrudecorator
 
 from .pycparser import CParser, c_ast, plyparser
 from .pycparser.c_generator import CGenerator
@@ -186,7 +175,7 @@ class Kernel(object):
         :param name: may be a str or a sympy.Symbol
         :param value: must be an int
         """
-        assert isinstance(name, six.string_types) or isinstance(name, sympy.Symbol), \
+        assert isinstance(name, str) or isinstance(name, sympy.Symbol), \
             "constant name needs to be of type str, unicode or a sympy.Symbol"
         assert type(value) is int, "constant value needs to be of type int"
         if isinstance(name, sympy.Symbol):
@@ -212,9 +201,9 @@ class Kernel(object):
     def clear_state(self):
         """Clear mutable internal states (constants, asm_blocks and asm_block_idx)."""
         self.constants = {}
-        self.subs_consts.clear()  # clear LRU cache of function
+        self.subs_consts.cache_clear()  # clear LRU cache of function
 
-    @lrudecorator(40)
+    @lru_cache(40)
     def subs_consts(self, expr):
         """Substitute constants in expression unless it is already a number."""
         if isinstance(expr, numbers.Number):
@@ -711,7 +700,7 @@ class KernelCode(Kernel):
         """
         if isinstance(aref.name, c_ast.ArrayRef):
             return cls._get_basename(aref.name)
-        elif isinstance(aref.name, six.string_types):
+        elif isinstance(aref.name, str):
             return aref.name
         else:
             return aref.name.name

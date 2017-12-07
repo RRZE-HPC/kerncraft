@@ -1,12 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from pprint import pprint
 import re
 import string
-try:
-    # Python 3
-    from itertools import zip_longest
-except ImportError:
-    from itertools import izip_longest as zip_longest
 
 
 def group_iterator(group):

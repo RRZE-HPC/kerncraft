@@ -1,12 +1,7 @@
-#!/usr/bin/env python
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
+#!/usr/bin/env python3
+import re
 
 from ruamel import yaml
-import re
-import six
 
 
 class PrefixedUnit(yaml.YAMLObject):
@@ -26,11 +21,11 @@ class PrefixedUnit(yaml.YAMLObject):
 
     @classmethod
     def to_yaml(cls, dumper, data):
-        return dumper.represent_scalar(cls.yaml_tag, six.text_type(data))
+        return dumper.represent_scalar(cls.yaml_tag, str(data))
 
     def __init__(self, *args):
         if len(args) == 1:
-            if isinstance(args[0], six.string_types):
+            if isinstance(args[0], str):
                 m = re.match(
                     r'^(?P<value>(?:[0-9]+(?:\.[0-9]+)?|inf)) (?P<prefix>[kMGTP])?(?P<unit>.*)$',
                     args[0])

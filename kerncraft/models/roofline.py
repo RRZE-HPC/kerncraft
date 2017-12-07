@@ -1,10 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Roofline model and helper functions."""
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
 import sys
 from pprint import pformat  # Do not use pprint, breaks in combination with --store and StringIO
 

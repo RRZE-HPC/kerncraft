@@ -1,9 +1,5 @@
+#!/usr/bin/env python3
 """Benchmark model and helper functions."""
-from __future__ import print_function
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import absolute_import
-
 import subprocess
 from functools import reduce
 import operator
@@ -12,15 +8,7 @@ from distutils.spawn import find_executable
 import re
 from collections import defaultdict
 import string
-try:
-    # Python 3
-    from itertools import zip_longest
-except ImportError:
-    from itertools import izip_longest as zip_longest
 from pprint import pprint
-
-import six
-import sympy
 
 from kerncraft.prefixedunit import PrefixedUnit
 
@@ -276,7 +264,7 @@ class Benchmark(object):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
-        args = [bench] + [six.text_type(s) for s in list(self.kernel.constants.values())]
+        args = [bench] + [str(s) for s in list(self.kernel.constants.values())]
 
         # Determine base runtime with 100 iterations
         runtime = 0.0
@@ -289,7 +277,7 @@ class Benchmark(object):
             else:
                 repetitions *= 10
 
-            mem_results = self.perfctr(args+[six.text_type(repetitions)], group="MEM")
+            mem_results = self.perfctr(args+[str(repetitions)], group="MEM")
             runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime/float(repetitions)
         raw_results = [mem_results]
@@ -315,7 +303,7 @@ class Benchmark(object):
             measured_ctrs = {}
             for run in minimal_runs:
                 ctrs = ','.join([eventstr(e) for e in run])
-                r = self.perfctr(args+[six.text_type(repetitions)], group=ctrs)
+                r = self.perfctr(args+[str(repetitions)], group=ctrs)
                 raw_results.append(r)
                 measured_ctrs.update(r)
             # Match measured counters to symbols

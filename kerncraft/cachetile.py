@@ -1,15 +1,8 @@
-#!/usr/bin/env python
-
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
+#!/usr/bin/env python3
 import argparse
 import sys
 
 import sympy
-import six
 from ruamel import yaml
 
 from . import models
@@ -55,7 +48,7 @@ def run(parser, args):
     machine = MachineModel(args.machine.name)
 
     # process kernel description
-    description = six.text_type(args.description_file.read())
+    description = str(args.description_file.read())
     kernel = KernelDescription(yaml.load(description))
 
     # Add constants from define arguments

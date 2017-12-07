@@ -1,15 +1,10 @@
-#!/usr/bin/env python
-
-from __future__ import absolute_import
-
+#!/usr/bin/env python3
 from pprint import pprint
 
-# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from ruamel import yaml
 
 from .prefixedunit import PrefixedUnit
-from six.moves import range
 
 
 def frange(start, stop, step=1.0):

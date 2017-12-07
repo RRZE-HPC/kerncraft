@@ -1,43 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Layer condition model and helper functions"""
-
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import absolute_import
-from __future__ import division
-
 import sys
 from itertools import chain
 from pprint import pprint
 from collections import defaultdict
+from functools import cmp_to_key
 
 import sympy
-
-
-# Not useing functools.cmp_to_key, because it does not exit in python 2.x
-def cmp_to_key(mycmp):
-    """Convert a cmp= function into a key= function"""
-    class K(object):
-        def __init__(self, obj, *args):
-            self.obj = obj
-
-        def __lt__(self, other):
-            return mycmp(self.obj, other.obj) < 0
-
-        def __gt__(self, other):
-            return mycmp(self.obj, other.obj) > 0
-
-        def __eq__(self, other):
-            return mycmp(self.obj, other.obj) == 0
-
-        def __le__(self, other):
-            return mycmp(self.obj, other.obj) <= 0
-
-        def __ge__(self, other):
-            return mycmp(self.obj, other.obj) >= 0
-
-        def __ne__(self, other):
-            return mycmp(self.obj, other.obj) != 0
 
 
 class LC(object):
@@ -66,6 +35,7 @@ class LC(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             # handle CLI info
@@ -106,7 +76,7 @@ class LC(object):
                 accesses[var_name].append(w)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
             # order accesses by increasing order
-            accesses[var_name].sort(key=cmp_to_key(sympy_compare))
+            accesses[var_name].sort(key=cmp_to_key(sympy_compare), reverse=True)
 
         results['accesses'] = accesses
         results['sympy_accesses'] = sympy_accesses
@@ -135,7 +105,7 @@ class LC(object):
             # Check that distances contain only free_symbols based on constants
             for dist in chain(*slices_distances.values()):
                 if any([s not in self.kernel.constants.keys() for s in dist.free_symbols]):
-                    raise ValueError("Some distances are not based on non-constants: "+str(dist))
+                    raise ValueError("Some distances are not based on constants: "+str(dist))
 
             # Sum of lengths between relative distances
             slices_sum = sum([sum(dists) for dists in slices_distances.values()])
@@ -173,7 +143,7 @@ class LC(object):
 
             slices_max = FuckedUpMax(sympy.Integer(0),
                                      *[FuckedUpMax(*dists) for dists in slices_distances.values()])
-            results['dimensions'][dimension]['slices_sum'] = slices_sum
+            results['dimensions'][dimension]['slices_max'] = slices_max
 
             # Nmber of slices
             slices_count = len(slices_accesses)
