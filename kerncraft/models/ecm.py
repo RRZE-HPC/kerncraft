@@ -73,6 +73,7 @@ class ECMData(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             self.verbose = self._args.verbose
@@ -137,7 +138,6 @@ class ECMData(object):
                     cycles += misses[cache_level] * \
                               cache_info['penalty cycles per read stream']
 
-            if cache_cycles is None:
                 self.results.update({
                     'memory bandwidth kernel': measurement_kernel,
                     'memory bandwidth': bw})
@@ -232,6 +232,7 @@ class ECMCPU(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             # handle CLI info
@@ -384,6 +385,7 @@ class ECM(object):
         self.machine = machine
         self._args = args
         self.verbose = verbose
+        self.results = None
 
         if args:
             self.verbose = self._args.verbose
@@ -391,7 +393,7 @@ class ECM(object):
         self._CPU = ECMCPU(kernel, machine, args, parser, asm_block=asm_block,
                            pointer_increment=pointer_increment, verbose=verbose)
         self._data = ECMData(kernel, machine, args, parser,
-                             cache_predictor=CacheSimulationPredictor, cores=1, verbose=verbose)
+                             cache_predictor=CacheSimulationPredictor, cores=cores, verbose=verbose)
 
     def analyze(self):
         """Run complete analysis."""

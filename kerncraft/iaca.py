@@ -11,7 +11,6 @@ from distutils.spawn import find_executable
 
 from kerncraft import iaca_get
 
-
 # Within loop
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
                 '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
@@ -42,7 +41,7 @@ def strip_unreferenced_labels(asm_lines):
             # Found label
             label = line[0:line.find(':')]
             # Search for references to current label
-            if not re.search('\s'+re.escape(label)+'[\s,]?.*$', asm_code, re.MULTILINE):
+            if not re.search('\s' + re.escape(label) + '[\s,]?.*$', asm_code, re.MULTILINE):
                 # Skip labels without seen reference
                 line = ''
         asm_stripped.append(line)
@@ -94,22 +93,22 @@ def find_asm_blocks(asm_lines):
             mem_references = []
             increments = {}
         elif re.match(r'^inc[bwlq]?\s+%\[a-z0-9]+', line):
-            reg_start = line.find('%')+1
+            reg_start = line.find('%') + 1
             increments[line[reg_start:]] = 1
         elif re.match(r'^add[bwlq]?\s+\$[0-9]+,\s*%[a-z0-9]+', line):
-            const_start = line.find('$')+1
-            const_end = line[const_start+1:].find(',')+const_start+1
-            reg_start = line.find('%')+1
+            const_start = line.find('$') + 1
+            const_end = line[const_start + 1:].find(',') + const_start + 1
+            reg_start = line.find('%') + 1
             increments[line[reg_start:]] = int(line[const_start:const_end])
         elif re.match(r'^dec[bwlq]?', line):
-            reg_start = line.find('%')+1
+            reg_start = line.find('%') + 1
             increments[line[reg_start:]] = -1
         elif re.match(r'^sub[bwlq]?\s+\$[0-9]+,', line):
-            const_start = line.find('$')+1
-            const_end = line[const_start+1:].find(',')+const_start+1
-            reg_start = line.find('%')+1
+            const_start = line.find('$') + 1
+            const_end = line[const_start + 1:].find(',') + const_start + 1
+            reg_start = line.find('%') + 1
             increments[line[reg_start:]] = -int(line[const_start:const_end])
-        elif last_label and re.match(r'^j[a-z]+\s+'+re.escape(last_label)+r'\s*', line):
+        elif last_label and re.match(r'^j[a-z]+\s+' + re.escape(last_label) + r'\s*', line):
             # End of block
             # deduce loop increment from memory index register
             pointer_increment = None  # default -> can not decide, let user choose
@@ -134,10 +133,10 @@ def find_asm_blocks(asm_lines):
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
                         try:
-                            pointer_increment = mem_scales[0]*increments[idx_reg]
+                            pointer_increment = mem_scales[0] * increments[idx_reg]
                         except:
                             print("label", last_label)
-                            print("lines", repr(asm_lines[last_label_line:i+1]))
+                            print("lines", repr(asm_lines[last_label_line:i + 1]))
                             print("increments", increments)
                             print("mem_references", mem_references)
                             print("idx_reg", idx_reg)
@@ -146,7 +145,7 @@ def find_asm_blocks(asm_lines):
 
             blocks.append({'first_line': last_label_line,
                            'last_line': i,
-                           'ops': i-last_label_line,
+                           'ops': i - last_label_line,
                            'label': last_label,
                            'packed_instr': packed_ctr,
                            'avx_instr': avx_ctr,
@@ -157,10 +156,10 @@ def find_asm_blocks(asm_lines):
                                     len(set(xmm_references)) + len(set(ymm_references)) +
                                     len(set(gp_references))),
                            'pointer_increment': pointer_increment,
-                           'lines': asm_lines[last_label_line:i+1],
+                           'lines': asm_lines[last_label_line:i + 1],
                            'possible_idx_regs': possible_idx_regs,
                            'mem_references': mem_references,
-                           'increments': increments,})
+                           'increments': increments, })
 
             # Reset counters
             packed_ctr = 0
@@ -178,14 +177,15 @@ def select_best_block(blocks):
     # TODO make this cleverer with more stats
     best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
     if best_block[1]['packed_instr'] == 0:
-        best_block = max(blocks, key=lambda b: b[1]['ops']+b[1]['packed_instr']+b[1]['avx_instr'])
+        best_block = max(blocks,
+                         key=lambda b: b[1]['ops'] + b[1]['packed_instr'] + b[1]['avx_instr'])
     return best_block[0]
 
 
 def userselect_increment(block):
     """Let user interactively select byte increment."""
     print("Selected block:")
-    print('\n    '+('    '.join(block['lines'])))
+    print('\n    ' + ('    '.join(block['lines'])))
     print()
 
     increment = None
@@ -214,7 +214,7 @@ def userselect_block(blocks, default=None):
     # Let user select block:
     block_idx = -1
     while not (0 <= block_idx < len(blocks)):
-        block_idx = input("Choose block to be marked ["+str(default)+"]: ") or default
+        block_idx = input("Choose block to be marked [" + str(default) + "]: ") or default
         try:
             block_idx = int(block_idx)
         except ValueError:
@@ -227,8 +227,8 @@ def userselect_block(blocks, default=None):
 def insert_markers(asm_lines, start_line, end_line):
     """Insert IACA marker into list of ASM instructions at given indices."""
     asm_lines = asm_lines[:start_line] + START_MARKER + \
-        asm_lines[start_line:end_line+1] + END_MARKER + \
-        asm_lines[end_line+1:]
+                asm_lines[start_line:end_line + 1] + END_MARKER + \
+                asm_lines[end_line + 1:]
     return asm_lines
 
 
@@ -330,13 +330,13 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
 
     iaca_exec, iaca_version, base_args = arch_map[micro_architecture]
     if find_executable(iaca_exec) is None:
-        raise RuntimeError("{} executable was not found. Make sure that {} is found in "
-                               "{}. Install using iaca_get.".format(iaca_exec, iaca_path))
+        raise RuntimeError("{0} executable was not found. Make sure that {0} is found in "
+                           "{1}. Install using iaca_get.".format(iaca_exec, iaca_path))
 
     result = {}
 
+    cmd = [iaca_exec] + base_args + ['-arch', micro_architecture, instrumented_binary_file]
     try:
-        cmd = [iaca_exec] + base_args + ['-arch', micro_architecture, instrumented_binary_file]
         iaca_output = subprocess.check_output(cmd).decode('utf-8')
         result['output'] = iaca_output
     except OSError as e:

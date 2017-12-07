@@ -45,7 +45,7 @@ class LayerConditionPredictor(CachePredictor):
 
     def __init__(self, kernel, machine, cores=1):
         """Initialize layer condition based predictor from kernel and machine object."""
-        CachePredictor.__init__(self, kernel, machine, cores=1)
+        CachePredictor.__init__(self, kernel, machine, cores=cores)
 
         # check that layer conditions can be applied on this kernel:
         # 1. All iterations may only have a step width of 1

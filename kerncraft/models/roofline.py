@@ -22,7 +22,7 @@ class Roofline(object):
         pass
 
     def __init__(self, kernel, machine, args=None, parser=None, cores=1,
-                 predictor=LayerConditionPredictor, verbose=0):
+                 cache_predictor=LayerConditionPredictor, verbose=0):
         """
         Create roofline model from kernel and machine objects.
 
@@ -38,6 +38,7 @@ class Roofline(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             self.verbose = self._args.verbose
@@ -87,7 +88,7 @@ class Roofline(object):
         write_streams = len(write_offsets)
         read_streams = len(read_offsets) + write_streams  # write-allocate
         total_loads = read_streams * element_size
-        total_evicts = write_streams * element_size
+        # total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
             0,
             read_streams - write_streams,  # no write-allocate in L1
@@ -203,7 +204,7 @@ class Roofline(object):
                       self.conv_perf(max_flops, self._args.unit)),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {!s:>15} |'
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
                       ' {bandwidth!s:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
                       file=output_file)
@@ -255,6 +256,7 @@ class RooflineIACA(Roofline):
         *args* takes precedence.
         """
         Roofline.__init__(self, kernel, machine, args, parser, cores, predictor, verbose)
+        self.results = None
 
         if args:
             # handle CLI info
@@ -346,7 +348,7 @@ class RooflineIACA(Roofline):
                 # Skip CPU-L1 from Roofline model
                 if b is None:
                     continue
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {!s:>15} |'
+                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
                       ' {bandwidth!s:>12} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
                       file=output_file)

@@ -23,10 +23,10 @@ class TestIntervals(unittest.TestCase):
 
     def test_len(self):
         self.assertEqual(len(Intervals([1, 2])), 1)
-        self.assertEqual(len(Intervals([1, 3], [10,15])), 2+5)
+        self.assertEqual(len(Intervals([1, 3], [10, 15])), 2 + 5)
 
     def test_contains(self):
         self.assertTrue(0 in Intervals([0, 10]))
-        self.assertTrue(5 in Intervals([0,2], [4,10]))
+        self.assertTrue(5 in Intervals([0, 2], [4, 10]))
         self.assertFalse(10 in Intervals([0, 10]))
-        self.assertFalse(3 in Intervals([0,2], [4,10]))
+        self.assertFalse(3 in Intervals([0, 2], [4, 10]))

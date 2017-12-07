@@ -17,11 +17,12 @@ class TestKernel(unittest.TestCase):
         with open(self._find_file('3d-7pt.c')) as f:
             self.threed_code = f.read()
         with open(self._find_file('2d-5pt.yml')) as f:
-            self.twod_description = yaml.load(f.read(),Loader=yaml.Loader)
+            self.twod_description = yaml.load(f.read(), Loader=yaml.Loader)
         with open(self._find_file('copy-2d-linearized.c')) as f:
             self.twod_linear = f.read()
 
-    def _find_file(self, name):
+    @staticmethod
+    def _find_file(name):
         testdir = os.path.dirname(__file__)
         name = os.path.join(testdir, 'test_files', name)
         assert os.path.exists(name)
@@ -33,7 +34,7 @@ class TestKernel(unittest.TestCase):
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
         # 8 byte per double
-        checked_sizes = {'a': 20*10*8, 'b': 20*10*8}
+        checked_sizes = {'a': 20 * 10 * 8, 'b': 20 * 10 * 8}
         self.assertEqual(sizes, checked_sizes)
 
     def test_array_sizes_3d(self):
@@ -42,7 +43,7 @@ class TestKernel(unittest.TestCase):
         k.set_constant('M', 20)
         sizes = k.array_sizes(in_bytes=True, subs_consts=True)
         # 8 byte per double
-        checked_sizes = {'a': 20*10*10*8, 'b': 20*10*10*8}
+        checked_sizes = {'a': 20 * 10 * 10 * 8, 'b': 20 * 10 * 10 * 8}
         self.assertEqual(sizes, checked_sizes)
 
     def test_iterations_sizes_2d_linear(self):
@@ -60,11 +61,11 @@ class TestKernel(unittest.TestCase):
         read_offsets, write_offsets = list(offsets)[0]
         # read access to a[j][i-1], a[j][i+1], a[j-1][i], a[j+1][i]
         self.assertCountEqual(
-            [(1*10+0)*8, (1*10+2)*8, (0*10+1)*8, (2*10+1)*8],
+            [(1 * 10 + 0) * 8, (1 * 10 + 2) * 8, (0 * 10 + 1) * 8, (2 * 10 + 1) * 8],
             read_offsets)
         # write access to b[i][j]
         self.assertCountEqual(
-            [sizes['a']+(1*10+1)*8],
+            [sizes['a'] + (1 * 10 + 1) * 8],
             write_offsets)
 
     def test_global_offsets_3d(self):
@@ -76,12 +77,14 @@ class TestKernel(unittest.TestCase):
         read_offsets, write_offsets = list(offsets)[0]
         # read access to a[k][j][i], a[k][j][i-1], a[k][j][i+1], a[k][j-1][i],
         #                a[k][j+1][i], a[k+1][j][i], a[k-1][j][i]
-        self.assertCountEqual([(1*10*10+1*10+1)*8, (1*10*10+1*10+0)*8, (1*10*10+1*10+2)*8,
-                               (1*10*10+0*10+1)*8, (1*10*10+2*10+1)*8, (2*10*10+1*10+1)*8,
-                               (0*10*10+1*10+1)*8],
+        self.assertCountEqual([(1 * 10 * 10 + 1 * 10 + 1) * 8, (1 * 10 * 10 + 1 * 10 + 0) * 8,
+                               (1 * 10 * 10 + 1 * 10 + 2) * 8,
+                               (1 * 10 * 10 + 0 * 10 + 1) * 8, (1 * 10 * 10 + 2 * 10 + 1) * 8,
+                               (2 * 10 * 10 + 1 * 10 + 1) * 8,
+                               (0 * 10 * 10 + 1 * 10 + 1) * 8],
                               read_offsets)
         # write access to b[i][j]
-        self.assertCountEqual([sizes['a']+(1*10*10+1*10+1)*8], write_offsets)
+        self.assertCountEqual([sizes['a'] + (1 * 10 * 10 + 1 * 10 + 1) * 8], write_offsets)
 
     def test_from_description(self):
         k_descr = KernelDescription(self.twod_description)
@@ -93,6 +96,7 @@ class TestKernel(unittest.TestCase):
         self.assertEqual(k_descr.datatype, k_code.datatype)
         self.assertEqual(k_descr.variables, k_code.variables)
         self.assertEqual(k_descr._loop_stack, k_code._loop_stack)
+
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestKernel)

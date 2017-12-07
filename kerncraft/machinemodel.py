@@ -2,7 +2,6 @@
 """Machine model and helper functions."""
 from distutils.spawn import find_executable
 import re
-import sys
 
 import ruamel
 import cachesim
@@ -72,6 +71,10 @@ class MachineModel(object):
         """
         Return best fitting bandwidth according to number of threads, read and write streams.
 
+        :param cache_level: integer of cache (0 is L1, 1 is L2 ...)
+        :param read_streams: number of read streams expected
+        :param write_streams: number of write streams expected
+        :param threads_per_core: number of threads that are run on each core
         :param cores: if not given, will choose maximum bandwidth
         """
         # try to find best fitting kernel (closest to stream seen stream counts):
@@ -145,7 +148,7 @@ class MachineModel(object):
             else:
                 raise RuntimeError("No compiler ({}) was found. Add different one in machine file, "
                                    "via --compiler argument or make sure it will be found in "
-                                   "$PATH.".format(list(self['compiler'].keys())), file=sys.stderr)
+                                   "$PATH.".format(list(self['compiler'].keys())))
         if flags is None:
             # Select from machine description file
             flags = self['compiler'].get(compiler, '')
@@ -184,11 +187,12 @@ class MachineModel(object):
     def parse_perfmetric(metric):
         """Return (sympy expressions, event names and symbols dict) from performance metric str."""
         # Find all perfs counter references
-        perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]\|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
+        perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
 
         # Build a temporary metric, with parser-friendly Symbol names
         temp_metric = metric
-        temp_pc_names = {"SYM{}".format(re.sub("[\[\]\-\|=:]", "_", pc)): pc for i, pc in enumerate(perfcounters)}
+        temp_pc_names = {"SYM{}".format(re.sub("[\[\]\-|=:]", "_", pc)): pc
+                         for i, pc in enumerate(perfcounters)}
         for var_name, pc in temp_pc_names.items():
             temp_metric = temp_metric.replace(pc, var_name)
         # Parse temporary expression

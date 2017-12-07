@@ -26,7 +26,8 @@ class TestKerncraft(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(self.temp_dir)
 
-    def _find_file(self, name):
+    @staticmethod
+    def _find_file(name):
         testdir = os.path.dirname(__file__)
         name = os.path.join(testdir, 'test_files', name)
         assert os.path.exists(name)
@@ -59,7 +60,8 @@ class TestKerncraft(unittest.TestCase):
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
                 ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
-                 (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+                                                                 (sympy.var('N'), 10000)),
+                ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
 
         # Output of first result:
         result = results['2d-5pt.c'][[k for k in results['2d-5pt.c']
@@ -73,7 +75,6 @@ class TestKerncraft(unittest.TestCase):
         self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
         self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
         self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
-
 
     def test_2d5pt_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
@@ -103,10 +104,12 @@ class TestKerncraft(unittest.TestCase):
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
                 ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
-                 (sympy.var('N'), 10000)), ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+                                                                 (sympy.var('N'), 10000)),
+                ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
 
         # Output of first result:
-        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
+        result = results['2d-5pt.c'][
+            [k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
 
         self.assertCountEqual(result, ['ECMData'])
 
@@ -142,10 +145,13 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(
             [sorted(map(str, r)) for r in results['2d-5pt.c']],
             [sorted(map(str, r)) for r in [
-                ((sympy.var('M'), 50), (sympy.var('N'), 1024)), ((sympy.var('M'), 50), (sympy.var('N'), 2048)), ((sympy.var('M'), 50), (sympy.var('N'), 4096))]])
+                ((sympy.var('M'), 50), (sympy.var('N'), 1024)),
+                ((sympy.var('M'), 50), (sympy.var('N'), 2048)),
+                ((sympy.var('M'), 50), (sympy.var('N'), 4096))]])
 
         # Output of first result:
-        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c'] if (sympy.var('N'), 4096) in k][0]]
+        result = results['2d-5pt.c'][
+            [k for k in results['2d-5pt.c'] if (sympy.var('N'), 4096) in k][0]]
 
         self.assertCountEqual(result, ['Roofline'])
 
@@ -164,7 +170,7 @@ class TestKerncraft(unittest.TestCase):
                              u'bw kernel': 'copy',
                              u'level': u'L2',
                              u'performance': PrefixedUnit(6192000000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': 1.0/6.0,
+                            {u'arithmetic intensity': 1.0 / 6.0,
                              u'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
                              u'bw kernel': 'copy',
                              u'level': u'L3',
@@ -176,7 +182,7 @@ class TestKerncraft(unittest.TestCase):
                              u'performance': PrefixedUnit(float('inf'), u'', u'FLOP/s')}]
 
         for i, btlnck in enumerate(expected_btlncks):
-            for k,v in btlnck.items():
+            for k, v in btlnck.items():
                 print(k, roofline['mem bottlenecks'][i][k], v)
                 self.assertEqual(roofline['mem bottlenecks'][i][k], v)
 
@@ -391,9 +397,9 @@ class TestKerncraft(unittest.TestCase):
 
         # patch environment to include dummy likwid
         environ_orig = os.environ
-        os.environ['PATH'] = self._find_file('dummy_likwid')+':'+os.environ['PATH']
+        os.environ['PATH'] = self._find_file('dummy_likwid') + ':' + os.environ['PATH']
         os.environ['LIKWID_LIB'] = ''
-        os.environ['LIKWID_INCLUDE'] = '-I'+self._find_file('dummy_likwid/include')
+        os.environ['LIKWID_INCLUDE'] = '-I' + self._find_file('dummy_likwid/include')
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
@@ -580,23 +586,21 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(list(args.define[0][1]), [10, 100, 1000])
 
     def test_space_linear(self):
-        self.assertEqual(list(kc.space(1, 10, 10)), [1,2,3,4,5,6,7,8,9,10])
+        self.assertEqual(list(kc.space(1, 10, 10)), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         self.assertEqual(list(kc.space(1, 10, 3)), [1, 6, 10])
-        self.assertEqual(list(kc.space(1, 10, 9, endpoint=False)), [1,2,3,4,5,6,7,8,9])
+        self.assertEqual(list(kc.space(1, 10, 9, endpoint=False)), [1, 2, 3, 4, 5, 6, 7, 8, 9])
         self.assertEqual(list(kc.space(20, 40, 2)), [20, 40])
 
-
     def test_space_log10(self):
-        self.assertEqual(list(kc.space(1, 1000, 4, log=True)), [1,10,100,1000])
+        self.assertEqual(list(kc.space(1, 1000, 4, log=True)), [1, 10, 100, 1000])
         self.assertEqual(list(kc.space(1, 10000, 3, log=True)), [1, 100, 10000])
-        self.assertEqual(list(kc.space(1, 100, 2, endpoint=False, log=True)), [1,10])
+        self.assertEqual(list(kc.space(1, 100, 2, endpoint=False, log=True)), [1, 10])
         self.assertEqual(list(kc.space(10, 100, 2, log=True)), [10, 100])
 
-
     def test_space_log2(self):
-        self.assertEqual(list(kc.space(1, 8, 4, log=True, base=2)), [1,2,4,8])
+        self.assertEqual(list(kc.space(1, 8, 4, log=True, base=2)), [1, 2, 4, 8])
         self.assertEqual(list(kc.space(1, 16, 3, log=True, base=2)), [1, 4, 16])
-        self.assertEqual(list(kc.space(1, 4, 2, endpoint=False, log=True, base=2)), [1,2])
+        self.assertEqual(list(kc.space(1, 4, 2, endpoint=False, log=True, base=2)), [1, 2])
         self.assertEqual(list(kc.space(4, 8, 2, log=True, base=2)), [4, 8])
 
 

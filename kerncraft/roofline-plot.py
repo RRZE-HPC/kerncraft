@@ -13,6 +13,7 @@ def frange(start, stop, step=1.0):
         f += step
         yield f
 
+
 # Input (usually from ECM model)
 result = {
     'min performance': 11175000000.0, 'bottleneck level': 2,
