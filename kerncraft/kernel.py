@@ -679,7 +679,7 @@ class KernelCode(Kernel):
             'array subscript must only contain variables or binary operations'
 
         # Convert subscript to sympy and append
-        idxs = list(self.conv_ast_to_sym(aref.subscript))
+        idxs = [self.conv_ast_to_sym(aref.subscript)]
 
         # Check for more indices (multi-dimensional access)
         if type(aref.name) is c_ast.ArrayRef:

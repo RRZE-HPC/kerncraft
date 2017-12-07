@@ -187,11 +187,11 @@ class MachineModel(object):
     def parse_perfmetric(metric):
         """Return (sympy expressions, event names and symbols dict) from performance metric str."""
         # Find all perfs counter references
-        perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]\|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
+        perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
 
         # Build a temporary metric, with parser-friendly Symbol names
         temp_metric = metric
-        temp_pc_names = {"SYM{}".format(re.sub("[\[\]\-\|=:]", "_", pc)): pc
+        temp_pc_names = {"SYM{}".format(re.sub("[\[\]\-|=:]", "_", pc)): pc
                          for i, pc in enumerate(perfcounters)}
         for var_name, pc in temp_pc_names.items():
             temp_metric = temp_metric.replace(pc, var_name)
