@@ -35,6 +35,7 @@ class LC(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             # handle CLI info
@@ -75,7 +76,7 @@ class LC(object):
                 accesses[var_name].append(w)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
             # order accesses by increasing order
-            accesses[var_name].sort(key=cmp_to_key(sympy_compare))
+            accesses[var_name].sort(key=cmp_to_key(sympy_compare), reverse=True)
 
         results['accesses'] = accesses
         results['sympy_accesses'] = sympy_accesses
@@ -104,7 +105,7 @@ class LC(object):
             # Check that distances contain only free_symbols based on constants
             for dist in chain(*slices_distances.values()):
                 if any([s not in self.kernel.constants.keys() for s in dist.free_symbols]):
-                    raise ValueError("Some distances are not based on non-constants: "+str(dist))
+                    raise ValueError("Some distances are not based on constants: "+str(dist))
 
             # Sum of lengths between relative distances
             slices_sum = sum([sum(dists) for dists in slices_distances.values()])
@@ -142,7 +143,7 @@ class LC(object):
 
             slices_max = FuckedUpMax(sympy.Integer(0),
                                      *[FuckedUpMax(*dists) for dists in slices_distances.values()])
-            results['dimensions'][dimension]['slices_sum'] = slices_sum
+            results['dimensions'][dimension]['slices_max'] = slices_max
 
             # Nmber of slices
             slices_count = len(slices_accesses)
