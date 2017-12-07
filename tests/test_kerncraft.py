@@ -48,7 +48,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
@@ -91,7 +92,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
@@ -130,7 +132,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
@@ -191,7 +194,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Output of first result:
         ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
@@ -216,7 +220,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Output of first result:
         ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
@@ -243,7 +248,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Output of first result:
         ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
@@ -272,7 +278,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
@@ -309,7 +316,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
@@ -354,7 +362,8 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
@@ -401,7 +410,8 @@ class TestKerncraft(unittest.TestCase):
         # restore enviornment
         os.environ = environ_orig
 
-        results = pickle.load(open(store_file, 'rb'))
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
 
         # Check if results contains correct kernel
         self.assertEqual(list(results), ['2d-5pt.c'])
