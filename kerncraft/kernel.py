@@ -158,6 +158,7 @@ class Kernel(object):
         self.destinations = {}
         self._flops = {}
         self.datatype = None
+        self.constants = None
 
         self.clear_state()
 
@@ -187,6 +188,7 @@ class Kernel(object):
         """
         Register variable of name and type_, with a (multidimensional) size.
 
+        :param name: variable name as it appears in code
         :param type_: may be any key from Kernel.datatypes_size (typically float or double)
         :param size: either None for scalars or an n-tuple of ints for an n-dimensional array
         """

@@ -170,6 +170,7 @@ class Benchmark(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             self.no_phenoecm = args.no_phenoecm
@@ -364,11 +365,10 @@ class Benchmark(object):
             ecm_model = None
             cache_transfers_per_cl = None
 
-        self.results = {'raw output': raw_results,
-                        'ECM': ecm_model,
-                        'data transfers': cache_transfers_per_cl}
+        self.results = {'raw output': raw_results, 'ECM': ecm_model,
+                        'data transfers': cache_transfers_per_cl,
+                        'Runtime (per repetition) [s]': time_per_repetition}
 
-        self.results['Runtime (per repetition) [s]'] = time_per_repetition
         # TODO make more generic to support other (and multiple) constant names
         iterations_per_repetition = reduce(
             operator.mul,

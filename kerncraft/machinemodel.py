@@ -72,6 +72,10 @@ class MachineModel(object):
         """
         Return best fitting bandwidth according to number of threads, read and write streams.
 
+        :param cache_level: integer of cache (0 is L1, 1 is L2 ...)
+        :param read_streams: number of read streams expected
+        :param write_streams: number of write streams expected
+        :param threads_per_core: number of threads that are run on each core
         :param cores: if not given, will choose maximum bandwidth
         """
         # try to find best fitting kernel (closest to stream seen stream counts):
@@ -145,7 +149,7 @@ class MachineModel(object):
             else:
                 raise RuntimeError("No compiler ({}) was found. Add different one in machine file, "
                                    "via --compiler argument or make sure it will be found in "
-                                   "$PATH.".format(list(self['compiler'].keys())), file=sys.stderr)
+                                   "$PATH.".format(list(self['compiler'].keys())))
         if flags is None:
             # Select from machine description file
             flags = self['compiler'].get(compiler, '')

@@ -87,8 +87,7 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
     mem_level = {}
     for line in topo[cache_start:cache_end].split('\n'):
         if line.startswith('Level:'):
-            mem_level = {}
-            mem_level['level'] = 'L'+line.split(':')[1].strip()
+            mem_level = {'level': 'L' + line.split(':')[1].strip()}
             machine['memory hierarchy'].append(mem_level)
         elif line.startswith('Size:'):
             size = PrefixedUnit(line.split(':')[1].strip())

@@ -73,6 +73,7 @@ class ECMData(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             self.verbose = self._args.verbose
@@ -232,6 +233,7 @@ class ECMCPU(object):
         self.machine = machine
         self._args = args
         self._parser = parser
+        self.results = None
 
         if args:
             # handle CLI info
@@ -384,6 +386,7 @@ class ECM(object):
         self.machine = machine
         self._args = args
         self.verbose = verbose
+        self.results = None
 
         if args:
             self.verbose = self._args.verbose

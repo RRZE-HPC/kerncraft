@@ -330,8 +330,8 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
 
     iaca_exec, iaca_version, base_args = arch_map[micro_architecture]
     if find_executable(iaca_exec) is None:
-        raise RuntimeError("{} executable was not found. Make sure that {} is found in "
-                               "{}. Install using iaca_get.".format(iaca_exec, iaca_path))
+        raise RuntimeError("{0} executable was not found. Make sure that {0} is found in "
+                           "{1}. Install using iaca_get.").format(iaca_exec, iaca_path))
 
     result = {}
 
