@@ -1057,16 +1057,19 @@ class KernelCode(Kernel):
                 out_filename = os.path.abspath(os.path.splitext(self._filename)[0]+suffix)
             else:
                 out_filename = tempfile.mkstemp(suffix=suffix)
+        out_filename_asm = out_filename+'.s'
 
         # insert iaca markers
         if iaca_markers:
-            self.asm_block = iaca.iaca_instrumentation(
-                in_filename, block_selection=asm_block,
-                pointer_increment=pointer_increment)
+            with open(in_filename) as in_file, open(out_filename_asm, 'w') as out_file:
+                self.asm_block = iaca.iaca_instrumentation(
+                    in_file, out_file,
+                    block_selection=asm_block,
+                    pointer_increment=pointer_increment)
 
         compiler, compiler_args = self._machine.get_compiler()
 
-        cmd = [compiler, os.path.basename(in_filename), 'dummy.s', '-o', out_filename]
+        cmd = [compiler, os.path.basename(out_filename_asm), 'dummy.s', '-o', out_filename]
         if verbose:
             print('Executing (assemble): ', ' '.join(cmd))
 

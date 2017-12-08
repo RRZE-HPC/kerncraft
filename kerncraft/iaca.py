@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Helper functions to instumentalize assembly code for and analyze with IACA."""
+"""Helper functions to instrument assembly code for and analyze with IACA."""
 # Version check
 import sys
 import re
 import subprocess
 import os
 from copy import copy
+import argparse
 
 from distutils.spawn import find_executable
 
 from kerncraft import iaca_get
+from . import __version__
 
 # Within loop
 START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
@@ -66,7 +68,6 @@ def find_asm_blocks(asm_lines):
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
-
         if re.search(r'\d*\(%\w+,%\w+(,\d)?\)', line):
             m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)',
                           line)
@@ -92,7 +93,7 @@ def find_asm_blocks(asm_lines):
             gp_references = []
             mem_references = []
             increments = {}
-        elif re.match(r'^inc[bwlq]?\s+%\[a-z0-9]+', line):
+        elif re.match(r'^inc[bwlq]?\s+%[a-z0-9]+', line):
             reg_start = line.find('%') + 1
             increments[line[reg_start:]] = 1
         elif re.match(r'^add[bwlq]?\s+\$[0-9]+,\s*%[a-z0-9]+', line):
@@ -226,13 +227,13 @@ def userselect_block(blocks, default=None):
 
 def insert_markers(asm_lines, start_line, end_line):
     """Insert IACA marker into list of ASM instructions at given indices."""
-    asm_lines = asm_lines[:start_line] + START_MARKER + \
-                asm_lines[start_line:end_line + 1] + END_MARKER + \
-                asm_lines[end_line + 1:]
+    asm_lines = (asm_lines[:start_line] + START_MARKER +
+                 asm_lines[start_line:end_line + 1] + END_MARKER +
+                 asm_lines[end_line + 1:])
     return asm_lines
 
 
-def iaca_instrumentation(input_file, output_file=None,
+def iaca_instrumentation(input_file, output_file,
                          block_selection='auto',
                          pointer_increment='auto_with_manual_fallback'):
     """
@@ -252,11 +253,7 @@ def iaca_instrumentation(input_file, output_file=None,
                               - 'manual': prompt user
     :return: the instrumented assembly block
     """
-    if output_file is None:
-        output_file = input_file
-
-    with open(input_file, 'r') as f:
-        assembly_orig = f.readlines()
+    assembly_orig = input_file.readlines()
 
     assembly = strip_and_uncomment(copy(assembly_orig))
     assembly = strip_unreferenced_labels(assembly)
@@ -288,9 +285,8 @@ def iaca_instrumentation(input_file, output_file=None,
         raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
                          "'auto_with_manual_fallback' ")
 
-    instrumentedAsm = insert_markers(assembly_orig, block['first_line'], block['last_line'])
-    with open(output_file, 'w') as in_file:
-        in_file.writelines(instrumentedAsm)
+    instrumented_asm = insert_markers(assembly_orig, block['first_line'], block['last_line'])
+    output_file.writelines(instrumented_asm)
 
     return block
 
@@ -375,14 +371,21 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
 
 def main():
     """Execute command line interface."""
-    if len(sys.argv) != 2:
-        print("Usage:", sys.argv[0], "filename.s")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='Find and analyze basic loop blocks and mark for IACA.',
+        epilog='For help, examples, documentation and bug reports go to:\nhttps://github.com'
+               '/RRZE-HPC/kerncraft\nLicense: AGPLv3')
+    parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
+    parser.add_argument('source', type=argparse.FileType(), nargs='?', default=sys.stdin,
+                        help='assembly file to analyze (default: stdin)')
+    parser.add_argument('--outfile', '-o', type=argparse.FileType('w'), nargs='?',
+                        default=sys.stdout, help='output file location (default: stdout)')
+    args = parser.parse_args()
 
-    iaca_instrumentation(input_file=sys.argv[1], output_file=sys.argv[1],
+    # pointer_increment is given, since it makes no difference on the command lien and requires
+    # less user input
+    iaca_instrumentation(input_file=args.source, output_file=args.outfile,
                          block_selection='manual', pointer_increment=1)
-
-    print("Markers inserted.")
 
 
 if __name__ == '__main__':
