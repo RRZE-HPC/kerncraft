@@ -35,9 +35,9 @@ def read_cpuinfo(cpuinfo_path='/proc/cpuinfo'):
     return cpuinfo
 
 
-def get_machine_topology():
+def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
     topo = get_likwid_topology()
-    cpuinfo = read_cpuinfo()
+    cpuinfo = read_cpuinfo(cpuinfo_path)
 
     sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
