@@ -10,13 +10,13 @@ import math
 import re
 import itertools
 
-from .pycparser import clean_code
 from ruamel import yaml
 
 from . import models
 from . import __version__
 from .kernel import KernelCode, KernelDescription, symbol_pos_int
 from .machinemodel import MachineModel
+from .pycparser_utils import clean_code
 
 
 def space(start, stop, num, endpoint=True, log=False, base=10):

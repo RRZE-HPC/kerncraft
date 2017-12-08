@@ -134,7 +134,7 @@ setup(
         'pylru',
         'numpy',
         'requests',
-        # 'pycparser>=2.14', patched version provided with kerncraft
+        'pycparser>=2.18'
     ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
@@ -142,7 +142,6 @@ setup(
     # $ pip install -e .[dev,test]
     extras_require={
         'plot': ['matplotlib'],
-        'test': ['requests'],
     },
 
     # If there are data files included in your packages that need to be

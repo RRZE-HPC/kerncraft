@@ -19,8 +19,8 @@ from sympy.utilities.lambdify import implemented_function
 from sympy.parsing.sympy_parser import parse_expr
 import numpy
 
-from .pycparser import CParser, c_ast, plyparser
-from .pycparser.c_generator import CGenerator
+from pycparser import CParser, c_ast, plyparser
+from pycparser.c_generator import CGenerator
 
 from . import iaca
 
