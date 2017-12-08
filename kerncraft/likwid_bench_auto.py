@@ -17,7 +17,7 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
     return m.groups()
 
 
-def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
+def get_likwid_topology(cmd='likwid-topology'):
     try:
         topo = subprocess.Popen(
             ['likwid-topology'], stdout=subprocess.PIPE
@@ -26,13 +26,24 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
         print('likwid-topology execution failed ({}), is it installed and loaded?'.format(e),
               file=sys.stderr)
         sys.exit(1)
+    return topo
+
+
+def read_cpuinfo(cpuinfo_path='/proc/cpuinfo'):
     with open(cpuinfo_path, 'r') as f:
         cpuinfo = f.read()
+    return cpuinfo
+
+
+def get_machine_topology():
+    topo = get_likwid_topology()
+    cpuinfo = read_cpuinfo()
+
     sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
     numa_domains_per_socket = \
         int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0]) / sockets
-    cores_per_numa_domain = numa_domains_per_socket / cores_per_socket
+    cores_per_numa_domain = cores_per_socket / numa_domains_per_socket
     machine = {
         'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
         'model name': get_match_or_break(r'^model name\s+:\s+(.+?)\s*$', cpuinfo)[0],
