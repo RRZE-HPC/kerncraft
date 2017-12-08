@@ -40,7 +40,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                  'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],
                  'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)'],
                  'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)']},
-             'cores per NUMA domain': 0.1,
+             'cores per NUMA domain': 10,
              'cores per socket': 10,
              'memory hierarchy': [{'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
                                                                   '(sets*ways*cl_size=32.00 kB)',
