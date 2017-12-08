@@ -3,13 +3,9 @@
 import io
 import os
 import re
-import sys
 from codecs import open  # To use a consistent encoding
-from distutils.dir_util import mkpath
 
 from setuptools import setup, find_packages
-from setuptools.command.build_py import build_py as _build_py
-from setuptools.command.sdist import sdist as _sdist
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -31,37 +27,6 @@ def find_version(*file_paths):
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
-
-
-# Stolen from pycparser
-def _run_build_tables(directory):
-    targetdir = os.path.join(directory, 'kerncraft', 'pycparser')
-    # mkpath is a distutils helper to create directories
-    mkpath(targetdir)
-    from subprocess import call
-    call([sys.executable, '_build_tables.py'], cwd=targetdir)
-
-
-# Stolen and modified from pycparser
-class build_py(_build_py):
-    def run(self):
-        # honor the --dry-run flag
-        if not self.dry_run:
-            # FIXME can we also build at the target dir?
-            self.execute(_run_build_tables, (os.getcwd(),),
-                         msg="Build the lexing/parsing tables")
-        _build_py.run(self)
-
-
-# Stolen and modified from pycparser
-class sdist(_sdist):
-    def make_release_tree(self, base_dir, files):
-        self.execute(_run_build_tables, (os.getcwd(),),
-                     msg="Build the lexing/parsing tables")
-        directory = os.path.join('kerncraft', 'pycparser')
-        files.append(os.path.join(directory, 'yacctab.py'))
-        files.append(os.path.join(directory, 'lextab.py'))
-        _sdist.make_release_tree(self, base_dir, files)
 
 
 # Get the long description from the relevant file
@@ -172,7 +137,5 @@ setup(
             'cachetile=kerncraft.cachetile:main',
             'iaca_get=kerncraft.iaca_get:main'
         ],
-    },
-
-    cmdclass={'build_py': build_py, 'sdist': sdist},
+    }
 )
