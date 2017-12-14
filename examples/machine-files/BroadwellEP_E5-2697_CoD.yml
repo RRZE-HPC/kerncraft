@@ -382,12 +382,12 @@ model type: Intel Xeon Broadwell EN/EP/EX processor
 overlapping model:
     ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
     performance counter metric:
-        Max(UMASK_UOPS_EXECUTED_PORT_PORT_0:PMC[0-3],
-            UMASK_UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
-            UMASK_UOPS_EXECUTED_PORT_PORT_4:PMC[0-3],
-            UMASK_UOPS_EXECUTED_PORT_PORT_5:PMC[0-3],
-            UMASK_UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
-            UMASK_UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
+        Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3],
+            UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
+            UOPS_EXECUTED_PORT_PORT_4:PMC[0-3],
+            UOPS_EXECUTED_PORT_PORT_5:PMC[0-3],
+            UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
+            UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
     ports: ["2D", "3D"]
     performance counter metric: T_OL + T_L1L2 + T_L2L3 + T_L3MEM
