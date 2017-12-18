@@ -579,9 +579,7 @@ class KernelCode(Kernel):
 
         self.kernel_code = kernel_code
         self._filename = filename
-        # need to refer to local lextab, otherwise the systemwide lextab would be imported
-        parser = CParser(lextab='kerncraft.pycparser.lextab',
-                         yacctab='kerncraft.pycparser.yacctab')
+        parser = CParser()
         try:
             self.kernel_ast = parser.parse(self._as_function(), filename=filename).ext[0].body
         except plyparser.ParseError as e:
