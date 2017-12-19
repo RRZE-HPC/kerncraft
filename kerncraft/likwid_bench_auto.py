@@ -265,7 +265,7 @@ def main():
                     print('.', end='', file=sys.stderr)
                     sys.stderr.flush()
 
-    print(yaml.dump(machine))
+    print(yaml.dump(machine, Dumper=yaml.RoundTripDumper))
 
 
 if __name__ == '__main__':
