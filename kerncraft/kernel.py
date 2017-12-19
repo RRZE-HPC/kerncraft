@@ -13,6 +13,7 @@ from functools import reduce, lru_cache
 import string
 from collections import defaultdict
 from itertools import zip_longest, chain
+import random
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -904,7 +905,7 @@ class KernelCode(Kernel):
                 stmt = c_ast.Assignment(
                     '=',
                     c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
-                    c_ast.Constant('float', '0.23'))
+                    c_ast.Constant('float', str(random.uniform(1.0, 0.1))))
 
                 ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
 
@@ -920,8 +921,8 @@ class KernelCode(Kernel):
                         iffalse=None))
             else:
                 # this is a scalar, so a simple Assignment is enough
-                ast.block_items.insert(
-                    i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant('float', '0.23')))
+                ast.block_items.insert(i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant(
+                        'float', str(random.uniform(1.0, 0.1)))))
 
                 # inject dummy access to scalar, so compiler does not over-optimize code
                 # TODO put if around it, so code will actually run
