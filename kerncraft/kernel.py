@@ -968,12 +968,11 @@ class KernelCode(Kernel):
             for for_idx, block_item in reversed(list(enumerate(ast.block_items))):
                 if type(block_item) is c_ast.For:
                     break
-            # If pragmas are directly before for loop, skip them as well
+            loop_nest = [ast.block_items.pop(for_idx)]
+            # and pragmas are directly before for loop
             while type(ast.block_items[for_idx-1]) is c_ast.Pragma:
                 for_idx -= 1
-            ast.block_items.insert(for_idx, c_ast.FuncCall(
-                c_ast.ID('likwid_markerStartRegion'),
-                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+                loop_nest.insert(0, ast.block_items.pop(for_idx))
 
             # Wrap everything in a loop
             # int repeat = atoi(argv[2])
@@ -982,13 +981,18 @@ class KernelCode(Kernel):
                 c_ast.ID('atoi'),
                 c_ast.ExprList([c_ast.ArrayRef(
                     c_ast.ID('argv'), c_ast.Constant('int', str(len(self.constants)+1)))]))
-            ast.block_items.insert(-3, c_ast.Decl(
+            ast.block_items.insert(-1, c_ast.Decl(
                 'repeat', ['const'], [], [],
                 type_decl, init, None))
+
             # for(; repeat > 0; repeat--) {...}
             cond = c_ast.BinaryOp('>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
             next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
-            stmt = c_ast.Compound([ast.block_items.pop(-2)]+dummies)
+            stmt = c_ast.Compound(loop_nest+dummies)
+
+            ast.block_items.insert(-1, c_ast.FuncCall(
+                c_ast.ID('likwid_markerStartRegion'),
+                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
 
             ast.block_items.insert(-1, c_ast.For(None, cond, next_, stmt))
 
