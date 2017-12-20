@@ -179,12 +179,13 @@ class Benchmark(object):
             self.no_phenoecm = no_phenoecm
             self.verbose = verbose
 
-        cpuinfo = open('/proc/cpuinfo').read()
+        cpuinfo = ''
         try:
-            current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
-                                          cpuinfo,
-                                          flags=re.MULTILINE).groups()[0]
-        except AttributeError:
+            with open('/proc/cpuinfo') as f:
+                current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
+                                              f.read(),
+                                              flags=re.MULTILINE).groups()[0]
+        except (AttributeError, FileNotFoundError):
             current_cpu_model = None
         if self.machine['model name'] != current_cpu_model:
             print("WARNING: current CPU model and machine description do not "

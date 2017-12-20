@@ -964,7 +964,14 @@ class KernelCode(Kernel):
 
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
-            ast.block_items.insert(-2, c_ast.FuncCall(
+            # Find last for loop statement
+            for for_idx, block_item in reversed(list(enumerate(ast.block_items))):
+                if type(block_item) is c_ast.For:
+                    break
+            # If pragmas are directly before for loop, skip them as well
+            while type(ast.block_items[for_idx-1]) is c_ast.Pragma:
+                for_idx -= 1
+            ast.block_items.insert(for_idx, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
 
@@ -1156,6 +1163,16 @@ class KernelCode(Kernel):
         """Compile source to executable with likwid capabilities and return the executable name."""
         compiler, compiler_args = self._machine.get_compiler()
 
+        if not self._filename:
+            source_file = tempfile.NamedTemporaryFile(
+                suffix='_compilable.c', mode='w', encoding='ascii'
+            )
+        else:
+            source_file = open(self._filename+"_compilable.c", 'w')
+
+        source_file.write(self.as_code(type_='likwid'))
+        source_file.flush()
+
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                 'LIKWID_LIB' in os.environ):
             print('Could not find LIKWID_INCLUDE (e.g., "-I/app/likwid/4.1.2/include") and '
@@ -1178,16 +1195,6 @@ class KernelCode(Kernel):
             lflags = []
         lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
         compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
-
-        if not self._filename:
-            source_file = tempfile.NamedTemporaryFile(
-                suffix='_compilable.c', mode='w', encoding='ascii'
-            )
-        else:
-            source_file = open(self._filename+"_compilable.c", 'w')
-
-        source_file.write(self.as_code(type_='likwid'))
-        source_file.flush()
 
         infiles = [os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c',
                    source_file.name]
