@@ -775,12 +775,15 @@ class KernelCode(Kernel):
         else:  # type(floop.stmt) is c_ast.Compound
             # Handle Assignments
             for assgn in floop.stmt.block_items:
+                # Ignore pragmas
+                if type(assgn) is c_ast.Pragma:
+                    continue
                 self._p_assignment(assgn)
 
     def _p_assignment(self, stmt):
         # Check for restrictions
         assert type(stmt) is c_ast.Assignment, \
-            "Only assignment statements are allowed in loops."
+            "Only assignment and pragma statements are allowed in loops."
         assert type(stmt.lvalue) in [c_ast.ArrayRef, c_ast.ID], \
             "Only assignment to array element or varialbe is allowed."
 
