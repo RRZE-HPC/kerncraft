@@ -840,6 +840,7 @@ class KernelCode(Kernel):
 
         *type* can be iaca or likwid.
         """
+        # TODO produce nicer code, including help text and other "comfort features".
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "of kernel description rather than code."
         random.seed(2342)  # we want reproducible random numbers
