@@ -840,9 +840,9 @@ class KernelCode(Kernel):
 
         *type* can be iaca or likwid.
         """
-        assert self.kernel_ast is not None, "AST does not exist, this could be due to running of " \
-                                            "kernel description rather than code."
-
+        assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
+                                            "of kernel description rather than code."
+        random.seed(2342)  # we want reproducible random numbers
         ast = deepcopy(self.kernel_ast)
         declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
 
