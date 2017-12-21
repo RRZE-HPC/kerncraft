@@ -488,7 +488,7 @@ class Kernel(object):
             for r in self.sources.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, r)
                 # Ignore accesses that always go to the same location (constant offsets)
-                if not offset_expr.free_symbols:
+                if not any([s in base_loop_counters.keys() for s in offset_expr.free_symbols]):
                     continue
                 offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
@@ -499,6 +499,9 @@ class Kernel(object):
                 global_load_offsets.append(offset)
             for w in self.destinations.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, w)
+                # Ignore accesses that always go to the same location (constant offsets)
+                if not any([s in base_loop_counters.keys() for s in offset_expr.free_symbols]):
+                    continue
                 offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
                     self.subs_consts(
