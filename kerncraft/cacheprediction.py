@@ -2,6 +2,7 @@
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
 
+import itertools
 import sympy
 
 from kerncraft.kernel import symbol_pos_int
@@ -60,7 +61,7 @@ class LayerConditionPredictor(CachePredictor):
         # TODO support flattend array indexes
         index_order = [symbol_pos_int(l['index']) for l in loop_stack]
         for var_name, arefs in chain(self.kernel.sources.items(), self.kernel.destinations.items()):
-            if arefs[0] is None:
+            if next(iter(arefs)) is None:
                 # Anything that is a sclar may be ignored
                 continue
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
@@ -112,10 +113,13 @@ class LayerConditionPredictor(CachePredictor):
                    'destinations': destinations}
         for var_name in self.kernel.variables:
             # Gather all access to current variable/array
-            accesses[var_name] = self.kernel.sources.get(var_name, []) + \
-                                 self.kernel.destinations.get(var_name, [])
-            # Skip non-variable offsets (acs is [None, None, None] or the like)
-            if not any(accesses[var_name]):
+            accesses[var_name] = self.kernel.sources.get(var_name, set()).union(
+                                    self.kernel.destinations.get(var_name, set()))
+            # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
+            # up from constant offsets
+            if not any(accesses[var_name]) or not any(
+                    [type(a) is sympy.Symbol
+                     for a in itertools.chain.from_iterable(accesses[var_name])]):
                 continue
             destinations.update(
                 [(var_name, tuple(r)) for r in self.kernel.destinations.get(var_name, [])])
@@ -279,7 +283,7 @@ class CacheSimulationPredictor(CachePredictor):
         if first_dim_factor == 0:
             # TODO a nicer solution woul be to do less warmup iterations to select a
             # cacheline within a first dimension, if possible
-            print('Warning: (automatic) warmup vs benchmark interation choice was not perfect '
+            print('Warning: (automatic) warmup vs benchmark iteration choice was not perfect '
                   'and may lead to inaccurate cache miss predictions. This is most likely the '
                   'result of too few inner loop iterations ({} from {} to {}).'.format(
                       inner_loop['index'], inner_loop['start'], inner_loop['stop']
