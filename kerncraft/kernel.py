@@ -134,7 +134,7 @@ def find_array_references(ast):
 
 
 def force_iterable(f):
-    """Will make any functions return an iterable objects by wrapping its result in a string."""
+    """Will make any functions return an iterable objects by wrapping its result in a list."""
     def wrapper(*args, **kwargs):
         r = f(*args, **kwargs)
         if hasattr(r, '__iter__'):
@@ -198,7 +198,7 @@ class Kernel(object):
             self.datatype = type_
         else:
             assert type_ == self.datatype, 'mixing of datatypes within a kernel is not supported.'
-        assert type(size) in [list, type(None)], 'size has to be defined as tuple'
+        assert type(size) in [tuple, type(None)], 'size has to be defined as tuple or None'
         self.variables[name] = (type_, size)
 
     def clear_state(self):
@@ -266,6 +266,13 @@ class Kernel(object):
                 pass
 
         return offset
+
+    def _remove_duplicate_accesses(self):
+        """
+        Remove duplicate source and destination accesses
+        """
+        self.destinations = {var_name: set(acs) for var_name, acs in self.destinations.items()}
+        self.sources = {var_name: set(acs) for var_name, acs in self.sources.items()}
 
     def access_to_sympy(self, var_name, access):
         """
@@ -437,10 +444,11 @@ class Kernel(object):
         :param iteration: controls the inner index counter
         :param spacing: sets a spacing between the arrays, default is 0
 
-        All array variables (non scalars) are layed out linearly starting from 0. An optional
+        All array variables (non scalars) are laid out linearly starting from 0. An optional
         spacing can be set. The accesses are based on this layout.
 
-        The iteration 0 is the first iteration. All loops are mapped to this linear iteration space.
+        The iteration 0 is the first iteration. All loops are mapped to this linear iteration
+        space.
 
         Accesses to scalars are ignored.
 
@@ -459,8 +467,8 @@ class Kernel(object):
         total_length = self.iteration_length()
 
         assert max(iteration) < self.subs_consts(total_length), \
-            "Iterations go beyond what is possible in the original code. One common reason is, " + \
-            "that the iteration length are unrealistically small."
+            "Iterations go beyond what is possible in the original code. One common reason, " + \
+            "is that the iteration length are unrealistically small."
 
         # Get sizes of arrays and base offsets for each array
         var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
@@ -479,6 +487,9 @@ class Kernel(object):
             element_size = self.datatypes_size[self.variables[var_name][0]]
             for r in self.sources.get(var_name, []):
                 offset_expr = self.access_to_sympy(var_name, r)
+                # Ignore accesses that always go to the same location (constant offsets)
+                if not offset_expr.free_symbols:
+                    continue
                 offset = force_iterable(sympy.lambdify(
                     base_loop_counters.keys(),
                     self.subs_consts(
@@ -499,7 +510,6 @@ class Kernel(object):
 
         # Generate numpy.array for each counter
         counter_per_it = [v(iteration) for v in base_loop_counters.values()]
-
         # Data access as they appear with iteration order
         return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
                            zip(*[o(*counter_per_it) for o in global_store_offsets]),
@@ -629,7 +639,7 @@ class KernelCode(Kernel):
                     t = t.type
 
                 assert len(t.type.names) == 1, "only single types are supported"
-                self.set_variable(item.name, t.type.names[0], list(dims))
+                self.set_variable(item.name, t.type.names[0], tuple(dims))
 
             else:
                 assert len(item.type.type.names) == 1, "only single types are supported"
@@ -661,10 +671,10 @@ class KernelCode(Kernel):
 
     def _get_offsets(self, aref, dim=0):
         """
-        Return a list of offsets of an ArrayRef object in all dimensions.
+        Return a tuple of offsets of an ArrayRef object in all dimensions.
 
         The index order is right to left (c-code order).
-        e.g. c[i+1][j-2] -> [-2, +1]
+        e.g. c[i+1][j-2] -> (-2, +1)
 
         If aref is actually a c_ast.ID, None will be returned.
         """
@@ -688,7 +698,7 @@ class KernelCode(Kernel):
         if dim == 0:
             idxs.reverse()
 
-        return idxs
+        return tuple(idxs)
 
     @classmethod
     def _get_basename(cls, aref):
@@ -795,20 +805,20 @@ class KernelCode(Kernel):
 
         # Document data destination
         # self.destinations[dest name] = [dest offset, ...])
-        self.destinations.setdefault(self._get_basename(stmt.lvalue), [])
-        self.destinations[self._get_basename(stmt.lvalue)].append(
+        self.destinations.setdefault(self._get_basename(stmt.lvalue), set())
+        self.destinations[self._get_basename(stmt.lvalue)].add(
             self._get_offsets(stmt.lvalue))
 
         if write_and_read:
             # this means that +=, -= or something of that sort was used
-            self.sources.setdefault(self._get_basename(stmt.lvalue), [])
-            self.sources[self._get_basename(stmt.lvalue)].append(
+            self.sources.setdefault(self._get_basename(stmt.lvalue), set())
+            self.sources[self._get_basename(stmt.lvalue)].add(
                 self._get_offsets(stmt.lvalue))
 
         # Traverse tree
-        self._psources(stmt.rvalue)
+        self._p_sources(stmt.rvalue)
 
-    def _psources(self, stmt):
+    def _p_sources(self, stmt):
         sources = []
         assert type(stmt) in \
             [c_ast.ArrayRef, c_ast.Constant, c_ast.ID, c_ast.BinaryOp, c_ast.UnaryOp], \
@@ -820,16 +830,16 @@ class KernelCode(Kernel):
         if type(stmt) in [c_ast.ArrayRef, c_ast.ID]:
             # Document data source
             bname = self._get_basename(stmt)
-            self.sources.setdefault(bname, [])
-            self.sources[bname].append(self._get_offsets(stmt))
+            self.sources.setdefault(bname, set())
+            self.sources[bname].add(self._get_offsets(stmt))
         elif type(stmt) is c_ast.BinaryOp:
             # Traverse tree
-            self._psources(stmt.left)
-            self._psources(stmt.right)
+            self._p_sources(stmt.left)
+            self._p_sources(stmt.right)
 
             self._flops[stmt.op] = self._flops.get(stmt.op, 0)+1
         elif type(stmt) is c_ast.UnaryOp:
-            self._psources(stmt.expr)
+            self._p_sources(stmt.expr)
             self._flops[stmt.op] = self._flops.get(stmt.op[-1], 0)+1
 
         return sources
@@ -1262,13 +1272,13 @@ class KernelDescription(Kernel):
 
         # Data sources
         self.sources = {
-            var_name: list([self.string_to_sympy(idx) for idx in v])
+            var_name: set([self.string_to_sympy(idx) for idx in v])
             for var_name, v in description['data sources'].items()
         }
 
         # Data destinations
         self.destinations = {
-            var_name: list([self.string_to_sympy(idx) for idx in v])
+            var_name: set([self.string_to_sympy(idx) for idx in v])
             for var_name, v in description['data destinations'].items()
         }
 
@@ -1283,7 +1293,7 @@ class KernelDescription(Kernel):
         if isinstance(s, int):
             return sympy.Integer(s)
         elif isinstance(s, list):
-            return list([cls.string_to_sympy(e) for e in s])
+            return tuple([cls.string_to_sympy(e) for e in s])
         elif s is None:
             return None
         else:
