@@ -2,7 +2,6 @@
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
 
-import itertools
 import sympy
 
 from kerncraft.kernel import symbol_pos_int
@@ -119,7 +118,7 @@ class LayerConditionPredictor(CachePredictor):
             # up from constant offsets
             if not any(accesses[var_name]) or not any(
                     [type(a) is sympy.Symbol
-                     for a in itertools.chain.from_iterable(accesses[var_name])]):
+                     for a in chain.from_iterable(accesses[var_name])]):
                 continue
             destinations.update(
                 [(var_name, tuple(r)) for r in self.kernel.destinations.get(var_name, [])])
