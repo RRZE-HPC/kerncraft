@@ -86,6 +86,47 @@ class TestKernel(unittest.TestCase):
         # write access to b[i][j]
         self.assertCountEqual([sizes['a'] + (1 * 10 * 10 + 1 * 10 + 1) * 8], write_offsets)
 
+
+    def test_global_offsets_consts_array(self):
+        k = KernelCode('''
+            double Y[s][n];
+            double F[s][n];
+            double A[s][s];
+            double y[n];
+
+            for (int j = 0; j < n; ++j)
+            {
+              Y[0][j] += A[0][0] * F[0][j];
+              Y[0][j] += A[0][1] * F[1][j];
+              Y[1][j] += A[1][0] * F[0][j];
+              Y[1][j] += A[1][1] * F[1][j];
+              Y[0][j] = Y[0][j] + y[j];
+              Y[1][j] = Y[1][j] + y[j];
+            }''', machine=None)
+        k.set_constant('n', 100000000)
+        k.set_constant('s', 2)
+
+        offsets_warmup = k.compile_global_offsets(iteration=range(0,10000), spacing=0)
+        for l,s in offsets_warmup:
+            self.assertEqual(len(l), 5, msg="Number of load offsets")
+            self.assertEqual(len(s), 2, msg="Number of store offsets")
+
+    def test_global_offsets_variable_small_array(self):
+        k = KernelCode('''
+            double Y[s][n];
+            double y[n];
+
+            for (int l = 0; l < s; l++)
+              for (int j = 0; j < n; j++)
+                Y[l][j] = Y[l][j] + y[j];''', machine=None)
+        k.set_constant('n', 100000000)
+        k.set_constant('s', 2)
+
+        offsets_warmup = k.compile_global_offsets(iteration=range(0, 10000), spacing=0)
+        for l, s in offsets_warmup:
+            self.assertEqual(len(l), 2, msg="Number of load offsets")
+            self.assertEqual(len(s), 1, msg="Number of store offsets")
+
     def test_from_description(self):
         k_descr = KernelDescription(self.twod_description)
         k_code = KernelCode(self.twod_code, machine=None)

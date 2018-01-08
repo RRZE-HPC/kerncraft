@@ -287,7 +287,7 @@ class CacheSimulationPredictor(CachePredictor):
         # If end point is less than one cacheline away, go beyond for 100 cachelines and
         # warn user of potentially inaccurate results
         if first_dim_factor == 0:
-            # TODO a nicer solution woul be to do less warmup iterations to select a
+            # TODO a nicer solution would be to do less warmup iterations to select a
             # cacheline within a first dimension, if possible
             print('Warning: (automatic) warmup vs benchmark iteration choice was not perfect '
                   'and may lead to inaccurate cache miss predictions. This is most likely the '
