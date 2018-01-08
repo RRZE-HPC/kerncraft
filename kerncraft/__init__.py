@@ -1,5 +1,5 @@
 """Kerncraft static analytical performance modeling framework and tool."""
-__version__ = '0.6.2'
+__version__ = '0.6.3'
 
 
 def get_header_path():
