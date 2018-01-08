@@ -209,7 +209,7 @@ def main():
     print("Correcting permissions of binary...", file=sys.stderr)
     st = os.stat(base_dir + 'v3.0/iaca')
     os.chmod(
-        base_dir + 'v3.0/iaca'.format(operating_system),
+        base_dir + 'v3.0/iaca',
         st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
     )
     print("IACA v3.0 installed to", os.getcwd() + '/' + base_dir + 'v3.0', file=sys.stderr)
