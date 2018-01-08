@@ -82,8 +82,10 @@ class Roofline(object):
         # We compile CPU-L1 stats on our own, because cacheprediction only works on cache lines
         read_offsets, write_offsets = zip(*list(self.kernel.compile_global_offsets(
             iteration=range(0, elements_per_cacheline))))
-        read_offsets = set([item for sublist in read_offsets for item in sublist])
-        write_offsets = set([item for sublist in write_offsets for item in sublist])
+        read_offsets = set([item for sublist in read_offsets if sublist is not None
+                            for item in sublist])
+        write_offsets = set([item for sublist in write_offsets if sublist is not None
+                             for item in sublist])
 
         write_streams = len(write_offsets)
         read_streams = len(read_offsets) + write_streams  # write-allocate
