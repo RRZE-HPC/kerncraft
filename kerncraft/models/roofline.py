@@ -202,12 +202,12 @@ class Roofline(object):
                   file=output_file)
             print('--------+--------------+-----------------+-------------------+----------------------',
                   file=output_file)
-            print('    CPU |              | {!s:>15} |              |'.format(
+            print('    CPU |              | {!s:>15} |                   |'.format(
                       self.conv_perf(max_flops, self._args.unit)),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
-                      ' {bandwidth!s:>12} | {bw kernel:<8}'.format(
+                      ' {bandwidth!s:>17} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
                       file=output_file)
             print('', file=output_file)
@@ -343,7 +343,7 @@ class RooflineIACA(Roofline):
                   file=output_file)
             print('--------+--------------+-----------------+-------------------+----------------------',
                   file=output_file)
-            print('    CPU |              | {!s:>15} |              |'.format(
+            print('    CPU |              | {!s:>15} |                   |'.format(
                       self.conv_perf(cpu_flops, self._args.unit)),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
@@ -351,7 +351,7 @@ class RooflineIACA(Roofline):
                 if b is None:
                     continue
                 print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
-                      ' {bandwidth!s:>12} | {bw kernel:<8}'.format(
+                      ' {bandwidth!s:>17} | {bw kernel:<8}'.format(
                           self.conv_perf(b['performance'], self._args.unit), **b),
                       file=output_file)
             print('', file=output_file)
