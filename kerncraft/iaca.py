@@ -69,13 +69,15 @@ def find_asm_blocks(asm_lines):
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
         if re.search(r'\d*\(%\w+,%\w+(,\d)?\)', line):
-            m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)',
+            m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)'
+                          r'(?P<eol>$)?',
                           line)
             mem_references.append((
                 int(m.group('off')) if m.group('off') else 0,
                 m.group('basep'),
                 m.group('idx'),
-                int(m.group('scale')) if m.group('scale') else 1))
+                int(m.group('scale')) if m.group('scale') else 1,
+                'load' if m.group('eol') is None else 'store'))
 
         if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213)?)[h]?p[ds]", line):
             if line.startswith('v'):
@@ -128,8 +130,16 @@ def find_asm_blocks(asm_lines):
                     # good, exactly one register was found
                     idx_reg = possible_idx_regs[0]
 
-                    mem_scales = [mref[3] for mref in mem_references
-                                  if idx_reg == mref[2] or idx_reg == mref[1]]
+                    # If store accesses exist, consider only those
+                    store_references = [mref for mref in mem_references
+                                        if mref[4] == 'store']
+
+                    if store_references:
+                        mem_scales = [mref[3] for mref in store_references
+                                      if idx_reg == mref[2] or idx_reg == mref[1]]
+                    else:
+                        mem_scales = [mref[3] for mref in mem_references
+                                      if idx_reg == mref[2] or idx_reg == mref[1]]
 
                     if mem_scales[1:] == mem_scales[:-1]:
                         # good, all scales are equal
