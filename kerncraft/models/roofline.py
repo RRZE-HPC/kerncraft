@@ -198,9 +198,9 @@ class Roofline(object):
         if self._args and self._args.verbose >= 1:
             print('{}'.format(pformat(self.results['verbose infos'])), file=output_file)
             print('Bottlenecks:', file=output_file)
-            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
+            print('  level | a. intensity |   performance   |   peak bandwidth  | peak bandwidth kernel',
                   file=output_file)
-            print('--------+--------------+-----------------+--------------+-----------------',
+            print('--------+--------------+-----------------+-------------------+----------------------',
                   file=output_file)
             print('    CPU |              | {!s:>15} |              |'.format(
                       self.conv_perf(max_flops, self._args.unit)),
@@ -339,9 +339,9 @@ class RooflineIACA(Roofline):
 
         if self.verbose >= 1:
             print('Bottlenecks:', file=output_file)
-            print('  level | a. intensity |   performance   |   bandwidth  | bandwidth kernel',
+            print('  level | a. intensity |   performance   |   peak bandwidth  | peak bandwidth kernel',
                   file=output_file)
-            print('--------+--------------+-----------------+--------------+-----------------',
+            print('--------+--------------+-----------------+-------------------+----------------------',
                   file=output_file)
             print('    CPU |              | {!s:>15} |              |'.format(
                       self.conv_perf(cpu_flops, self._args.unit)),
