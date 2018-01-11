@@ -6,5 +6,6 @@ include examples/kernels/*.c
 exclude examples/kernels/*.c_compilable.c
 include tests/*.py
 include tests/test_files/*.c tests/test_files/*.yaml tests/test_files/*.yml
+include tests/test_files/iaca_marker_examples/*.s
 include tests/test_files/dummy_likwid/*
 include kerncraft/headers/*.h kerncraft/headers/*.c

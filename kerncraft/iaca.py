@@ -50,6 +50,10 @@ def strip_unreferenced_labels(asm_lines):
     return asm_stripped
 
 
+def itemsEqual(lst):
+   return lst[1:] == lst[:-1]
+
+
 def find_asm_blocks(asm_lines):
     """Find blocks probably corresponding to loops in assembly."""
     blocks = []
@@ -68,8 +72,8 @@ def find_asm_blocks(asm_lines):
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
-        if re.search(r'\d*\(%\w+,%\w+(,\d)?\)', line):
-            m = re.search(r'(?P<off>\d*)\(%(?P<basep>\w+),%(?P<idx>\w+)(?:,(?P<scale>\d))?\)'
+        if re.search(r'\d*\(%\w+(,%\w+)?(,\d)?\)', line):
+            m = re.search(r'(?P<off>[-]?\d*)\(%(?P<basep>\w+)(,%(?P<idx>\w+))?(?:,(?P<scale>\d))?\)'
                           r'(?P<eol>$)?',
                           line)
             mem_references.append((
@@ -118,30 +122,32 @@ def find_asm_blocks(asm_lines):
             possible_idx_regs = None
             if mem_references:
                 # we found memory references to work with
+
+                # If store accesses exist, consider only those
+                store_references = [mref for mref in mem_references
+                                    if mref[4] == 'store']
+                refs = store_references or mem_references
+
                 possible_idx_regs = list(increments.keys())
-                for mref in mem_references:
-                    for reg in possible_idx_regs:
+                for mref in refs:
+                    for reg in list(possible_idx_regs):
                         if not (reg == mref[1] or reg == mref[2]):
                             # reg can not be it
                             possible_idx_regs.remove(reg)
-                            break
 
+                idx_reg = None
                 if len(possible_idx_regs) == 1:
                     # good, exactly one register was found
                     idx_reg = possible_idx_regs[0]
+                elif possible_idx_regs and itemsEqual([increments[pidxreg] for pidxreg in possible_idx_regs]):
+                    # multiple were option found, but all have the same increment
+                    idx_reg = possible_idx_regs[0]
 
-                    # If store accesses exist, consider only those
-                    store_references = [mref for mref in mem_references
-                                        if mref[4] == 'store']
+                if idx_reg:
+                    mem_scales = [mref[3] for mref in refs
+                                  if idx_reg == mref[2] or idx_reg == mref[1]]
 
-                    if store_references:
-                        mem_scales = [mref[3] for mref in store_references
-                                      if idx_reg == mref[2] or idx_reg == mref[1]]
-                    else:
-                        mem_scales = [mref[3] for mref in mem_references
-                                      if idx_reg == mref[2] or idx_reg == mref[1]]
-
-                    if mem_scales[1:] == mem_scales[:-1]:
+                    if itemsEqual(mem_scales):
                         # good, all scales are equal
                         try:
                             pointer_increment = mem_scales[0] * increments[idx_reg]
@@ -171,7 +177,6 @@ def find_asm_blocks(asm_lines):
                            'possible_idx_regs': possible_idx_regs,
                            'mem_references': mem_references,
                            'increments': increments, })
-
             # Reset counters
             packed_ctr = 0
             avx_ctr = 0

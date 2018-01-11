@@ -115,7 +115,8 @@ setup(
     package_data={
         'kerncraft': ['headers/dummy.c', 'headers/kerncraft.h', 'pycparser/*.cfg'],
         'examples': ['machine-files/*.yaml', 'machine-files/*.yml', 'kernels/*.c'],
-        'tests': ['test_files/*.c', 'test_files/*.yaml', 'test_files/*.yml', '*.py'],
+        'tests': ['test_files/*.c', 'test_files/*.yaml', 'test_files/*.yml', '*.py',
+                  'test_files/iaca_marker_examples/*.s'],
     },
     include_package_data=True,
 
