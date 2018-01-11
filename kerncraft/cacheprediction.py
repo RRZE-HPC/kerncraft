@@ -124,7 +124,7 @@ class LayerConditionPredictor(CachePredictor):
             # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
             # up from constant offsets
             if not any(accesses[var_name]) or not any(
-                    [type(a) is sympy.Symbol
+                    [a == inner_index
                      for a in chain.from_iterable(accesses[var_name])]):
                 continue
             destinations.update(

@@ -11,6 +11,7 @@ suite = unittest.TestLoader().loadTestsFromNames(
         'test_layer_condition',
         'test_likwid_bench_auto',
         'test_iaca_marker',
+        'tests_cacheprediction',
     ]
 )
 
