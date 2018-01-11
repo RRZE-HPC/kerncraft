@@ -112,6 +112,59 @@ class TestLayerCondition(unittest.TestCase):
                 self.assertEqual(value, recursive_dict_get(result, key_path),
                                  msg="at key_path={}".format(key_path))
 
+    def test_constantdim(self):
+        store_file = os.path.join(self.temp_dir, 'test_constantdim_LC.pickle')
+        output_stream = StringIO()
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+                                  '-p', 'LC',
+                                  self._find_file('constantdim.c'),
+                                  '-D', 'N', '1224',
+                                  '-D', 'M', '1224',
+                                  '-vvv',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
+        result = next(iter(results['constantdim.c'].values()))['LC']
+
+        N = sympy.var('N')
+        result_expected = {
+            'dimensions': {
+                1: {
+                    'slices_sum': 2,
+                    'slices_count': 6,
+                    'caches': {
+                        'L1': {'lt': True},
+                        'L2': {'lt': True},
+                        'L3': {'lt': True},
+                    },
+                    'cache_requirement_bytes': 64,
+                },
+                2: {
+                    'slices_sum': 2*N,
+                    'slices_count': 4,
+                    'caches': {
+                        'L1': {'lt': 48*N - 32 <= 32768},
+                        'L2': {'lt': 48*N - 32 <= 262144},
+                        'L3': {'lt': 48*N - 32 <= 20971520},
+                    },
+                    'cache_requirement_bytes': 48*N - 32,
+                },
+            }
+        }
+
+        # Iterate over expected results and validate with generated results
+        stack = [((k,), v) for k, v in result_expected.items()]
+        while stack:
+            key_path, value = stack.pop()
+            if isinstance(value, dict):
+                stack.extend([(key_path + (k,), v) for k, v in value.items()])
+            else:
+                self.assertEqual(value, recursive_dict_get(result, key_path),
+                                 msg="at key_path={}".format(key_path))
+
 
 if __name__ == '__main__':
     unittest.main()

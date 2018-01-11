@@ -212,7 +212,7 @@ class LC(object):
             # Strip left most constant offsets (refereces without index) to support things like:
             # a[0][i+1][j][k-1] with an i, j and k loop-nest
             while not arefs[0].free_symbols:
-                arefs.pop(0)
+                arefs = arefs[1:]
 
             # Check that remaining indices are in orde
             for i, expr in enumerate(arefs):
