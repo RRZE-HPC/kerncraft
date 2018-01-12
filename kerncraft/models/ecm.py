@@ -15,6 +15,7 @@ except ImportError:
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
+from .base import PerformanceModel
 
 
 def round_to_next(x, base):
@@ -47,15 +48,10 @@ def blocking(indices, block_size, initial_boundary=0):
     return blocks
 
 
-class ECMData(object):
+class ECMData(PerformanceModel):
     """Representation of Data portion of the Execution-Cache-Memory Model."""
 
     name = "Execution-Cache-Memory (data transfers only)"
-
-    @classmethod
-    def configure_arggroup(cls, parser):
-        """Configure argument group of parser."""
-        pass
 
     def __init__(self, kernel, machine, args=None, parser=None, cores=1,
                  cache_predictor=CacheSimulationPredictor, verbose=0):
@@ -205,7 +201,7 @@ class ECMData(object):
                       file=output_file)
 
 
-class ECMCPU(object):
+class ECMCPU(PerformanceModel):
     """Representation of the In-core execution part of the Execution-Cache-Memory model."""
 
     name = "Execution-Cache-Memory (CPU operations only)"
@@ -351,7 +347,7 @@ class ECMCPU(object):
         print('T_OL = {:.1f} cy/CL'.format(self.results['T_OL']), file=output_file)
 
 
-class ECM(object):
+class ECM(PerformanceModel):
     """
     Complete representation of the Execution-Cache-Memory Model (data and operations).
 

@@ -11,6 +11,7 @@ import string
 from pprint import pprint
 
 from kerncraft.prefixedunit import PrefixedUnit
+from .base import PerformanceModel
 
 
 def group_iterator(group):
@@ -144,7 +145,7 @@ def build_minimal_runs(events):
     return runs
 
 
-class Benchmark(object):
+class Benchmark(PerformanceModel):
     """Produce a benchmarkable binary to be used with likwid."""
 
     name = "benchmark"

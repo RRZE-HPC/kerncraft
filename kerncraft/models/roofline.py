@@ -5,9 +5,10 @@ from pprint import pformat  # Do not use pprint, breaks in combination with --st
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
+from .base import PerformanceModel
 
 
-class Roofline(object):
+class Roofline(PerformanceModel):
     """
     Representation of the Roofline model based on simplistic FLOP analysis.
 

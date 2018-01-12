@@ -8,8 +8,10 @@ from functools import cmp_to_key
 
 import sympy
 
+from .base import PerformanceModel
 
-class LC(object):
+
+class LC(PerformanceModel):
     """
     Representation of the layer condition model.
 
