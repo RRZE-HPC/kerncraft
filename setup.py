@@ -101,6 +101,7 @@ setup(
         'requests',
         'pycparser>=2.18'
     ],
+    python_requires='>=3.5',
 
     # List additional groups of dependencies here (e.g. development dependencies).
     # You can install these using the following syntax, for example:
