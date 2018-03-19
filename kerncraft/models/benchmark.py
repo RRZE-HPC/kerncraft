@@ -180,13 +180,21 @@ class Benchmark(PerformanceModel):
             self.no_phenoecm = no_phenoecm
             self.verbose = verbose
 
+        print("Info: If this takes too long and a phenological ECM model is not required, run with "
+              "--no-phenoecm.", file=sys.stderr)
+
         cpuinfo = ''
         try:
             with open('/proc/cpuinfo') as f:
-                current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
-                                              f.read(),
-                                              flags=re.MULTILINE).groups()[0]
-        except (AttributeError, FileNotFoundError):
+                cpuinfo = f.read()
+        except FileNotFoundError:
+            pass
+
+        try:
+            current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
+                                          cpuinfo,
+                                          flags=re.MULTILINE).groups()[0]
+        except AttributeError:
             current_cpu_model = None
         if self.machine['model name'] != current_cpu_model:
             print("WARNING: current CPU model and machine description do not "
@@ -269,7 +277,7 @@ class Benchmark(PerformanceModel):
         # Build arguments to pass to command:
         args = [bench] + [str(s) for s in list(self.kernel.constants.values())]
 
-        # Determine base runtime with 100 iterations
+        # Determine base runtime with 10 iterations
         runtime = 0.0
         time_per_repetition = 0.2 / 10.0
         repetitions = 10
