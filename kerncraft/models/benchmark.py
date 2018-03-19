@@ -8,10 +8,32 @@ from distutils.spawn import find_executable
 import re
 from collections import defaultdict
 import string
-from pprint import pprint
+import pprint
+import contextlib
 
 from kerncraft.prefixedunit import PrefixedUnit
 from .base import PerformanceModel
+
+
+class sympy_safe_key:
+    """Replacement for pprint._safe_key to be sympy-safe"""
+
+    __slots__ = ['obj']
+
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __lt__(self, other):
+        return ((str(type(self.obj)), id(self.obj)) < \
+                (str(type(other.obj)), id(other.obj)))
+
+@contextlib.contextmanager
+def pprint_nosort():
+    orig, pprint._safe_key = pprint._safe_key, sympy_safe_key
+    try:
+        yield
+    finally:
+        pprint._safe_key = orig
 
 
 def group_iterator(group):
@@ -260,7 +282,11 @@ class Benchmark(PerformanceModel):
                 continue
             try:
                 # Event counters
-                counter_value = int(line[2])
+                # Event counters
+                if line[2] == '-' or line[2] == 'nan':
+                    counter_value = 0
+                else:
+                    counter_value = int(line[2])
                 if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
                     results.setdefault(line[0], {})
                     results[line[0]][line[1]] = counter_value
@@ -410,7 +436,8 @@ class Benchmark(PerformanceModel):
     def report(self, output_file=sys.stdout):
         """Report gathered analysis data in human readable form."""
         if self.verbose > 1:
-            pprint(self.results)
+            with pprint_nosort():
+                pprint.pprint(self.results)
 
         if self.verbose > 0:
             print('Runtime (per repetition): {:.2g} s'.format(
