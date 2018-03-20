@@ -178,6 +178,10 @@ class Benchmark(PerformanceModel):
         parser.add_argument(
             '--no-phenoecm', action='store_true',
             help='Disables the phenomenological ECM model building.')
+        parser.add_argument(
+            '--iterations', type=int,
+            help='Number of outer-loop iterations (e.g. time loop) during benchmarking. '
+                 'Default is 10, but actual number will be adapted to at least 0.2s runtime.')
 
     def __init__(self, kernel, machine, args=None, parser=None, no_phenoecm=False, verbose=0):
         """
@@ -198,9 +202,11 @@ class Benchmark(PerformanceModel):
         if args:
             self.no_phenoecm = args.no_phenoecm
             self.verbose = args.verbose
+            self.iterations = args.iterations
         else:
             self.no_phenoecm = no_phenoecm
             self.verbose = verbose
+            self.iterations = 10
 
         print("Info: If this takes too long and a phenological ECM model is not required, run with "
               "--no-phenoecm.", file=sys.stderr)
@@ -306,7 +312,7 @@ class Benchmark(PerformanceModel):
         # Determine base runtime with 10 iterations
         runtime = 0.0
         time_per_repetition = 0.2 / 10.0
-        repetitions = 1
+        repetitions = self.iterations / 10
         mem_results = {}
 
         while runtime < 0.15:
@@ -314,7 +320,7 @@ class Benchmark(PerformanceModel):
             if time_per_repetition == 0.0:
                 repetitions = 0.2 // time_per_repetition
             else:
-                repetitions *= 10
+                repetitions = int(repetitions * 10)
 
             mem_results = self.perfctr(args + [str(repetitions)], group="MEM")
             runtime = mem_results['Runtime (RDTSC) [s]']
