@@ -306,7 +306,7 @@ class Benchmark(PerformanceModel):
         # Determine base runtime with 10 iterations
         runtime = 0.0
         time_per_repetition = 0.2 / 10.0
-        repetitions = 10
+        repetitions = 1
         mem_results = {}
 
         while runtime < 0.15:
