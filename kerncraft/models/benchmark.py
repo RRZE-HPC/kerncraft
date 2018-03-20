@@ -179,7 +179,7 @@ class Benchmark(PerformanceModel):
             '--no-phenoecm', action='store_true',
             help='Disables the phenomenological ECM model building.')
         parser.add_argument(
-            '--iterations', type=int,
+            '--iterations', type=int, default=10,
             help='Number of outer-loop iterations (e.g. time loop) during benchmarking. '
                  'Default is 10, but actual number will be adapted to at least 0.2s runtime.')
 
