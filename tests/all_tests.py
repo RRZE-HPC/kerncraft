@@ -9,7 +9,7 @@ suite = unittest.TestLoader().loadTestsFromNames(
         'test_intervals',
         'test_kernel',
         'test_layer_condition',
-        'test_likwid_bench_auto',
+        #'test_likwid_bench_auto',
         'test_iaca_marker',
         'test_cacheprediction',
     ]
