@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Machine model and helper functions."""
 from distutils.spawn import find_executable
+from distutils.version import LooseVersion
 import re
 
 import ruamel
@@ -8,6 +9,10 @@ import cachesim
 from sympy.parsing.sympy_parser import parse_expr
 
 from . import prefixedunit
+from . import __version__
+
+
+MIN_SUPPORTED_VERSION = "0.6.5"
 
 
 def sanitize_symbolname(name):
@@ -35,6 +40,15 @@ class MachineModel(object):
             with open(path_to_yaml, 'r') as f:
                 # Ignore ruamel unsafe loading warning, by supplying Loader parameter
                 self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.RoundTripLoader)
+
+        assert 'kerncraft version' in self._data, \
+            "Machine description requires a 'kerncraft version' entry, containg the kerncraft " \
+            "version it was written for."
+        if not (MIN_SUPPORTED_VERSION <= LooseVersion(self._data['kerncraft version'])
+                <= LooseVersion(__version__)):
+            raise ValueError("The provided machine description is incompatible with this version. "
+                             "Supported versions are from {} to {}.".format(
+                                MIN_SUPPORTED_VERSION, __version__))
 
     def __getitem__(self, key):
         """Return configuration entry."""

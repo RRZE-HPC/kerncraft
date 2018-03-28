@@ -8,6 +8,7 @@ from pprint import pprint
 from ruamel import yaml
 
 from .prefixedunit import PrefixedUnit
+from . import __version__
 
 
 def get_match_or_break(regex, haystack, flags=re.MULTILINE):
@@ -45,6 +46,7 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
         int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0]) / sockets
     cores_per_numa_domain = cores_per_socket / numa_domains_per_socket
     machine = {
+        'kerncraft version': __version__,
         'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
         'model name': get_match_or_break(r'^model name\s+:\s+(.+?)\s*$', cpuinfo)[0],
         'sockets': sockets,
