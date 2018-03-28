@@ -47,7 +47,8 @@ class MachineModel(object):
         if not (MIN_SUPPORTED_VERSION <= LooseVersion(self._data['kerncraft version'])
                 <= LooseVersion(__version__)):
             raise ValueError("The provided machine description is incompatible with this version. "
-                             "Supported versions are from {} to {}.".format(
+                             "Supported versions are from {} to {}. Check change logs and examples "
+                             " to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
 
     def __getitem__(self, key):
