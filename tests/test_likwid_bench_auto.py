@@ -6,6 +6,7 @@ import os
 import unittest
 
 from kerncraft import likwid_bench_auto as lba
+from kerncraft import __version__ as kerncraft_version
 from kerncraft.prefixedunit import PrefixedUnit
 
 
@@ -25,7 +26,8 @@ class TestLikwidBenchAuto(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(
             lba.get_machine_topology(cpuinfo_path=self._find_file('cpuinfo')),
-            {'FLOPs per cycle': {'DP': {'ADD': 'INFORMATION_REQUIRED',
+            {'kerncraft version': kerncraft_version,
+             'FLOPs per cycle': {'DP': {'ADD': 'INFORMATION_REQUIRED',
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED',
                                         'total': 'INFORMATION_REQUIRED'},
