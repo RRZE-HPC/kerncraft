@@ -1,5 +1,3 @@
-/* Extracted from the Himeno Benchmark */
-
 float gosa, ss, s0, omega;
 float a[4][L][M][N], b[3][L][M][N], c[3][L][M][N];
 float p[L][M][N], bnd[L][M][N], wrk1[L][M][N], wrk2[L][M][N];
