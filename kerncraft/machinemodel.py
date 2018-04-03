@@ -3,6 +3,7 @@
 from distutils.spawn import find_executable
 from distutils.version import LooseVersion
 import re
+from collections import OrderedDict
 
 import ruamel
 import cachesim
@@ -13,6 +14,17 @@ from . import __version__
 
 
 MIN_SUPPORTED_VERSION = "0.6.5"
+
+CHANGES_SINCE = OrderedDict([
+    ("0.6.5",
+     """
+     Removed 'cycles per cache line transfer' and replaced it by 
+     'non-overlap upstream throughput' in cache levels. The new parameter
+     takes the following arguments and is now associated with the cache level 
+     that is read from or written to: 
+     [$TP B/cy or 'full socket memory bandwidth', 'half-duplex' or 'full-duplex']
+     """),
+])
 
 
 def sanitize_symbolname(name):
@@ -44,9 +56,14 @@ class MachineModel(object):
         assert 'kerncraft version' in self._data, \
             "Machine description requires a 'kerncraft version' entry, containg the kerncraft " \
             "version it was written for."
-        if not (MIN_SUPPORTED_VERSION <= LooseVersion(self._data['kerncraft version'])
+        file_version = LooseVersion(self._data['kerncraft version'])
+        if not (MIN_SUPPORTED_VERSION <= file_version
                 <= LooseVersion(__version__)):
-            raise ValueError("The provided machine description is incompatible with this version. "
+            print("Relevant changes to the machine description file format:")
+            print('\n'.join(['{}: {}'.format(version, help_text)
+                             for version, help_text in CHANGES_SINCE.items()
+                             if LooseVersion(version) >= file_version]))
+            raise ValueError("Machine description is incompatible with this version. "
                              "Supported versions are from {} to {}. Check change logs and examples "
                              " to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
