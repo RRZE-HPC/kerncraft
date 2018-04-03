@@ -32,3 +32,4 @@ deploy:
   skip_existing: true
   on:
     repo: RRZE-HPC/kerncraft
+    tag: true
