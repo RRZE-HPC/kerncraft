@@ -1,4 +1,4 @@
-kerncraft version: 0.6.5
+kerncraft version: 0.6.6
 clock: 2.7 GHz
 cores per socket: 8
 cores per NUMA domain: 8
