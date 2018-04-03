@@ -1,4 +1,4 @@
-kerncraft version: 0.6.5
+kerncraft version: 0.6.6
 FLOPs per cycle:
     SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
     DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
@@ -277,7 +277,6 @@ memory hierarchy:
       cores per group: 1
       threads per group: 2
       groups: 28
-      cycles per cacheline transfer: 2
       performance counter metrics:
           accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3]
           misses: L1D_REPLACEMENT:PMC[0-3]
@@ -291,7 +290,7 @@ memory hierarchy:
       cores per group: 1
       threads per group: 2
       groups: 28
-      cycles per cacheline transfer: 2
+      non-overlap upstream throughput: [16 B/cy, 'half-duplex']
       performance counter metrics:
           accesses: L1D_REPLACEMENT:PMC[0-3]
           misses: L2_LINES_IN_ALL:PMC[0-3]
@@ -304,7 +303,7 @@ memory hierarchy:
       cores per group: 14
       threads per group: 28
       groups: 2
-      cycles per cacheline transfer: null
+      non-overlap upstream throughput: [16 B/cy, 'half-duplex']
       performance counter metrics:
           accesses: L2_LINES_IN_ALL:PMC[0-3]
           misses: (LLC_LOOKUP_DATA_READ:CBOX0C[01] + LLC_LOOKUP_DATA_READ:CBOX1C[01] +
@@ -324,7 +323,7 @@ memory hierarchy:
                    LLC_VICTIMS_M:CBOX13C[01])
     - level: MEM
       cores per group: 14
-      cycles per cacheline transfer: null
+      non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
       penalty cycles per read stream: 0
       size per group: null
       threads per group: 28

@@ -1,4 +1,4 @@
-kerncraft version: 0.6.5
+kerncraft version: 0.6.6
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}
   SP: {ADD: 8, FMA: 16, MUL: 8, total: 32}
@@ -324,7 +324,6 @@ memory hierarchy:
     replacement_policy: LRU, sets: 64, store_to: L2, ways: 8,
     write_allocate: True, write_back: True}
   cores per group: 1.0
-  cycles per cacheline transfer: 1 
   groups: 36
   level: L1
   size per group: 32.00 kB
@@ -337,7 +336,7 @@ memory hierarchy:
     replacement_policy: LRU, sets: 512, store_to: L3, ways: 8, # 512 kB
     write_allocate: True, write_back: True}
   cores per group: 1.0
-  cycles per cacheline transfer: 2
+  non-overlap upstream throughput: [32 B/cy, 'half-duplex']
   groups: 36
   level: L2
   size per group: 256.00 kB
@@ -349,7 +348,7 @@ memory hierarchy:
 - cache per group: {cl_size: 64, replacement_policy: LRU, sets: 5632, ways: 64, # 22 MB (cluster on die mode!)
   write_allocate: True, write_back: True}
   cores per group: 9
-  cycles per cacheline transfer: null
+  non-overlap upstream throughput: [16 B/cy, 'half-duplex']
   groups: 4
   level: L3
   size per group: 22.00 MB
@@ -375,8 +374,12 @@ memory hierarchy:
                LLC_VICTIMS_M:CBOX15C[01] + LLC_VICTIMS_M:CBOX16C[01] + LLC_VICTIMS_M:CBOX17C[01] +
                LLC_VICTIMS_M:CBOX18C[01] + LLC_VICTIMS_M:CBOX19C[01] + LLC_VICTIMS_M:CBOX20C[01] +
                LLC_VICTIMS_M:CBOX21C[01])
-- {cores per group: 18, cycles per cacheline transfer: null, level: MEM, penalty cycles per read stream: 0,
-  size per group: null, threads per group: 36}
+- cores per group: 18
+  non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+  level: MEM
+  penalty cycles per read stream: 0,
+  size per group: null
+  threads per group: 36
 micro-architecture: BDW
 model name: Intel(R) Xeon(R) CPU E5-2697 v4 @ 2.30GHz
 model type: Intel Xeon Broadwell EN/EP/EX processor

@@ -72,9 +72,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
+        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=0)
 
     def test_2d5pt_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
@@ -116,9 +116,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
+        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=0)
 
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
@@ -207,9 +207,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
 
         # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        self.assertAlmostEqual(ecmd['L1-L2'], 4, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 0.0, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0.0, places=0)
+        self.assertAlmostEqual(ecmd['L2'], 4, places=1)
+        self.assertAlmostEqual(ecmd['L3'], 0.0, places=1)
+        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=0)
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
@@ -234,9 +234,9 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
+        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
 
     def test_copy_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
@@ -262,9 +262,9 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        self.assertAlmostEqual(ecmd['L1-L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 0, places=0)
+        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
+        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECMCPU(self):
@@ -346,9 +346,9 @@ class TestKerncraft(unittest.TestCase):
         # -> layer-condition in L2
         self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
         self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
-        self.assertAlmostEqual(ecmd['L1-L2'], 10, places=1)
-        self.assertAlmostEqual(ecmd['L2-L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3-MEM'], 13, places=0)
+        self.assertAlmostEqual(ecmd['L2'], 10, places=1)
+        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
+        self.assertAlmostEqual(ecmd['MEM'], 13, places=0)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_RooflineIACA(self):

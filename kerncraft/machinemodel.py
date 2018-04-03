@@ -13,7 +13,7 @@ from . import prefixedunit
 from . import __version__
 
 
-MIN_SUPPORTED_VERSION = "0.6.5"
+MIN_SUPPORTED_VERSION = "0.6.6"
 
 CHANGES_SINCE = OrderedDict([
     ("0.6.5",

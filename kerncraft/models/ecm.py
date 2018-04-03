@@ -102,52 +102,60 @@ class ECMData(PerformanceModel):
         """
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+        cacheline_size = float(self.machine['cacheline size'])
 
-        misses, evicts = (self.predictor.get_misses(), self.predictor.get_evicts())
+        loads, stores = (self.predictor.get_loads(), self.predictor.get_stores())
 
-        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
-            cache_cycles = cache_info['cycles per cacheline transfer']
+        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[1:]:
+            throughput, duplexness = cache_info['non-overlap upstream throughput']
 
-            if cache_cycles is not None:
-                # only cache cycles count
-                cycles = (misses[cache_level] + evicts[cache_level]) * cache_cycles
-            else:
+            if type(throughput) is str and throughput == 'full socket memory bandwidth':
                 # Memory transfer
                 # we use bandwidth to calculate cycles and then add panalty cycles (if given)
 
                 # choose bw according to cache level and problem
                 # first, compile stream counts at current cache level
                 # write-allocate is allready resolved in cache predictor
-                read_streams = misses[cache_level]
-                write_streams = evicts[cache_level]
+                read_streams = loads[cache_level]
+                write_streams = stores[cache_level]
                 # second, try to find best fitting kernel (closest to stream seen stream counts):
                 threads_per_core = 1
                 bw, measurement_kernel = self.machine.get_bandwidth(
-                    cache_level + 1, read_streams, write_streams, threads_per_core)
+                    cache_level, read_streams, write_streams, threads_per_core)
 
                 # calculate cycles
-                cycles = float(misses[cache_level] + evicts[cache_level]) * \
-                    float(elements_per_cacheline) * float(element_size) * \
-                    float(self.machine['clock']) / float(bw)
+                if duplexness == 'half-duplex':
+                    cycles = float(loads[cache_level] + stores[cache_level]) * \
+                             float(elements_per_cacheline) * float(element_size) * \
+                             float(self.machine['clock']) / float(bw)
+                else:  # full-duplex
+                    raise NotImplementedError(
+                        "full-duplex mode is not (yet) supported for memory transfers.")
                 # add penalty cycles for each read stream
                 if 'penalty cycles per read stream' in cache_info:
-                    cycles += misses[cache_level] * \
+                    cycles += stores[cache_level] * \
                               cache_info['penalty cycles per read stream']
 
                 self.results.update({
                     'memory bandwidth kernel': measurement_kernel,
                     'memory bandwidth': bw})
+            else:
+                # since throughput is given in B/cy, and we need CL/cy:
+                throughput = float(throughput) / cacheline_size
+                # only cache cycles count
+                if duplexness == 'half-duplex':
+                    cycles = (loads[cache_level] + stores[cache_level]) / float(throughput)
+                elif duplexness == 'full-duplex':
+                    cycles = max(loads[cache_level] / float(throughput),
+                                 stores[cache_level] / float(throughput))
+                else:
+                    raise ValueError("Duplexness of cache throughput may only be 'half-duplex'"
+                                     "or 'full-duplex', found {} in {}.".format(
+                        duplexness, cache_info['name']))
 
-            self.results['cycles'].append((
-                '{}-{}'.format(
-                    cache_info['level'],
-                    self.machine['memory hierarchy'][cache_level + 1]['level']),
-                cycles))
+            self.results['cycles'].append((cache_info['level'], cycles))
 
-            # TODO remove the following by makeing testcases more versatile:
-            self.results['{}-{}'.format(
-                cache_info['level'], self.machine['memory hierarchy'][cache_level + 1]['level'])
-            ] = cycles
+            self.results[cache_info['level']] = cycles
 
         return self.results
 

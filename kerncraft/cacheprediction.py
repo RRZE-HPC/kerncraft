@@ -23,16 +23,24 @@ class CachePredictor(object):
         self.machine = machine
         self.cores = cores
 
+    def get_loads(self):
+        """Return a list with number of loaded cache lines per memory hierarchy level."""
+        raise NotImplementedError("CachePredictor should only be used as a base class.")
+
     def get_hits(self):
-        """Return a list with cache lines of hits per cache level."""
+        """Return a list with number of hit cache lines per memory hierarchy level."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
     def get_misses(self):
-        """Return a list with cache lines of misses per cache level."""
+        """Return a list with number of missed cache lines per memory hierarchy level."""
+        raise NotImplementedError("CachePredictor should only be used as a base class.")
+
+    def get_stores(self):
+        """Return a list with number of stored cache lines per memory hierarchy level."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
     def get_evicts(self):
-        """Return a list with cache lines of misses per cache level."""
+        """Return a list with number of evicted cache lines per memory hierarchy level."""
         raise NotImplementedError("CachePredictor should only be used as a base class.")
 
     def get_infos(self):
@@ -185,6 +193,7 @@ class LayerConditionPredictor(CachePredictor):
                         break
 
             # Resulting analysis for current cache level
+            # TODO include loads and stores
             results['cache'].append({
                 'name': c.name,
                 'hits': hits,
@@ -195,17 +204,30 @@ class LayerConditionPredictor(CachePredictor):
 
         self.results = results
 
+    def get_loads(self):
+        """Return a list with number of loaded cache lines per memory hierarchy level."""
+        # TODO FIXME L1 loads need to be derived from accesses
+        return [0]+[c['misses'] for c in self.results['cache']]
+
     def get_hits(self):
-        """Return a list with cache lines of hits per cache level."""
-        return [c['hits'] for c in self.results['cache']]
+        """Return a list with number of hit cache lines per memory hierarchy level."""
+        # At last level, all previous misses are hits
+        return [c['hits'] for c in self.results['cache']]+[self.results['cache'][-1]['misses']]
 
     def get_misses(self):
-        """Return a list with cache lines of misses per cache level."""
-        return [c['misses'] for c in self.results['cache']]
+        """Return a list with number of missed cache lines per memory hierarchy level."""
+        # At last level, there are no misses
+        return [c['misses'] for c in self.results['cache']]+[0]
+
+    def get_stores(self):
+        """Return a list with number of stored cache lines per memory hierarchy level."""
+        # TODO FIXME L1 stores need to be derived from accesses
+        return [0]+[c['evicts'] for c in self.results['cache']]
 
     def get_evicts(self):
-        """Return a list with cache lines of misses per cache level."""
-        return [c['evicts'] for c in self.results['cache']]
+        """Return a list with number of evicted cache lines per memory hierarchy level."""
+        # At last level, there are no evicts
+        return [c['evicts'] for c in self.results['cache']]+[0]
 
     def get_infos(self):
         """Return verbose information about the predictor."""
@@ -309,35 +331,49 @@ class CacheSimulationPredictor(CachePredictor):
         self.stats = list(csim.stats())
         self.first_dim_factor = first_dim_factor
 
+    def get_loads(self):
+        """Return a list with number of loaded cache lines per memory hierarchy level."""
+        return [self.stats[cache_level]['LOAD_count'] / self.first_dim_factor
+                for cache_level in range(len(self.machine['memory hierarchy']))]
+
     def get_hits(self):
-        """Return a list with cache lines of hits per cache level."""
+        """Return a list with number of hit cache lines per memory hierarchy level."""
         return [self.stats[cache_level]['HIT_count']/self.first_dim_factor
-                for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
+                for cache_level in range(len(self.machine['memory hierarchy']))]
 
     def get_misses(self):
-        """Return a list with cache lines of misses per cache level."""
+        """Return a list with number of missed cache lines per memory hierarchy level."""
         return [self.stats[cache_level]['MISS_count']/self.first_dim_factor
-                for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
+                for cache_level in range(len(self.machine['memory hierarchy']))]
+    
+    def get_stores(self):
+        """Return a list with number of stored cache lines per memory hierarchy level."""
+        return [self.stats[cache_level]['STORE_count']/self.first_dim_factor
+                for cache_level in range(len(self.machine['memory hierarchy']))]
 
     def get_evicts(self):
-        """Return a list with cache lines of misses per cache level."""
+        """Return a list with number of evicted cache lines per memory hierarchy level."""
         return [self.stats[cache_level]['EVICT_count']/self.first_dim_factor
-                for cache_level in range(len(self.machine['memory hierarchy'][:-1]))]
+                for cache_level in range(len(self.machine['memory hierarchy']))]
 
     def get_infos(self):
         """Return verbose information about the predictor."""
         first_dim_factor = self.first_dim_factor
         infos = {'memory hierarchy': [], 'cache stats': self.stats,
                  'cachelines in stats': first_dim_factor}
-        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
+        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy'])):
             infos['memory hierarchy'].append({
                 'index': len(infos['memory hierarchy']),
                 'level': '{}'.format(cache_info['level']),
+                'total loads': self.stats[cache_level]['LOAD_byte']/first_dim_factor,
                 'total misses': self.stats[cache_level]['MISS_byte']/first_dim_factor,
                 'total hits': self.stats[cache_level]['HIT_byte']/first_dim_factor,
+                'total stores': self.stats[cache_level]['STORE_byte']/first_dim_factor,
                 'total evicts': self.stats[cache_level]['EVICT_byte']/first_dim_factor,
+                'total lines load': self.stats[cache_level]['LOAD_count']/first_dim_factor,
                 'total lines misses': self.stats[cache_level]['MISS_count']/first_dim_factor,
                 'total lines hits': self.stats[cache_level]['HIT_count']/first_dim_factor,
+                'total lines stores': self.stats[cache_level]['STORE_count']/first_dim_factor,
                 'total lines evicts': self.stats[cache_level]['EVICT_count']/first_dim_factor,
                 'cycles': None})
         return infos

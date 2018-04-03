@@ -43,6 +43,7 @@ memory hierarchy:
           misses: L1D_REPLACEMENT:PMC[0-3]
           evicts: L1D_M_EVICT:PMC[0-3]
     - level: L2
+      non-overlap upstream throughput: [32 B/cy, 'half-duplex']
       cache per group: {
          'sets': 512, 'ways': 8, 'cl_size': 64, # 256 kB
          'replacement_policy': 'LRU',
@@ -57,6 +58,7 @@ memory hierarchy:
           misses: L2_LINES_IN_ALL:PMC[0-3]
           evicts: L2_TRANS_L2_WB:PMC[0-3]
     - level: L3
+      non-overlap upstream throughput: [32 B/cy, 'half-duplex']
       cache per group: {
          'sets': 20480, 'ways': 16, 'cl_size': 64, # 20 MB
          'replacement_policy': 'LRU', 
@@ -64,7 +66,6 @@ memory hierarchy:
       cores per group: 8
       threads per group: 16
       groups: 2
-      cycles per cacheline transfer: null
       performance counter metrics:
           accesses: L2_LINES_IN_ALL:PMC[0-3]
           misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01] + 
@@ -72,8 +73,8 @@ memory hierarchy:
           evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01] + 
                    CAS_COUNT_WR:MBOX3C[01])
     - level: MEM
+      non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
       cores per group: 8
-      cycles per cacheline transfer: null,
       size per group: null
       threads per group: 16
 benchmarks:

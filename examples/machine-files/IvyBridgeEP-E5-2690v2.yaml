@@ -1,4 +1,4 @@
-kerncraft version: 0.6.5
+kerncraft version: 0.6.6
 FLOPs per cycle:
     SP: {total: 16, ADD: 8, MUL: 8}
     DP: {total: 8, ADD: 4, MUL: 4}
@@ -222,7 +222,6 @@ memory hierarchy:
       cores per group: 1
       threads per group: 2
       groups: 16
-      cycles per cacheline transfer: 2
       performance counter metrics:
           accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3]
           misses: L1D_REPLACEMENT:PMC[0-3]
@@ -236,7 +235,7 @@ memory hierarchy:
       cores per group: 1
       threads per group: 2
       groups: 16
-      cycles per cacheline transfer: 2
+      non-overlap upstream throughput: [16 B/cy, 'half-duplex']
       performance counter metrics:
           accesses: L1D_REPLACEMENT:PMC[0-3]
           misses: L2_LINES_IN_ALL:PMC[0-3]
@@ -249,7 +248,7 @@ memory hierarchy:
       cores per group: 8
       threads per group: 16
       groups: 2
-      cycles per cacheline transfer: null
+      non-overlap upstream throughput: [16 B/cy, 'half-duplex']
       performance counter metrics:
           accesses: L2_LINES_IN_ALL:PMC[0-3]
           misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01] + 
@@ -258,7 +257,7 @@ memory hierarchy:
                    CAS_COUNT_WR:MBOX3C[01])
     - level: MEM
       cores per group: 8
-      cycles per cacheline transfer: null,
+      non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
       size per group: null
       threads per group: 16
 micro-architecture: IVB

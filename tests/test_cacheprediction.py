@@ -39,9 +39,9 @@ class TestLayerConditionPredictor(unittest.TestCase):
         kernel.set_constant('s', 4)
         kernel.set_constant('n', 1000000)
         lcp = LayerConditionPredictor(kernel, self.machine)
-        self.assertEqual(lcp.get_evicts(), [1, 1, 1])
-        self.assertEqual(lcp.get_misses(), [3, 3, 3])
-        self.assertEqual(lcp.get_hits(), [0, 0, 0])
+        self.assertEqual(lcp.get_evicts(), [1, 1, 1, 0])
+        self.assertEqual(lcp.get_misses(), [3, 3, 3, 0])
+        self.assertEqual(lcp.get_hits(), [0, 0, 0, 3])
 
 
 
