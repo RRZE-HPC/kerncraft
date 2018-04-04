@@ -103,6 +103,10 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
         if line.startswith('Level:'):
             mem_level = {'level': 'L' + line.split(':')[1].strip()}
             machine['memory hierarchy'].append(mem_level)
+            if mem_level['level'] != 'L1':
+                mem_level['non-overlap upstream throughput'] = [
+                    'INFORMATION_REQUIRED (e.g. 24 B/cy)',
+                    'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
         elif line.startswith('Size:'):
             size = PrefixedUnit(line.split(':')[1].strip())
             mem_level['cache per group'] = {
@@ -121,10 +125,6 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
                 (machine['cores per socket'] * machine['sockets']) / mem_level['groups']
             mem_level['threads per group'] = \
                 mem_level['cores per group'] * machine['threads per core']
-        if mem_level['level'] != 'L1':
-            mem_level['non-overlap upstream throughput'] = [
-                'INFORMATION_REQUIRED (e.g. 24 B/cy)',
-                'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
         mem_level['performance counter metrics'] = {
             'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
             'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
