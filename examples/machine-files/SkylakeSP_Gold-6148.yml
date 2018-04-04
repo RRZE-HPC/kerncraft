@@ -112,7 +112,6 @@ memory hierarchy:
   non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
   cores per group: 4
   threads per group: 8
-  cycles per cacheline transfer:
   penalty cycles per read stream: 0
 benchmarks:
   kernels:

@@ -57,7 +57,6 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                                        'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                                                        'write_back': 'INFORMATION_REQUIRED (True/False)'},
                                    'cores per group': 1.0,
-                                   'cycles per cacheline transfer': 'INFORMATION_REQUIRED',
                                    'groups': 20,
                                    'level': 'L1',
                                    'performance counter metrics': {
@@ -82,7 +81,9 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                                        'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                                                        'write_back': 'INFORMATION_REQUIRED (True/False)'},
                                    'cores per group': 1.0,
-                                   'cycles per cacheline transfer': 'INFORMATION_REQUIRED',
+                                   'non-overlap upstream throughput': [
+                                        'INFORMATION_REQUIRED (e.g. 24 B/cy)',
+                                        'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
                                    'groups': 20,
                                    'level': 'L2',
                                    'performance counter metrics': {
@@ -105,7 +106,9 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                                        'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                                                        'write_back': 'INFORMATION_REQUIRED (True/False)'},
                                    'cores per group': 10.0,
-                                   'cycles per cacheline transfer': 'INFORMATION_REQUIRED',
+                                   'non-overlap upstream throughput': [
+                                        'INFORMATION_REQUIRED (e.g. 24 B/cy)',
+                                        'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
                                    'groups': 2,
                                    'level': 'L3',
                                    'performance counter metrics': {
@@ -118,7 +121,9 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                    'size per group': PrefixedUnit(25.0, 'M', 'B'),
                                    'threads per group': 20.0},
                                   {'cores per group': 10,
-                                   'cycles per cacheline transfer': None,
+                                   'non-overlap upstream throughput': [
+                                        'full socket memory bandwidth',
+                                        'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
                                    'level': 'MEM',
                                    'penalty cycles per read stream': 0,
                                    'size per group': None,

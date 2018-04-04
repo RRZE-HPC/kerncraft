@@ -360,7 +360,8 @@ class Benchmark(PerformanceModel):
                         event_counter_results[sym] = measured_ctrs[event][r]
 
             # Analytical metrics needed for futher calculation
-            elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+            cl_size = float(self.machine['cacheline size'])
+            elements_per_cacheline = cl_size // element_size
             total_iterations = self.kernel.iteration_length() * repetitions
             total_cachelines = total_iterations / elements_per_cacheline
 
@@ -388,12 +389,12 @@ class Benchmark(PerformanceModel):
                 'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
-                           total_cachelines *
-                           self.machine['memory hierarchy'][0]['cycles per cacheline transfer']),
+                           total_cachelines * cl_size /
+                           self.machine['memory hierarchy'][1]['non-overlap upstream throughput'][1]),
                 'T_L2L3': ((cache_metric_results['L2']['misses'] +
                             cache_metric_results['L2']['evicts']) /
-                           total_cachelines *
-                           self.machine['memory hierarchy'][1]['cycles per cacheline transfer']),
+                           total_cachelines * cl_size /
+                           self.machine['memory hierarchy'][2]['non-overlap upstream throughput'][1]),
                 'T_L3MEM': ((cache_metric_results['L3']['misses'] +
                              cache_metric_results['L3']['evicts']) *
                             float(self.machine['cacheline size']) /

@@ -121,7 +121,10 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
                 (machine['cores per socket'] * machine['sockets']) / mem_level['groups']
             mem_level['threads per group'] = \
                 mem_level['cores per group'] * machine['threads per core']
-        mem_level['cycles per cacheline transfer'] = 'INFORMATION_REQUIRED'
+        if mem_level['level'] != 'L1':
+            mem_level['non-overlap upstream throughput'] = [
+                'INFORMATION_REQUIRED (e.g. 24 B/cy)',
+                'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
         mem_level['performance counter metrics'] = {
             'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
             'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
@@ -136,7 +139,9 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
         'level': 'MEM',
         'cores per group': machine['cores per socket'],
         'threads per group': machine['threads per core'] * machine['cores per socket'],
-        'cycles per cacheline transfer': None,
+        'non-overlap upstream throughput':
+            ['full socket memory bandwidth',
+             'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
         'penalty cycles per read stream': 0,
         'size per group': None
     })

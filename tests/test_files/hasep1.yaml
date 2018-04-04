@@ -324,7 +324,6 @@ memory hierarchy:
     - level: MEM
       non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
       cores per group: 14
-      cycles per cacheline transfer: null
       penalty cycles per read stream: 0
       size per group: null
       threads per group: 28
