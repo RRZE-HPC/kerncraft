@@ -268,12 +268,22 @@ class CacheSimulationPredictor(CachePredictor):
         warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
         # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
         while warmup_iteration_count*element_size > max_cache_size*1.5:
+            # Decreasing indices (starting from outer), until total size is small enough
             for l in self.kernel.get_loop_stack():
                 index = symbol_pos_int(l['index'])
                 if warmup_indices[index] > l['start']:
                     warmup_indices[index] -= 1
+                    # get offset in iterations and size that a change on this level provokes
+                    diff_iterations = (warmup_iteration_count -
+                                       self.kernel.indices_to_global_iterator(warmup_indices))
+                    diff_size = diff_iterations*element_size
+                    warmup_indices[index] = max(
+                        l['start'],
+                        (warmup_iteration_count - (max_cache_size*1.5)// element_size) // diff_size
+                    )
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
+
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads
         # Assumption: writes (and reads) increase linearly

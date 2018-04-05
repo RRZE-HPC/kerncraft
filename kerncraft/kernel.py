@@ -26,6 +26,7 @@ from pycparser.c_generator import CGenerator
 from . import iaca
 
 
+@lru_cache()
 def symbol_pos_int(*args, **kwargs):
     """Create a sympy.Symbol with positive and integer assumptions."""
     kwargs.update({'positive': True,
@@ -422,20 +423,28 @@ class Kernel(object):
 
         return base_loop_counters
 
+    @lru_cache(1)
+    def global_iterator(self):
+        """
+        Return global iterator sympy expression
+        """
+        global_iterator = sympy.Integer(0)
+        total_length = sympy.Integer(1)
+        for var_name, start, end, incr in reversed(self._loop_stack):
+            loop_var = symbol_pos_int(var_name)
+            length = end - start  # FIXME is incr handled correct here?
+            global_iterator += (loop_var - start) * total_length
+            total_length *= length
+        return global_iterator
+
     def indices_to_global_iterator(self, indices):
         """
         Transform a dictionary of indices to a global iterator integer.
 
         Inverse of global_iterator_to_indices().
         """
-        global_iterator = sympy.Integer(0)
-        total_length = sympy.Integer(1)
-        for var_name, start, end, incr in reversed(self._loop_stack):
-            loop_var = symbol_pos_int(var_name)
-            length = end-start  # FIXME is incr handled correct here?
-            global_iterator += (indices[loop_var] - start)*total_length
-            total_length *= length
-        return self.subs_consts(global_iterator)
+        global_iterator = self.subs_consts(self.global_iterator())
+        return global_iterator.subs(indices)
 
     def compile_global_offsets(self, iteration=0, spacing=0):
         """
