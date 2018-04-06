@@ -109,23 +109,29 @@ class MachineModel(object):
         :param threads_per_core: number of threads that are run on each core
         :param cores: if not given, will choose maximum bandwidth
         """
-        # try to find best fitting kernel (closest to stream seen stream counts):
+        # try to find best fitting kernel (closest to read/write ratio):
         # write allocate has to be handled in kernel information (all writes are also reads)
         # TODO support for non-write-allocate architectures
+        try:
+            target_ratio = read_streams/write_streams
+        except ZeroDivisionError:
+            target_ratio = float('inf')
         measurement_kernel = 'load'
         measurement_kernel_info = self['benchmarks']['kernels'][measurement_kernel]
-        for kernel_name, kernel_info in sorted(
-                self['benchmarks']['kernels'].items()):
-            if (read_streams >= (kernel_info['read streams']['streams'] +
+        measurement_kernel_ratio = float('inf')
+        for kernel_name, kernel_info in sorted(self['benchmarks']['kernels'].items()):
+            try:
+                kernel_ratio = ((kernel_info['read streams']['streams'] +
                                  kernel_info['write streams']['streams'] -
-                                 kernel_info['read+write streams']['streams']) >
-                    measurement_kernel_info['read streams']['streams'] +
-                    measurement_kernel_info['write streams']['streams'] -
-                    measurement_kernel_info['read+write streams']['streams'] and
-                    write_streams >= kernel_info['write streams']['streams'] >
-                    measurement_kernel_info['write streams']['streams']):
+                                 kernel_info['read+write streams']['streams']) /
+                                kernel_info['write streams']['streams'])
+            except ZeroDivisionError:
+                kernel_ratio = float('inf')
+
+            if abs(kernel_ratio - target_ratio) < abs(measurement_kernel_ratio - target_ratio):
                 measurement_kernel = kernel_name
                 measurement_kernel_info = kernel_info
+                measurement_kernel_ratio = kernel_ratio
 
         # choose smt, and then use max/saturation bw
         bw_level = self['memory hierarchy'][cache_level]['level']
@@ -144,7 +150,6 @@ class MachineModel(object):
                             self['cores per NUMA domain'])
             bw = max(bw_measurements['results'][measurement_kernel][:max_cores])
 
-        measurement_kernel_info = self['benchmarks']['kernels'][measurement_kernel]
         # Correct bandwidth due to miss-measurement of write allocation
         # TODO support non-temporal stores and non-write-allocate architectures
         if cache_level == 0:

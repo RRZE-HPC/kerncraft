@@ -156,20 +156,20 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['Roofline'])
 
         roofline = result['Roofline']
-        self.assertAlmostEqual(roofline['min performance'], 5802500000.0, places=0)
-        self.assertEqual(roofline['bottleneck level'], 2)
+        self.assertAlmostEqual(roofline['min performance'], 5115000000.0, places=0)
+        self.assertEqual(roofline['bottleneck level'], 1)
 
         expected_btlncks = [{u'arithmetic intensity': 0.11764705882352941,
-                             u'bandwidth': PrefixedUnit(81.98, u'G', u'B/s'),
-                             u'bw kernel': 'copy',
+                             u'bandwidth': PrefixedUnit(81.61, u'G', u'B/s'),
+                             u'bw kernel': 'triad',
                              u'level': u'L1',
-                             u'performance': PrefixedUnit(9644705882.352942, u'', u'FLOP/s')
+                             u'performance': PrefixedUnit(9601176470.588236, u'', u'FLOP/s')
                              },
                             {u'arithmetic intensity': 0.1,
-                             u'bandwidth': PrefixedUnit(61.92, u'G', u'B/s'),
-                             u'bw kernel': 'copy',
+                             u'bandwidth': PrefixedUnit(51.15, u'G', u'B/s'),
+                             u'bw kernel': 'triad',
                              u'level': u'L2',
-                             u'performance': PrefixedUnit(6192000000.0, u'', u'FLOP/s')},
+                             u'performance': PrefixedUnit(5115000000.0, u'', u'FLOP/s')},
                             {u'arithmetic intensity': 1.0 / 6.0,
                              u'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
                              u'bw kernel': 'copy',
@@ -183,7 +183,6 @@ class TestKerncraft(unittest.TestCase):
 
         for i, btlnck in enumerate(expected_btlncks):
             for k, v in btlnck.items():
-                print(k, roofline['mem bottlenecks'][i][k], v)
                 self.assertEqual(roofline['mem bottlenecks'][i][k], v)
 
     def test_sclar_product_ECMData(self):
