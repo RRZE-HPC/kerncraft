@@ -443,8 +443,14 @@ class Kernel(object):
 
         Inverse of global_iterator_to_indices().
         """
-        global_iterator = self.subs_consts(self.global_iterator())
-        return global_iterator.subs(indices)
+        global_iterator = self.subs_consts(self.global_iterator().subs(indices))
+        return global_iterator
+
+    def max_global_iteration(self):
+        """Return global iterator with last iteration number"""
+        return self.indices_to_global_iterator({
+            symbol_pos_int(var_name): end-1 for var_name, start, end, incr in self._loop_stack
+        })
 
     def compile_global_offsets(self, iteration=0, spacing=0):
         """

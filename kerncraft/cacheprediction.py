@@ -255,19 +255,13 @@ class CacheSimulationPredictor(CachePredictor):
         max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
         max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
 
-        offsets = []
-        if max_array_size < max_cache_size:
-            # Full caching possible, go through all itreration before actual initialization
-            offsets = list(self.kernel.compile_global_offsets(
-                iteration=range(0, self.kernel.iteration_length())))
-
         # Regular Initialization
         warmup_indices = {
             symbol_pos_int(l['index']): ((l['stop']-l['start'])//l['increment'])//3
             for l in self.kernel.get_loop_stack(subs_consts=True)}
         warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
         # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
-        while warmup_iteration_count*element_size > max_cache_size*1.5:
+        while warmup_iteration_count * element_size > max_cache_size*1.5:
             # Decreasing indices (starting from outer), until total size is small enough
             for l in self.kernel.get_loop_stack():
                 index = symbol_pos_int(l['index'])
@@ -283,6 +277,12 @@ class CacheSimulationPredictor(CachePredictor):
                     )
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
+
+        offsets = []
+        if warmup_iteration_count*element_size < max_cache_size or max_array_size < max_cache_size:
+            # Full caching possible, go through all itreration before actual initialization
+            offsets = list(self.kernel.compile_global_offsets(
+                iteration=range(0, self.kernel.iteration_length())))
 
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads
