@@ -1111,7 +1111,8 @@ class KernelCode(Kernel):
 
         compiler, compiler_args = self._machine.get_compiler()
 
-        cmd = [compiler, os.path.basename(out_filename_asm), 'dummy.s', '-o', out_filename]
+        cmd = [compiler] + compiler_args + [os.path.basename(out_filename_asm), 'dummy.s',
+                                            '-o', out_filename]
         if verbose:
             print('Executing (assemble): ', ' '.join(cmd))
 
