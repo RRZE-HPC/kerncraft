@@ -610,7 +610,8 @@ class KernelCode(Kernel):
         self._filename = filename
         parser = CParser()
         try:
-            self.kernel_ast = parser.parse(self._as_function(), filename=filename).ext[0].body
+            self.kernel_ast = parser.parse(self._strip_comments(self._as_function()),
+                                           filename=filename).ext[0].body
         except plyparser.ParseError as e:
             print('Error parsing kernel code:', e)
             sys.exit(1)
@@ -618,6 +619,16 @@ class KernelCode(Kernel):
         self._process_code()
 
         self.check()
+    
+    def _strip_comments(self, code):
+        clean_code = []
+        for l in code.split('\n'):
+            i = l.find('//')
+            if i > -1:
+                clean_code.append(l[:i])
+            else:
+                clean_code.append(l)
+        return '\n'.join(clean_code)
 
     def print_kernel_code(self, output_file=sys.stdout):
         """Print source code of kernel."""

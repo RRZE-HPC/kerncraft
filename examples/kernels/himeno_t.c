@@ -1,7 +1,7 @@
-/* Extracted from the Himeno Benchmark */
+// Extracted from the Himeno Benchmark
 
-/* WARNING: kerncraft cannot do analytic LC analysis on this code */
-/* Use --cache-predictor SIM instead */
+// WARNING: kerncraft cannot do analytic LC analysis on this code
+// Use --cache-predictor SIM instead
 float gosa, ss, s0, omega;
 float a[L][M][N][4], b[L][M][N][3], c[L][M][N][3];
 float p[L][M][N], bnd[L][M][N], wrk1[L][M][N], wrk2[L][M][N];
