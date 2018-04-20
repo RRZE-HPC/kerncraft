@@ -112,12 +112,53 @@ def main():
         'accept_license': 1,
         'form_build_id': re.search(r'name="form_build_id" value="([^"]+)" />', r.text).group(1),
         'form_id': 'intel_licensed_dls_step_1'}
-    donwload_list = s.post(URL, data=response_data).text
+    download_list = s.post(URL, data=response_data).text
+
+    print("IACA v2.1 (for manual use - only version analyzing latency):", file=sys.stderr)
+    if operating_system == 'mac':
+        operating_system_temp = 'mac64'
+    else:
+        operating_system_temp = operating_system
+    download_url = re.search(
+        r'"(https://software.intel.com/[^"]*iaca-' + operating_system_temp + '\.zip)"',
+        download_list).group(1)
+    print("Downloading", download_url, "...", file=sys.stderr)
+    r = s.get(download_url, stream=True)
+    zfile = zipfile.ZipFile(BytesIO(r.content))
+    members = [n
+               for n in zfile.namelist()
+               if '/.' not in n and n.startswith('iaca-{:}/'.format(operating_system_temp))]
+    # Exctract to temp folder and copy to correct directory
+    print("Extracting...", file=sys.stderr)
+    with TemporaryDirectory() as tempdir:
+        zfile.extractall(tempdir, members=members)
+        shutil.copytree(tempdir + '/iaca-{}'.format(operating_system_temp), base_dir + 'v2.1')
+    # Correct permissions of executables
+    print("Correcting permissions of binary...")
+    st = os.stat(base_dir + 'v2.1/bin/iaca')
+    os.chmod(
+        base_dir + 'v2.1/bin/iaca',
+        st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
+    )
+    st = os.stat(base_dir + 'v2.1/bin/iaca.sh')
+    os.chmod(
+        base_dir + 'v2.1/bin/iaca.sh',
+        st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
+    )
+    # Fix iaca.sh
+    print("Fixing iaca.sh...", file=sys.stderr)
+    iaca_sh = open(base_dir + 'v2.1/bin/iaca.sh').read()
+    iaca_sh = iaca_sh.replace('realpath', 'readlink -f', 1)
+    iaca_sh = iaca_sh.replace('mypath=`pwd`', 'mypath=`dirname $0`', 1)
+    iaca_sh = iaca_sh.replace('path=$(cd "$(dirname "$0")"; pwd)',
+                              'script=`readlink -f $0`\n\tpath=`dirname "$script"`', 1)
+    open(base_dir + 'v2.1/bin/iaca.sh', 'w').write(iaca_sh)
+    print("IACA v2.1 installed to", os.getcwd() + '/' + base_dir + 'v2.1', file=sys.stderr)
 
     print("IACA v2.2 (for NHM and WSM support):", file=sys.stderr)
     download_url = re.search(
         r'"(https://software.intel.com/[^"]*iaca-version-2.2-' + operating_system + '\.zip)"',
-        donwload_list).group(1)
+        download_list).group(1)
     print("Downloading", download_url, "...", file=sys.stderr)
     r = s.get(download_url, stream=True)
     zfile = zipfile.ZipFile(BytesIO(r.content))
@@ -149,12 +190,12 @@ def main():
     iaca_sh = iaca_sh.replace('path=$(cd "$(dirname "$0")"; pwd)',
                               'script=`readlink -f $0`\n\tpath=`dirname "$script"`', 1)
     open(base_dir + 'v2.2/bin/iaca.sh', 'w').write(iaca_sh)
-    print("IACA v2.2 installed to", os.getcwd() + '/' + base_dir + 'v2.3', file=sys.stderr)
+    print("IACA v2.2 installed to", os.getcwd() + '/' + base_dir + 'v2.2', file=sys.stderr)
 
     print("IACA v2.3 (for SNB and IVY support):", file=sys.stderr)
     download_url = re.search(
         r'"(https://software.intel.com/[^"]*iaca-version-2.3-' + operating_system + '\.zip)"',
-        donwload_list).group(1)
+        download_list).group(1)
     print("Downloading", download_url, "...", file=sys.stderr)
     r = s.get(download_url, stream=True)
     print("Reading zip file...", file=sys.stderr)
@@ -192,7 +233,7 @@ def main():
     print("IACA v3.0 (for HSW, BDW, SKL and SKX support):", file=sys.stderr)
     download_url = re.search(
         r'"(https://software.intel.com/[^"]*iaca-version-v3.0-' + operating_system + '\.zip)"',
-        donwload_list).group(1)
+        download_list).group(1)
     print("Downloading...", download_url, "...", file=sys.stderr)
     r = s.get(download_url, stream=True)
     print("Reading zip file...", file=sys.stderr)
@@ -216,6 +257,7 @@ def main():
 
     # Create unified bin directory to access both operating_systems
     os.mkdir(base_dir + 'bin')
+    os.symlink('../v2.1/bin/iaca.sh', base_dir + 'bin/iaca2.1')
     os.symlink('../v2.2/bin/iaca.sh', base_dir + 'bin/iaca2.2')
     os.symlink('../v2.3/bin/iaca.sh', base_dir + 'bin/iaca2.3')
     os.symlink('../v3.0/iaca', base_dir + 'bin/iaca3.0')
