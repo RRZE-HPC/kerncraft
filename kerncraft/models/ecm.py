@@ -195,8 +195,6 @@ class ECMData(PerformanceModel):
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
         if self.verbose > 1:
-            from IPython import embed
-            embed()
             print('{}'.format(pprint.pformat(self.results['verbose infos'])), file=output_file)
 
         for level, cycles in self.results['cycles']:
