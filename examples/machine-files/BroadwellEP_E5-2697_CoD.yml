@@ -377,7 +377,7 @@ memory hierarchy:
 - cores per group: 18
   non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
   level: MEM
-  penalty cycles per read stream: 0,
+  penalty cycles per read stream: 0
   size per group: null
   threads per group: 36
 micro-architecture: BDW
