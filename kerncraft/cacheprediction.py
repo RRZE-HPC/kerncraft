@@ -65,11 +65,10 @@ class LayerConditionPredictor(CachePredictor):
         # 2. The order of iterations must be reflected in the order of indices in all array
         #    references containing the inner loop index. If the inner loop index is not part of the
         #    reference, the reference is simply ignored
-        # TODO support flattend array indexes
         index_order = [symbol_pos_int(l['index']) for l in loop_stack]
         for var_name, arefs in chain(self.kernel.sources.items(), self.kernel.destinations.items()):
             if next(iter(arefs)) is None:
-                # Anything that is a sclar may be ignored
+                # Anything that is a scalar may be ignored
                 continue
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
                 for t in a.expand().as_ordered_terms():
@@ -102,29 +101,25 @@ class LayerConditionPredictor(CachePredictor):
                                              "Problematic term: {}.".format(t))
 
         # 3. Indices may only increase with one
+        inner_index = symbol_pos_int(loop_stack[-1]['index'])
+        inner_increment = loop_stack[-1]['increment']
         # TODO use a public interface, not self.kernel._*
         for arefs in chain(chain(*self.kernel.sources.values()),
                            chain(*self.kernel.destinations.values())):
             if arefs is None:
                 continue
             for expr in arefs:
-                inner_index = symbol_pos_int(loop_stack[-1]['index'])
-                inner_increment = loop_stack[-1]['increment']
                 diff = expr.subs(inner_index, 1+inner_increment) - expr.subs(inner_index, 1)
                 if diff != 0 and diff != 1:
                     # TODO support -1 aswell
                     raise ValueError("Can not apply layer condition, array references may not "
                                      "increment more then one per iteration.")
-
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         accesses = {}
         destinations = set()
         distances = []
-        results = {'accesses': accesses,
-                   'distances': distances,
-                   'destinations': destinations}
         for var_name in self.kernel.variables:
             # Gather all access to current variable/array
             accesses[var_name] = self.kernel.sources.get(var_name, set()).union(
@@ -132,7 +127,7 @@ class LayerConditionPredictor(CachePredictor):
             # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
             # up from constant offsets
             if not any(accesses[var_name]) or not any(
-                    [a == inner_index
+                    [a == inner_index or a.coeff(inner_index) != 0
                      for a in chain.from_iterable(accesses[var_name])]):
                 continue
             destinations.update(
@@ -156,8 +151,12 @@ class LayerConditionPredictor(CachePredictor):
         distances_bytes = [d*element_size for d in distances]
         # CAREFUL! From here on we are working in byte offsets and not in indices anymore.
 
-        results['distances_bytes'] = distances_bytes
-        results['cache'] = []
+        # converting access sets to lists, otherwise pprint will fail during obligatory sorting step
+        results = {'accesses': {k: list(v) for k,v in accesses.items()},
+                   'distances': distances,
+                   'destinations': destinations,
+                   'distances_bytes': distances_bytes,
+                   'cache': []}
 
         sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
 
