@@ -58,6 +58,11 @@ def int_or_str(s):
         return s
 
 
+def uniquify(l):
+    # Uniquify list while preserving order
+    seen = set()
+    return [x for x in l if x not in seen and not seen.add(x)]
+
 class AppendStringRange(argparse.Action):
     """
     Argparse Action to append integer range from string.
@@ -228,7 +233,7 @@ def run(parser, args, output_file=sys.stdout):
         for k, v in define:
             kernel.set_constant(k, v)
 
-        for model_name in set(args.pmodel):
+        for model_name in uniquify(args.pmodel):
             # print header
             print('{:^80}'.format(' kerncraft '), file=output_file)
             print('{:<40}{:>40}'.format(args.code_file.name, '-m ' + args.machine.name),
