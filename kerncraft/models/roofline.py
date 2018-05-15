@@ -158,8 +158,6 @@ class Roofline(PerformanceModel):
             if performance < self.results.get('min performance', performance):
                 self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
                 self.results['min performance'] = performance
-        from IPython import embed
-        embed()
 
         return self.results
 
