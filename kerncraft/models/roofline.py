@@ -158,6 +158,8 @@ class Roofline(PerformanceModel):
             if performance < self.results.get('min performance', performance):
                 self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
                 self.results['min performance'] = performance
+        from IPython import embed
+        embed()
 
         return self.results
 
@@ -317,6 +319,17 @@ class RooflineIACA(Roofline):
 
         # Overwrite CPU-L1 stats, because they are covered by IACA
         self.results['mem bottlenecks'][0] = None
+
+        # Reevaluate mem bottleneck
+        self.results['min performance'] = float('inf')
+        self.results['bottleneck level'] = None
+        for level, bottleneck in enumerate(self.results['mem bottlenecks']):
+            if level == 0:
+                # ignoring CPU-L1
+                continue
+            if bottleneck['performance'] < self.results['min performance']:
+                self.results['bottleneck level'] = level
+                self.results['min performance'] = bottleneck['performance']
 
         # Create result dictionary
         self.results.update({
