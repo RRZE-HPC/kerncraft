@@ -182,6 +182,9 @@ class Benchmark(PerformanceModel):
             '--iterations', type=int, default=10,
             help='Number of outer-loop iterations (e.g. time loop) during benchmarking. '
                  'Default is 10, but actual number will be adapted to at least 0.2s runtime.')
+        parser.add_argument(
+            '--ignore-warnings', action='store_true',
+            help='Ignore warnings about missmatched CPU model and frequency.')
 
     def __init__(self, kernel, machine, args=None, parser=None, no_phenoecm=False, verbose=0):
         """
@@ -189,7 +192,7 @@ class Benchmark(PerformanceModel):
 
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
-        *args* (optional) are the parsed arguments from the comand line
+        *args* (optional) are the parsed arguments from the command line
 
         If *args* is None, *no_phenoecm* and *verbose* are used.
         """
@@ -211,6 +214,7 @@ class Benchmark(PerformanceModel):
         print("Info: If this takes too long and a phenological ECM model is not required, run with "
               "--no-phenoecm.", file=sys.stderr)
 
+        warning = False
         cpuinfo = ''
         try:
             with open('/proc/cpuinfo') as f:
@@ -228,6 +232,7 @@ class Benchmark(PerformanceModel):
             print("WARNING: current CPU model and machine description do not "
                   "match. ({!r} vs {!r})".format(self.machine['model name'],
                                                  current_cpu_model))
+            warning = True
         try:
             current_cpu_freq = re.search(r'^cpu MHz\s+:\s+'
                                          r'([0-9]+(?:\.[0-9]+)?)\s*$',
@@ -240,6 +245,10 @@ class Benchmark(PerformanceModel):
             print("WARNING: current CPU frequency and machine description do "
                   "not match. ({!r} vs {!r})".format(float(self.machine['clock']),
                                                      current_cpu_freq))
+            warning = True
+        if warning and not args.ignore_warnings:
+            print("You may ignore warnings by adding --ignore-warnings to the command line.")
+            sys.exit(1)
 
     def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
         """

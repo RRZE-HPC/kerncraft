@@ -403,6 +403,7 @@ class TestKerncraft(unittest.TestCase):
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
                                   '-p', 'Benchmark',
+                                  '--ignore-warnings',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1000',
                                   '-D', 'M', '1000',
