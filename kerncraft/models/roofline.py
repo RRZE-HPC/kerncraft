@@ -384,7 +384,7 @@ class RooflineIACA(Roofline):
             print('Cache or mem bound with {} core(s)'.format(self.cores), file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
-            print('{!s} due to {} transfer bottleneck (bw with from {} benchmark)'.format(
+            print('{!s} due to {} transfer bottleneck (with bw from {} benchmark)'.format(
                       self.conv_perf(bottleneck['performance'], self._args.unit),
                       bottleneck['level'],
                       bottleneck['bw kernel']),
