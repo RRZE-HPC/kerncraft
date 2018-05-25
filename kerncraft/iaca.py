@@ -36,14 +36,13 @@ def strip_and_uncomment(asm_lines):
 
 def strip_unreferenced_labels(asm_lines):
     """Strip all labels, which are never referenced."""
-    asm_code = '\n'.join(asm_lines)  # Needed for search of references
     asm_stripped = []
     for line in asm_lines:
         if re.match(r'^\S+:', line):
             # Found label
             label = line[0:line.find(':')]
             # Search for references to current label
-            if not re.search('\s' + re.escape(label) + '[\s,]?.*$', asm_code, re.MULTILINE):
+            if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l) for l in asm_lines]):
                 # Skip labels without seen reference
                 line = ''
         asm_stripped.append(line)
@@ -64,11 +63,13 @@ def find_asm_blocks(asm_lines):
     avx_ctr = 0
     xmm_references = []
     ymm_references = []
+    zmm_references = []
     gp_references = []
     mem_references = []
     increments = {}
     for i, line in enumerate(asm_lines):
         # Register access counts
+        zmm_references += re.findall('%zmm[0-9]+', line)
         ymm_references += re.findall('%ymm[0-9]+', line)
         xmm_references += re.findall('%xmm[0-9]+', line)
         gp_references += re.findall('%r[a-z0-9]+', line)
@@ -96,6 +97,7 @@ def find_asm_blocks(asm_lines):
             avx_ctr = 0
             xmm_references = []
             ymm_references = []
+            zmm_references = []
             gp_references = []
             mem_references = []
             increments = {}
@@ -168,9 +170,12 @@ def find_asm_blocks(asm_lines):
                            'avx_instr': avx_ctr,
                            'XMM': (len(xmm_references), len(set(xmm_references))),
                            'YMM': (len(ymm_references), len(set(ymm_references))),
+                           'ZMM': (len(zmm_references), len(set(zmm_references))),
                            'GP': (len(gp_references), len(set(gp_references))),
-                           'regs': (len(xmm_references) + len(ymm_references) + len(gp_references),
+                           'regs': (len(xmm_references) + len(ymm_references) +
+                                    len(zmm_references) + len(gp_references),
                                     len(set(xmm_references)) + len(set(ymm_references)) +
+                                    len(set(zmm_references)) +
                                     len(set(gp_references))),
                            'pointer_increment': pointer_increment,
                            'lines': asm_lines[last_label_line:i + 1],
@@ -182,6 +187,7 @@ def find_asm_blocks(asm_lines):
             avx_ctr = 0
             xmm_references = []
             ymm_references = []
+            zmm_references = []
             gp_references = []
             mem_references = []
             increments = {}
@@ -219,11 +225,12 @@ def userselect_increment(block):
 def userselect_block(blocks, default=None):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
-    print("   block   | OPs | pck. | AVX || Registers |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
-          "-----------+-----+------+-----++-----------+----------+----------+---------++-------|")
+    print("   block   | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
+          "-----------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
     for idx, b in blocks:
         print('{:>2} {b[label]:>7} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
-              '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
+              '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[ZMM][0]:>3} ({b[ZMM][1]:>2}) | '
+              '{b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
               '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '
               '{b[pointer_increment]!s:>5} |'.format(idx, b=b))
 
