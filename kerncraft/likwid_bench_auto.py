@@ -63,7 +63,7 @@ def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
                                    'FMA': 'INFORMATION_REQUIRED',
                                    'ADD': 'INFORMATION_REQUIRED',
                                    'MUL': 'INFORMATION_REQUIRED'}},
-        'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW)',
+        'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)',
         # TODO retrive flags automatically from compiler with -march=native
         'compiler': {'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'],
                      'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],

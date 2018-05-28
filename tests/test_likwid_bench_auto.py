@@ -128,7 +128,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                    'penalty cycles per read stream': 0,
                                    'size per group': None,
                                    'threads per group': 20}],
-             'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW)',
+             'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)',
              'model name': 'Intel(R) Xeon(R) CPU E5-2660 v2 @ 2.20GHz',
              'model type': 'Intel Xeon IvyBridge EN/EP/EX processor',
              'non-overlapping model': {'performance counter metric': 'INFORAMTION_REQUIRED '
