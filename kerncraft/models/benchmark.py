@@ -320,14 +320,14 @@ class Benchmark(PerformanceModel):
 
         # Determine base runtime with 10 iterations
         runtime = 0.0
-        time_per_repetition = 0.2 / 10.0
+        time_per_repetition = 2.0 / 10.0
         repetitions = self.iterations / 10
         mem_results = {}
 
-        while runtime < 0.15:
-            # Interpolate to a 0.2s run
+        while runtime < 1.5:
+            # Interpolate to a 2.0s run
             if time_per_repetition == 0.0:
-                repetitions = 0.2 // time_per_repetition
+                repetitions = 2.0 // time_per_repetition
             else:
                 repetitions = int(repetitions * 10)
 
