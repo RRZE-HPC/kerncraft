@@ -992,27 +992,55 @@ class KernelCode(Kernel):
                 for_idx -= 1
                 loop_nest.insert(0, ast.block_items.pop(for_idx))
 
-            # Wrap everything in a loop
-            # int repeat = atoi(argv[2])
-            type_decl = c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int']))
-            init = c_ast.FuncCall(
-                c_ast.ID('atoi'),
-                c_ast.ExprList([c_ast.ArrayRef(
-                    c_ast.ID('argv'), c_ast.Constant('int', str(len(self.constants)+1)))]))
-            ast.block_items.insert(-1, c_ast.Decl(
-                'repeat', ['const'], [], [],
-                type_decl, init, None))
-
             # for(; repeat > 0; repeat--) {...}
             cond = c_ast.BinaryOp('>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
             next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
-            stmt = c_ast.Compound(loop_nest+[dummy_stmt])
+            stmt = c_ast.Compound(loop_nest + [dummy_stmt])
 
-            ast.block_items.insert(-1, c_ast.FuncCall(
-                c_ast.ID('likwid_markerStartRegion'),
-                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+            repeat_loop = c_ast.For(None, cond, next_, stmt)
 
-            ast.block_items.insert(-1, c_ast.For(None, cond, next_, stmt))
+            # Wrap everything an outer loop for warmup:
+            # for(int warmup = 1; warmup >= 0; --warmup) {
+            #     int repeat = 2;
+            #     if(warmup == 0) {
+            #       likwid_markerStartRegion("loop");
+            #       repeat = atoi(argv[3]);
+            #     }
+            #     ...}
+            warmup_conditions = [
+                # int repeat = 2;
+                c_ast.Decl('repeat', ['const'], [], [],
+                           c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int'])),
+                           c_ast.Constant('int', '2'), None),
+                # if(warmup == 0) { ... }
+                c_ast.If(
+                    cond=c_ast.BinaryOp('==', c_ast.ID('warmup'), c_ast.Constant('int', '0')),
+                    iftrue=c_ast.Compound([
+                        # likwid_markerStartRegion("loop");
+                        c_ast.FuncCall(
+                            c_ast.ID('likwid_markerStartRegion'),
+                            c_ast.ExprList([c_ast.Constant('string', '"loop"')])),
+                        # repeat = atoi(argv[3]);
+                        c_ast.Assignment(
+                            '=',
+                            c_ast.ID('repeat'),
+                            c_ast.FuncCall(
+                                c_ast.ID('atoi'),
+                                c_ast.ExprList([c_ast.ArrayRef(
+                                    c_ast.ID('argv'),
+                                    c_ast.Constant('int', str(len(self.constants) + 1)))]))),
+                    ]),
+                    iffalse=None),
+            ]
+
+            type_decl = c_ast.TypeDecl('warmup', [], c_ast.IdentifierType(['int']))
+            init = c_ast.Decl('warmup', ['const'], [], [],
+                              type_decl, c_ast.Constant('int', '1'), None)
+            cond = c_ast.BinaryOp('>=', c_ast.ID('warmup'), c_ast.Constant('int', '0'))
+            next_ = c_ast.UnaryOp('--', c_ast.ID('warmup'))
+            stmt = c_ast.Compound(warmup_conditions+[repeat_loop])
+
+            ast.block_items.insert(-1, c_ast.For(init, cond, next_, stmt))
 
             ast.block_items.insert(-1, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStopRegion'),
