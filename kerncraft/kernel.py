@@ -951,56 +951,34 @@ class KernelCode(Kernel):
                     c_ast.Constant('float', str(random.uniform(1.0, 0.1))))
 
                 ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
-
-                # inject dummy access to arrays, so compiler does not over-optimize code
-                # with if around it, so code will actually run
-                ast.block_items.insert(
-                    i+2, c_ast.If(
-                        cond=c_ast.ID('var_false'),
-                        iftrue=c_ast.Compound([
-                            c_ast.FuncCall(
-                                c_ast.ID('dummy'),
-                                c_ast.ExprList([c_ast.ID(d.name)]))]),
-                        iffalse=None))
             else:
                 # this is a scalar, so a simple Assignment is enough
                 ast.block_items.insert(i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant(
                         'float', str(random.uniform(1.0, 0.1)))))
 
-                # inject dummy access to scalar, so compiler does not over-optimize code
-                # TODO put if around it, so code will actually run
-                ast.block_items.insert(
-                    i+2, c_ast.If(
-                        cond=c_ast.ID('var_false'),
-                        iftrue=c_ast.Compound([
-                            c_ast.FuncCall(
-                                c_ast.ID('dummy'),
-                                c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
-                        iffalse=None))
+
+        # Make sure nothing gets removed by inserting dummy calls
+        dummy_calls = []
+        for d in declarations:
+            if array_dimensions[d.name]:
+                dummy_calls.append(c_ast.FuncCall(
+                     c_ast.ID('dummy'),
+                     c_ast.ExprList([c_ast.ID(d.name)])))
+            else:
+                dummy_calls.append(c_ast.FuncCall(
+                     c_ast.ID('dummy'),
+                     c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+        dummy_stmt = c_ast.If(
+            cond=c_ast.ID('var_false'),
+            iftrue=c_ast.Compound(dummy_calls),
+            iffalse=None)
+
+        # Insert after definitions
+        ast.block_items.insert(i+2, dummy_stmt)
 
         # transform multi-dimensional array references to one dimensional references
         list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
                  find_array_references(ast)))
-
-        dummies = []
-        # Make sure nothing gets removed by inserting dummy calls
-        for d in declarations:
-            if array_dimensions[d.name]:
-                dummies.append(c_ast.If(
-                    cond=c_ast.ID('var_false'),
-                    iftrue=c_ast.Compound([
-                        c_ast.FuncCall(
-                            c_ast.ID('dummy'),
-                            c_ast.ExprList([c_ast.ID(d.name)]))]),
-                    iffalse=None))
-            else:
-                dummies.append(c_ast.If(
-                    cond=c_ast.ID('var_false'),
-                    iftrue=c_ast.Compound([
-                        c_ast.FuncCall(
-                            c_ast.ID('dummy'),
-                            c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))]))]),
-                    iffalse=None))
 
         if type_ == 'likwid':
             # Instrument the outer for-loop with likwid
@@ -1028,7 +1006,7 @@ class KernelCode(Kernel):
             # for(; repeat > 0; repeat--) {...}
             cond = c_ast.BinaryOp('>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
             next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
-            stmt = c_ast.Compound(loop_nest+dummies)
+            stmt = c_ast.Compound(loop_nest+[dummy_stmt])
 
             ast.block_items.insert(-1, c_ast.FuncCall(
                 c_ast.ID('likwid_markerStartRegion'),
@@ -1040,7 +1018,7 @@ class KernelCode(Kernel):
                 c_ast.ID('likwid_markerStopRegion'),
                 c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
         else:
-            ast.block_items += dummies
+            ast.block_items.append(dummy_stmt)
 
         # embed compound into main FuncDecl
         decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
