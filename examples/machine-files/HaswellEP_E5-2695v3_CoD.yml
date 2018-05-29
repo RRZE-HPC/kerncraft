@@ -35,7 +35,7 @@ memory hierarchy:
       cores per group: 1
       threads per group: 2
       groups: 28
-      non-overlap upstream throughput: [32 B/cy, 'half-duplex']
+      non-overlap upstream throughput: [32 B/cy, 'half-duplex']  # Actually 64B/cy, but can not be reached
       performance counter metrics:
           accesses: L1D_REPLACEMENT:PMC[0-3]
           misses: L2_LINES_IN_ALL:PMC[0-3]

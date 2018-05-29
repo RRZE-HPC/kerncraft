@@ -336,7 +336,7 @@ memory hierarchy:
     replacement_policy: LRU, sets: 512, store_to: L3, ways: 8, # 512 kB
     write_allocate: True, write_back: True}
   cores per group: 1.0
-  non-overlap upstream throughput: [64 B/cy, 'half-duplex']
+  non-overlap upstream throughput: [32 B/cy, 'half-duplex']  # Actually 64B/cy, but can not be reached
   groups: 36
   level: L2
   size per group: 256.00 kB
