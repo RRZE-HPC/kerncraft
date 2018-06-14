@@ -484,13 +484,13 @@ class Benchmark(PerformanceModel):
             print("Data Transfers:")
             print("{:^8} |".format("cache"), end='')
             for metrics in self.results['data transfers'].values():
-                for metric_name in metrics:
+                for metric_name in sorted(metrics):
                     print(" {:^14}".format(metric_name), end='')
                 print()
                 break
-            for cache, metrics in self.results['data transfers'].items():
+            for cache, metrics in sorted(self.results['data transfers'].items()):
                 print("{!s:^8} |".format(cache), end='')
-                for v in metrics.values():
+                for k, v in sorted(metrics.items()):
                     print(" {!s:^14}".format(v), end='')
                 print()
             print()
