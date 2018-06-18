@@ -85,13 +85,12 @@ memory hierarchy:
   performance counter metrics:
     accesses: L2_LINES_IN_ALL:PMC[0-3]
     # FIXME not all misses in L2 lead to loads from L3, only the hits do
-    misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_WR:MBOX0C[01] +
-             CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_WR:MBOX1C[01] +
-             CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_WR:MBOX2C[01] +
-             CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_WR:MBOX3C[01] +
-             CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_WR:MBOX4C[01] +
-             CAS_COUNT_RD:MBOX5C[01] + CAS_COUNT_WR:MBOX5C[01])
-    evicts: L2_TRANS_L2_WB:PMC[0-3]
+    misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
+             CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
+             CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01])
+    evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] +
+             CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
+             CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   cache per group:
     sets: 16896
     # TODO is actuall something else, but necessary to get to 16.5 MB

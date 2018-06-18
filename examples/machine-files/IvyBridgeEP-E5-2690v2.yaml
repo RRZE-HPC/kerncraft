@@ -251,10 +251,14 @@ memory hierarchy:
       non-overlap upstream throughput: [32 B/cy, 'half-duplex']
       performance counter metrics:
           accesses: L2_LINES_IN_ALL:PMC[0-3]
-          misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01] + 
-                   CAS_COUNT_RD:MBOX3C[01])
-          evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01] + 
-                   CAS_COUNT_WR:MBOX3C[01])
+          misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
+                   CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
+                   CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01] +
+                   CAS_COUNT_RD:MBOX6C[01] + CAS_COUNT_RD:MBOX7C[01])
+          evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] +
+                   CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
+                   CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01] +
+                   CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
     - level: MEM
       cores per group: 8
       non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
