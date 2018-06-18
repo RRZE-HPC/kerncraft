@@ -83,7 +83,10 @@ memory hierarchy:
 - level: L3
   non-overlap upstream throughput: [16 B/cy, 'full-duplex']
   performance counter metrics:
-    accesses: L2_LINES_IN_ALL:PMC[0-3]
+    accesses: (L2_LINES_IN_ALL:PMC[0-3] -
+               (CAS_COUNT_RD:MBOX0C[01]  + CAS_COUNT_RD:MBOX1C[01] +
+                CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
+                CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01]))
     # FIXME not all misses in L2 lead to loads from L3, only the hits do
     misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
              CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
