@@ -53,18 +53,22 @@ Usage
 ``kerncraft -p ECM -m SandyBridgeEP_E5-2680.yml 2d-5pt.c -D N 10000 -D M 10000``
 add `-vv` for more information on the kernel and ECM model analysis.
 
-Credits and Citations
-=====================
+Citations
+=========
 
-| Implementation: Julian Hammer;
-| ECM Model (theory): Georg Hager, Holger Stengel, Jan Treibig;
-| LC generalization: Julian Hammer
-
-When using Kerncraft for your work, please consider citing the folling publication:
+When using Kerncraft for your work, please consider citing the following publication:
 
 `Kerncraft: A Tool for Analytic Performance Modeling of Loop Kernels <https://dx.doi.org/10.1007/978-3-319-56702-0_1>`_ (`preprint <https://arxiv.org/abs/1702.04653>`_)
 
 ``J. Hammer, J. Eitzinger, G. Hager, and G. Wellein: Kerncraft: A Tool for Analytic Performance Modeling of Loop Kernels. In: Tools for High Performance Computing 2016, ISBN 978-3-319-56702-0, 1-22 (2017). Proceedings of IPTW 2016, the 10th International Parallel Tools Workshop, October 4-5, 2016, Stuttgart, Germany. Springer, Cham. DOI: 10.1007/978-3-319-56702-0_1, Preprint: arXiv:1702.04653``
+
+
+Credits
+=======
+
+| Implementation: Julian Hammer;
+| ECM Model (theory): Georg Hager, Holger Stengel, Jan Treibig;
+| LC generalization: Julian Hammer
 
 License
 =======
