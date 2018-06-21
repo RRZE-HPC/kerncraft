@@ -62,7 +62,7 @@ Credits and Citations
 
 When using Kerncraft for your work, please consider citing the folling publication:
 
-`Kerncraft: A Tool for Analytic Performance Modeling of Loop Kernels <https://dx.doi.org/10.1007/978-3-319-56702-0_1>` (`preprint <https://arxiv.org/abs/1702.04653>`)
+`Kerncraft: A Tool for Analytic Performance Modeling of Loop Kernels <https://dx.doi.org/10.1007/978-3-319-56702-0_1>`_ (`preprint <https://arxiv.org/abs/1702.04653>`_)
 
 ``J. Hammer, J. Eitzinger, G. Hager, and G. Wellein: Kerncraft: A Tool for Analytic Performance Modeling of Loop Kernels. In: Tools for High Performance Computing 2016, ISBN 978-3-319-56702-0, 1-22 (2017). Proceedings of IPTW 2016, the 10th International Parallel Tools Workshop, October 4-5, 2016, Stuttgart, Germany. Springer, Cham. DOI: 10.1007/978-3-319-56702-0_1, Preprint: arXiv:1702.04653``
 
