@@ -326,7 +326,7 @@ class Benchmark(PerformanceModel):
 
         while runtime < 1.5:
             # Interpolate to a 2.0s run
-            if time_per_repetition == 0.0:
+            if time_per_repetition != 0.0:
                 repetitions = 2.0 // time_per_repetition
             else:
                 repetitions = int(repetitions * 10)
