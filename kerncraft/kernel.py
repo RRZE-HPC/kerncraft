@@ -204,7 +204,7 @@ class Kernel(object):
 
     def clear_state(self):
         """Clear mutable internal states (constants, asm_blocks and asm_block_idx)."""
-        self.constants = {}
+        self.constants = collections.OrderedDict()
         self.subs_consts.cache_clear()  # clear LRU cache of function
 
     @lru_cache(40)
