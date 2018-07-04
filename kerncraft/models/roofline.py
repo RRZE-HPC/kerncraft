@@ -215,11 +215,10 @@ class Roofline(PerformanceModel):
 
         if self.results['min performance'] > max_flops:
             # CPU bound
-            print('CPU bound with {} cores(s)'.format(self._args.cores), file=output_file)
-            print('{!s} due to CPU max. FLOP/s'.format(max_flops), file=output_file)
+            print('CPU bound. {!s} due to CPU max. FLOP/s'.format(max_flops), file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with {} core(s)'.format(self._args.cores), file=output_file)
+            print('Cache or mem bound.', file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (with bw from {} benchmark)'.format(
@@ -376,12 +375,11 @@ class RooflineIACA(Roofline):
 
         if float(self.results['min performance']) > float(cpu_flops):
             # CPU bound
-            print('CPU bound with {} core(s)'.format(self.cores), file=output_file)
-            print('{!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)),
+            print('CPU bound. {!s} due to CPU bottleneck'.format(self.conv_perf(cpu_flops, self._args.unit)),
                   file=output_file)
         else:
             # Cache or mem bound
-            print('Cache or mem bound with {} core(s)'.format(self.cores), file=output_file)
+            print('Cache or mem bound.', file=output_file)
 
             bottleneck = self.results['mem bottlenecks'][self.results['bottleneck level']]
             print('{!s} due to {} transfer bottleneck (with bw from {} benchmark)'.format(
