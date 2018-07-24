@@ -395,10 +395,7 @@ class Kernel(object):
         """
         # unwind global iteration count into loop counters:
         base_loop_counters = {}
-        if git is None:
-            global_iterator = symbol_pos_int('global_iterator')
-        else:
-            global_iterator = git
+        global_iterator = symbol_pos_int('global_iterator')
         idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
         last_incr = 1
@@ -411,15 +408,16 @@ class Kernel(object):
             total_length = total_length*length
             last_incr = incr
 
+            base_loop_counters[loop_var] = sympy.lambdify(
+                global_iterator,
+                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
+
             if git is not None:
                 try:  # Try to resolve to integer if global_iterator was given
                     base_loop_counters[loop_var] = sympy.Integer(self.subs_consts(counter))
                     continue
                 except (ValueError, TypeError):
-                    pass
-            base_loop_counters[loop_var] = sympy.lambdify(
-                global_iterator,
-                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
+                    base_loop_counters[loop_var] = base_loop_counters[loop_var](git)
 
         return base_loop_counters
 
