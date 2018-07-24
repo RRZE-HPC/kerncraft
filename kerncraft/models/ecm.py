@@ -443,12 +443,6 @@ class ECM(PerformanceModel):
                                             self.results['T_nOL'], self.results['T_OL']))
                         for i in range(len(self.results['cycles']))]))
 
-        if self.verbose > 1:
-            if 'memory bandwidth kernel' in self.results:
-                report += '\nmemory cycles based on {} kernel with {}\n'.format(
-                    self.results['memory bandwidth kernel'],
-                    self.results['memory bandwidth'])
-
         report += '\nsaturating at {:.1f} cores'.format(self.results['scaling cores'])
 
         print(report, file=output_file)
