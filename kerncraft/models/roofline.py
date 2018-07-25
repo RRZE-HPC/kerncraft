@@ -97,7 +97,7 @@ class Roofline(PerformanceModel):
             read_streams - write_streams,  # no write-allocate in L1
             write_streams,
             threads_per_core,
-            cores=self._args.cores)
+            cores=self.cores)
 
         # Calculate performance (arithmetic intensity * bandwidth with
         # arithmetic intensity = flops / bytes loaded )
@@ -134,7 +134,7 @@ class Roofline(PerformanceModel):
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
-                cores=self._args.cores)
+                cores=self.cores)
 
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
@@ -189,7 +189,7 @@ class Roofline(PerformanceModel):
     def report(self, output_file=sys.stdout):
         """Report analysis outcome in human readable form."""
         precision = 'DP' if self.kernel.datatype == 'double' else 'SP'
-        max_flops = self.machine['clock'] * self._args.cores * \
+        max_flops = self.machine['clock'] * self.cores * \
             self.machine['FLOPs per cycle'][precision]['total']
         max_flops.unit = "FLOP/s"
 

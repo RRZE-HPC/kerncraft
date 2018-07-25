@@ -4,6 +4,7 @@ from distutils.spawn import find_executable
 from distutils.version import LooseVersion
 import re
 from collections import OrderedDict
+from copy import deepcopy
 
 import ruamel
 import cachesim
@@ -90,7 +91,7 @@ class MachineModel(object):
             # Skip main memory
             if 'cache per group' not in c:
                 continue
-            cache_dict[c['level']] = c['cache per group']
+            cache_dict[c['level']] = deepcopy(c['cache per group'])
             # Scale size of shared caches according to cores
             if c['cores per group'] > 1:
                 cache_dict[c['level']]['sets'] //= cores
