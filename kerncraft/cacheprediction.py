@@ -276,9 +276,9 @@ class CacheSimulationPredictor(CachePredictor):
                     )
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-
         offsets = []
-        if warmup_iteration_count*element_size < max_cache_size or max_array_size < max_cache_size:
+
+        if max_array_size < 2*max_cache_size:
             # Full caching possible, go through all itreration before actual initialization
             offsets = list(self.kernel.compile_global_offsets(
                 iteration=range(0, self.kernel.iteration_length())))
@@ -293,6 +293,7 @@ class CacheSimulationPredictor(CachePredictor):
         else:
             # we use reads
             first_offset = min(o[0])
+
         # Distance from cacheline boundary (in bytes)
         diff = first_offset - \
             (int(first_offset) >> csim.first_level.cl_bits << csim.first_level.cl_bits)
