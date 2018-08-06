@@ -132,11 +132,11 @@ def find_asm_blocks(asm_lines):
                                     if mref[4] == 'store']
                 refs = store_references or mem_references
 
-                possible_idx_regs = list(increments.keys())
+                possible_idx_regs = list(set(increments.keys()).intersection(
+                    set([r[1] for r in refs if r[1] is not None] +
+                        [r[2] for r in refs if r[2] is not None])))
                 for mref in refs:
                     for reg in list(possible_idx_regs):
-                        if last_label == '.L24':
-                            print(possible_idx_regs, reg, mref)
                         # Only consider references with two registers, where one could be an index
                         if None not in mref[1:3]:
                             # One needs to mach, other registers will be excluded
@@ -148,8 +148,10 @@ def find_asm_blocks(asm_lines):
                 if len(possible_idx_regs) == 1:
                     # good, exactly one register was found
                     idx_reg = possible_idx_regs[0]
-                elif possible_idx_regs and itemsEqual([increments[pidxreg] for pidxreg in possible_idx_regs]):
+                elif possible_idx_regs and itemsEqual([increments[pidxreg]
+                                                       for pidxreg in possible_idx_regs]):
                     # multiple were option found, but all have the same increment
+                    # use first match:
                     idx_reg = possible_idx_regs[0]
 
                 if idx_reg:
@@ -161,10 +163,10 @@ def find_asm_blocks(asm_lines):
                         try:
                             pointer_increment = mem_scales[0] * increments[idx_reg]
                         except:
-                            print("label", last_label)
-                            print("lines", repr(asm_lines[last_label_line:i + 1]))
+                            print("label", pformat(last_label))
+                            print("lines", pformat(asm_lines[last_label_line:i + 1]))
                             print("increments", increments)
-                            print("mem_references", mem_references)
+                            print("mem_references", pformat(mem_references))
                             print("idx_reg", idx_reg)
                             print("mem_scales", mem_scales)
                             raise
