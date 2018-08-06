@@ -7,6 +7,8 @@ import subprocess
 import os
 from copy import copy
 import argparse
+from pprint import pformat
+import textwrap
 
 from distutils.spawn import find_executable
 
@@ -133,9 +135,14 @@ def find_asm_blocks(asm_lines):
                 possible_idx_regs = list(increments.keys())
                 for mref in refs:
                     for reg in list(possible_idx_regs):
-                        if not (reg == mref[1] or reg == mref[2]):
-                            # reg can not be it
-                            possible_idx_regs.remove(reg)
+                        if last_label == '.L24':
+                            print(possible_idx_regs, reg, mref)
+                        # Only consider references with two registers, where one could be an index
+                        if None not in mref[1:3]:
+                            # One needs to mach, other registers will be excluded
+                            if not (reg == mref[1] or reg == mref[2]):
+                                # reg can not be it
+                                possible_idx_regs.remove(reg)
 
                 idx_reg = None
                 if len(possible_idx_regs) == 1:
@@ -222,7 +229,7 @@ def userselect_increment(block):
     return increment
 
 
-def userselect_block(blocks, default=None):
+def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
     print("   block   | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
@@ -233,6 +240,17 @@ def userselect_block(blocks, default=None):
               '{b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
               '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '
               '{b[pointer_increment]!s:>5} |'.format(idx, b=b))
+
+        if debug:
+            ln = b['first_line']
+            print(' '*4 + 'Code:')
+            for l in b['lines']:
+                print(' '*8 + '{:>5} | {}'.format(ln, l))
+                ln += 1
+            print(' '*4 + 'Metadata:')
+            print(textwrap.indent(
+                pformat({k: v for k,v in b.items() if k not in ['lines']}),
+                ' '*8))
 
     # Let user select block:
     block_idx = -1
@@ -257,7 +275,8 @@ def insert_markers(asm_lines, start_line, end_line):
 
 def iaca_instrumentation(input_file, output_file,
                          block_selection='auto',
-                         pointer_increment='auto_with_manual_fallback'):
+                         pointer_increment='auto_with_manual_fallback',
+                         debug=False):
     """
     Add IACA markers to an assembly file.
 
@@ -273,9 +292,13 @@ def iaca_instrumentation(input_file, output_file,
                               - 'auto': automatic detection, otherwise RuntimeError is raised
                               - 'auto_with_manual_fallback': like auto with fallback to manual input
                               - 'manual': prompt user
+    :param debug: output additional internal analysis information. Only works with manual selection.
     :return: the instrumented assembly block
     """
     assembly_orig = input_file.readlines()
+
+    if debug:
+        block_selection = 'manual'
 
     assembly = strip_and_uncomment(copy(assembly_orig))
     assembly = strip_unreferenced_labels(assembly)
@@ -283,7 +306,7 @@ def iaca_instrumentation(input_file, output_file,
     if block_selection == 'auto':
         block_idx = select_best_block(blocks)
     elif block_selection == 'manual':
-        block_idx = userselect_block(blocks, default=select_best_block(blocks))
+        block_idx = userselect_block(blocks, default=select_best_block(blocks), debug=debug)
     elif isinstance(block_selection, int):
         block_idx = block_selection
     else:
@@ -402,12 +425,14 @@ def main():
                         help='assembly file to analyze (default: stdin)')
     parser.add_argument('--outfile', '-o', type=argparse.FileType('w'), nargs='?',
                         default=sys.stdout, help='output file location (default: stdout)')
+    parser.add_argument('--debug', action='store_true',
+                        help='Output internal analysis information for debugging.')
     args = parser.parse_args()
 
     # pointer_increment is given, since it makes no difference on the command lien and requires
     # less user input
     iaca_instrumentation(input_file=args.source, output_file=args.outfile,
-                         block_selection='manual', pointer_increment=1)
+                         block_selection='manual', pointer_increment=1, debug=args.debug)
 
 
 if __name__ == '__main__':
