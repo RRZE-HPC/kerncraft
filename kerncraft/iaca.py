@@ -285,8 +285,8 @@ def iaca_instrumentation(input_file, output_file,
     If instrumentation fails because loop increment could not determined automatically, a ValueError
     is raised.
 
-    :param input_file: path to assembly file used as input
-    :param output_file: output path, if None the input is overwritten
+    :param input_file: file-like object to read from
+    :param output_file: file-like object to write to
     :param block_selection: index of the assembly block to instrument, or 'auto' for automatically
                             using block with the
                             most vector instructions, or 'manual' to read index to prompt user
@@ -428,7 +428,7 @@ def main():
     parser.add_argument('--outfile', '-o', type=argparse.FileType('w'), nargs='?',
                         default=sys.stdout, help='output file location (default: stdout)')
     parser.add_argument('--debug', action='store_true',
-                        help='Output internal analysis information for debugging.')
+                        help='Output nternal analysis information for debugging.')
     args = parser.parse_args()
 
     # pointer_increment is given, since it makes no difference on the command lien and requires
