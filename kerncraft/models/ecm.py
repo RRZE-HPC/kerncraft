@@ -195,11 +195,11 @@ class ECMData(PerformanceModel):
     def report_data_transfers(self):
         cacheline_size = float(self.machine['cacheline size'])
         print("Data Transfers:")
-        print("Level | Loads    | Store    |")
+        print("Level   | Loads    | Store    |")
         loads, stores = (self.predictor.get_loads(), self.predictor.get_stores())
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[1:]:
-            print("{:>5} | {:>3.0f} B/CL | {:>3.0f} B/CL |".format(
-                cache_info['level'],
+            print("{:>7} | {:>3.0f} B/CL | {:>3.0f} B/CL |".format(
+                self.machine['memory hierarchy'][cache_level-1]['level']+'-'+cache_info['level'],
                 loads[cache_level] * cacheline_size,
                 stores[cache_level] * cacheline_size))
         print()
