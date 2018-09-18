@@ -12,6 +12,7 @@ suite = unittest.TestLoader().loadTestsFromNames(
         'test_likwid_bench_auto',
         'test_iaca_marker',
         'test_cacheprediction',
+        'test_machinemodel',
         'test_example_files',
     ]
 )
