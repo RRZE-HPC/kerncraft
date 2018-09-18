@@ -194,15 +194,14 @@ class ECMData(PerformanceModel):
 
     def report_data_transfers(self):
         cacheline_size = float(self.machine['cacheline size'])
-        print("Data Transfers:")
-        print("Level   | Loads    | Store    |")
+        r = "Data Transfers:\nLevel   | Loads    | Store    |\n"
         loads, stores = (self.predictor.get_loads(), self.predictor.get_stores())
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[1:]:
-            print("{:>7} | {:>3.0f} B/CL | {:>3.0f} B/CL |".format(
+            r += ("{:>7} | {:>3.0f} B/CL | {:>3.0f} B/CL |\n".format(
                 self.machine['memory hierarchy'][cache_level-1]['level']+'-'+cache_info['level'],
                 loads[cache_level] * cacheline_size,
                 stores[cache_level] * cacheline_size))
-        print()
+        return r
 
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
@@ -221,8 +220,9 @@ class ECMData(PerformanceModel):
                       file=output_file)
 
         if self.verbose > 1:
-            print()
-            self.report_data_transfers()
+            print(file=output_file))
+            print(self.report_data_transfers(), file=output_file)
+
 
 
 class ECMCPU(PerformanceModel):
