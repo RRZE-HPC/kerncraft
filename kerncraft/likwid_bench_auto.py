@@ -272,7 +272,7 @@ def main():
                     print('.', end='', file=sys.stderr)
                     sys.stderr.flush()
 
-    print(yaml.dump(machine, Dumper=yaml.RoundTripDumper))
+    print(yaml.dump(machine, Dumper=yaml.Dumper))
 
 
 if __name__ == '__main__':

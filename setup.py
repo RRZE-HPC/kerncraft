@@ -76,6 +76,9 @@ setup(
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
 
     # What does your project relate to?
@@ -93,7 +96,7 @@ setup(
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'ruamel.yaml>=0.13.4,<0.14.0',
+        'ruamel.yaml>=0.15.37',
         'sympy>=1.1.1',
         'pycachesim>=0.1.7',
         'pylru',

@@ -52,7 +52,7 @@ class MachineModel(object):
         if path_to_yaml:
             with open(path_to_yaml, 'r') as f:
                 # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.RoundTripLoader)
+                self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.Loader)
 
         assert 'kerncraft version' in self._data, \
             "Machine description requires a 'kerncraft version' entry, containg the kerncraft " \
