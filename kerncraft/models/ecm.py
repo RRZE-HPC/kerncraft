@@ -220,7 +220,7 @@ class ECMData(PerformanceModel):
                       file=output_file)
 
         if self.verbose > 1:
-            print(file=output_file))
+            print(file=output_file)
             print(self.report_data_transfers(), file=output_file)
 
 
