@@ -1,5 +1,5 @@
 """Kerncraft static analytical performance modeling framework and tool."""
-__version__ = '0.6.10'
+__version__ = '0.7.0'
 
 # To trigger travis deployment to pypi, do the following:
 # 1. Increment __version___
