@@ -18,7 +18,7 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
     return m.groups()
 
 
-def get_likwid_topology(cmd='likwid-topology'):
+def get_likwid_topology(cmd: str='likwid-topology') -> str:
     try:
         topo = subprocess.Popen(
             ['likwid-topology'], stdout=subprocess.PIPE
@@ -30,13 +30,13 @@ def get_likwid_topology(cmd='likwid-topology'):
     return topo
 
 
-def read_cpuinfo(cpuinfo_path='/proc/cpuinfo'):
+def read_cpuinfo(cpuinfo_path: str='/proc/cpuinfo') -> str:
     with open(cpuinfo_path, 'r') as f:
         cpuinfo = f.read()
     return cpuinfo
 
 
-def get_machine_topology(cpuinfo_path='/proc/cpuinfo'):
+def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
     topo = get_likwid_topology()
     cpuinfo = read_cpuinfo(cpuinfo_path)
 
@@ -192,7 +192,6 @@ def cli():
 
 def main():
     machine = get_machine_topology()
-    pprint(machine)
 
     machine['benchmarks'] = {
         'kernels': {
