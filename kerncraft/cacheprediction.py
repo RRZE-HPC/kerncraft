@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
+import sys
 
 import sympy
+import numpy as np
 
 from kerncraft.kernel import symbol_pos_int
 
@@ -276,18 +278,12 @@ class CacheSimulationPredictor(CachePredictor):
                     )
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        offsets = []
-
-        if max_array_size < 2*max_cache_size:
-            # Full caching possible, go through all itreration before actual initialization
-            offsets = list(self.kernel.compile_global_offsets(
-                iteration=range(0, self.kernel.iteration_length())))
 
         # Align iteration count with cachelines
         # do this by aligning either writes (preferred) or reads
         # Assumption: writes (and reads) increase linearly
-        o = list(self.kernel.compile_global_offsets(iteration=warmup_iteration_count))[0]
-        if o[1]:
+        o = self.kernel.compile_global_offsets(iteration=warmup_iteration_count)[0]
+        if len(o[1]):
             # we have a write to work with:
             first_offset = min(o[1])
         else:
@@ -299,9 +295,14 @@ class CacheSimulationPredictor(CachePredictor):
             (int(first_offset) >> csim.first_level.cl_bits << csim.first_level.cl_bits)
         warmup_iteration_count -= (diff//element_size)//inner_increment
         warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
+        offsets = self.kernel.compile_global_offsets(
+            iteration=range(0, warmup_iteration_count))
 
-        offsets += list(self.kernel.compile_global_offsets(
-            iteration=range(0, warmup_iteration_count)))
+        if max_array_size < 2*max_cache_size:
+            # Full caching possible, go through all itreration before actual initialization
+            offsets = np.concatenate((self.kernel.compile_global_offsets(
+                                         iteration=range(0, self.kernel.iteration_length())),
+                                      offsets))
 
         # Do the warm-up
         csim.loadstore(offsets, length=element_size)
@@ -315,7 +316,7 @@ class CacheSimulationPredictor(CachePredictor):
         bench_iteration_start = warmup_iteration_count
         # End point is the end of the current dimension (cacheline alligned)
         first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1)
-                               // (elements_per_cacheline//inner_increment))
+                               // (elements_per_cacheline // inner_increment))
         # If end point is less than one cacheline away, go beyond for 100 cachelines and
         # warn user of potentially inaccurate results
         if first_dim_factor == 0:
@@ -328,11 +329,11 @@ class CacheSimulationPredictor(CachePredictor):
                   ))
             first_dim_factor = 100
         bench_iteration_end = (bench_iteration_start +
-                               elements_per_cacheline*inner_increment*first_dim_factor)
+                               elements_per_cacheline * inner_increment * first_dim_factor)
 
         # compile access needed for one cache-line
-        offsets = list(self.kernel.compile_global_offsets(
-            iteration=range(bench_iteration_start, bench_iteration_end)))
+        offsets = self.kernel.compile_global_offsets(
+            iteration=range(bench_iteration_start, bench_iteration_end))
         # simulate
         csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size

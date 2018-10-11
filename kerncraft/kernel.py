@@ -530,9 +530,26 @@ class Kernel(object):
         # Generate numpy.array for each counter
         counter_per_it = [v(iteration) for v in base_loop_counters.values()]
         # Data access as they appear with iteration order
-        return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
-                           zip(*[o(*counter_per_it) for o in global_store_offsets]),
-                           fillvalue=None)
+        load_offsets = []
+        for o in global_load_offsets:
+            load_offsets.append(o(*counter_per_it))
+        # Convert to numpy ndarray and transpose to get offsets per iterations
+        load_offsets = numpy.asarray(load_offsets).T
+
+        store_offsets = []
+        for o in global_store_offsets:
+            store_offsets.append(o(*counter_per_it))
+        store_offsets = numpy.asarray(store_offsets).T
+
+        # Combine loads and stores
+        store_width = store_offsets.shape[1] if len(store_offsets.shape) > 1 else 0
+        dtype = [('load', load_offsets.dtype, (load_offsets.shape[1],)),
+                 ('store', store_offsets.dtype, (store_width,))]
+        offsets = numpy.empty(max(load_offsets.shape[0], store_offsets.shape[0]), dtype=dtype)
+        offsets['load'] = load_offsets
+        offsets['store'] = store_offsets
+
+        return offsets
 
     def print_kernel_info(self, output_file=sys.stdout):
         """Print kernel information in human readble format."""
