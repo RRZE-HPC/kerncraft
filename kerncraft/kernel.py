@@ -470,9 +470,12 @@ class Kernel(object):
         global_load_offsets = []
         global_store_offsets = []
 
-        if not isinstance(iteration, collections.Sequence):
-            iteration = [iteration]
-        iteration = numpy.array(iteration)
+        if isinstance(iteration, range):
+            iteration = numpy.arange(iteration.start, iteration.stop, iteration.step)
+        else:
+            if not isinstance(iteration, collections.Sequence):
+                iteration = [iteration]
+            iteration = numpy.array(iteration)
 
         # loop indices based on iteration
         # unwind global iteration count into loop counters:
