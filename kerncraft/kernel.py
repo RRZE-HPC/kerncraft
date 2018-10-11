@@ -482,7 +482,7 @@ class Kernel(object):
         base_loop_counters = self.global_iterator_to_indices()
         total_length = self.iteration_length()
 
-        assert max(iteration) < self.subs_consts(total_length), \
+        assert iteration.max() < self.subs_consts(total_length), \
             "Iterations go beyond what is possible in the original code. One common reason, " + \
             "is that the iteration length are unrealistically small."
 
