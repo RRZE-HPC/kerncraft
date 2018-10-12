@@ -1,4 +1,4 @@
-kerncraft version: 0.6.6
+kerncraft version: 0.7.1
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}
   SP: {ADD: 8, FMA: 16, MUL: 8, total: 32}
@@ -313,9 +313,10 @@ benchmarks:
 cacheline size: 64 B
 clock: 2.3 GHz
 compiler:
-    icc: -O3 -xCORE-AVX2 -fno-alias
-    gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200112L
-    clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
+    !!omap
+    - icc: -O3 -xCORE-AVX2 -fno-alias
+    - gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200112L
+    - clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
 cores per socket: 18
 cores per NUMA domain: 9
 NUMA domains per socket: 2

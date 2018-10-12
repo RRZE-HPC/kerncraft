@@ -2,6 +2,7 @@
 """
 High-level tests for the overall functionallity and things in kc.py
 """
+import collections
 import os
 import unittest
 
@@ -38,10 +39,10 @@ class TestLikwidBenchAuto(unittest.TestCase):
              'NUMA domains per socket': 1.0,
              'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
              'clock': 'INFORMATION_REQUIRED (e.g., 2.7 GHz)',
-             'compiler': {
-                 'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],
-                 'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)'],
-                 'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)']},
+             'compiler': collections.OderedDict([
+                 ('clang', ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L']),
+                 ('gcc', ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)']),
+                 ('icc', ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'])]),
              'cores per NUMA domain': 10,
              'cores per socket': 10,
              'memory hierarchy': [{'cache per group': {'cl_size': 'INFORMATION_REQUIRED '

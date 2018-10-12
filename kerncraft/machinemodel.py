@@ -25,6 +25,12 @@ CHANGES_SINCE = OrderedDict([
      that is read from or written to: 
      [$TP B/cy or 'full socket memory bandwidth', 'half-duplex' or 'full-duplex']
      """),
+    ("0.7.1",
+     """
+     The dictionary under 'compiler' needs to be tagged with '!!omap' and formatted
+     as a sequence. For example: '- compiler_command: arg u ment s'. Pay attention
+     to the leading dash.
+     """)
 ])
 
 

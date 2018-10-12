@@ -3,7 +3,7 @@
 # FIXME performance counters might be wrong. This will only affect the Benchmark model
 # FIXME bandwidth measurements need validataion
 # FIXME
-kerncraft version: 0.6.6  # which version of kerncraft was this file created for
+kerncraft version: 0.7.1  # which version of kerncraft was this file created for
 
 model name: Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz
 model type: Intel Skylake SP processor
@@ -26,9 +26,10 @@ FLOPs per cycle:
     MUL: 16
 micro-architecture: SKX
 compiler:
-  icc: -O3 -fno-alias -xCORE-AVX512
-  clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L
-  gcc: -O3 -march=skylake-avx512
+  !!omap
+  - icc: -O3 -fno-alias -xCORE-AVX512
+  - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L
+  - gcc: -O3 -march=skylake-avx512
 cacheline size: 64 B
 overlapping model:
   ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]

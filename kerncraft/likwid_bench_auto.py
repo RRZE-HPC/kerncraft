@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import collections
 import sys
 import subprocess
 import re
@@ -65,9 +66,10 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
                                    'MUL': 'INFORMATION_REQUIRED'}},
         'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)',
         # TODO retrive flags automatically from compiler with -march=native
-        'compiler': {'icc': ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'],
-                     'clang': ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'],
-                     'gcc': ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)']},
+        'compiler': collections.OrderedDict([
+                    ('icc', ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)']),
+                    ('clang', ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L']),
+                    ('gcc', ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)'])]),
         'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
         'overlapping model': {
             'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'

@@ -1,4 +1,4 @@
-kerncraft version: 0.6.6
+kerncraft version: 0.7.1
 FLOPs per cycle:
     SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
     DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
@@ -263,9 +263,10 @@ cores per socket: 14
 cores per NUMA domain: 14
 NUMA domains per socket: 1
 compiler:
-    icc: -O3 -xCORE-AVX2 -fno-alias
-    gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200112L
-    clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
+    !!omap
+    - icc: -O3 -xCORE-AVX2 -fno-alias
+    - gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200112L
+    - clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
 write-allocate: True
 memory hierarchy:
     - level: L1
