@@ -1,4 +1,4 @@
-kerncraft version: 0.6.6
+kerncraft version: 0.7.1
 clock: 2.7 GHz
 cores per socket: 8
 cores per NUMA domain: 8
@@ -9,9 +9,10 @@ sockets: 2
 threads per core: 2
 cacheline size: 64 B
 compiler:
-    icc: -O3 -xAVX -fno-alias
-    clang: -O3 -march=corei7-avx -mtune=corei7-avx -D_POSIX_C_SOURCE=200112L
-    gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200112L
+    !!omap
+    - icc: -O3 -xAVX -fno-alias
+    - clang: -O3 -march=corei7-avx -mtune=corei7-avx -D_POSIX_C_SOURCE=200112L
+    - gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200112L
 micro-architecture: SNB
 FLOPs per cycle:
     SP: {total: 16, ADD: 8, MUL: 8}

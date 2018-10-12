@@ -3,7 +3,7 @@
 # FIXME bandwidth measurements need validation
 # FIXME
 
-kerncraft version: 0.6.6
+kerncraft version: 0.7.1
 model name: Intel(R) Xeon(R) Gold 5122 CPU @ 3.60GHz
 model type: Intel Core Skylake SP
 sockets: 2
@@ -25,9 +25,10 @@ FLOPs per cycle:
     MUL: 16
 micro-architecture: SKX
 compiler:
-  icc: -O3 -fno-alias -xCORE-AVX512
-  clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L
-  gcc: -O3 -march=skylake-avx512
+  !!omap
+  - icc: -O3 -fno-alias -xCORE-AVX512
+  - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L
+  - gcc: -O3 -march=skylake-avx512
 cacheline size: 64 B
 overlapping model:
   ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
