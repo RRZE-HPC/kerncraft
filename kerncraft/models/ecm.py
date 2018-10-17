@@ -326,7 +326,9 @@ class ECMCPU(PerformanceModel):
             'uops': uops,
             'T_nOL': T_nOL,
             'T_OL': T_OL,
-            'IACA output': iaca_analysis['output']}
+            'IACA output': iaca_analysis['output'],
+            'elements_per_block': elements_per_block,
+            'pointer_increment': asm_block['pointer_increment']}
         return self.results
 
     def conv_cy(self, cy_cl, unit, default='cy/CL'):
@@ -360,6 +362,10 @@ class ECMCPU(PerformanceModel):
             print('', file=output_file)
 
         if self.verbose > 1:
+            print('Detected pointer increment: {}'.format(self.results['pointer_increment']),
+                  file=output_file)
+            print('Derived elements stored to per asm block iteration: {}'.format(
+                  self.results['elements_per_block']), file=output_file)
             print('Ports and cycles:', str(self.results['port cycles']), file=output_file)
             print('Uops:', str(self.results['uops']), file=output_file)
 
