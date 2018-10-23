@@ -483,8 +483,9 @@ class Kernel(object):
         total_length = self.iteration_length()
 
         assert iteration.max() < self.subs_consts(total_length), \
-            "Iterations go beyond what is possible in the original code. One common reason, " + \
-            "is that the iteration length are unrealistically small."
+            "Iterations go beyond what is possible in the original code ({} vs {}). " \
+            "One common reason, is that the iteration length are unrealistically small.".format(
+                iteration.max(), self.subs_consts(total_length))
 
         # Get sizes of arrays and base offsets for each array
         var_sizes = self.array_sizes(in_bytes=True, subs_consts=True)
@@ -529,6 +530,13 @@ class Kernel(object):
 
         # Generate numpy.array for each counter
         counter_per_it = [v(iteration) for v in base_loop_counters.values()]
+
+        # Old and slow - left for reference
+        ## Data access as they appear with iteration order
+        #return zip_longest(zip(*[o(*counter_per_it) for o in global_load_offsets]),
+        #                   zip(*[o(*counter_per_it) for o in global_store_offsets]),
+        #                   fillvalue=None)
+
         # Data access as they appear with iteration order
         load_offsets = []
         for o in global_load_offsets:
