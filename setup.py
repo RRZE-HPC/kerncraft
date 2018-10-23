@@ -98,7 +98,7 @@ setup(
     install_requires=[
         'ruamel.yaml>=0.15.37',
         'sympy>=1.1.1',
-        'pycachesim>=0.1.7',
+        'pycachesim>=0.1.8',
         'pylru',
         'numpy',
         'requests',
