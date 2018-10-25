@@ -138,6 +138,46 @@ class PrefixedUnit(yaml.YAMLObject):
         v = self.__class__(float(self)//float(other), unit)
         return v.reduced()
 
+    def __sub__(self, other):
+        if isinstance(other, self.__class__):
+            unit = other.unit
+        else:
+            unit = self.unit
+
+        if self.unit != unit:
+            raise ValueError("Units need to match for subtraction.")
+
+        v = self.__class__(float(self)-float(other), unit)
+        return v.reduced()
+
+    def __abs__(self):
+        v = self.__class__(abs(float(self)), self.unit)
+        return v.reduced()
+
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            unit = other.unit
+        else:
+            unit = self.unit
+
+        if self.unit != unit:
+            raise ValueError("Units need to match for addition.")
+
+        v = self.__class__(float(self) + float(other), self.unit)
+        return v.reduced()
+
+    def __mod__(self, other):
+        if isinstance(other, self.__class__):
+            unit = other.unit
+        else:
+            unit = self.unit
+
+        if self.unit != unit:
+            raise ValueError("Units need to match for modulo.")
+
+        v = self.__class__(float(self) % float(other), self.unit)
+        return v.reduced()
+
     def __lt__(self, other):
         return float(self) < float(other)
 
