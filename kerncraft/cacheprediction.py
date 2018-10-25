@@ -2,6 +2,7 @@
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
 import sys
+from pprint import pprint
 
 import sympy
 import numpy as np
@@ -266,7 +267,7 @@ class CacheSimulationPredictor(CachePredictor):
         # Warmup
         # Phase 1:
         # define warmup interval boundaries
-        max_steps = 20
+        max_steps = 100
         warmup_increment = ceildiv(max_cache_size // element_size, max_steps)
         invalid_entries = self.csim.count_invalid_entries()
         step = 0
@@ -339,71 +340,6 @@ class CacheSimulationPredictor(CachePredictor):
         offsets = self.kernel.compile_global_offsets(
             iteration=range(warmup_iteration, bench_iteration))
         # Run cache simulation
-        self.csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # use stats to build results
-        self.stats = list(self.csim.stats())
-        self.first_dim_factor = first_dim_factor
-        return
-
-        # Regular Initialization
-        last_warmup_iteration_count = 0
-        warmup_iteration_count = 0
-        tries = max_tries = 20
-        iteration_increment = ceildiv(max_cache_size, max_tries)
-        invalid_entries = [self.csim.count_invalid_entries()]
-        while invalid_entries[-1] > 0 and tries > 0:
-            print(tries, self.csim.count_invalid_entries())
-
-            # Increase interval
-            if warmup_iteration_count == max_iterations:
-                last_warmup_iteration_count = 0
-                warmup_iteration_count = iteration_increment
-                tries = (20 - max_tries) // 2
-            else:
-                last_warmup_iteration_count = warmup_iteration_count
-                warmup_iteration_count += iteration_increment
-
-            # Align iteration count with cachelines or last iteration
-            warmup_iteration_count = min(self._align_iteration_with_cl_boundary(
-                                             warmup_iteration_count),
-                                         max_iterations)
-
-            # Generate offsets
-            print((last_warmup_iteration_count, warmup_iteration_count))
-            offsets = self.kernel.compile_global_offsets(
-                iteration=range(last_warmup_iteration_count, warmup_iteration_count))
-
-            # Do the warm-up
-            self.csim.loadstore(offsets, length=element_size)
-
-            tries -= 1
-            invalid_entries.append(self.csim.count_invalid_entries())
-        if tries <= 0:
-            print("Warning: maximum number of warmup iterations reached. Cache prediction might be "
-                  "inaccurate.")
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # Reset stats to conclude warm-up phase
-        self.csim.reset_stats()
-
-        # Benchmark iterations:
-        # Starting point is one past the last warmup element
-        # End point is at the end or at least 10,000 iterations away
-        bench_iteration_end = min(self._align_iteration_with_cl_boundary(
-                                      warmup_iteration_count + 10000),
-                                  max_iterations)
-        # Number of iterations to perform during bench
-        first_dim_factor = (bench_iteration_end - warmup_iteration_count)
-        # If end point is less than 100 cacheline away, warn user of inaccuracy
-        print("Warning: benchmark iterations are very low ({}). This may lead to inaccurate cache "
-              "miss predictions.".format(first_dim_factor))
-
-        # compile access needed for one cache-line
-        offsets = self.kernel.compile_global_offsets(
-            iteration=range(warmup_iteration_count, bench_iteration_end))
-        # simulate
         self.csim.loadstore(offsets, length=element_size)
         # FIXME compile_global_offsets should already expand to element_size
 
