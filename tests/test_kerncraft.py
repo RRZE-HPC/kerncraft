@@ -17,6 +17,20 @@ from kerncraft import kerncraft as kc
 from kerncraft.prefixedunit import PrefixedUnit
 
 
+def assert_relativly_equal(actual, desired, rel_diff=0.0):
+    """
+    Test for relative difference between actual and desired
+
+    passes if abs(actual-desired)/abs(desired) % 1.0 < rel_diff
+    """
+    if actual == desired:
+        # Catching NaN, inf and 0
+        return
+    if not abs(actual - desired) / abs(desired) % 1.0 <= rel_diff:
+        raise AssertionError("relative difference of {} was not met. Expected {!r} and get "
+                             "{!r}.".format(actual, desired, rel_diff))
+
+
 class TestKerncraft(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory
@@ -72,9 +86,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=0)
+        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L3'], 6, 0.05)
+        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=3)
 
     def test_2d5pt_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
@@ -116,9 +130,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=0)
+        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L3'], 6, 0.05)
+        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=2)
 
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
@@ -156,7 +170,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['Roofline'])
 
         roofline = result['Roofline']
-        self.assertAlmostEqual(roofline['min performance'], 5115000000.0, places=0)
+        assert_relativly_equal(roofline['min performance'], 5115000000.0, 0.01)
         self.assertEqual(roofline['bottleneck level'], 1)
 
         expected_btlncks = [{u'arithmetic intensity': 0.11764705882352941,
@@ -183,7 +197,10 @@ class TestKerncraft(unittest.TestCase):
 
         for i, btlnck in enumerate(expected_btlncks):
             for k, v in btlnck.items():
-                self.assertEqual(roofline['mem bottlenecks'][i][k], v)
+                if type(v) is not str:
+                    assert_relativly_equal(roofline['mem bottlenecks'][i][k], v, 0.05)
+                else:
+                    self.assertEqual(roofline['mem bottlenecks'][i][k], v)
 
     def test_sclar_product_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData.pickle')
@@ -206,9 +223,9 @@ class TestKerncraft(unittest.TestCase):
         ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
 
         # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        self.assertAlmostEqual(ecmd['L2'], 4, places=1)
-        self.assertAlmostEqual(ecmd['L3'], 0.0, places=1)
-        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=0)
+        assert_relativly_equal(ecmd['L2'], 4, 0.05)
+        self.assertAlmostEqual(ecmd['L3'], 0.0, places=2)
+        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=2)
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
@@ -233,9 +250,9 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
+        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L3'], 6, 0.05)
+        self.assertAlmostEqual(ecmd['MEM'], 0, places=2)
 
     def test_copy_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
@@ -261,8 +278,8 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        self.assertAlmostEqual(ecmd['L2'], 6, places=1)
-        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
+        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L3'], 6, 0.05)
         self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -300,8 +317,8 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
+        assert_relativly_equal(ecmd['T_OL'], 12, 0.05)
+        assert_relativly_equal(ecmd['T_nOL'], 10, 0.05)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECM(self):
@@ -343,11 +360,11 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        self.assertAlmostEqual(ecmd['T_OL'], 12, places=1)
-        self.assertAlmostEqual(ecmd['T_nOL'], 10, places=1)
-        self.assertAlmostEqual(ecmd['L2'], 10, places=1)
-        self.assertAlmostEqual(ecmd['L3'], 6, places=1)
-        self.assertAlmostEqual(ecmd['MEM'], 13, places=0)
+        assert_relativly_equal(ecmd['T_OL'], 12, 0.05)
+        assert_relativly_equal(ecmd['T_nOL'], 10, 0.05)
+        assert_relativly_equal(ecmd['L2'], 10, 0.05)
+        assert_relativly_equal(ecmd['L3'], 6, 0.05)
+        assert_relativly_equal(ecmd['MEM'], 13, 0.05)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_RooflineIACA(self):
@@ -384,7 +401,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['RooflineIACA'])
 
         roofline = result['RooflineIACA']
-        self.assertAlmostEqual(roofline['min performance'], 2900000000.0, places=0)
+        assert_relativly_equal(roofline['min performance'], 2900000000.0, 0.05)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")

@@ -2,11 +2,17 @@
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
 import sys
+from pprint import pprint
 
 import sympy
 import numpy as np
 
 from kerncraft.kernel import symbol_pos_int
+
+
+# From https://stackoverflow.com/a/17511341 by dlitz
+def ceildiv(a: int, b: int) -> object:
+    return -(-a // b)
 
 
 class CachePredictor(object):
@@ -242,6 +248,139 @@ class CacheSimulationPredictor(CachePredictor):
         """Initialize cache simulation based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores)
         # Get the machine's cache model and simulator
+        self.csim = self.machine.get_cachesim(self.cores)
+
+        # FIXME handle multiple datatypes
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
+        cacheline_size = self.machine['cacheline size']
+        elements_per_cacheline = int(cacheline_size // element_size)
+
+        # Gathering some loop information:
+        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
+        inner_index = symbol_pos_int(inner_loop['index'])
+        inner_increment = inner_loop['increment']  # Calculate the number of iterations for warm-up
+        total_length = self.kernel.iteration_length()
+        max_iterations = self.kernel.subs_consts(total_length)
+        max_cache_size = sum([c.size() for c in self.csim.levels(with_mem=False)])
+
+
+        # Warmup
+        # Phase 1:
+        # define warmup interval boundaries
+        max_steps = 100
+        warmup_increment = ceildiv(max_cache_size // element_size, max_steps)
+        invalid_entries = self.csim.count_invalid_entries()
+        step = 0
+        warmup_iteration = 0
+        complete_sweep = False
+        while invalid_entries > 0 and step < max_steps and not complete_sweep:
+            prev_warmup_iteration = warmup_iteration
+            warmup_iteration = warmup_iteration + warmup_increment
+            if warmup_iteration > max_iterations:
+                warmup_iteration = max_iterations
+                complete_sweep = True
+
+            # print("warmup_iteration1", warmup_iteration)
+            offsets = self.kernel.compile_global_offsets(
+                iteration=range(prev_warmup_iteration, warmup_iteration))
+            self.csim.loadstore(offsets, length=element_size)
+            invalid_entries = self.csim.count_invalid_entries()
+            # TODO more intelligent break criteria based on change of invalid entries might be
+            #      useful for early termination.
+            # print("invalid_entries", invalid_entries)
+
+            step += 1
+
+        # Phase 2:
+        # Check that there is enough space left for benchmarking
+        if complete_sweep:
+            warmup_iteration = 0
+        else:
+            # Are we far away from max_iterations?
+            # print("max_iterations", max_iterations)
+            if warmup_iteration > max_iterations - 100000:
+                # To close to end, need to complete sweep
+                complete_sweep = True
+                prev_warmup_iteration = warmup_iteration
+                warmup_iteration = max_iterations
+                # print("warmup_iteration2", warmup_iteration, end="; ")
+                offsets = self.kernel.compile_global_offsets(
+                    iteration=range(prev_warmup_iteration, warmup_iteration))
+                self.csim.loadstore(offsets, length=element_size)
+                warmup_iteration = 0
+            if not complete_sweep and invalid_entries > 0:
+                print("Warning: Unable to perform complete sweep nor initialize cache completely. "
+                      "This might introduce inaccuracies (additional cache misses) in the cache "
+                      "prediction.")
+
+        # Phase 3:
+        # Iterate to safe handover point
+        prev_warmup_iteration = warmup_iteration
+        warmup_iteration = self._align_iteration_with_cl_boundary(warmup_iteration, subtract=False)
+        if warmup_iteration != prev_warmup_iteration:
+            # print("warmup_iteration3", warmup_iteration)
+            offsets = self.kernel.compile_global_offsets(
+                iteration=range(prev_warmup_iteration, warmup_iteration))
+            self.csim.loadstore(offsets, length=element_size)
+
+        # Reset stats to conclude warm-up phase
+        self.csim.reset_stats()
+
+        # Benchmark
+        bench_iteration = self._align_iteration_with_cl_boundary(min(
+            warmup_iteration + 100000, max_iterations - 1))
+        # print("bench_iteration", bench_iteration)
+        first_dim_factor = float((bench_iteration - warmup_iteration) / elements_per_cacheline)
+        # If end point is less than 100 cacheline away, warn user of inaccuracy
+        if first_dim_factor < 1000:
+            print("Warning: benchmark iterations are very low ({} CL). This may lead to inaccurate "
+                  "cache predictions.".format(first_dim_factor))
+
+        # Compile access needed for one cache-line
+        offsets = self.kernel.compile_global_offsets(
+            iteration=range(warmup_iteration, bench_iteration))
+        # Run cache simulation
+        self.csim.loadstore(offsets, length=element_size)
+        # FIXME compile_global_offsets should already expand to element_size
+
+        # use stats to build results
+        self.stats = list(self.csim.stats())
+        self.first_dim_factor = first_dim_factor
+
+    def _align_iteration_with_cl_boundary(self, iteration, subtract=True):
+        """Align iteration with cacheline boundary."""
+        # FIXME handle multiple datatypes
+        element_size = self.kernel.datatypes_size[self.kernel.datatype]
+        cacheline_size = self.machine['cacheline size']
+        elements_per_cacheline = int(cacheline_size // element_size)
+
+        # Gathering some loop information:
+        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
+        inner_increment = inner_loop['increment']
+
+        # do this by aligning either writes (preferred) or reads
+        # Assumption: writes (and reads) increase linearly
+        o = self.kernel.compile_global_offsets(iteration=iteration)[0]
+        if len(o[1]):
+            # we have a write to work with:
+            first_offset = min(o[1])
+        else:
+            # we use reads
+            first_offset = min(o[0])
+
+        diff = first_offset - \
+               (int(first_offset) >> self.csim.first_level.cl_bits << self.csim.first_level.cl_bits)
+        if diff == 0:
+            return iteration
+        elif subtract:
+            return iteration - (diff // element_size) // inner_increment
+        else:
+            return iteration + (elements_per_cacheline - diff // element_size) // inner_increment
+
+    def __init__old(self, kernel, machine, cores=1):
+        """Initialize cache simulation based predictor from kernel and machine object."""
+        CachePredictor.__init__(self, kernel, machine, cores)
+        # Get the machine's cache model and simulator
         csim = self.machine.get_cachesim(self.cores)
 
         # FIXME handle multiple datatypes
@@ -274,7 +413,7 @@ class CacheSimulationPredictor(CachePredictor):
                     diff_size = diff_iterations*element_size
                     warmup_indices[index] = max(
                         l['start'],
-                        (warmup_iteration_count - (max_cache_size*1.5)// element_size) // diff_size
+                        (warmup_iteration_count - (max_cache_size*1.5) // element_size) // diff_size
                     )
                     break
             warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
