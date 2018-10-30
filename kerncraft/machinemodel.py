@@ -14,10 +14,10 @@ from . import prefixedunit
 from . import __version__
 
 
-MIN_SUPPORTED_VERSION = "0.6.6"
+MIN_SUPPORTED_VERSION = "0.7.1"
 
 CHANGES_SINCE = OrderedDict([
-    ("0.6.5",
+    ("0.6.6",
      """
      Removed 'cycles per cache line transfer' and replaced it by 
      'non-overlap upstream throughput' in cache levels. The new parameter
@@ -30,7 +30,7 @@ CHANGES_SINCE = OrderedDict([
      The dictionary under 'compiler' needs to be tagged with '!!omap' and formatted
      as a sequence. For example: '- compiler_command: arg u ment s'. Pay attention
      to the leading dash.
-     """)
+     """),
 ])
 
 
@@ -69,10 +69,10 @@ class MachineModel(object):
             print("Relevant changes to the machine description file format:")
             print('\n'.join(['{}: {}'.format(version, help_text)
                              for version, help_text in CHANGES_SINCE.items()
-                             if LooseVersion(version) >= file_version]))
+                             if LooseVersion(version) > file_version]))
             raise ValueError("Machine description is incompatible with this version. "
                              "Supported versions are from {} to {}. Check change logs and examples "
-                             " to update your own machine description file format.".format(
+                             "to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
 
     def __getitem__(self, key):
