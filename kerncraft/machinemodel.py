@@ -114,7 +114,7 @@ class MachineModel(object):
         :param read_streams: number of read streams expected
         :param write_streams: number of write streams expected
         :param threads_per_core: number of threads that are run on each core
-        :param cores: if not given, will choose maximum bandwidth
+        :param cores: if not given, will choose maximum bandwidth for single NUMA domain
         """
         # try to find best fitting kernel (closest to read/write ratio):
         # write allocate has to be handled in kernel information (all writes are also reads)
@@ -146,7 +146,7 @@ class MachineModel(object):
             self['benchmarks']['measurements'][bw_level][threads_per_core]
         assert threads_per_core == bw_measurements['threads per core'], \
             'malformed measurement dictionary in machine file.'
-        if cores:
+        if cores is not None:
             # Used by Roofline model
             run_index = bw_measurements['cores'].index(cores)
             bw = bw_measurements['results'][measurement_kernel][run_index]

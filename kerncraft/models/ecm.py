@@ -474,14 +474,36 @@ class ECM(PerformanceModel):
         report += '\nsaturating at {:.1f} cores'.format(self.results['scaling cores'])
 
         if self._args.cores > 1:
-            report += "\nprediction for {} cores".format(self._args.cores) + \
-                      " with static scheduling within single NUMA domain:\n"
-            if self._args.cores <= self.results['scaling cores']:
-                report += "{:.1f} cy/CL (unsaturated)".format(
+            report += "\nprediction for {} cores,".format(self._args.cores) + \
+                      " assuming static scheduling:\n"
+
+            # in-socket prediction:
+            cores_per_socket = self.machine['cores per NUMA domain']
+            insocket_cores = min(self._args.cores, cores_per_socket)
+            if insocket_cores <= self.results['scaling cores']:
+                insocket = PrefixedUnit(
                     max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
-                        self.results['T_OL'])/self._args.cores)
+                        self.results['T_OL'])/insocket_cores,
+                    "cy/CL")
+                note = "memory-interface not saturated"
             else:
-                report += "{:.1f} cy/CL (saturated)".format(self.results['cycles'][-1][1])
+                insocket = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
+                note = "memory-interface saturated on first socket"
+
+            if 0 < self._args.cores <= cores_per_socket:
+                # only in-socket scaling to consider
+                report += "{}".format(self._CPU.conv_cy(insocket, self._args.unit))
+                note += ", in-socket scaling"
+            elif self._args.cores <= 2*cores_per_socket:
+                # out-of-socket scaling behavior
+                report += "{}".format(self._CPU.conv_cy(
+                    insocket * (1 - (self._args.cores - cores_per_socket)/(2*cores_per_socket)),
+                    self._args.unit))
+                note += ", out-of-socket scaling"
+            else:
+                raise ValueError("Number of cores may only be upto two sockets.")
+
+            report += " ({})\n".format(note)
 
         print(report, file=output_file)
 
