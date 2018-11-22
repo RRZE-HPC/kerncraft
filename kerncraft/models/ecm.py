@@ -478,30 +478,34 @@ class ECM(PerformanceModel):
                       " assuming static scheduling:\n"
 
             # in-socket prediction:
-            cores_per_socket = self.machine['cores per NUMA domain']
-            insocket_cores = min(self._args.cores, cores_per_socket)
-            if insocket_cores <= self.results['scaling cores']:
+            cores_per_numa_domain = self.machine['cores per NUMA domain']
+            innuma_cores = min(self._args.cores, cores_per_numa_domain)
+            if innuma_cores <= self.results['scaling cores']:
                 insocket = PrefixedUnit(
                     max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
-                        self.results['T_OL'])/insocket_cores,
+                        self.results['T_OL'])/innuma_cores,
                     "cy/CL")
                 note = "memory-interface not saturated"
             else:
                 insocket = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
                 note = "memory-interface saturated on first socket"
 
-            if 0 < self._args.cores <= cores_per_socket:
-                # only in-socket scaling to consider
+            if 0 < self._args.cores <= cores_per_numa_domain:
+                # only in-numa scaling to consider
                 report += "{}".format(self._CPU.conv_cy(insocket, self._args.unit))
-                note += ", in-socket scaling"
-            elif self._args.cores <= 2*cores_per_socket:
-                # out-of-socket scaling behavior
+                note += ", in-NUMA-domain scaling"
+            elif self._args.cores <= self.machine['cores per socket']*self.machine['sockets']:
+                # out-of-numa scaling behavior
                 report += "{}".format(self._CPU.conv_cy(
-                    insocket * (1 - (self._args.cores - cores_per_socket)/(2*cores_per_socket)),
+                    insocket * (1 - (self._args.cores - cores_per_numa_domain)/
+                                (math.ceil(self._args.cores / cores_per_numa_domain) *
+                                 cores_per_numa_domain)),
                     self._args.unit))
-                note += ", out-of-socket scaling"
+                note += ", out-of-NUMA-domain scaling"
             else:
-                raise ValueError("Number of cores may only be upto two sockets.")
+                raise ValueError("Number of cores must be greater than zero and upto the max. "
+                                 "number of cores defined by cores per socket and sockets in"
+                                 "machine file.")
 
             report += " ({})\n".format(note)
 
