@@ -456,16 +456,32 @@ class ECM(PerformanceModel):
             self.results['T_nOL'],
             ' | '.join(['{:.1f}'.format(i[1]) for i in self.results['cycles']]))
 
+        if self._args.cores > 1:
+            report += " (single core)"
+
         if self._args.unit:
             report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
 
-        report += '\n{{ {} \ {} }} cy/CL'.format(
+        report += '\n{{ {:.1f} \ {} }} cy/CL'.format(
             max(self.results['T_OL'], self.results['T_nOL']),
             ' \ '.join(['{:.1f}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
                                             self.results['T_nOL'], self.results['T_OL']))
                         for i in range(len(self.results['cycles']))]))
 
+        if self._args.cores > 1:
+            report += " (single core)"
+
         report += '\nsaturating at {:.1f} cores'.format(self.results['scaling cores'])
+
+        if self._args.cores > 1:
+            report += "\nprediction for {} cores".format(self._args.cores) + \
+                      " with static scheduling within single NUMA domain:\n"
+            if self._args.cores <= self.results['scaling cores']:
+                report += "{:.1f} cy/CL (unsaturated)".format(
+                    max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
+                        self.results['T_OL'])/self._args.cores)
+            else:
+                report += "{:.1f} cy/CL (saturated)".format(self.results['cycles'][-1][1])
 
         print(report, file=output_file)
 
