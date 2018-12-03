@@ -79,6 +79,10 @@ class MachineModel(object):
         """Return configuration entry."""
         return self._data[key]
 
+    def __contains__(self, key):
+        """Return true if configuration key is present."""
+        return key in self._data
+
     def __repr__(self):
         """Return object representation."""
         return '{}({})'.format(

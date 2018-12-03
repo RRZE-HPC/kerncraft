@@ -266,6 +266,7 @@ memory hierarchy:
       size per group: null
       threads per group: 16
 micro-architecture: IVB
+micro-architecture-modeler: IACA
 model type: Intel Core IvyBridge EP processor
 model name: Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz
 sockets: 2

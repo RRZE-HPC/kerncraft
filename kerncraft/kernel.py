@@ -607,7 +607,7 @@ class Kernel(object):
             table += '{!s:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table), file=output_file)
 
-    def iaca_analysis(self, *args, **kwargs):
+    def incore_analysis(self, *args, **kwargs):
         """Run IACA analysis."""
         raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
                                   "Try a different model or kernel input format.")
@@ -1114,10 +1114,10 @@ class KernelCode(Kernel):
 
         return code
 
-    def assemble(self, in_filename, out_filename=None, iaca_markers=True,
-                 asm_block='auto', pointer_increment='auto_with_manual_fallback', verbose=False):
+    def mark_assembler(self, in_filename, out_filename=None, asm_block='auto',
+                       pointer_increment='auto_with_manual_fallback', verbose=False):
         """
-        Assemble *in_filename* to *out_filename*.
+        Insert IACA-style markers into *in_filename* and saves to *out_filename* (or temp. file).
 
         If *out_filename* is not given a new file will created either temporarily or according
         to kernel file location.
@@ -1134,7 +1134,45 @@ class KernelCode(Kernel):
            - 'auto_with_manual_fallback': automatic detection, fallback to manual input
            - 'manual': prompt user
 
-        Returns two-tuple (filepointer, filename) to temp binary file.
+        Returns filename to temp assembly file or out_filename.
+        """
+        if not out_filename:
+            suffix = '.iaca_marked.s'
+            if self._filename:
+                out_filename = os.path.abspath(os.path.splitext(self._filename)[0]+suffix)
+            else:
+                out_filename = tempfile.mkstemp(suffix=suffix)
+
+        # insert iaca markers
+        with open(in_filename) as in_file, open(out_filename, 'w') as out_file:
+            self.asm_block = iaca.iaca_instrumentation(
+                in_file, out_file,
+                block_selection=asm_block,
+                pointer_increment=pointer_increment)
+
+        return out_filename
+
+    def assemble(self, in_filename, out_filename=None, iaca_markers=True,
+                 asm_block='auto', pointer_increment='auto_with_manual_fallback', verbose=False):
+        """
+        Assemble *in_filename* assembly to *out_filename* binary (or temp. file).
+
+        If *out_filename* is not given a new file will created either temporarily or according
+        to kernel file location.
+
+        If *iaca_marked* is set to true, markers are inserted around the block with most packed
+        instructions or (if no packed instr. were found) the largest block and modified file is
+        saved to *in_file*.
+
+        *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
+        the largest block, "manual" results in interactive and a number in the according block.
+
+        *pointer_increment* is the number of bytes the pointer is incremented after the loop or
+           - 'auto': automatic detection, RuntimeError is raised in case of failure
+           - 'auto_with_manual_fallback': automatic detection, fallback to manual input
+           - 'manual': prompt user
+
+        Returns filename to temp binary file or out_filename.
         """
         if not out_filename:
             suffix = ''
@@ -1148,11 +1186,9 @@ class KernelCode(Kernel):
 
         # insert iaca markers
         if iaca_markers:
-            with open(in_filename) as in_file, open(out_filename_asm, 'w') as out_file:
-                self.asm_block = iaca.iaca_instrumentation(
-                    in_file, out_file,
-                    block_selection=asm_block,
-                    pointer_increment=pointer_increment)
+            out_filename_asm = self.mark_assembler(
+                self, in_filename, out_filename=out_filename_asm,
+                asm_block=asm_block, pointer_increment=pointer_increment, verbose=verbose)
 
         compiler, compiler_args = self._machine.get_compiler()
 
@@ -1220,10 +1256,10 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return os.path.splitext(in_file.name)[0]+'.s'
 
-    def iaca_analysis(self, micro_architecture, asm_block='auto',
-                      pointer_increment='auto_with_manual_fallback', verbose=False):
+    def incore_analysis(self, asm_block='auto',
+                        pointer_increment='auto_with_manual_fallback', verbose=False):
         """
-        Run an IACA analysis and return its outcome.
+        Run an in-core analysis and return its outcome.
 
         *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
@@ -1233,10 +1269,20 @@ class KernelCode(Kernel):
            - 'auto_with_manual_fallback': automatic detection, fallback to manual input
            - 'manual': prompt user
         """
-        asmFile = self.compile(verbose=verbose)
-        bin_name = self.assemble(asmFile, iaca_markers=True, asm_block=asm_block,
-                                 pointer_increment=pointer_increment, verbose=verbose)
-        return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
+        asm_name = self.compile(verbose=verbose)
+        micro_architecture = self._machine['micro-architecture']
+        if 'micro-architecture-modeler' in self._machine and \
+                self._machine['micro-architecture-modeler'] == 'OSACA':
+            asm_marked_name = self.mark_assembler(asm_name, asm_block=asm_block,
+                                                  pointer_increment=pointer_increment,
+                                                  verbose=verbose)
+            return iaca.osaca_analyse_instrumented_assembly(asm_marked_name, micro_architecture), \
+                   self.asm_block
+        else:  # self._machine['micro-architecture-modeler'] == 'IACA'
+            bin_name = self.assemble(asm_name, iaca_markers=True, asm_block=asm_block,
+                                     pointer_increment=pointer_increment, verbose=verbose)
+            return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), \
+                   self.asm_block
 
     def build(self, lflags=None, verbose=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
@@ -1305,7 +1351,7 @@ class KernelDescription(Kernel):
     and LIKWID benchmarking (benchmark).
     """
 
-    def iaca_analysis(self, *args, **kwargs):
+    def incore_analysis(self, *args, **kwargs):
         raise NotImplementedError("IACA analysis is not possible based on a Kernel Description")
 
     def build(self, *args, **kwargs):

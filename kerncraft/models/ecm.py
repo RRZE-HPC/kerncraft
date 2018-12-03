@@ -282,18 +282,17 @@ class ECMCPU(PerformanceModel):
         Run complete analysis and return results.
         """
         try:
-            iaca_analysis, asm_block = self.kernel.iaca_analysis(
-                micro_architecture=self.machine['micro-architecture'],
+            incore_analysis, asm_block = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 verbose=self.verbose > 2)
         except RuntimeError as e:
-            print("IACA analysis failed: " + str(e))
+            print("In-core analysis failed: " + str(e))
             sys.exit(1)
 
-        block_throughput = iaca_analysis['throughput']
-        port_cycles = iaca_analysis['port cycles']
-        uops = iaca_analysis['uops']
+        block_throughput = incore_analysis['throughput']
+        port_cycles = incore_analysis['port cycles']
+        uops = incore_analysis['uops']
 
         # Normalize to cycles per cacheline
         elements_per_block = abs(asm_block['pointer_increment']
@@ -326,7 +325,7 @@ class ECMCPU(PerformanceModel):
             'uops': uops,
             'T_nOL': T_nOL,
             'T_OL': T_OL,
-            'IACA output': iaca_analysis['output'],
+            'IACA output': incore_analysis['output'],
             'elements_per_block': elements_per_block,
             'pointer_increment': asm_block['pointer_increment']}
         return self.results
