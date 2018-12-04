@@ -102,7 +102,7 @@ setup(
         'pylru',
         'numpy',
         'requests',
-        'pycparser>=2.18'
+        'pycparser>=2.19'
     ],
     python_requires='>=3.5',
 

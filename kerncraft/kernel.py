@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Representation of computational kernel for performance model analysis and helper functions."""
+import textwrap
 from copy import deepcopy
 import operator
 import tempfile
@@ -14,6 +15,7 @@ import string
 from collections import defaultdict
 from itertools import zip_longest, chain
 import random
+from typing import Dict, Any, Union
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -24,6 +26,7 @@ from pycparser import CParser, c_ast, plyparser
 from pycparser.c_generator import CGenerator
 
 from . import iaca
+from .pycparser_utils import clean_code, replace_id
 
 
 @lru_cache()
@@ -899,15 +902,171 @@ class KernelCode(Kernel):
 
         return sources
 
+    def _constants_declarations(self):
+        """
+        Generate constants declarations
+
+        :return: list of declarations
+        """
+        decls = []
+
+        i = 1  # subscript for cli input
+        for k in self.constants:
+            # const int N = atoi(argv[1])
+            # with increasing N and 1
+            # TODO change subscript of argv depending on constant count
+            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
+            init = c_ast.FuncCall(
+                c_ast.ID('atoi'),
+                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
+            i += 1
+            decls.append(c_ast.Decl(
+                k.name, ['const'], [], [],
+                type_decl, init, None))
+
+        return decls
+
+    CODE_TEMPLATES = {
+        'iaca': textwrap.dedent("""
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      // Initializing arrays
+                      INIT_ARRAYS;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+
+                      KERNE_LOOP_NEST_SERIAL;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+                    }
+                """),
+        'likwid': textwrap.dedent("""
+                    #include <likwid.h>
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      likwid_markerInit();
+                      likwid_markerRegisterRegion("loop");
+
+                      // Initializing arrays
+                      INIT_ARRAYS;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+
+                      for(int warmup = 1; warmup >= 0; --warmup) {
+                        int repeat = 2;
+                        if(warmup == 0) {
+                          repeat = atoi(argv[3]);  // TODO move repeat index to 1?
+                          likwid_markerStartRegion("loop");
+                        }
+
+                        for(; repeat > 0; --repeat) {
+                          KERNE_LOOP_NEST_SERIAL;
+                          DUMMY_CALLS;
+                        }
+
+                      }
+                      likwid_markerStopRegion("loop");
+                      likwid_markerClose();
+                    }
+                """),
+        'openmp-likwid': textwrap.dedent("""
+                    #include <likwid.h>
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      likwid_markerInit();
+                      likwid_markerRegisterRegion("loop");
+                      #pragma omp parallel
+                      {
+                        likwid_marker_threadInit();
+
+                        // Initializing arrays in same order as touched in kernel loop nest
+                        INIT_ARRAYS_OMP;
+
+                        // Dummy call
+                        DUMMY_CALLS;
+
+                        for(int warmup = 1; warmup >= 0; --warmup) {
+                          int repeat = 2;
+                          if(warmup == 0) {
+                            repeat = atoi(argv[3]);  // TODO move repeat index to 1?
+                            likwid_markerStartRegion("loop");
+                          }
+
+                          for(; repeat > 0; --repeat) {
+                            KERNE_LOOP_NEST_OMP;
+                            DUMMY_CALLS;
+                          }
+
+                        }
+                        likwid_markerStopRegion("loop");
+                      }
+                      likwid_markerClose();
+                    }
+                """)
+    }
+
     def as_code(self, type_='iaca'):
         """
         Generate and return compilable source code from AST.
 
-        *type* can be iaca or likwid.
+        *type* can be iaca, likwid or openmp-likwid.
         """
         # TODO produce nicer code, including help text and other "comfort features".
+        assert type_ in self.CODE_TEMPLATES, "Only " + list(self.CODE_TEMPLATES.keys()) + \
+                                             " are valid type_ arguments."
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
-                                            "of kernel description rather than code."
+                                            "based on a kernel description rather than code."
+
+        parser = CParser()
+        template_code = self.CODE_TEMPLATES[type_]
+        template_ast = parser.parse(clean_code(template_code, macros=True, comments=True))
+        replace_id(template_ast, "DUMMY_CALLS", c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None))
+
+        # TODO define and replace DECLARE_CONSTS
+        # TODO define and replace DECLARE_ARRAYS
+        # TODO define and replace DECLARE_INIT_SCALARS
+        # TODO define and replace DUMMY_CALLS
+        # TODO define and replace INIT_ARRAYS_SERIAL
+        # TODO define and replace INIT_ARRAYS_OMP
+        # TODO define and replace KERNEL_LOOP_NEST_SERIAL
+        # TODO define and replace KERNEL_LOOP_NEST_OMP
+
         random.seed(2342)  # we want reproducible random numbers
         ast = deepcopy(self.kernel_ast)
         declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
@@ -917,29 +1076,31 @@ class KernelCode(Kernel):
         # transform to pointer and malloc notation (stack can be too small)
         list(map(transform_array_decl_to_malloc, declarations))
 
-        # add declarations for constants
-        i = 1  # subscript for cli input
-        for k in self.constants:
-            # cont int N = atoi(argv[1])
-            # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
-            init = c_ast.FuncCall(
-                c_ast.ID('atoi'),
-                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
-            i += 1
-            ast.block_items.insert(0, c_ast.Decl(
-                k.name, ['const'], [], [],
-                type_decl, init, None))
+        # add declarations for constants to front
+        ast.block_items[:0] = self._constants_declarations()
+
+        likwid_init_calls = [
+            # likwid_markerInit();
+            c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None),
+            # likwid_markerRegisterRegion("loop");
+            c_ast.FuncCall(c_ast.ID('likwid_markerRegisterRegion'),
+                           c_ast.ExprList([c_ast.Constant('string', '"loop"')]))]
+        likwid_close_and_finalize_calls = [
+            # likwid_markerStartRegion("loop");
+            c_ast.FuncCall(
+                c_ast.ID('likwid_markerStopRegion'),
+                c_ast.ExprList([c_ast.Constant('string', '"loop"')])),
+            # likwid_markerClose();
+            c_ast.FuncCall(c_ast.ID('likwid_markerClose'), None)]
+        likwid_marker_start_calls = [
+            # likwid_markerStartRegion("loop");
+            c_ast.FuncCall(
+                c_ast.ID('likwid_markerStartRegion'),
+                c_ast.ExprList([c_ast.Constant('string', '"loop"')]))]
 
         if type_ == 'likwid':
-            # Call likwid_markerInit()
-            ast.block_items.insert(0, c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None))
-            # Call likwid_markerRegisterRegion("loop")
-            ast.block_items.insert(1, c_ast.FuncCall(c_ast.ID('likwid_markerRegisterRegion'),
-                                                     c_ast.ExprList(
-                                                         [c_ast.Constant('string', '"loop"')])))
-            # Call likwid_markerClose()
-            ast.block_items.append(c_ast.FuncCall(c_ast.ID('likwid_markerClose'), None))
+            ast.block_items[:0] = likwid_init_calls
+            ast.block_items.extend(likwid_close_and_finalize_calls)
 
         # inject array initialization
         for d in declarations:
@@ -1001,7 +1162,7 @@ class KernelCode(Kernel):
             iftrue=c_ast.Compound(dummy_calls),
             iffalse=None)
 
-        # Insert after definitions
+        # Insert afterdefinitions
         ast.block_items.insert(i+2, dummy_stmt)
 
         # transform multi-dimensional array references to one dimensional references
@@ -1043,12 +1204,9 @@ class KernelCode(Kernel):
                 # if(warmup == 0) { ... }
                 c_ast.If(
                     cond=c_ast.BinaryOp('==', c_ast.ID('warmup'), c_ast.Constant('int', '0')),
-                    iftrue=c_ast.Compound([
-                        # likwid_markerStartRegion("loop");
-                        c_ast.FuncCall(
-                            c_ast.ID('likwid_markerStartRegion'),
-                            c_ast.ExprList([c_ast.Constant('string', '"loop"')])),
-                        # repeat = atoi(argv[3]);
+                    iftrue=c_ast.Compound(
+                        likwid_marker_start_calls +
+                        [# repeat = atoi(argv[3]);
                         c_ast.Assignment(
                             '=',
                             c_ast.ID('repeat'),
@@ -1068,11 +1226,7 @@ class KernelCode(Kernel):
             next_ = c_ast.UnaryOp('--', c_ast.ID('warmup'))
             stmt = c_ast.Compound(warmup_conditions+[repeat_loop])
 
-            ast.block_items.insert(-1, c_ast.For(init, cond, next_, stmt))
-
-            ast.block_items.insert(-1, c_ast.FuncCall(
-                c_ast.ID('likwid_markerStopRegion'),
-                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+            ast.block_items.insert(-2, c_ast.For(init, cond, next_, stmt))
         else:
             ast.block_items.append(dummy_stmt)
 
