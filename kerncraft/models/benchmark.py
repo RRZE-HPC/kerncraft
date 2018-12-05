@@ -316,7 +316,7 @@ class Benchmark(PerformanceModel):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
-        args = [bench] + [str(s) for s in list(self.kernel.constants.values())]
+        args = [str(s) for s in list(self.kernel.constants.values())]
 
         # Determine base runtime with 10 iterations
         runtime = 0.0
@@ -331,7 +331,7 @@ class Benchmark(PerformanceModel):
             else:
                 repetitions = int(repetitions * 10)
 
-            mem_results = self.perfctr(args + [str(repetitions)], group="MEM")
+            mem_results = self.perfctr([bench] + [str(repetitions)] + args, group="MEM")
             runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime / float(repetitions)
         raw_results = [mem_results]
@@ -357,7 +357,7 @@ class Benchmark(PerformanceModel):
             measured_ctrs = {}
             for run in minimal_runs:
                 ctrs = ','.join([eventstr(e) for e in run])
-                r = self.perfctr(args + [str(repetitions)], group=ctrs)
+                r = self.perfctr([bench] + [str(repetitions)] + args, group=ctrs)
                 raw_results.append(r)
                 measured_ctrs.update(r)
             # Match measured counters to symbols

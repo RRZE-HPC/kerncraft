@@ -902,30 +902,6 @@ class KernelCode(Kernel):
 
         return sources
 
-    def _constants_declarations(self):
-        """
-        Generate constants declarations
-
-        :return: list of declarations
-        """
-        decls = []
-
-        i = 1  # subscript for cli input
-        for k in self.constants:
-            # const int N = atoi(argv[1])
-            # with increasing N and 1
-            # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
-            init = c_ast.FuncCall(
-                c_ast.ID('atoi'),
-                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
-            i += 1
-            decls.append(c_ast.Decl(
-                k.name, ['const'], [], [],
-                type_decl, init, None))
-
-        return decls
-
     CODE_TEMPLATES = {
         'iaca': textwrap.dedent("""
                     #include "kerncraft.h"
@@ -980,7 +956,7 @@ class KernelCode(Kernel):
                       for(int warmup = 1; warmup >= 0; --warmup) {
                         int repeat = 2;
                         if(warmup == 0) {
-                          repeat = atoi(argv[3]);  // TODO move repeat index to 1?
+                          repeat = atoi(argv[1]);
                           likwid_markerStartRegion("loop");
                         }
 
@@ -1024,7 +1000,7 @@ class KernelCode(Kernel):
                         for(int warmup = 1; warmup >= 0; --warmup) {
                           int repeat = 2;
                           if(warmup == 0) {
-                            repeat = atoi(argv[3]);  // TODO move repeat index to 1?
+                            repeat = atoi(argv[1]);
                             likwid_markerStartRegion("loop");
                           }
 
@@ -1041,6 +1017,141 @@ class KernelCode(Kernel):
                 """)
     }
 
+    def _build_const_declartions(self):
+        """
+        Generate constants declarations
+
+        :return: list of declarations
+        """
+        decls = []
+
+        i = 2  # subscript for cli input, 1 is reserved for repeat
+        for k in self.constants:
+            # const int N = atoi(argv[2])
+            # with increasing N and 1
+            # TODO change subscript of argv depending on constant count
+            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
+            init = c_ast.FuncCall(
+                c_ast.ID('atoi'),
+                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
+            i += 1
+            decls.append(c_ast.Decl(
+                k.name, ['const'], [], [],
+                type_decl, init, None))
+
+        return decls
+
+    def get_array_declarations(self):
+        """Return array declarations."""
+        return [d for d in self.kernel_ast
+                if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
+
+    def get_kernel_loop_nest(self):
+        """Return kernel loop nest."""
+        for_loops = [s for s in self.kernel_ast
+                     if type(s) is c_ast.For]
+        assert len(for_loops) == 1, "Found to many or to few for loops in kernel"
+        return for_loops[0]
+
+    def _build_array_declarations(self):
+        """
+        Generate declaration statements for arrays.
+
+        Also transforming multi-dim to 1d arrays and initializing with malloc.
+
+        :return: list of declarations nodes
+        """
+        # copy array declarations from from kernel ast
+        array_declarations = deepcopy(self.get_array_declarations())
+        for d in array_declarations:
+            # We need to transform
+            transform_multidim_to_1d_decl(d)
+            transform_array_decl_to_malloc(d)
+        return array_declarations
+
+    def _build_array_initializations(self):
+        """
+        Generate initialization statements for arrays.
+
+        :return: list of nodes
+        """
+        array_declarations = self.get_array_declarations()
+        array_initializations = []
+        kernel = self.get_kernel_loop_nest()
+
+        
+
+        return array_initializations
+
+        for d in array_declarations:
+            # Build ast to inject
+            if array_dimensions[d.name]:
+                # this is an array, we need a for loop to initialize it
+                # for(init; cond; next) stmt
+
+                # Init: int i = 0;
+                counter_name = 'i'
+                while counter_name in array_dimensions:
+                    counter_name = chr(ord(counter_name) + 1)
+
+                init = c_ast.DeclList([
+                    c_ast.Decl(
+                        counter_name, [], [], [], c_ast.TypeDecl(
+                            counter_name, [], c_ast.IdentifierType(['int'])),
+                        c_ast.Constant('int', '0'),
+                        None)],
+                    None)
+
+                # Cond: i < ... (... is length of array)
+                cond = c_ast.BinaryOp(
+                    '<',
+                    c_ast.ID(counter_name),
+                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
+
+                # Next: i++
+                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
+
+                # Statement
+                stmt = c_ast.Assignment(
+                    '=',
+                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
+                    c_ast.Constant('float', str(random.uniform(1.0, 0.1))))
+
+                array_initializations.append(c_ast.For(init, cond, next_, stmt))
+            else:
+                # this is a scalar, so a simple Assignment is enough
+                array_initializations.append(
+                    c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant(
+                                     'float', str(random.uniform(1.0, 0.1)))))
+        return array_initializations
+
+    def _build_dummy_calls(self):
+        """
+        Generate false if branch with dummy calls
+
+        Requires kerncraft.h to be included, which defines dummy(...) and var_false.
+
+        :return: dummy statement
+        """
+        # Make sure nothing gets removed by inserting dummy calls
+        dummy_calls = []
+        for d in self.kernel_ast.block_items:
+            # Only consider toplevel declarations from kernel ast
+            if type(d) is not c_ast.Decl: continue
+            if type(d.type) is c_ast.ArrayDecl:
+                dummy_calls.append(c_ast.FuncCall(
+                    c_ast.ID('dummy'),
+                    c_ast.ExprList([c_ast.ID(d.name)])))
+            else:
+                dummy_calls.append(c_ast.FuncCall(
+                    c_ast.ID('dummy'),
+                    c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+        dummy_stmt = c_ast.If(
+            cond=c_ast.ID('var_false'),
+            iftrue=c_ast.Compound(dummy_calls),
+            iffalse=None)
+        return dummy_stmt
+
     def as_code(self, type_='iaca'):
         """
         Generate and return compilable source code from AST.
@@ -1056,18 +1167,44 @@ class KernelCode(Kernel):
         parser = CParser()
         template_code = self.CODE_TEMPLATES[type_]
         template_ast = parser.parse(clean_code(template_code, macros=True, comments=True))
-        replace_id(template_ast, "DUMMY_CALLS", c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None))
+        ast = deepcopy(template_ast)
 
-        # TODO define and replace DECLARE_CONSTS
-        # TODO define and replace DECLARE_ARRAYS
-        # TODO define and replace DECLARE_INIT_SCALARS
-        # TODO define and replace DUMMY_CALLS
+        # Define and replace DECLARE_CONSTS
+        replace_id(ast, "DECLARE_CONSTS", self._build_const_declartions())
+
+        # Define and replace DECLARE_ARRAYS
+        replace_id(ast, "DECLARE_ARRAYS", self._build_array_declarations())
+
+        # Define and replace DECLARE_INIT_SCALARS
+        # copy scalar declarations from from kernel ast
+        scalar_declarations = [deepcopy(d) for d in self.kernel_ast
+                              if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+        # add init values to declarations
+        random.seed(2342)  # we want reproducible random numbers
+        for d in scalar_declarations:
+            if d.type.type.names[0] in ['double', 'float']:
+                d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
+            elif d.type.type.names[0] == 'int':
+                d.init = c_ast.Constant('int', 2)
+        replace_id(ast, "DECLARE_INIT_SCALARS", scalar_declarations)
+
+        # Define and replace DUMMY_CALLS
+        replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
+
         # TODO define and replace INIT_ARRAYS_SERIAL
+        replace_id(ast, "INIT_ARRAYS_SERIAL", self._build_array_initializations())
         # TODO define and replace INIT_ARRAYS_OMP
         # TODO define and replace KERNEL_LOOP_NEST_SERIAL
         # TODO define and replace KERNEL_LOOP_NEST_OMP
 
-        random.seed(2342)  # we want reproducible random numbers
+        # Generate code
+        code = CGenerator().visit(ast)
+
+        # Insert missing #includes from template to top of code
+        code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
+               '\n\n' + code
+        print(code)
+
         ast = deepcopy(self.kernel_ast)
         declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
 
@@ -1077,7 +1214,7 @@ class KernelCode(Kernel):
         list(map(transform_array_decl_to_malloc, declarations))
 
         # add declarations for constants to front
-        ast.block_items[:0] = self._constants_declarations()
+        ast.block_items[:0] = self._build_const_declartions()
 
         likwid_init_calls = [
             # likwid_markerInit();
