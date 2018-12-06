@@ -13,9 +13,8 @@ import collections
 from functools import reduce, lru_cache
 import string
 from collections import defaultdict
-from itertools import zip_longest, chain
+from itertools import chain
 import random
-from typing import Dict, Any, Union
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
