@@ -130,7 +130,7 @@ def find_array_references(ast):
     if type(ast) is c_ast.ArrayRef:
         return [ast]
     elif type(ast) is list:
-        return list(map(find_array_references, ast))
+        return reduce(operator.add, list(map(find_array_references, ast)), [])
     elif ast is None:
         return []
     else:
@@ -846,7 +846,10 @@ class KernelCode(Kernel):
                 # Ignore pragmas
                 if type(assgn) is c_ast.Pragma:
                     continue
-                self._p_assignment(assgn)
+                elif type(assgn) is c_ast.Assignment:
+                    self._p_assignment(assgn)
+                else:
+                    raise ValueError("Assignments are only allowed in inner most loop.")
 
     def _p_assignment(self, stmt):
         # Check for restrictions
@@ -923,7 +926,7 @@ class KernelCode(Kernel):
                       // Dummy call
                       DUMMY_CALLS;
 
-                      KERNE_LOOP_NEST_SERIAL;
+                      KERNEL_LOOP_NEST_SERIAL;
 
                       // Dummy call
                       DUMMY_CALLS;
@@ -961,7 +964,7 @@ class KernelCode(Kernel):
                         }
 
                         for(; repeat > 0; --repeat) {
-                          KERNE_LOOP_NEST_SERIAL;
+                          KERNEL_LOOP_NEST_SERIAL;
                           DUMMY_CALLS;
                         }
 
@@ -992,7 +995,7 @@ class KernelCode(Kernel):
                         likwid_marker_threadInit();
 
                         // Initializing arrays in same order as touched in kernel loop nest
-                        INIT_ARRAYS_OMP;
+                        INIT_ARRAYS;
 
                         // Dummy call
                         DUMMY_CALLS;
@@ -1005,7 +1008,7 @@ class KernelCode(Kernel):
                           }
 
                           for(; repeat > 0; --repeat) {
-                            KERNE_LOOP_NEST_OMP;
+                            KERNEL_LOOP_NEST_OMP;
                             DUMMY_CALLS;
                           }
 
@@ -1047,11 +1050,12 @@ class KernelCode(Kernel):
                 if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
 
     def get_kernel_loop_nest(self):
-        """Return kernel loop nest."""
-        for_loops = [s for s in self.kernel_ast
-                     if type(s) is c_ast.For]
-        assert len(for_loops) == 1, "Found to many or to few for loops in kernel"
-        return for_loops[0]
+        """Return kernel loop nest including any preceding pragmas."""
+        loop_nest = [s for s in self.kernel_ast
+                     if type(s) in [c_ast.For, c_ast.Pragma]]
+        assert len(loop_nest) >= 1, "Found to few for statements in kernel"
+        assert type(loop_nest[-1]) is c_ast.For, "Last statement needs to be a for loop"
+        return loop_nest
 
     def _build_array_declarations(self):
         """
@@ -1059,71 +1063,52 @@ class KernelCode(Kernel):
 
         Also transforming multi-dim to 1d arrays and initializing with malloc.
 
-        :return: list of declarations nodes
+        :return: list of declarations nodes, dictionary of array names and original dimensions
         """
         # copy array declarations from from kernel ast
         array_declarations = deepcopy(self.get_array_declarations())
+        array_dict = []
         for d in array_declarations:
             # We need to transform
-            transform_multidim_to_1d_decl(d)
+            array_dict.append(transform_multidim_to_1d_decl(d))
             transform_array_decl_to_malloc(d)
-        return array_declarations
+        return array_declarations, dict(array_dict)
 
-    def _build_array_initializations(self):
+    def _find_inner_most_loop(self, loop_nest):
+        """Return inner most for loop in loop nest"""
+        r = None
+        for s in loop_nest:
+            if type(s) is c_ast.For:
+                return self._find_inner_most_loop(s) or s
+            else:
+                r = r or self._find_inner_most_loop(s)
+        return r
+
+    def _build_array_initializations(self, array_dimensions):
         """
         Generate initialization statements for arrays.
 
+        :param array_dimensions: dictionary of array dimensions
+
         :return: list of nodes
         """
-        array_declarations = self.get_array_declarations()
-        array_initializations = []
-        kernel = self.get_kernel_loop_nest()
+        kernel = deepcopy(self.get_kernel_loop_nest())
+        # traverse to the inner most for loop:
+        inner_most = self._find_inner_most_loop(kernel)
+        orig_inner_stmt = inner_most.stmt
+        inner_most.stmt = c_ast.Compound([])
 
-        
+        rand_float_str = str(random.uniform(1.0, 0.1))
 
-        return array_initializations
+        # find all array references in original orig_inner_stmt
+        for aref in find_array_references(orig_inner_stmt):
+            # transform to 1d references
+            transform_multidim_to_1d_ref(aref, array_dimensions)
+            # build static assignments and inject into inner_most.stmt
+            inner_most.stmt.block_items.append(c_ast.Assignment(
+                '=', aref, c_ast.Constant('float', rand_float_str)))
 
-        for d in array_declarations:
-            # Build ast to inject
-            if array_dimensions[d.name]:
-                # this is an array, we need a for loop to initialize it
-                # for(init; cond; next) stmt
-
-                # Init: int i = 0;
-                counter_name = 'i'
-                while counter_name in array_dimensions:
-                    counter_name = chr(ord(counter_name) + 1)
-
-                init = c_ast.DeclList([
-                    c_ast.Decl(
-                        counter_name, [], [], [], c_ast.TypeDecl(
-                            counter_name, [], c_ast.IdentifierType(['int'])),
-                        c_ast.Constant('int', '0'),
-                        None)],
-                    None)
-
-                # Cond: i < ... (... is length of array)
-                cond = c_ast.BinaryOp(
-                    '<',
-                    c_ast.ID(counter_name),
-                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
-
-                # Next: i++
-                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
-
-                # Statement
-                stmt = c_ast.Assignment(
-                    '=',
-                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
-                    c_ast.Constant('float', str(random.uniform(1.0, 0.1))))
-
-                array_initializations.append(c_ast.For(init, cond, next_, stmt))
-            else:
-                # this is a scalar, so a simple Assignment is enough
-                array_initializations.append(
-                    c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant(
-                                     'float', str(random.uniform(1.0, 0.1)))))
-        return array_initializations
+        return kernel
 
     def _build_dummy_calls(self):
         """
@@ -1173,7 +1158,8 @@ class KernelCode(Kernel):
         replace_id(ast, "DECLARE_CONSTS", self._build_const_declartions())
 
         # Define and replace DECLARE_ARRAYS
-        replace_id(ast, "DECLARE_ARRAYS", self._build_array_declarations())
+        array_declarations, array_dimensions = self._build_array_declarations()
+        replace_id(ast, "DECLARE_ARRAYS", array_declarations)
 
         # Define and replace DECLARE_INIT_SCALARS
         # copy scalar declarations from from kernel ast
@@ -1191,10 +1177,17 @@ class KernelCode(Kernel):
         # Define and replace DUMMY_CALLS
         replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
 
-        # TODO define and replace INIT_ARRAYS_SERIAL
-        replace_id(ast, "INIT_ARRAYS_SERIAL", self._build_array_initializations())
-        # TODO define and replace INIT_ARRAYS_OMP
-        # TODO define and replace KERNEL_LOOP_NEST_SERIAL
+        # Define and replace INIT_ARRAYS
+        replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions))
+
+        # Define and replace KERNEL_LOOP_NEST_SERIAL
+        kernel = deepcopy(self.get_kernel_loop_nest())
+        # find all array references in kernel
+        for aref in find_array_references(kernel):
+            # transform to 1d references
+            transform_multidim_to_1d_ref(aref, array_dimensions)
+        replace_id(ast, "KERNEL_LOOP_NEST_SERIAL", kernel)
+
         # TODO define and replace KERNEL_LOOP_NEST_OMP
 
         # Generate code
@@ -1203,205 +1196,6 @@ class KernelCode(Kernel):
         # Insert missing #includes from template to top of code
         code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
                '\n\n' + code
-        print(code)
-
-        ast = deepcopy(self.kernel_ast)
-        declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
-
-        # transform multi-dimensional declarations to one dimensional references
-        array_dimensions = dict(list(map(transform_multidim_to_1d_decl, declarations)))
-        # transform to pointer and malloc notation (stack can be too small)
-        list(map(transform_array_decl_to_malloc, declarations))
-
-        # add declarations for constants to front
-        ast.block_items[:0] = self._build_const_declartions()
-
-        likwid_init_calls = [
-            # likwid_markerInit();
-            c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None),
-            # likwid_markerRegisterRegion("loop");
-            c_ast.FuncCall(c_ast.ID('likwid_markerRegisterRegion'),
-                           c_ast.ExprList([c_ast.Constant('string', '"loop"')]))]
-        likwid_close_and_finalize_calls = [
-            # likwid_markerStartRegion("loop");
-            c_ast.FuncCall(
-                c_ast.ID('likwid_markerStopRegion'),
-                c_ast.ExprList([c_ast.Constant('string', '"loop"')])),
-            # likwid_markerClose();
-            c_ast.FuncCall(c_ast.ID('likwid_markerClose'), None)]
-        likwid_marker_start_calls = [
-            # likwid_markerStartRegion("loop");
-            c_ast.FuncCall(
-                c_ast.ID('likwid_markerStartRegion'),
-                c_ast.ExprList([c_ast.Constant('string', '"loop"')]))]
-
-        if type_ == 'likwid':
-            ast.block_items[:0] = likwid_init_calls
-            ast.block_items.extend(likwid_close_and_finalize_calls)
-
-        # inject array initialization
-        for d in declarations:
-            i = ast.block_items.index(d)
-
-            # Build ast to inject
-            if array_dimensions[d.name]:
-                # this is an array, we need a for loop to initialize it
-                # for(init; cond; next) stmt
-
-                # Init: int i = 0;
-                counter_name = 'i'
-                while counter_name in array_dimensions:
-                    counter_name = chr(ord(counter_name)+1)
-
-                init = c_ast.DeclList([
-                    c_ast.Decl(
-                        counter_name, [], [], [], c_ast.TypeDecl(
-                            counter_name, [], c_ast.IdentifierType(['int'])),
-                        c_ast.Constant('int', '0'),
-                        None)],
-                    None)
-
-                # Cond: i < ... (... is length of array)
-                cond = c_ast.BinaryOp(
-                    '<',
-                    c_ast.ID(counter_name),
-                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
-
-                # Next: i++
-                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
-
-                # Statement
-                stmt = c_ast.Assignment(
-                    '=',
-                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
-                    c_ast.Constant('float', str(random.uniform(1.0, 0.1))))
-
-                ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
-            else:
-                # this is a scalar, so a simple Assignment is enough
-                ast.block_items.insert(i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant(
-                        'float', str(random.uniform(1.0, 0.1)))))
-
-
-        # Make sure nothing gets removed by inserting dummy calls
-        dummy_calls = []
-        for d in declarations:
-            if array_dimensions[d.name]:
-                dummy_calls.append(c_ast.FuncCall(
-                     c_ast.ID('dummy'),
-                     c_ast.ExprList([c_ast.ID(d.name)])))
-            else:
-                dummy_calls.append(c_ast.FuncCall(
-                     c_ast.ID('dummy'),
-                     c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
-        dummy_stmt = c_ast.If(
-            cond=c_ast.ID('var_false'),
-            iftrue=c_ast.Compound(dummy_calls),
-            iffalse=None)
-
-        # Insert afterdefinitions
-        ast.block_items.insert(i+2, dummy_stmt)
-
-        # transform multi-dimensional array references to one dimensional references
-        list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
-                 find_array_references(ast)))
-
-        if type_ == 'likwid':
-            # Instrument the outer for-loop with likwid
-            # Find last for loop statement
-            for for_idx, block_item in reversed(list(enumerate(ast.block_items))):
-                if type(block_item) is c_ast.For:
-                    break
-            loop_nest = [ast.block_items.pop(for_idx)]
-            # and pragmas are directly before for loop
-            while type(ast.block_items[for_idx-1]) is c_ast.Pragma:
-                for_idx -= 1
-                loop_nest.insert(0, ast.block_items.pop(for_idx))
-
-            # for(; repeat > 0; repeat--) {...}
-            cond = c_ast.BinaryOp('>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
-            next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
-            stmt = c_ast.Compound(loop_nest + [dummy_stmt])
-
-            repeat_loop = c_ast.For(None, cond, next_, stmt)
-
-            # Wrap everything an outer loop for warmup:
-            # for(int warmup = 1; warmup >= 0; --warmup) {
-            #     int repeat = 2;
-            #     if(warmup == 0) {
-            #       likwid_markerStartRegion("loop");
-            #       repeat = atoi(argv[3]);
-            #     }
-            #     ...}
-            warmup_conditions = [
-                # int repeat = 2;
-                c_ast.Decl('repeat', ['const'], [], [],
-                           c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int'])),
-                           c_ast.Constant('int', '2'), None),
-                # if(warmup == 0) { ... }
-                c_ast.If(
-                    cond=c_ast.BinaryOp('==', c_ast.ID('warmup'), c_ast.Constant('int', '0')),
-                    iftrue=c_ast.Compound(
-                        likwid_marker_start_calls +
-                        [# repeat = atoi(argv[3]);
-                        c_ast.Assignment(
-                            '=',
-                            c_ast.ID('repeat'),
-                            c_ast.FuncCall(
-                                c_ast.ID('atoi'),
-                                c_ast.ExprList([c_ast.ArrayRef(
-                                    c_ast.ID('argv'),
-                                    c_ast.Constant('int', str(len(self.constants) + 1)))]))),
-                    ]),
-                    iffalse=None),
-            ]
-
-            type_decl = c_ast.TypeDecl('warmup', [], c_ast.IdentifierType(['int']))
-            init = c_ast.Decl('warmup', ['const'], [], [],
-                              type_decl, c_ast.Constant('int', '1'), None)
-            cond = c_ast.BinaryOp('>=', c_ast.ID('warmup'), c_ast.Constant('int', '0'))
-            next_ = c_ast.UnaryOp('--', c_ast.ID('warmup'))
-            stmt = c_ast.Compound(warmup_conditions+[repeat_loop])
-
-            ast.block_items.insert(-2, c_ast.For(init, cond, next_, stmt))
-        else:
-            ast.block_items.append(dummy_stmt)
-
-        # embed compound into main FuncDecl
-        decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
-            c_ast.Typename(None, [], c_ast.TypeDecl('argc', [], c_ast.IdentifierType(['int']))),
-            c_ast.Typename(None, [], c_ast.PtrDecl([], c_ast.PtrDecl(
-                [], c_ast.TypeDecl('argv', [], c_ast.IdentifierType(['char'])))))]),
-            c_ast.TypeDecl('main', [], c_ast.IdentifierType(['int']))),
-            None, None)
-
-        ast = c_ast.FuncDef(decl, None, ast)
-
-        # embed Compound AST into FileAST
-        ast = c_ast.FileAST([ast])
-
-        # add dummy function declaration
-        decl = c_ast.Decl('dummy', [], [], [], c_ast.FuncDecl(
-            c_ast.ParamList([c_ast.Typename(None, [], c_ast.PtrDecl(
-                [], c_ast.TypeDecl(None, [], c_ast.IdentifierType(['void']))))]),
-            c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
-            None, None)
-        ast.ext.insert(0, decl)
-
-        # add external var_false declaration
-        decl = c_ast.Decl('var_false', [], ['extern'], [], c_ast.TypeDecl(
-                'var_false', [], c_ast.IdentifierType(['int'])
-            ), None, None)
-        ast.ext.insert(1, decl)
-
-        # convert to code string
-        code = CGenerator().visit(ast)
-
-        # add "#include"s for dummy, var_false and stdlib (for malloc)
-        code = '#include <stdlib.h>\n\n' + code
-        code = '#include "kerncraft.h"\n' + code
-        if type_ == 'likwid':
-            code = '#include <likwid.h>\n' + code
 
         return code
 

@@ -71,8 +71,8 @@ def replace_id(ast, id_name, replacement):
                 if type(attr) is list:
                     for i, attr_element in enumerate(attr):
                         if attr_element is a:
-                            if isinstance(replacement, collections.Iterable):
-                                # If replacement is iterable, inject
+                            if type(replacement) is list:
+                                # If replacement is list, inject
                                 attr[i:i+1] = replacement
                             else:
                                 # otherwise replace
