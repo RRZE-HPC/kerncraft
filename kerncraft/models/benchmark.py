@@ -312,7 +312,7 @@ class Benchmark(PerformanceModel):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build(verbose=self.verbose > 1)
+        bench = self.kernel.build(verbose=self.verbose > 1, openmp=self._args.openmp > 1)
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
@@ -323,6 +323,8 @@ class Benchmark(PerformanceModel):
         time_per_repetition = 2.0 / 10.0
         repetitions = self.iterations / 10
         mem_results = {}
+
+        # TODO if cores > 1, run with suitable likwid openmp settings
 
         while runtime < 1.5:
             # Interpolate to a 2.0s run

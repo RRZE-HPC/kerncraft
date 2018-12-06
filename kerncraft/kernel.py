@@ -124,17 +124,23 @@ def transform_array_decl_to_malloc(decl):
     decl.type = type_
 
 
-def find_array_references(ast):
+def find_node_type(ast, node_type):
     """Return list of array references in AST."""
     if type(ast) is c_ast.ArrayRef:
         return [ast]
     elif type(ast) is list:
-        return reduce(operator.add, list(map(find_array_references, ast)), [])
+        return reduce(operator.add, list(map(lambda a: find_node_type(a, node_type), ast)), [])
     elif ast is None:
         return []
     else:
-        return reduce(operator.add, [find_array_references(o[1]) for o in ast.children()], [])
+        return reduce(operator.add,
+                      [find_node_type(o[1], node_type) for o in ast.children()], [])
 
+
+def find_pragmas(ast):
+    """Return list of pragmas in AST."""
+    if type(ast) is c_ast.Pragma:
+        return [ast]
 
 def force_iterable(f):
     """Will make any functions return an iterable objects by wrapping its result in a list."""
@@ -904,121 +910,6 @@ class KernelCode(Kernel):
 
         return sources
 
-    CODE_TEMPLATES = {
-        'iaca': textwrap.dedent("""
-                    #include "kerncraft.h"
-                    #include <stdlib.h>
-
-                    void dummy(void *);
-                    extern int var_false;
-                    int main(int argc, char **argv) {
-                      // Declaring constants
-                      DECLARE_CONSTS;
-                      // Declaring arrays
-                      DECLARE_ARRAYS;
-                      // Declaring and initializing scalars
-                      DECLARE_INIT_SCALARS;
-
-                      // Initializing arrays
-                      INIT_ARRAYS;
-
-                      // Dummy call
-                      DUMMY_CALLS;
-
-                      KERNEL_LOOP_NEST_SERIAL;
-
-                      // Dummy call
-                      DUMMY_CALLS;
-                    }
-                """),
-        'likwid': textwrap.dedent("""
-                    #include <likwid.h>
-                    #include "kerncraft.h"
-                    #include <stdlib.h>
-
-                    void dummy(void *);
-                    extern int var_false;
-                    int main(int argc, char **argv) {
-                      // Declaring constants
-                      DECLARE_CONSTS;
-                      // Declaring arrays
-                      DECLARE_ARRAYS;
-                      // Declaring and initializing scalars
-                      DECLARE_INIT_SCALARS;
-
-                      likwid_markerInit();
-                      likwid_markerRegisterRegion("loop");
-
-                      // Initializing arrays
-                      INIT_ARRAYS;
-
-                      // Dummy call
-                      DUMMY_CALLS;
-
-                      for(int warmup = 1; warmup >= 0; --warmup) {
-                        int repeat = 2;
-                        if(warmup == 0) {
-                          repeat = atoi(argv[1]);
-                          likwid_markerStartRegion("loop");
-                        }
-
-                        for(; repeat > 0; --repeat) {
-                          KERNEL_LOOP_NEST_SERIAL;
-                          DUMMY_CALLS;
-                        }
-
-                      }
-                      likwid_markerStopRegion("loop");
-                      likwid_markerClose();
-                    }
-                """),
-        'openmp-likwid': textwrap.dedent("""
-                    #include <likwid.h>
-                    #include "kerncraft.h"
-                    #include <stdlib.h>
-
-                    void dummy(void *);
-                    extern int var_false;
-                    int main(int argc, char **argv) {
-                      // Declaring constants
-                      DECLARE_CONSTS;
-                      // Declaring arrays
-                      DECLARE_ARRAYS;
-                      // Declaring and initializing scalars
-                      DECLARE_INIT_SCALARS;
-
-                      likwid_markerInit();
-                      likwid_markerRegisterRegion("loop");
-                      #pragma omp parallel
-                      {
-                        likwid_marker_threadInit();
-
-                        // Initializing arrays in same order as touched in kernel loop nest
-                        INIT_ARRAYS;
-
-                        // Dummy call
-                        DUMMY_CALLS;
-
-                        for(int warmup = 1; warmup >= 0; --warmup) {
-                          int repeat = 2;
-                          if(warmup == 0) {
-                            repeat = atoi(argv[1]);
-                            likwid_markerStartRegion("loop");
-                          }
-
-                          for(; repeat > 0; --repeat) {
-                            KERNEL_LOOP_NEST_OMP;
-                            DUMMY_CALLS;
-                          }
-
-                        }
-                        likwid_markerStopRegion("loop");
-                      }
-                      likwid_markerClose();
-                    }
-                """)
-    }
-
     def _build_const_declartions(self):
         """
         Generate constants declarations
@@ -1083,15 +974,16 @@ class KernelCode(Kernel):
                 r = r or self._find_inner_most_loop(s)
         return r
 
-    def _build_array_initializations(self, array_dimensions):
+    def _build_array_initializations(self, array_dimensions, kernel):
         """
         Generate initialization statements for arrays.
 
         :param array_dimensions: dictionary of array dimensions
+        :param kernel: use this kernel as basis
 
         :return: list of nodes
         """
-        kernel = deepcopy(self.get_kernel_loop_nest())
+        kernel = deepcopy(kernel)
         # traverse to the inner most for loop:
         inner_most = self._find_inner_most_loop(kernel)
         orig_inner_stmt = inner_most.stmt
@@ -1100,7 +992,7 @@ class KernelCode(Kernel):
         rand_float_str = str(random.uniform(1.0, 0.1))
 
         # find all array references in original orig_inner_stmt
-        for aref in find_array_references(orig_inner_stmt):
+        for aref in find_node_type(orig_inner_stmt, c_ast.ArrayRef):
             # transform to 1d references
             transform_multidim_to_1d_ref(aref, array_dimensions)
             # build static assignments and inject into inner_most.stmt
@@ -1136,17 +1028,136 @@ class KernelCode(Kernel):
             iffalse=None)
         return dummy_stmt
 
-    def as_code(self, type_='iaca'):
+
+    CODE_TEMPLATES = {
+        'iaca': textwrap.dedent("""
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      // Initializing arrays
+                      INIT_ARRAYS;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+
+                      KERNEL_LOOP_NEST;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+                    }
+                """),
+        'likwid': textwrap.dedent("""
+                    #include <likwid.h>
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      likwid_markerInit();
+                      likwid_markerRegisterRegion("loop");
+
+                      // Initializing arrays
+                      INIT_ARRAYS;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+
+                      for(int warmup = 1; warmup >= 0; --warmup) {
+                        int repeat = 2;
+                        if(warmup == 0) {
+                          repeat = atoi(argv[1]);
+                          likwid_markerStartRegion("loop");
+                        }
+
+                        for(; repeat > 0; --repeat) {
+                          KERNEL_LOOP_NEST;
+                          DUMMY_CALLS;
+                        }
+
+                      }
+                      likwid_markerStopRegion("loop");
+                      likwid_markerClose();
+                    }
+                """),
+        'likwid-openmp': textwrap.dedent("""
+                    #include <likwid.h>
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      likwid_markerInit();
+                      likwid_markerRegisterRegion("loop");
+                      #pragma omp parallel
+                      {
+                        likwid_marker_threadInit();
+
+                        // Initializing arrays in same order as touched in kernel loop nest
+                        INIT_ARRAYS;
+
+                        // Dummy call
+                        DUMMY_CALLS;
+
+                        for(int warmup = 1; warmup >= 0; --warmup) {
+                          int repeat = 2;
+                          if(warmup == 0) {
+                            repeat = atoi(argv[1]);
+                            likwid_markerStartRegion("loop");
+                          }
+
+                          for(; repeat > 0; --repeat) {
+                            KERNEL_LOOP_NEST;
+                            DUMMY_CALLS;
+                          }
+
+                        }
+                        likwid_markerStopRegion("loop");
+                      }
+                      likwid_markerClose();
+                    }
+                """)
+    }
+
+    def as_code(self, type_='iaca', openmp=False):
         """
         Generate and return compilable source code from AST.
 
-        *type* can be iaca, likwid or openmp-likwid.
+        :param type: can be iaca or likwid.
+        :param openmp: if true, openmp code will be generated
         """
         # TODO produce nicer code, including help text and other "comfort features".
-        assert type_ in self.CODE_TEMPLATES, "Only " + list(self.CODE_TEMPLATES.keys()) + \
-                                             " are valid type_ arguments."
+        assert type_ in self.CODE_TEMPLATES, "Only 'iaca' or 'likwid' are valid type_ arguments."
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
+        if openmp:
+            assert type_ == 'likwid', "openmp may only be used in combination with type likwid."
+            type_ += '-openmp'
 
         parser = CParser()
         template_code = self.CODE_TEMPLATES[type_]
@@ -1176,18 +1187,32 @@ class KernelCode(Kernel):
         # Define and replace DUMMY_CALLS
         replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
 
-        # Define and replace INIT_ARRAYS
-        replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions))
+        # Define and replace KERNEL_LOOP_NEST
+        if openmp:
+            # with OpenMP code
+            kernel = deepcopy(self.get_kernel_loop_nest())
+            # find all array references in kernel
+            for aref in find_node_type(kernel, c_ast.ArrayRef):
+                # transform to 1d references
+                transform_multidim_to_1d_ref(aref, array_dimensions)
+            omp_pragmas = [p for p in find_node_type(kernel, c_ast.Pragma)
+                           if 'omp' in p.string]
+            # if no omp for pragmas are present, insert suitable ones
+            if not omp_pragmas:
+                kernel.insert(0, c_ast.Pragma("omp for"))
+            # otherwise do not change anything
+            replace_id(ast, "KERNEL_LOOP_NEST", kernel)
+        else:
+            # with original code
+            kernel = deepcopy(self.get_kernel_loop_nest())
+            # find all array references in kernel
+            for aref in find_node_type(kernel, c_ast.ArrayRef):
+                # transform to 1d references
+                transform_multidim_to_1d_ref(aref, array_dimensions)
+            replace_id(ast, "KERNEL_LOOP_NEST", kernel)
 
-        # Define and replace KERNEL_LOOP_NEST_SERIAL
-        kernel = deepcopy(self.get_kernel_loop_nest())
-        # find all array references in kernel
-        for aref in find_array_references(kernel):
-            # transform to 1d references
-            transform_multidim_to_1d_ref(aref, array_dimensions)
-        replace_id(ast, "KERNEL_LOOP_NEST_SERIAL", kernel)
-
-        # TODO define and replace KERNEL_LOOP_NEST_OMP
+        # Define and replace INIT_ARRAYS based on previously generated kernel
+        replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions, kernel))
 
         # Generate code
         code = CGenerator().visit(ast)
@@ -1322,7 +1347,7 @@ class KernelCode(Kernel):
                                  pointer_increment=pointer_increment, verbose=verbose)
         return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
 
-    def build(self, lflags=None, verbose=False):
+    def build(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
         compiler, compiler_args = self._machine.get_compiler()
 
@@ -1333,7 +1358,7 @@ class KernelCode(Kernel):
         else:
             source_file = open(self._filename+"_compilable.c", 'w')
 
-        source_file.write(self.as_code(type_='likwid'))
+        source_file.write(self.as_code(type_='likwid', openmp=openmp))
         source_file.flush()
 
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
