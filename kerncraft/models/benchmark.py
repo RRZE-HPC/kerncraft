@@ -250,12 +250,13 @@ class Benchmark(PerformanceModel):
             print("You may ignore warnings by adding --ignore-warnings to the command line.")
             sys.exit(1)
 
-    def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
+    def perfctr(self, cmd, group='MEM', code_markers=True):
         """
         Run *cmd* with likwid-perfctr and returns result as dict.
 
         *group* may be a performance group known to likwid-perfctr or an event string.
-        Only works with single core!
+
+        if CLI argument cores > 1, running with multi-core, otherwise single-core
         """
         # Making sure likwid-perfctr is available:
         if find_executable('likwid-perfctr') is None:
@@ -266,13 +267,15 @@ class Benchmark(PerformanceModel):
         # FIXME currently only single core measurements support!
         perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
 
-        if pin:
-            perf_cmd += ['-C', cpu]
-        else:
-            perf_cmd += ['-c', cpu]
+        cpu = '0'
+        if self._args.cores > 1:
+            cpu += '-'+str(self._args.cores-1)
 
-        if code_markers:
-            perf_cmd.append('-m')
+        # Pinned and measured on cpu
+        perf_cmd += ['-C', cpu]
+
+        # code must be marked using likwid markers
+        perf_cmd.append('-m')
 
         perf_cmd += cmd
         if self.verbose > 1:
@@ -283,6 +286,7 @@ class Benchmark(PerformanceModel):
             print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
             sys.exit(1)
 
+        # TODO multicore output is different and needs to be considered here!
         results = {}
         for line in output:
             line = line.split(',')
@@ -312,7 +316,7 @@ class Benchmark(PerformanceModel):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build(verbose=self.verbose > 1, openmp=self._args.openmp > 1)
+        bench = self.kernel.build(verbose=self.verbose > 1, openmp=self._args.cores > 1)
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
@@ -324,7 +328,7 @@ class Benchmark(PerformanceModel):
         repetitions = self.iterations / 10
         mem_results = {}
 
-        # TODO if cores > 1, run with suitable likwid openmp settings
+        # TODO if cores > 1, results are for openmp run. Things might need to be changed here!
 
         while runtime < 1.5:
             # Interpolate to a 2.0s run

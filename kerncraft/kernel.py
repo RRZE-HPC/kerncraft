@@ -126,7 +126,7 @@ def transform_array_decl_to_malloc(decl):
 
 def find_node_type(ast, node_type):
     """Return list of array references in AST."""
-    if type(ast) is c_ast.ArrayRef:
+    if type(ast) is node_type:
         return [ast]
     elif type(ast) is list:
         return reduce(operator.add, list(map(lambda a: find_node_type(a, node_type), ast)), [])
@@ -1220,7 +1220,7 @@ class KernelCode(Kernel):
         # Insert missing #includes from template to top of code
         code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
                '\n\n' + code
-
+        print(code)
         return code
 
     def assemble(self, in_filename, out_filename=None, iaca_markers=True,
