@@ -920,12 +920,12 @@ class KernelCode(Kernel):
 
         i = 2  # subscript for cli input, 1 is reserved for repeat
         for k in self.constants:
-            # const int N = atoi(argv[2])
+            # const size_t N = strtoul(argv[2])
             # with increasing N and 1
             # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
+            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['size_t']))
             init = c_ast.FuncCall(
-                c_ast.ID('atoi'),
+                c_ast.ID('strtoul'),
                 c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
             i += 1
             decls.append(c_ast.Decl(
@@ -1116,7 +1116,7 @@ class KernelCode(Kernel):
                       likwid_markerRegisterRegion("loop");
                       #pragma omp parallel
                       {
-                        likwid_marker_threadInit();
+                        likwid_markerthreadInit();
 
                         // Initializing arrays in same order as touched in kernel loop nest
                         INIT_ARRAYS;
@@ -1220,7 +1220,6 @@ class KernelCode(Kernel):
         # Insert missing #includes from template to top of code
         code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
                '\n\n' + code
-        print(code)
         return code
 
     def assemble(self, in_filename, out_filename=None, iaca_markers=True,
