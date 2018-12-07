@@ -1198,6 +1198,7 @@ class KernelCode(Kernel):
                 transform_multidim_to_1d_ref(aref, array_dimensions)
             omp_pragmas = [p for p in find_node_type(kernel, c_ast.Pragma)
                            if 'omp' in p.string]
+            # TODO if omp parallel was found, remove it (also for parallel for -> for:w)
             # if no omp for pragmas are present, insert suitable ones
             if not omp_pragmas:
                 kernel.insert(0, c_ast.Pragma("omp for"))

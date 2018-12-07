@@ -282,7 +282,7 @@ class Benchmark(PerformanceModel):
         if self.verbose > 1:
             print(' '.join(perf_cmd))
         orig_OMP_NUM_THREADS = os.environ.get('OMP_NUM_THREADS', None)
-        os.environ['OMP_NUM_THREADS'] = str(self._args.cores)
+        del os.environ['OMP_NUM_THREADS']
         try:
             output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
         except subprocess.CalledProcessError as e:
@@ -331,7 +331,7 @@ class Benchmark(PerformanceModel):
         # Determine base runtime with 10 iterations
         runtime = 0.0
         time_per_repetition = 2.0 / 10.0
-        repetitions = self.iterations / 10
+        repetitions = self.iterations // 10
         mem_results = {}
 
         # TODO if cores > 1, results are for openmp run. Things might need to be changed here!
