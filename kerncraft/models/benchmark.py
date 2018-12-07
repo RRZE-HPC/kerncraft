@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Benchmark model and helper functions."""
+import os
 import subprocess
 from functools import reduce
 import operator
@@ -280,11 +281,15 @@ class Benchmark(PerformanceModel):
         perf_cmd += cmd
         if self.verbose > 1:
             print(' '.join(perf_cmd))
+        orig_OMP_NUM_THREADS = os.environ['OMP_NUM_THREADS']
+        os.environ['OMP_NUM_THREADS'] = str(self._args.cores)
         try:
             output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
         except subprocess.CalledProcessError as e:
             print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
             sys.exit(1)
+        finally:
+            os.environ['OMP_NUM_THREADS'] = orig_OMP_NUM_THREADS
 
         # TODO multicore output is different and needs to be considered here!
         results = {}
