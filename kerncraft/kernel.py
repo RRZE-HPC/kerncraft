@@ -567,7 +567,7 @@ class Kernel(object):
 
         return offsets
 
-    def printu_kernel_info(self, output_file=sys.stdout):
+    def print_kernel_info(self, output_file=sys.stdout):
         """Print kernel information in human readble format."""
         table = ('     idx |        min        max       step\n' +
                  '---------+---------------------------------\n')
@@ -1164,7 +1164,7 @@ class KernelCode(Kernel):
         template_ast = parser.parse(clean_code(template_code,
                                                macros=True, comments=True, pragmas=False))
         ast = deepcopy(template_ast)
-        
+
         # Define and replace DECLARE_CONSTS
         replace_id(ast, "DECLARE_CONSTS", self._build_const_declartions())
 
