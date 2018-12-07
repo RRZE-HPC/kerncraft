@@ -1113,10 +1113,10 @@ class KernelCode(Kernel):
                       DECLARE_INIT_SCALARS;
 
                       likwid_markerInit();
-                      likwid_markerRegisterRegion("loop");
                       #pragma omp parallel
                       {
-                        likwid_markerThreadInit();
+                        likwid_markerRegisterRegion("loop");
+                        #pragma omp barrier
 
                         // Initializing arrays in same order as touched in kernel loop nest
                         INIT_ARRAYS;
