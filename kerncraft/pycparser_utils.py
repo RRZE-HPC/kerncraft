@@ -6,26 +6,31 @@ import collections
 from pycparser import c_ast
 
 
-def clean_code(code, comments=True, macros=False):
+def clean_code(code, comments=True, macros=False, pragmas=False):
     """
     Naive comment and macro striping from source code
 
     :param comments: If True, all comments are stripped from code
     :param macros: If True, all macros are stripped from code
+    :param pragmas: If True, all pragmas are stripped from code
 
     :return: cleaned code. Line numbers are preserved with blank lines,
     and multiline comments and macros are supported. BUT comment-like
     strings are (wrongfully) treated as comments.
     """
-    if macros:
+    if macros or pragmas:
         lines = code.split('\n')
         in_macro = False
+        in_pragma = False
         for i in range(len(lines)):
             l = lines[i].strip()
 
-            if l.startswith('#') or in_macro:
+            if macros and (l.startswith('#') and not l.startswith('#pragma') or in_macro):
                 lines[i] = ''
                 in_macro = l.endswith('\\')
+            if pragmas and (l.startswith('#pragma') or in_pragma):
+                lines[i] = ''
+                in_pragma = l.endswith('\\')
         code = '\n'.join(lines)
 
     if comments:
