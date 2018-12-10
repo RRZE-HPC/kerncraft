@@ -44,7 +44,7 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
     sockets = int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topo)[0])
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
     numa_domains_per_socket = \
-        int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0]) / sockets
+        int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0]) // sockets
     cores_per_numa_domain = cores_per_socket // numa_domains_per_socket
     machine = {
         'kerncraft version': __version__,
