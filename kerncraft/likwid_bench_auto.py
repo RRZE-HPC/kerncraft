@@ -45,7 +45,7 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
     cores_per_socket = int(get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topo)[0])
     numa_domains_per_socket = \
         int(get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topo)[0]) / sockets
-    cores_per_numa_domain = cores_per_socket / numa_domains_per_socket
+    cores_per_numa_domain = cores_per_socket // numa_domains_per_socket
     machine = {
         'kerncraft version': __version__,
         'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topo)[0],
@@ -124,9 +124,9 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
         elif line.startswith('Cache groups:'):
             mem_level['groups'] = line.count('(')
             mem_level['cores per group'] = \
-                (machine['cores per socket'] * machine['sockets']) / mem_level['groups']
+                (machine['cores per socket'] * machine['sockets']) // mem_level['groups']
             mem_level['threads per group'] = \
-                mem_level['cores per group'] * machine['threads per core']
+                int(mem_level['cores per group'] * machine['threads per core'])
         mem_level['performance counter metrics'] = {
             'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
             'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
@@ -139,8 +139,8 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
 
     machine['memory hierarchy'].append({
         'level': 'MEM',
-        'cores per group': machine['cores per socket'],
-        'threads per group': machine['threads per core'] * machine['cores per socket'],
+        'cores per group': int(machine['cores per socket']),
+        'threads per group': int(machine['threads per core'] * machine['cores per socket']),
         'non-overlap upstream throughput':
             ['full socket memory bandwidth',
              'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
