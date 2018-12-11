@@ -910,6 +910,26 @@ class KernelCode(Kernel):
 
         return sources
 
+    def get_index_type(self, loop_nest=None):
+        """
+        Return index type used in loop nest.
+
+        If they differ, an exception is raised.
+        """
+        if loop_nest is None:
+            loop_nest = self.get_kernel_loop_nest()
+        if type(loop_nest) is c_ast.For:
+            loop_nest = [loop_nest]
+        index_types = (None, None)
+        for s in loop_nest:
+            if type(s) is c_ast.For:
+                index_types = (s.init.decls[0].type.type.names,
+                               self.get_index_type(loop_nest=s.stmt))
+        if index_types[0] == index_types[1] or index_types[1] is None:
+            return index_types[0]
+        else:
+            raise ValueError("Loop indices must have same type, found {}.".format(index_types))
+
     def _build_const_declartions(self):
         """
         Generate constants declarations
@@ -918,12 +938,15 @@ class KernelCode(Kernel):
         """
         decls = []
 
+        # Use type as provided by user in loop indices
+        index_type = self.get_index_type()
+
         i = 2  # subscript for cli input, 1 is reserved for repeat
         for k in self.constants:
             # const long long N = strtoul(argv[2])
             # with increasing N and 1
             # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['long long']))
+            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(index_type))
             init = c_ast.FuncCall(
                 c_ast.ID('atoll'),
                 c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
@@ -1181,7 +1204,8 @@ class KernelCode(Kernel):
         for d in scalar_declarations:
             if d.type.type.names[0] in ['double', 'float']:
                 d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
-            elif d.type.type.names[0] == 'int':
+            elif d.type.type.names[0] in ['int', 'long', 'long long',
+                                          'unsigned int', 'unsigned long', 'unsigned long long']:
                 d.init = c_ast.Constant('int', 2)
         replace_id(ast, "DECLARE_INIT_SCALARS", scalar_declarations)
 
