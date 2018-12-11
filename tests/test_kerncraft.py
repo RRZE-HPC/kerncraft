@@ -430,7 +430,7 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        # restore enviornment
+        # restore environment
         os.environ = environ_orig
 
         with open(store_file, 'rb') as f:
