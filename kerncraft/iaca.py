@@ -206,6 +206,8 @@ def find_asm_blocks(asm_lines):
 def select_best_block(blocks):
     """Return best block selected based on simple heuristic."""
     # TODO make this cleverer with more stats
+    if not blocks:
+        raise ValueError("No suitable blocks were found in assembly.")
     best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
     if best_block[1]['packed_instr'] == 0:
         best_block = max(blocks,
