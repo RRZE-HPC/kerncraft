@@ -37,6 +37,27 @@ def pprint_nosort():
         pprint._safe_key = orig
 
 
+@contextlib.contextmanager
+def fix_env_variable(name, value):
+    """Fix environment variable to a value within context. Unset if value is None."""
+    orig = os.environ.get(name, None)
+    if value is not None:
+        # Set if value is not None
+        os.environ[name] = value
+    elif name in os.environ:
+        # Unset if value is None
+        del os.environ[name]
+    try:
+        yield
+    finally:
+        if orig is not None:
+            # Restore original value
+            os.environ[name] = orig
+        elif name in os.environ:
+            # Unset
+            del os.environ[name]
+
+
 def group_iterator(group):
     """
     Iterate over simple regex-like groups.
@@ -281,16 +302,12 @@ class Benchmark(PerformanceModel):
         perf_cmd += cmd
         if self.verbose > 1:
             print(' '.join(perf_cmd))
-        orig_OMP_NUM_THREADS = os.environ.get('OMP_NUM_THREADS', None)
-        del os.environ['OMP_NUM_THREADS']
         try:
-            output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
+            with fix_env_variable('OMP_NUM_THREADS', None):
+                output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
         except subprocess.CalledProcessError as e:
             print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
             sys.exit(1)
-        finally:
-            if orig_OMP_NUM_THREADS is not None:
-                os.environ['OMP_NUM_THREADS'] = orig_OMP_NUM_THREADS
 
         # TODO multicore output is different and needs to be considered here!
         results = {}
