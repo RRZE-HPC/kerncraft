@@ -9,6 +9,7 @@ from copy import copy
 import argparse
 from pprint import pformat
 import textwrap
+from collections import OrderedDict
 
 from distutils.spawn import find_executable
 
@@ -59,7 +60,7 @@ def find_asm_blocks(asm_lines):
     """Find blocks probably corresponding to loops in assembly."""
     blocks = []
 
-    last_labels = {}
+    last_labels = OrderedDict()
     packed_ctr = 0
     avx_ctr = 0
     xmm_references = []
@@ -130,6 +131,8 @@ def find_asm_blocks(asm_lines):
                     last_label = label_name
                     last_label_line = label_line
 
+            labels = list(last_labels.keys())
+
             if last_label:
                 # deduce loop increment from memory index register
                 pointer_increment = None  # default -> can not decide, let user choose
@@ -173,7 +176,7 @@ def find_asm_blocks(asm_lines):
                             try:
                                 pointer_increment = mem_scales[0] * increments[idx_reg]
                             except:
-                                print("label", pformat(last_label))
+                                print("labels", pformat(labels[labels.index(last_label):]))
                                 print("lines", pformat(asm_lines[last_label_line:i + 1]))
                                 print("increments", increments)
                                 print("mem_references", pformat(mem_references))
@@ -184,7 +187,7 @@ def find_asm_blocks(asm_lines):
                 blocks.append({'first_line': last_label_line,
                                'last_line': i,
                                'ops': i - last_label_line,
-                               'label': last_label,
+                               'labels': labels[labels.index(last_label):],
                                'packed_instr': packed_ctr,
                                'avx_instr': avx_ctr,
                                'XMM': (len(xmm_references), len(set(xmm_references))),
@@ -210,7 +213,7 @@ def find_asm_blocks(asm_lines):
             gp_references = []
             mem_references = []
             increments = {}
-            last_labels = {}
+            last_labels = OrderedDict()
     return list(enumerate(blocks))
 
 
@@ -248,10 +251,10 @@ def userselect_increment(block):
 def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
-    print("   block   | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
-          "-----------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
+    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
+          "----------------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
     for idx, b in blocks:
-        print('{:>2} {b[label]:>7} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
+        print('{:>2} {b[labels]!r:>12} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[ZMM][0]:>3} ({b[ZMM][1]:>2}) | '
               '{b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
               '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '
