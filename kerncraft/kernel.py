@@ -948,7 +948,7 @@ class KernelCode(Kernel):
             # TODO change subscript of argv depending on constant count
             type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(index_type))
             init = c_ast.FuncCall(
-                c_ast.ID('atoll'),
+                c_ast.ID('atoi'),
                 c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
             i += 1
             decls.append(c_ast.Decl(
