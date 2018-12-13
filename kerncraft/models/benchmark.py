@@ -337,8 +337,7 @@ class Benchmark(PerformanceModel):
                     results[line[0]][line[1]] = counter_value
             except (IndexError, ValueError):
                 pass
-        from IPython import embed
-        embed()
+
         return results
 
     def analyze(self):
