@@ -233,8 +233,12 @@ class Benchmark(PerformanceModel):
             self.verbose = verbose
             self.iterations = 10
 
-        print("Info: If this takes too long and a phenological ECM model is not required, run with "
-              "--no-phenoecm.", file=sys.stderr)
+        if self._args.cores > 1 and not self.no_phenoecm:
+            print("Info: phenological ECM model can only be created with a single core benchmark.")
+            self.no_phenoecm = True
+        elif not self.no_phenoecm:
+            print("Info: If this takes too long and a phenological ECM model is not required, run "
+                  "with --no-phenoecm.", file=sys.stderr)
 
         warning = False
         cpuinfo = ''
@@ -324,7 +328,6 @@ class Benchmark(PerformanceModel):
                 continue
             try:
                 # Event counters
-                # Event counters
                 if line[2] == '-' or line[2] == 'nan':
                     counter_value = 0
                 else:
@@ -334,7 +337,8 @@ class Benchmark(PerformanceModel):
                     results[line[0]][line[1]] = counter_value
             except (IndexError, ValueError):
                 pass
-
+        from IPython import embed
+        embed()
         return results
 
     def analyze(self):
@@ -366,7 +370,7 @@ class Benchmark(PerformanceModel):
         raw_results = [mem_results]
 
         # Gather remaining counters
-        if not self.no_phenoecm:
+        if not self.no_phenoecm and self._args.cores == 1:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
