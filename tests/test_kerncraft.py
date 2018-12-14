@@ -27,8 +27,8 @@ def assert_relativly_equal(actual, desired, rel_diff=0.0):
         # Catching NaN, inf and 0
         return
     if not abs(actual - desired) / abs(desired) % 1.0 <= rel_diff:
-        raise AssertionError("relative difference of {} was not met. Expected {!r} and get "
-                             "{!r}.".format(actual, desired, rel_diff))
+        raise AssertionError("relative difference was not met with {}. Expected {!r} with rel. "
+                             "difference of {!r}.".format(actual, desired, rel_diff))
 
 
 class TestKerncraft(unittest.TestCase):
@@ -430,7 +430,7 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        # restore enviornment
+        # restore environment
         os.environ = environ_orig
 
         with open(store_file, 'rb') as f:

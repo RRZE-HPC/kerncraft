@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Representation of computational kernel for performance model analysis and helper functions."""
+import textwrap
 from copy import deepcopy
 import operator
 import tempfile
@@ -12,7 +13,7 @@ import collections
 from functools import reduce, lru_cache
 import string
 from collections import defaultdict
-from itertools import zip_longest, chain
+from itertools import chain
 import random
 
 import sympy
@@ -24,6 +25,7 @@ from pycparser import CParser, c_ast, plyparser
 from pycparser.c_generator import CGenerator
 
 from . import iaca
+from .pycparser_utils import clean_code, replace_id
 
 
 @lru_cache()
@@ -122,17 +124,23 @@ def transform_array_decl_to_malloc(decl):
     decl.type = type_
 
 
-def find_array_references(ast):
+def find_node_type(ast, node_type):
     """Return list of array references in AST."""
-    if type(ast) is c_ast.ArrayRef:
+    if type(ast) is node_type:
         return [ast]
     elif type(ast) is list:
-        return list(map(find_array_references, ast))
+        return reduce(operator.add, list(map(lambda a: find_node_type(a, node_type), ast)), [])
     elif ast is None:
         return []
     else:
-        return reduce(operator.add, [find_array_references(o[1]) for o in ast.children()], [])
+        return reduce(operator.add,
+                      [find_node_type(o[1], node_type) for o in ast.children()], [])
 
+
+def find_pragmas(ast):
+    """Return list of pragmas in AST."""
+    if type(ast) is c_ast.Pragma:
+        return [ast]
 
 def force_iterable(f):
     """Will make any functions return an iterable objects by wrapping its result in a list."""
@@ -843,7 +851,10 @@ class KernelCode(Kernel):
                 # Ignore pragmas
                 if type(assgn) is c_ast.Pragma:
                     continue
-                self._p_assignment(assgn)
+                elif type(assgn) is c_ast.Assignment:
+                    self._p_assignment(assgn)
+                else:
+                    raise ValueError("Assignments are only allowed in inner most loop.")
 
     def _p_assignment(self, stmt):
         # Check for restrictions
@@ -899,219 +910,342 @@ class KernelCode(Kernel):
 
         return sources
 
-    def as_code(self, type_='iaca'):
+    def get_index_type(self, loop_nest=None):
         """
-        Generate and return compilable source code from AST.
+        Return index type used in loop nest.
 
-        *type* can be iaca or likwid.
+        If they differ, an exception is raised.
         """
-        # TODO produce nicer code, including help text and other "comfort features".
-        assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
-                                            "of kernel description rather than code."
-        random.seed(2342)  # we want reproducible random numbers
-        ast = deepcopy(self.kernel_ast)
-        declarations = [d for d in ast.block_items if type(d) is c_ast.Decl]
+        if loop_nest is None:
+            loop_nest = self.get_kernel_loop_nest()
+        if type(loop_nest) is c_ast.For:
+            loop_nest = [loop_nest]
+        index_types = (None, None)
+        for s in loop_nest:
+            if type(s) is c_ast.For:
+                index_types = (s.init.decls[0].type.type.names,
+                               self.get_index_type(loop_nest=s.stmt))
+        if index_types[0] == index_types[1] or index_types[1] is None:
+            return index_types[0]
+        else:
+            raise ValueError("Loop indices must have same type, found {}.".format(index_types))
 
-        # transform multi-dimensional declarations to one dimensional references
-        array_dimensions = dict(list(map(transform_multidim_to_1d_decl, declarations)))
-        # transform to pointer and malloc notation (stack can be too small)
-        list(map(transform_array_decl_to_malloc, declarations))
+    def _build_const_declartions(self):
+        """
+        Generate constants declarations
 
-        # add declarations for constants
-        i = 1  # subscript for cli input
+        :return: list of declarations
+        """
+        decls = []
+
+        # Use type as provided by user in loop indices
+        index_type = self.get_index_type()
+
+        i = 2  # subscript for cli input, 1 is reserved for repeat
         for k in self.constants:
-            # cont int N = atoi(argv[1])
+            # const long long N = strtoul(argv[2])
+            # with increasing N and 1
             # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(['int']))
+            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(index_type))
             init = c_ast.FuncCall(
                 c_ast.ID('atoi'),
                 c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
             i += 1
-            ast.block_items.insert(0, c_ast.Decl(
+            decls.append(c_ast.Decl(
                 k.name, ['const'], [], [],
                 type_decl, init, None))
 
-        if type_ == 'likwid':
-            # Call likwid_markerInit()
-            ast.block_items.insert(0, c_ast.FuncCall(c_ast.ID('likwid_markerInit'), None))
-            # Call likwid_markerRegisterRegion("loop")
-            ast.block_items.insert(1, c_ast.FuncCall(c_ast.ID('likwid_markerRegisterRegion'),
-                                                     c_ast.ExprList(
-                                                         [c_ast.Constant('string', '"loop"')])))
-            # Call likwid_markerClose()
-            ast.block_items.append(c_ast.FuncCall(c_ast.ID('likwid_markerClose'), None))
+        return decls
 
-        # inject array initialization
-        for d in declarations:
-            i = ast.block_items.index(d)
+    def get_array_declarations(self):
+        """Return array declarations."""
+        return [d for d in self.kernel_ast
+                if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
 
-            # Build ast to inject
-            if array_dimensions[d.name]:
-                # this is an array, we need a for loop to initialize it
-                # for(init; cond; next) stmt
+    def get_kernel_loop_nest(self):
+        """Return kernel loop nest including any preceding pragmas."""
+        loop_nest = [s for s in self.kernel_ast
+                     if type(s) in [c_ast.For, c_ast.Pragma]]
+        assert len(loop_nest) >= 1, "Found to few for statements in kernel"
+        assert type(loop_nest[-1]) is c_ast.For, "Last statement needs to be a for loop"
+        return loop_nest
 
-                # Init: int i = 0;
-                counter_name = 'i'
-                while counter_name in array_dimensions:
-                    counter_name = chr(ord(counter_name)+1)
+    def _build_array_declarations(self):
+        """
+        Generate declaration statements for arrays.
 
-                init = c_ast.DeclList([
-                    c_ast.Decl(
-                        counter_name, [], [], [], c_ast.TypeDecl(
-                            counter_name, [], c_ast.IdentifierType(['int'])),
-                        c_ast.Constant('int', '0'),
-                        None)],
-                    None)
+        Also transforming multi-dim to 1d arrays and initializing with malloc.
 
-                # Cond: i < ... (... is length of array)
-                cond = c_ast.BinaryOp(
-                    '<',
-                    c_ast.ID(counter_name),
-                    reduce(lambda l, r: c_ast.BinaryOp('*', l, r), array_dimensions[d.name]))
+        :return: list of declarations nodes, dictionary of array names and original dimensions
+        """
+        # copy array declarations from from kernel ast
+        array_declarations = deepcopy(self.get_array_declarations())
+        array_dict = []
+        for d in array_declarations:
+            # We need to transform
+            array_dict.append(transform_multidim_to_1d_decl(d))
+            transform_array_decl_to_malloc(d)
+        return array_declarations, dict(array_dict)
 
-                # Next: i++
-                next_ = c_ast.UnaryOp('++', c_ast.ID(counter_name))
-
-                # Statement
-                stmt = c_ast.Assignment(
-                    '=',
-                    c_ast.ArrayRef(c_ast.ID(d.name), c_ast.ID(counter_name)),
-                    c_ast.Constant('float', str(random.uniform(1.0, 0.1))))
-
-                ast.block_items.insert(i+1, c_ast.For(init, cond, next_, stmt))
+    def _find_inner_most_loop(self, loop_nest):
+        """Return inner most for loop in loop nest"""
+        r = None
+        for s in loop_nest:
+            if type(s) is c_ast.For:
+                return self._find_inner_most_loop(s) or s
             else:
-                # this is a scalar, so a simple Assignment is enough
-                ast.block_items.insert(i+1, c_ast.Assignment('=', c_ast.ID(d.name), c_ast.Constant(
-                        'float', str(random.uniform(1.0, 0.1)))))
+                r = r or self._find_inner_most_loop(s)
+        return r
 
+    def _build_array_initializations(self, array_dimensions, kernel):
+        """
+        Generate initialization statements for arrays.
 
+        :param array_dimensions: dictionary of array dimensions
+        :param kernel: use this kernel as basis
+
+        :return: list of nodes
+        """
+        kernel = deepcopy(kernel)
+        # traverse to the inner most for loop:
+        inner_most = self._find_inner_most_loop(kernel)
+        orig_inner_stmt = inner_most.stmt
+        inner_most.stmt = c_ast.Compound([])
+
+        rand_float_str = str(random.uniform(1.0, 0.1))
+
+        # find all array references in original orig_inner_stmt
+        for aref in find_node_type(orig_inner_stmt, c_ast.ArrayRef):
+            # transform to 1d references
+            transform_multidim_to_1d_ref(aref, array_dimensions)
+            # build static assignments and inject into inner_most.stmt
+            inner_most.stmt.block_items.append(c_ast.Assignment(
+                '=', aref, c_ast.Constant('float', rand_float_str)))
+
+        return kernel
+
+    def _build_dummy_calls(self):
+        """
+        Generate false if branch with dummy calls
+
+        Requires kerncraft.h to be included, which defines dummy(...) and var_false.
+
+        :return: dummy statement
+        """
         # Make sure nothing gets removed by inserting dummy calls
         dummy_calls = []
-        for d in declarations:
-            if array_dimensions[d.name]:
+        for d in self.kernel_ast.block_items:
+            # Only consider toplevel declarations from kernel ast
+            if type(d) is not c_ast.Decl: continue
+            if type(d.type) is c_ast.ArrayDecl:
                 dummy_calls.append(c_ast.FuncCall(
-                     c_ast.ID('dummy'),
-                     c_ast.ExprList([c_ast.ID(d.name)])))
+                    c_ast.ID('dummy'),
+                    c_ast.ExprList([c_ast.ID(d.name)])))
             else:
                 dummy_calls.append(c_ast.FuncCall(
-                     c_ast.ID('dummy'),
-                     c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
+                    c_ast.ID('dummy'),
+                    c_ast.ExprList([c_ast.UnaryOp('&', c_ast.ID(d.name))])))
         dummy_stmt = c_ast.If(
             cond=c_ast.ID('var_false'),
             iftrue=c_ast.Compound(dummy_calls),
             iffalse=None)
+        return dummy_stmt
 
-        # Insert after definitions
-        ast.block_items.insert(i+2, dummy_stmt)
 
-        # transform multi-dimensional array references to one dimensional references
-        list(map(lambda aref: transform_multidim_to_1d_ref(aref, array_dimensions),
-                 find_array_references(ast)))
+    CODE_TEMPLATES = {
+        'iaca': textwrap.dedent("""
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
 
-        if type_ == 'likwid':
-            # Instrument the outer for-loop with likwid
-            # Find last for loop statement
-            for for_idx, block_item in reversed(list(enumerate(ast.block_items))):
-                if type(block_item) is c_ast.For:
-                    break
-            loop_nest = [ast.block_items.pop(for_idx)]
-            # and pragmas are directly before for loop
-            while type(ast.block_items[for_idx-1]) is c_ast.Pragma:
-                for_idx -= 1
-                loop_nest.insert(0, ast.block_items.pop(for_idx))
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
 
-            # for(; repeat > 0; repeat--) {...}
-            cond = c_ast.BinaryOp('>', c_ast.ID('repeat'), c_ast.Constant('int', '0'))
-            next_ = c_ast.UnaryOp('--', c_ast.ID('repeat'))
-            stmt = c_ast.Compound(loop_nest + [dummy_stmt])
+                      // Initializing arrays
+                      INIT_ARRAYS;
 
-            repeat_loop = c_ast.For(None, cond, next_, stmt)
+                      // Dummy call
+                      DUMMY_CALLS;
 
-            # Wrap everything an outer loop for warmup:
-            # for(int warmup = 1; warmup >= 0; --warmup) {
-            #     int repeat = 2;
-            #     if(warmup == 0) {
-            #       likwid_markerStartRegion("loop");
-            #       repeat = atoi(argv[3]);
-            #     }
-            #     ...}
-            warmup_conditions = [
-                # int repeat = 2;
-                c_ast.Decl('repeat', ['const'], [], [],
-                           c_ast.TypeDecl('repeat', [], c_ast.IdentifierType(['int'])),
-                           c_ast.Constant('int', '2'), None),
-                # if(warmup == 0) { ... }
-                c_ast.If(
-                    cond=c_ast.BinaryOp('==', c_ast.ID('warmup'), c_ast.Constant('int', '0')),
-                    iftrue=c_ast.Compound([
-                        # likwid_markerStartRegion("loop");
-                        c_ast.FuncCall(
-                            c_ast.ID('likwid_markerStartRegion'),
-                            c_ast.ExprList([c_ast.Constant('string', '"loop"')])),
-                        # repeat = atoi(argv[3]);
-                        c_ast.Assignment(
-                            '=',
-                            c_ast.ID('repeat'),
-                            c_ast.FuncCall(
-                                c_ast.ID('atoi'),
-                                c_ast.ExprList([c_ast.ArrayRef(
-                                    c_ast.ID('argv'),
-                                    c_ast.Constant('int', str(len(self.constants) + 1)))]))),
-                    ]),
-                    iffalse=None),
-            ]
+                      KERNEL_LOOP_NEST;
 
-            type_decl = c_ast.TypeDecl('warmup', [], c_ast.IdentifierType(['int']))
-            init = c_ast.Decl('warmup', ['const'], [], [],
-                              type_decl, c_ast.Constant('int', '1'), None)
-            cond = c_ast.BinaryOp('>=', c_ast.ID('warmup'), c_ast.Constant('int', '0'))
-            next_ = c_ast.UnaryOp('--', c_ast.ID('warmup'))
-            stmt = c_ast.Compound(warmup_conditions+[repeat_loop])
+                      // Dummy call
+                      DUMMY_CALLS;
+                    }
+                """),
+        'likwid': textwrap.dedent("""
+                    #include <likwid.h>
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
 
-            ast.block_items.insert(-1, c_ast.For(init, cond, next_, stmt))
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
 
-            ast.block_items.insert(-1, c_ast.FuncCall(
-                c_ast.ID('likwid_markerStopRegion'),
-                c_ast.ExprList([c_ast.Constant('string', '"loop"')])))
+                      likwid_markerInit();
+                      likwid_markerRegisterRegion("loop");
+
+                      // Initializing arrays
+                      INIT_ARRAYS;
+
+                      // Dummy call
+                      DUMMY_CALLS;
+
+                      for(int warmup = 1; warmup >= 0; --warmup) {
+                        int repeat = 2;
+                        if(warmup == 0) {
+                          repeat = atoi(argv[1]);
+                          likwid_markerStartRegion("loop");
+                        }
+
+                        for(; repeat > 0; --repeat) {
+                          KERNEL_LOOP_NEST;
+                          DUMMY_CALLS;
+                        }
+
+                      }
+                      likwid_markerStopRegion("loop");
+                      likwid_markerClose();
+                    }
+                """),
+        'likwid-openmp': textwrap.dedent("""
+                    #include <likwid.h>
+                    #include "kerncraft.h"
+                    #include <stdlib.h>
+
+                    void dummy(void *);
+                    extern int var_false;
+                    int main(int argc, char **argv) {
+                      // Declaring constants
+                      DECLARE_CONSTS;
+                      // Declaring arrays
+                      DECLARE_ARRAYS;
+                      // Declaring and initializing scalars
+                      DECLARE_INIT_SCALARS;
+
+                      likwid_markerInit();
+                      #pragma omp parallel
+                      {
+                        likwid_markerRegisterRegion("loop");
+                        #pragma omp barrier
+
+                        // Initializing arrays in same order as touched in kernel loop nest
+                        INIT_ARRAYS;
+
+                        // Dummy call
+                        DUMMY_CALLS;
+
+                        for(int warmup = 1; warmup >= 0; --warmup) {
+                          int repeat = 2;
+                          if(warmup == 0) {
+                            repeat = atoi(argv[1]);
+                            likwid_markerStartRegion("loop");
+                          }
+
+                          for(; repeat > 0; --repeat) {
+                            KERNEL_LOOP_NEST;
+                            DUMMY_CALLS;
+                          }
+
+                        }
+                        likwid_markerStopRegion("loop");
+                      }
+                      likwid_markerClose();
+                    }
+                """)
+    }
+
+    def as_code(self, type_='iaca', openmp=False):
+        """
+        Generate and return compilable source code from AST.
+
+        :param type: can be iaca or likwid.
+        :param openmp: if true, openmp code will be generated
+        """
+        # TODO produce nicer code, including help text and other "comfort features".
+        assert type_ in self.CODE_TEMPLATES, "Only 'iaca' or 'likwid' are valid type_ arguments."
+        assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
+                                            "based on a kernel description rather than code."
+        if openmp:
+            assert type_ == 'likwid', "openmp may only be used in combination with type likwid."
+            type_ += '-openmp'
+
+        parser = CParser()
+        template_code = self.CODE_TEMPLATES[type_]
+        template_ast = parser.parse(clean_code(template_code,
+                                               macros=True, comments=True, pragmas=False))
+        ast = deepcopy(template_ast)
+
+        # Define and replace DECLARE_CONSTS
+        replace_id(ast, "DECLARE_CONSTS", self._build_const_declartions())
+
+        # Define and replace DECLARE_ARRAYS
+        array_declarations, array_dimensions = self._build_array_declarations()
+        replace_id(ast, "DECLARE_ARRAYS", array_declarations)
+
+        # Define and replace DECLARE_INIT_SCALARS
+        # copy scalar declarations from from kernel ast
+        scalar_declarations = [deepcopy(d) for d in self.kernel_ast
+                              if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+        # add init values to declarations
+        random.seed(2342)  # we want reproducible random numbers
+        for d in scalar_declarations:
+            if d.type.type.names[0] in ['double', 'float']:
+                d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
+            elif d.type.type.names[0] in ['int', 'long', 'long long',
+                                          'unsigned int', 'unsigned long', 'unsigned long long']:
+                d.init = c_ast.Constant('int', 2)
+        replace_id(ast, "DECLARE_INIT_SCALARS", scalar_declarations)
+
+        # Define and replace DUMMY_CALLS
+        replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
+
+        # Define and replace KERNEL_LOOP_NEST
+        if openmp:
+            # with OpenMP code
+            kernel = deepcopy(self.get_kernel_loop_nest())
+            # find all array references in kernel
+            for aref in find_node_type(kernel, c_ast.ArrayRef):
+                # transform to 1d references
+                transform_multidim_to_1d_ref(aref, array_dimensions)
+            omp_pragmas = [p for p in find_node_type(kernel, c_ast.Pragma)
+                           if 'omp' in p.string]
+            # TODO if omp parallel was found, remove it (also for parallel for -> for:w)
+            # if no omp for pragmas are present, insert suitable ones
+            if not omp_pragmas:
+                kernel.insert(0, c_ast.Pragma("omp for"))
+            # otherwise do not change anything
+            replace_id(ast, "KERNEL_LOOP_NEST", kernel)
         else:
-            ast.block_items.append(dummy_stmt)
+            # with original code
+            kernel = deepcopy(self.get_kernel_loop_nest())
+            # find all array references in kernel
+            for aref in find_node_type(kernel, c_ast.ArrayRef):
+                # transform to 1d references
+                transform_multidim_to_1d_ref(aref, array_dimensions)
+            replace_id(ast, "KERNEL_LOOP_NEST", kernel)
 
-        # embed compound into main FuncDecl
-        decl = c_ast.Decl('main', [], [], [], c_ast.FuncDecl(c_ast.ParamList([
-            c_ast.Typename(None, [], c_ast.TypeDecl('argc', [], c_ast.IdentifierType(['int']))),
-            c_ast.Typename(None, [], c_ast.PtrDecl([], c_ast.PtrDecl(
-                [], c_ast.TypeDecl('argv', [], c_ast.IdentifierType(['char'])))))]),
-            c_ast.TypeDecl('main', [], c_ast.IdentifierType(['int']))),
-            None, None)
+        # Define and replace INIT_ARRAYS based on previously generated kernel
+        replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions, kernel))
 
-        ast = c_ast.FuncDef(decl, None, ast)
-
-        # embed Compound AST into FileAST
-        ast = c_ast.FileAST([ast])
-
-        # add dummy function declaration
-        decl = c_ast.Decl('dummy', [], [], [], c_ast.FuncDecl(
-            c_ast.ParamList([c_ast.Typename(None, [], c_ast.PtrDecl(
-                [], c_ast.TypeDecl(None, [], c_ast.IdentifierType(['void']))))]),
-            c_ast.TypeDecl('dummy', [], c_ast.IdentifierType(['void']))),
-            None, None)
-        ast.ext.insert(0, decl)
-
-        # add external var_false declaration
-        decl = c_ast.Decl('var_false', [], ['extern'], [], c_ast.TypeDecl(
-                'var_false', [], c_ast.IdentifierType(['int'])
-            ), None, None)
-        ast.ext.insert(1, decl)
-
-        # convert to code string
+        # Generate code
         code = CGenerator().visit(ast)
 
-        # add "#include"s for dummy, var_false and stdlib (for malloc)
-        code = '#include <stdlib.h>\n\n' + code
-        code = '#include "kerncraft.h"\n' + code
-        if type_ == 'likwid':
-            code = '#include <likwid.h>\n' + code
-
+        # Insert missing #includes from template to top of code
+        code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
+               '\n\n' + code
         return code
 
     def assemble(self, in_filename, out_filename=None, iaca_markers=True,
@@ -1238,7 +1372,7 @@ class KernelCode(Kernel):
                                  pointer_increment=pointer_increment, verbose=verbose)
         return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), self.asm_block
 
-    def build(self, lflags=None, verbose=False):
+    def build(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
         compiler, compiler_args = self._machine.get_compiler()
 
@@ -1249,7 +1383,7 @@ class KernelCode(Kernel):
         else:
             source_file = open(self._filename+"_compilable.c", 'w')
 
-        source_file.write(self.as_code(type_='likwid'))
+        source_file.write(self.as_code(type_='likwid', openmp=openmp))
         source_file.flush()
 
         if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
