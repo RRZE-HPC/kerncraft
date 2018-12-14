@@ -369,7 +369,7 @@ class Benchmark(PerformanceModel):
         raw_results = [mem_results]
 
         # Gather remaining counters
-        if not self.no_phenoecm and self._args.cores == 1:
+        if not self.no_phenoecm:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
