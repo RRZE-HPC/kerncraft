@@ -27,8 +27,8 @@ def assert_relativly_equal(actual, desired, rel_diff=0.0):
         # Catching NaN, inf and 0
         return
     if not abs(actual - desired) / abs(desired) % 1.0 <= rel_diff:
-        raise AssertionError("relative difference of {} was not met. Expected {!r} and get "
-                             "{!r}.".format(actual, desired, rel_diff))
+        raise AssertionError("relative difference was not met with {}. Expected {!r} with rel. "
+                             "difference of {!r}.".format(actual, desired, rel_diff))
 
 
 class TestKerncraft(unittest.TestCase):
@@ -170,35 +170,38 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['Roofline'])
 
         roofline = result['Roofline']
-        assert_relativly_equal(roofline['min performance'], 5115000000.0, 0.01)
+        assert_relativly_equal(roofline['min performance']['FLOP/s'], 5115000000.0, 0.01)
         self.assertEqual(roofline['bottleneck level'], 1)
 
-        expected_btlncks = [{u'arithmetic intensity': 0.11764705882352941,
-                             u'bandwidth': PrefixedUnit(81.61, u'G', u'B/s'),
-                             u'bw kernel': 'triad',
-                             u'level': u'L1',
-                             u'performance': PrefixedUnit(9601176470.588236, u'', u'FLOP/s')
+        expected_btlncks = [{'arithmetic intensity': 0.11764705882352941,
+                             'bandwidth': PrefixedUnit(81.61, u'G', u'B/s'),
+                             'bw kernel': 'triad',
+                             'level': u'L1',
+                             'performance': PrefixedUnit(9601176470.588236, u'', u'FLOP/s')
                              },
-                            {u'arithmetic intensity': 0.1,
-                             u'bandwidth': PrefixedUnit(51.15, u'G', u'B/s'),
-                             u'bw kernel': 'triad',
-                             u'level': u'L2',
-                             u'performance': PrefixedUnit(5115000000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': 1.0 / 6.0,
-                             u'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
-                             u'bw kernel': 'copy',
-                             u'level': u'L3',
-                             u'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},
-                            {u'arithmetic intensity': float('inf'),
-                             u'bandwidth': PrefixedUnit(12.01, u'G', u'B/s'),
-                             u'bw kernel': 'load',
-                             u'level': u'MEM',
-                             u'performance': PrefixedUnit(float('inf'), u'', u'FLOP/s')}]
+                            {'arithmetic intensity': 0.1,
+                             'bandwidth': PrefixedUnit(51.15, u'G', u'B/s'),
+                             'bw kernel': 'triad',
+                             'level': u'L2',
+                             'performance': PrefixedUnit(5115000000.0, u'', u'FLOP/s')},
+                            {'arithmetic intensity': 1.0 / 6.0,
+                             'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
+                             'bw kernel': 'copy',
+                             'level': u'L3',
+                             'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},
+                            {'arithmetic intensity': float('inf'),
+                             'bandwidth': PrefixedUnit(12.01, u'G', u'B/s'),
+                             'bw kernel': 'load',
+                             'level': u'MEM',
+                             'performance': PrefixedUnit(float('inf'), u'', u'FLOP/s')}]
 
         for i, btlnck in enumerate(expected_btlncks):
             for k, v in btlnck.items():
                 if type(v) is not str:
-                    assert_relativly_equal(roofline['mem bottlenecks'][i][k], v, 0.05)
+                    if k == 'performance':
+                        assert_relativly_equal(roofline['mem bottlenecks'][i][k]['FLOP/s'], v, 0.05)
+                    else:
+                        assert_relativly_equal(roofline['mem bottlenecks'][i][k], v, 0.05)
                 else:
                     self.assertEqual(roofline['mem bottlenecks'][i][k], v)
 
@@ -401,7 +404,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['RooflineIACA'])
 
         roofline = result['RooflineIACA']
-        assert_relativly_equal(roofline['min performance'], 2900000000.0, 0.05)
+        assert_relativly_equal(roofline['min performance']['FLOP/s'], 2900000000.0, 0.05)
         self.assertEqual(roofline['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -430,7 +433,7 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
-        # restore enviornment
+        # restore environment
         os.environ = environ_orig
 
         with open(store_file, 'rb') as f:

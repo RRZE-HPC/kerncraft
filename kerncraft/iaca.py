@@ -9,6 +9,7 @@ from copy import copy
 import argparse
 from pprint import pformat
 import textwrap
+from collections import OrderedDict
 
 from distutils.spawn import find_executable
 from osaca.osaca import OSACA
@@ -60,8 +61,7 @@ def find_asm_blocks(asm_lines):
     """Find blocks probably corresponding to loops in assembly."""
     blocks = []
 
-    last_label_line = -1
-    last_label = None
+    last_labels = OrderedDict()
     packed_ctr = 0
     avx_ctr = 0
     xmm_references = []
@@ -92,8 +92,8 @@ def find_asm_blocks(asm_lines):
                 avx_ctr += 1
             packed_ctr += 1
         elif re.match(r'^\S+:', line):
-            last_label = line[0:line.find(':')]
-            last_label_line = i
+            # last_labels[label_name] = line_number
+            last_labels[line[0:line.find(':')]] =i
 
             # Reset counters
             packed_ctr = 0
@@ -120,78 +120,91 @@ def find_asm_blocks(asm_lines):
             const_end = line[const_start + 1:].find(',') + const_start + 1
             reg_start = line.find('%') + 1
             increments[line[reg_start:]] = -int(line[const_start:const_end])
-        elif last_label and re.match(r'^j[a-z]+\s+' + re.escape(last_label) + r'\s*', line):
-            # End of block
-            # deduce loop increment from memory index register
-            pointer_increment = None  # default -> can not decide, let user choose
-            possible_idx_regs = None
-            if mem_references:
-                # we found memory references to work with
+        elif last_labels and re.match(r'^j[a-z]+\s+\S+\s*', line):
+            # End of block(s) due to jump
 
-                # If store accesses exist, consider only those
-                store_references = [mref for mref in mem_references
-                                    if mref[4] == 'store']
-                refs = store_references or mem_references
+            # Check if jump target matches any previously recoded label
+            last_label = None
+            last_label_line = -1
+            for label_name, label_line in last_labels.items():
+                if re.match(r'^j[a-z]+\s+' + re.escape(label_name) + r'\s*', line):
+                    # matched
+                    last_label = label_name
+                    last_label_line = label_line
 
-                possible_idx_regs = list(set(increments.keys()).intersection(
-                    set([r[1] for r in refs if r[1] is not None] +
-                        [r[2] for r in refs if r[2] is not None])))
-                for mref in refs:
-                    for reg in list(possible_idx_regs):
-                        # Only consider references with two registers, where one could be an index
-                        if None not in mref[1:3]:
-                            # One needs to mach, other registers will be excluded
-                            if not (reg == mref[1] or reg == mref[2]):
-                                # reg can not be it
-                                possible_idx_regs.remove(reg)
+            labels = list(last_labels.keys())
 
-                idx_reg = None
-                if len(possible_idx_regs) == 1:
-                    # good, exactly one register was found
-                    idx_reg = possible_idx_regs[0]
-                elif possible_idx_regs and itemsEqual([increments[pidxreg]
-                                                       for pidxreg in possible_idx_regs]):
-                    # multiple were option found, but all have the same increment
-                    # use first match:
-                    idx_reg = possible_idx_regs[0]
+            if last_label:
+                # deduce loop increment from memory index register
+                pointer_increment = None  # default -> can not decide, let user choose
+                possible_idx_regs = None
+                if mem_references:
+                    # we found memory references to work with
 
-                if idx_reg:
-                    mem_scales = [mref[3] for mref in refs
-                                  if idx_reg == mref[2] or idx_reg == mref[1]]
+                    # If store accesses exist, consider only those
+                    store_references = [mref for mref in mem_references
+                                        if mref[4] == 'store']
+                    refs = store_references or mem_references
 
-                    if itemsEqual(mem_scales):
-                        # good, all scales are equal
-                        try:
-                            pointer_increment = mem_scales[0] * increments[idx_reg]
-                        except:
-                            print("label", pformat(last_label))
-                            print("lines", pformat(asm_lines[last_label_line:i + 1]))
-                            print("increments", increments)
-                            print("mem_references", pformat(mem_references))
-                            print("idx_reg", idx_reg)
-                            print("mem_scales", mem_scales)
-                            raise
+                    possible_idx_regs = list(set(increments.keys()).intersection(
+                        set([r[1] for r in refs if r[1] is not None] +
+                            [r[2] for r in refs if r[2] is not None])))
+                    for mref in refs:
+                        for reg in list(possible_idx_regs):
+                            # Only consider references with two registers, where one could be an index
+                            if None not in mref[1:3]:
+                                # One needs to mach, other registers will be excluded
+                                if not (reg == mref[1] or reg == mref[2]):
+                                    # reg can not be it
+                                    possible_idx_regs.remove(reg)
 
-            blocks.append({'first_line': last_label_line,
-                           'last_line': i,
-                           'ops': i - last_label_line,
-                           'label': last_label,
-                           'packed_instr': packed_ctr,
-                           'avx_instr': avx_ctr,
-                           'XMM': (len(xmm_references), len(set(xmm_references))),
-                           'YMM': (len(ymm_references), len(set(ymm_references))),
-                           'ZMM': (len(zmm_references), len(set(zmm_references))),
-                           'GP': (len(gp_references), len(set(gp_references))),
-                           'regs': (len(xmm_references) + len(ymm_references) +
-                                    len(zmm_references) + len(gp_references),
-                                    len(set(xmm_references)) + len(set(ymm_references)) +
-                                    len(set(zmm_references)) +
-                                    len(set(gp_references))),
-                           'pointer_increment': pointer_increment,
-                           'lines': asm_lines[last_label_line:i + 1],
-                           'possible_idx_regs': possible_idx_regs,
-                           'mem_references': mem_references,
-                           'increments': increments, })
+                    idx_reg = None
+                    if len(possible_idx_regs) == 1:
+                        # good, exactly one register was found
+                        idx_reg = possible_idx_regs[0]
+                    elif possible_idx_regs and itemsEqual([increments[pidxreg]
+                                                           for pidxreg in possible_idx_regs]):
+                        # multiple were option found, but all have the same increment
+                        # use first match:
+                        idx_reg = possible_idx_regs[0]
+
+                    if idx_reg:
+                        mem_scales = [mref[3] for mref in refs
+                                      if idx_reg == mref[2] or idx_reg == mref[1]]
+
+                        if itemsEqual(mem_scales):
+                            # good, all scales are equal
+                            try:
+                                pointer_increment = mem_scales[0] * increments[idx_reg]
+                            except:
+                                print("labels", pformat(labels[labels.index(last_label):]))
+                                print("lines", pformat(asm_lines[last_label_line:i + 1]))
+                                print("increments", increments)
+                                print("mem_references", pformat(mem_references))
+                                print("idx_reg", idx_reg)
+                                print("mem_scales", mem_scales)
+                                raise
+
+                blocks.append({'first_line': last_label_line,
+                               'last_line': i,
+                               'ops': i - last_label_line,
+                               'labels': labels[labels.index(last_label):],
+                               'packed_instr': packed_ctr,
+                               'avx_instr': avx_ctr,
+                               'XMM': (len(xmm_references), len(set(xmm_references))),
+                               'YMM': (len(ymm_references), len(set(ymm_references))),
+                               'ZMM': (len(zmm_references), len(set(zmm_references))),
+                               'GP': (len(gp_references), len(set(gp_references))),
+                               'regs': (len(xmm_references) + len(ymm_references) +
+                                        len(zmm_references) + len(gp_references),
+                                        len(set(xmm_references)) + len(set(ymm_references)) +
+                                        len(set(zmm_references)) +
+                                        len(set(gp_references))),
+                               'pointer_increment': pointer_increment,
+                               'lines': asm_lines[last_label_line:i + 1],
+                               'possible_idx_regs': possible_idx_regs,
+                               'mem_references': mem_references,
+                               'increments': increments, })
             # Reset counters
             packed_ctr = 0
             avx_ctr = 0
@@ -201,16 +214,20 @@ def find_asm_blocks(asm_lines):
             gp_references = []
             mem_references = []
             increments = {}
+            last_labels = OrderedDict()
     return list(enumerate(blocks))
 
 
 def select_best_block(blocks):
     """Return best block selected based on simple heuristic."""
     # TODO make this cleverer with more stats
+    if not blocks:
+        raise ValueError("No suitable blocks were found in assembly.")
     best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
     if best_block[1]['packed_instr'] == 0:
         best_block = max(blocks,
-                         key=lambda b: b[1]['ops'] + b[1]['packed_instr'] + b[1]['avx_instr'])
+                         key=lambda b: (b[1]['ops'] + b[1]['packed_instr'] + b[1]['avx_instr'],
+                                        b[1]['ZMM'], b[1]['YMM'], b[1]['XMM']))
     return best_block[0]
 
 
@@ -235,10 +252,10 @@ def userselect_increment(block):
 def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
-    print("   block   | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
-          "-----------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
+    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
+          "----------------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
     for idx, b in blocks:
-        print('{:>2} {b[label]:>7} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
+        print('{:>2} {b[labels]!r:>12} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[ZMM][0]:>3} ({b[ZMM][1]:>2}) | '
               '{b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
               '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '

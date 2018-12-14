@@ -7,11 +7,12 @@ clock: 2.3 GHz
 cores per socket: 14
 cores per NUMA domain: 7
 NUMA domains per socket: 2
+sockets: 2
 compiler:
     !!omap
-    - icc: -O3 -xCORE-AVX2 -fno-alias
-    - gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200112L
-    - clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200112L
+    - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
+    - gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200112L -fopenmp
+    - clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200112L -fopenmp
 write-allocate: True
 memory hierarchy:
     - level: L1
@@ -44,7 +45,7 @@ memory hierarchy:
     - level: L3
       cache per group: {
          'sets': 18432, 'ways': 16, 'cl_size': 64, # 18 MB (cluster on die mode!)
-         'replacement_policy': 'LRU', 
+         'replacement_policy': 'LRU',
          'write_allocate': True, 'write_back': True}
       cores per group: 7
       threads per group: 14

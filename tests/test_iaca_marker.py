@@ -27,7 +27,7 @@ class TestIACAMarker(unittest.TestCase):
         block_idx = select_best_block(blocks)
         best_block = blocks[block_idx][1]
 
-        self.assertEqual(best_block['label'], '.L36')
+        self.assertEqual(best_block['labels'], ['.L36'])
         self.assertEqual(best_block['pointer_increment'], 8)
 
     def tests_2d5pt_varcoeffs(self):
@@ -39,7 +39,7 @@ class TestIACAMarker(unittest.TestCase):
         block_idx = select_best_block(blocks)
         best_block = blocks[block_idx][1]
 
-        self.assertEqual(best_block['label'], '.L43')
+        self.assertEqual(best_block['labels'], ['.L43'])
         self.assertEqual(best_block['pointer_increment'], 16)
 
     def tests_3d25pt_semi(self):
@@ -51,7 +51,7 @@ class TestIACAMarker(unittest.TestCase):
         block_idx = select_best_block(blocks)
         best_block = blocks[block_idx][1]
 
-        self.assertEqual(best_block['label'], 'LBB0_62')
+        self.assertEqual(best_block['labels'], ['LBB0_62'])
         #self.assertEqual(best_block['pointer_increment'], 8)
 
     def tests_matvec_trans(self):
@@ -63,7 +63,7 @@ class TestIACAMarker(unittest.TestCase):
         block_idx = select_best_block(blocks)
         best_block = blocks[block_idx][1]
 
-        self.assertEqual(best_block['label'], 'LBB0_30')
+        self.assertEqual(best_block['labels'], ['LBB0_30'])
         self.assertEqual(best_block['pointer_increment'], 64)
 
 

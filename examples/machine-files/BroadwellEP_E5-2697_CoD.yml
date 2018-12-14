@@ -314,9 +314,9 @@ cacheline size: 64 B
 clock: 2.3 GHz
 compiler:
     !!omap
-    - icc: -O3 -xCORE-AVX2 -fno-alias
-    - gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200112L
-    - clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L
+    - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
+    - gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200112L -fopenmp
+    - clang: -03 -mavx2 -D_POSIX_C_SOURCE=200112L -fopenmp
 cores per socket: 18
 cores per NUMA domain: 9
 NUMA domains per socket: 2

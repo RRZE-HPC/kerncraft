@@ -140,7 +140,11 @@ def create_parser():
     parser.add_argument('--unit', '-u', choices=['cy/CL', 'cy/It', 'It/s', 'FLOP/s'],
                         help='Select the output unit, defaults to model specific if not given.')
     parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
-                        help='Number of cores to be used in parallel. (default: 1)')
+                        help='Number of cores to be used in parallel. (default: 1) '
+                             'ECM model will consider the scaling of the last level cache and '
+                             'predict the overall performance in addition to single-core behavior. '
+                             'The benchmark mode will run the code with OpenMP on as many physical '
+                             'cores.')
     parser.add_argument('--kernel-description', action='store_true',
                         help='Use kernel description instead of analyzing the kernel code.')
 
@@ -170,6 +174,13 @@ def check_arguments(args, parser):
             args.asm_block = int(args.asm_block)
         except ValueError:
             parser.error('--asm-block can only be "auto", "manual" or an integer')
+
+    # Set default unit depending on performance model requested
+    if not args.unit:
+        if 'Roofline' in args.pmodel or 'RooflineIACA' in args.pmodel:
+            args.unit = 'FLOP/s'
+        else:
+            args.unit = 'cy/CL'
 
 
 def run(parser, args, output_file=sys.stdout):

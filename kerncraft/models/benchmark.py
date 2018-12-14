@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Benchmark model and helper functions."""
+import os
 import subprocess
 from functools import reduce
 import operator
@@ -34,6 +35,27 @@ def pprint_nosort():
         yield
     finally:
         pprint._safe_key = orig
+
+
+@contextlib.contextmanager
+def fix_env_variable(name, value):
+    """Fix environment variable to a value within context. Unset if value is None."""
+    orig = os.environ.get(name, None)
+    if value is not None:
+        # Set if value is not None
+        os.environ[name] = value
+    elif name in os.environ:
+        # Unset if value is None
+        del os.environ[name]
+    try:
+        yield
+    finally:
+        if orig is not None:
+            # Restore original value
+            os.environ[name] = orig
+        elif name in os.environ:
+            # Unset
+            del os.environ[name]
 
 
 def group_iterator(group):
@@ -211,8 +233,12 @@ class Benchmark(PerformanceModel):
             self.verbose = verbose
             self.iterations = 10
 
-        print("Info: If this takes too long and a phenological ECM model is not required, run with "
-              "--no-phenoecm.", file=sys.stderr)
+        if self._args.cores > 1 and not self.no_phenoecm:
+            print("Info: phenological ECM model can only be created with a single core benchmark.")
+            self.no_phenoecm = True
+        elif not self.no_phenoecm:
+            print("Info: If this takes too long and a phenological ECM model is not required, run "
+                  "with --no-phenoecm.", file=sys.stderr)
 
         warning = False
         cpuinfo = ''
@@ -250,12 +276,13 @@ class Benchmark(PerformanceModel):
             print("You may ignore warnings by adding --ignore-warnings to the command line.")
             sys.exit(1)
 
-    def perfctr(self, cmd, group='MEM', cpu='S0:0', code_markers=True, pin=True):
+    def perfctr(self, cmd, group='MEM', code_markers=True):
         """
         Run *cmd* with likwid-perfctr and returns result as dict.
 
         *group* may be a performance group known to likwid-perfctr or an event string.
-        Only works with single core!
+
+        if CLI argument cores > 1, running with multi-core, otherwise single-core
         """
         # Making sure likwid-perfctr is available:
         if find_executable('likwid-perfctr') is None:
@@ -266,23 +293,27 @@ class Benchmark(PerformanceModel):
         # FIXME currently only single core measurements support!
         perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
 
-        if pin:
-            perf_cmd += ['-C', cpu]
-        else:
-            perf_cmd += ['-c', cpu]
+        cpu = '0'
+        if self._args.cores > 1:
+            cpu += '-'+str(self._args.cores-1)
 
-        if code_markers:
-            perf_cmd.append('-m')
+        # Pinned and measured on cpu
+        perf_cmd += ['-C', cpu]
+
+        # code must be marked using likwid markers
+        perf_cmd.append('-m')
 
         perf_cmd += cmd
         if self.verbose > 1:
             print(' '.join(perf_cmd))
         try:
-            output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
+            with fix_env_variable('OMP_NUM_THREADS', None):
+                output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
         except subprocess.CalledProcessError as e:
             print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
             sys.exit(1)
 
+        # TODO multicore output is different and needs to be considered here!
         results = {}
         for line in output:
             line = line.split(',')
@@ -296,7 +327,6 @@ class Benchmark(PerformanceModel):
                 # Not a parable line (did not contain any commas)
                 continue
             try:
-                # Event counters
                 # Event counters
                 if line[2] == '-' or line[2] == 'nan':
                     counter_value = 0
@@ -312,17 +342,19 @@ class Benchmark(PerformanceModel):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build(verbose=self.verbose > 1)
+        bench = self.kernel.build(verbose=self.verbose > 1, openmp=self._args.cores > 1)
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
-        args = [bench] + [str(s) for s in list(self.kernel.constants.values())]
+        args = [str(s) for s in list(self.kernel.constants.values())]
 
         # Determine base runtime with 10 iterations
         runtime = 0.0
         time_per_repetition = 2.0 / 10.0
-        repetitions = self.iterations / 10
+        repetitions = self.iterations // 10
         mem_results = {}
+
+        # TODO if cores > 1, results are for openmp run. Things might need to be changed here!
 
         while runtime < 1.5:
             # Interpolate to a 2.0s run
@@ -331,7 +363,7 @@ class Benchmark(PerformanceModel):
             else:
                 repetitions = int(repetitions * 10)
 
-            mem_results = self.perfctr(args + [str(repetitions)], group="MEM")
+            mem_results = self.perfctr([bench] + [str(repetitions)] + args, group="MEM")
             runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime / float(repetitions)
         raw_results = [mem_results]
@@ -357,7 +389,7 @@ class Benchmark(PerformanceModel):
             measured_ctrs = {}
             for run in minimal_runs:
                 ctrs = ','.join([eventstr(e) for e in run])
-                r = self.perfctr(args + [str(repetitions)], group=ctrs)
+                r = self.perfctr([bench] + [str(repetitions)] + args, group=ctrs)
                 raw_results.append(r)
                 measured_ctrs.update(r)
             # Match measured counters to symbols
