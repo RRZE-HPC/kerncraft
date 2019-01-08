@@ -175,6 +175,13 @@ def check_arguments(args, parser):
         except ValueError:
             parser.error('--asm-block can only be "auto", "manual" or an integer')
 
+    # Set default unit depending on performance model requested
+    if not args.unit:
+        if 'Roofline' in args.pmodel or 'RooflineIACA' in args.pmodel:
+            args.unit = 'FLOP/s'
+        else:
+            args.unit = 'cy/CL'
+
 
 def run(parser, args, output_file=sys.stdout):
     """Run command line interface."""

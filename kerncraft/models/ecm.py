@@ -69,7 +69,7 @@ class ECMData(PerformanceModel):
         self.machine = machine
         self._args = args
         self._parser = parser
-        self.results = None
+        self.results = {}
 
         if args:
             self.verbose = self._args.verbose
@@ -88,11 +88,12 @@ class ECMData(PerformanceModel):
 
     def calculate_cache_access(self):
         """Dispatch to cache predictor to get cache stats."""
-        self.results = {'cycles': [],  # will be filled by caclculate_cycles()
+        self.results.update({
+                        'cycles': [],  # will be filled by caclculate_cycles()
                         'misses': self.predictor.get_misses(),
                         'hits': self.predictor.get_hits(),
                         'evicts': self.predictor.get_evicts(),
-                        'verbose infos': self.predictor.get_infos()}  # only for verbose outputs
+                        'verbose infos': self.predictor.get_infos()})  # only for verbose outputs
 
     def calculate_cycles(self):
         """
@@ -163,15 +164,14 @@ class ECMData(PerformanceModel):
         """Run complete anaylysis and return results."""
         self.calculate_cache_access()
         self.calculate_cycles()
+        self.results['flops per iteration'] = sum(self.kernel._flops.values())
 
         return self.results
 
-    def conv_cy(self, cy_cl, unit, default='cy/CL'):
+    def conv_cy(self, cy_cl):
         """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s."""
         if not isinstance(cy_cl, PrefixedUnit):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
-        if not unit:
-            unit = default
 
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
@@ -190,7 +190,7 @@ class ECMData(PerformanceModel):
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
                 'cy/It': cy_it,
-                'FLOP/s': performance}[unit]
+                'FLOP/s': performance}
 
     def report_data_transfers(self):
         cacheline_size = float(self.machine['cacheline size'])
@@ -210,7 +210,7 @@ class ECMData(PerformanceModel):
 
         for level, cycles in self.results['cycles']:
             print('{} = {}'.format(
-                level, self.conv_cy(float(cycles), self._args.unit)), file=output_file)
+                level, self.conv_cy(cycles)[self._args.unit]), file=output_file)
 
         if self.verbose > 1:
             if 'memory bandwidth kernel' in self.results:
@@ -252,7 +252,7 @@ class ECMCPU(PerformanceModel):
         self.machine = machine
         self._args = args
         self._parser = parser
-        self.results = None
+        self.results = {}
 
         if args:
             # handle CLI info
@@ -282,7 +282,7 @@ class ECMCPU(PerformanceModel):
         Run complete analysis and return results.
         """
         try:
-            iaca_analysis, asm_block = self.kernel.iaca_analysis(
+            incore_analysis, asm_block =  self.kernel.iaca_analysis(
                 micro_architecture=self.machine['micro-architecture'],
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
@@ -291,9 +291,9 @@ class ECMCPU(PerformanceModel):
             print("IACA analysis failed: " + str(e))
             sys.exit(1)
 
-        block_throughput = iaca_analysis['throughput']
-        port_cycles = iaca_analysis['port cycles']
-        uops = iaca_analysis['uops']
+        block_throughput = incore_analysis['throughput']
+        port_cycles = incore_analysis['port cycles']
+        uops = incore_analysis['uops']
 
         # Normalize to cycles per cacheline
         elements_per_block = abs(asm_block['pointer_increment']
@@ -322,22 +322,20 @@ class ECMCPU(PerformanceModel):
         # Create result dictionary
         self.results = {
             'port cycles': port_cycles,
-            'cl throughput': cl_throughput,
+            'cl throughput': self.conv_cy(cl_throughput),
             'uops': uops,
             'T_nOL': T_nOL,
             'T_OL': T_OL,
-            'IACA output': iaca_analysis['output'],
+            'IACA output': incore_analysis['output'],
             'elements_per_block': elements_per_block,
-            'pointer_increment': asm_block['pointer_increment']}
+            'pointer_increment': asm_block['pointer_increment'],
+            'flops per iteration': sum(self.kernel._flops.values())}
         return self.results
 
-    def conv_cy(self, cy_cl, unit, default='cy/CL'):
+    def conv_cy(self, cy_cl):
         """Convert cycles (cy/CL) to other units, such as FLOP/s or It/s."""
         if not isinstance(cy_cl, PrefixedUnit):
             cy_cl = PrefixedUnit(cy_cl, '', 'cy/CL')
-        if not unit:
-            unit = default
-
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(self.machine['cacheline size']) // element_size
@@ -352,7 +350,7 @@ class ECMCPU(PerformanceModel):
         return {'It/s': it_s,
                 'cy/CL': cy_cl,
                 'cy/It': cy_it,
-                'FLOP/s': performance}[unit]
+                'FLOP/s': performance}
 
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
@@ -369,8 +367,7 @@ class ECMCPU(PerformanceModel):
             print('Ports and cycles:', str(self.results['port cycles']), file=output_file)
             print('Uops:', str(self.results['uops']), file=output_file)
 
-            print('Throughput: {}'.format(
-                      self.conv_cy(self.results['cl throughput'], self._args.unit)),
+            print('Throughput: {}'.format(self.results['cl throughput'][self._args.unit]),
                   file=output_file)
 
         print('T_nOL = {:.1f} cy/CL'.format(self.results['T_nOL']), file=output_file)
@@ -441,6 +438,46 @@ class ECM(PerformanceModel):
                     self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
                 self.results['cycles'][-1][1])
 
+        # Compile total single-core prediction
+        self.results['total cycles'] = self._CPU.conv_cy(max(
+            self.results['T_OL'],
+            sum([self.results['T_nOL']] + [i[1] for i in self.results['cycles']])))
+
+        # out-of-core scaling prediction:
+        if self._args.cores > 1:
+            notes = []
+            cores_per_numa_domain = self.machine['cores per NUMA domain']
+            innuma_cores = min(self._args.cores, cores_per_numa_domain)
+            if innuma_cores <= self.results['scaling cores']:
+                innuma_rectp = PrefixedUnit(
+                    max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
+                        self.results['T_OL']) / innuma_cores,
+                    "cy/CL")
+                notes.append("memory-interface not saturated")
+            else:
+                innuma_rectp = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
+                notes.append("memory-interface saturated on first socket")
+
+            if 0 < self._args.cores <= cores_per_numa_domain:
+                # only in-numa scaling to consider
+                multi_core_perf = self._CPU.conv_cy(innuma_rectp)
+                notes.append("in-NUMA-domain scaling")
+            elif self._args.cores <= self.machine['cores per socket'] * self.machine['sockets']:
+                # out-of-numa scaling behavior
+                multi_core_perf = self._CPU.conv_cy(innuma_rectp * innuma_cores / self._args.cores)
+                notes.append("out-of-NUMA-domain scaling")
+            else:
+                raise ValueError("Number of cores must be greater than zero and upto the max. "
+                                 "number of cores defined by cores per socket and sockets in"
+                                 "machine file.")
+
+            self.results['multi-core'] = {
+                'cores': self._args.cores,
+                'performance': multi_core_perf,
+                'notes': notes}
+        else:
+            self.results['multi-core'] = None
+
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
         report = ''
@@ -448,9 +485,6 @@ class ECM(PerformanceModel):
             self._CPU.report()
             self._data.report()
 
-        total_cycles = max(
-            self.results['T_OL'],
-            sum([self.results['T_nOL']]+[i[1] for i in self.results['cycles']]))
         report += '{{ {:.1f} || {:.1f} | {} }} cy/CL'.format(
             self.results['T_OL'],
             self.results['T_nOL'],
@@ -459,8 +493,7 @@ class ECM(PerformanceModel):
         if self._args.cores > 1:
             report += " (single core)"
 
-        if self._args.unit:
-            report += ' = {}'.format(self._CPU.conv_cy(total_cycles, self._args.unit))
+        report += ' = {}'.format(self.results['total cycles'][self._args.unit])
 
         report += '\n{{ {:.1f} \ {} }} cy/CL'.format(
             max(self.results['T_OL'], self.results['T_nOL']),
@@ -473,39 +506,12 @@ class ECM(PerformanceModel):
 
         report += '\nsaturating at {:.1f} cores'.format(self.results['scaling cores'])
 
-        if self._args.cores > 1:
-            report += "\nprediction for {} cores,".format(self._args.cores) + \
-                      " assuming static scheduling:\n"
-
-            # out-of-core scaling prediction:
-            cores_per_numa_domain = self.machine['cores per NUMA domain']
-            innuma_cores = min(self._args.cores, cores_per_numa_domain)
-            if innuma_cores <= self.results['scaling cores']:
-                innuma_rectp = PrefixedUnit(
-                    max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
-                        self.results['T_OL'])/innuma_cores,
-                    "cy/CL")
-                note = "memory-interface not saturated"
-            else:
-                innuma_rectp = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
-                note = "memory-interface saturated on first socket"
-
-            if 0 < self._args.cores <= cores_per_numa_domain:
-                # only in-numa scaling to consider
-                report += "{}".format(self._CPU.conv_cy(innuma_rectp, self._args.unit))
-                note += ", in-NUMA-domain scaling"
-            elif self._args.cores <= self.machine['cores per socket']*self.machine['sockets']:
-                # out-of-numa scaling behavior
-                report += "{}".format(
-                    self._CPU.conv_cy(innuma_rectp * innuma_cores / self._args.cores,
-                    self._args.unit))
-                note += ", out-of-NUMA-domain scaling"
-            else:
-                raise ValueError("Number of cores must be greater than zero and upto the max. "
-                                 "number of cores defined by cores per socket and sockets in"
-                                 "machine file.")
-
-            report += " ({})\n".format(note)
+        if self.results['multi-core']:
+            report += "\nprediction for {} cores,".format(self.results['multi-core']['cores']) + \
+                      " assuming static scheduling: "
+            report += "{} ({})\n".format(
+                self.results['multi-core']['performance'][self._args.unit],
+                ', '.join(self.results['multi-core']['notes']))
 
         print(report, file=output_file)
 
