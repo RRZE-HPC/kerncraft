@@ -283,7 +283,6 @@ class RooflineIACA(Roofline):
         self.results = self.calculate_cache_access()
         try:
             iaca_analysis, asm_block = self.kernel.incore_analysis(
-                micro_architecture=self.machine['micro-architecture'],
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 verbose=self.verbose > 2)

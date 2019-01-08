@@ -1316,12 +1316,14 @@ class KernelCode(Kernel):
                 out_filename = os.path.abspath(os.path.splitext(self._filename)[0]+suffix)
             else:
                 out_filename = tempfile.mkstemp(suffix=suffix)
-        out_filename_asm = out_filename+'.s'
+            out_filename_asm = None
+        else:
+            out_filename_asm = out_filename+'.s'
 
         # insert iaca markers
         if iaca_markers:
             out_filename_asm = self.mark_assembler(
-                self, in_filename, out_filename=out_filename_asm,
+                in_filename, out_filename=out_filename_asm,
                 asm_block=asm_block, pointer_increment=pointer_increment, verbose=verbose)
 
         compiler, compiler_args = self._machine.get_compiler()
