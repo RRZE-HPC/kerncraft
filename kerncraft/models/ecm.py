@@ -305,7 +305,8 @@ class ECMCPU(PerformanceModel):
             sys.exit(1)
 
         port_cycles = dict([(i[0], i[1]*block_to_cl_ratio) for i in list(port_cycles.items())])
-        uops = uops*block_to_cl_ratio
+        if uops is not None:
+            uops = uops*block_to_cl_ratio
         cl_throughput = block_throughput*block_to_cl_ratio
 
         # Compile most relevant information

@@ -102,7 +102,8 @@ setup(
         'pylru',
         'numpy',
         'requests',
-        'pycparser>=2.19'
+        'pycparser>=2.19',
+        'osaca>=0.2.1',
     ],
     python_requires='>=3.5',
 

@@ -7,7 +7,7 @@ import subprocess
 import os
 from copy import copy
 import argparse
-from pprint import pformat
+from pprint import pformat, pprint
 import textwrap
 from collections import OrderedDict
 
@@ -369,48 +369,16 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
         - 'port cycles': dict, mapping port name to number of active cycles
         - 'uops': total number of Uops
     """
-    osaca = OSACA(micro_architecture, instrumented_assembly_file)
-    osaca.inspect_with_iaca()
-    from IPython import embed
-    embed()
+    result = {}
+    with open(instrumented_assembly_file) as f:
+        osaca = OSACA(micro_architecture, f.read())
+    result['output'] = osaca.create_output()
+    result['port cycles'] = OrderedDict(osaca.get_port_occupation_cycles())
+    result['throughput'] = osaca.get_total_throughput()
+    result['uops'] = None  # Not given by OSACA
 
-    print()
+    pprint(result, width=200)  # DONOTCOMMIT
 
-    cmd = [iaca_exec] + base_args + ['-arch', micro_architecture, instrumented_binary_file]
-    try:
-        iaca_output = subprocess.check_output(cmd).decode('utf-8')
-        result['output'] = iaca_output
-    except OSError as e:
-        raise RuntimeError("IACA execution failed:" + ' '.join(cmd) + '\n' + str(e))
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError("IACA throughput analysis failed:" + str(e))
-
-    # Get total cycles per loop iteration
-    match = re.search(r'^Block Throughput: ([0-9.]+) Cycles', iaca_output, re.MULTILINE)
-    assert match, "Could not find Block Throughput in IACA output."
-    throughput = float(match.groups()[0])
-    result['throughput'] = throughput
-
-    # Find ports and cycles per port
-    ports = [l for l in iaca_output.split('\n') if l.startswith('|  Port  |')]
-    cycles = [l for l in iaca_output.split('\n') if l.startswith('| Cycles |')]
-    assert ports and cycles, "Could not find ports/cycles lines in IACA output."
-    ports = [p.strip() for p in ports[0].split('|')][2:]
-    cycles = [c.strip() for c in cycles[0].split('|')][2:]
-    port_cycles = []
-    for i in range(len(ports)):
-        if '-' in ports[i] and ' ' in cycles[i]:
-            subports = [p.strip() for p in ports[i].split('-')]
-            subcycles = [c for c in cycles[i].split(' ') if bool(c)]
-            port_cycles.append((subports[0], float(subcycles[0])))
-            port_cycles.append((subports[0] + subports[1], float(subcycles[1])))
-        elif ports[i] and cycles[i]:
-            port_cycles.append((ports[i], float(cycles[i])))
-    result['port cycles'] = dict(port_cycles)
-
-    match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
-    assert match, "Could not find Uops in IACA output."
-    result['uops'] = float(match.groups()[0])
     return result
 
 
@@ -484,7 +452,7 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
             port_cycles.append((subports[0] + subports[1], float(subcycles[1])))
         elif ports[i] and cycles[i]:
             port_cycles.append((ports[i], float(cycles[i])))
-    result['port cycles'] = dict(port_cycles)
+    result['port cycles'] = OrderedDict(port_cycles)
 
     match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
     assert match, "Could not find Uops in IACA output."
