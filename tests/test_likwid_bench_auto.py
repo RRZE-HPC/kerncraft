@@ -36,13 +36,13 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED',
                                         'total': 'INFORMATION_REQUIRED'}},
-             'NUMA domains per socket': 1.0,
+             'NUMA domains per socket': 1,
              'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
              'clock': 'INFORMATION_REQUIRED (e.g., 2.7 GHz)',
              'compiler': collections.OrderedDict([
-                 ('icc', ['INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)']),
-                 ('clang', ['INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L']),
-                 ('gcc', ['INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)'])]),
+                 ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
+                 ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'),
+                 ('gcc', 'INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge)')]),
              'cores per NUMA domain': 10,
              'cores per socket': 10,
              'memory hierarchy': [{'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
@@ -57,7 +57,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                                                'kB)',
                                                        'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                                                        'write_back': 'INFORMATION_REQUIRED (True/False)'},
-                                   'cores per group': 1.0,
+                                   'cores per group': 1,
                                    'groups': 20,
                                    'level': 'L1',
                                    'performance counter metrics': {
@@ -68,7 +68,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                        'misses': 'INFORMATION_REQUIRED (e.g., '
                                                  'L2_LINES_IN_ALL__PMC1)'},
                                    'size per group': PrefixedUnit(32.0, 'k', 'B'),
-                                   'threads per group': 2.0},
+                                   'threads per group': 2},
                                   {'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
                                                                   '(sets*ways*cl_size=256.00 kB)',
                                                        'load_from': 'L3',
@@ -81,7 +81,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                                                'kB)',
                                                        'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                                                        'write_back': 'INFORMATION_REQUIRED (True/False)'},
-                                   'cores per group': 1.0,
+                                   'cores per group': 1,
                                    'non-overlap upstream throughput': [
                                         'INFORMATION_REQUIRED (e.g. 24 B/cy)',
                                         'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
@@ -106,7 +106,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                                                'MB)',
                                                        'write_allocate': 'INFORMATION_REQUIRED (True/False)',
                                                        'write_back': 'INFORMATION_REQUIRED (True/False)'},
-                                   'cores per group': 10.0,
+                                   'cores per group': 10,
                                    'non-overlap upstream throughput': [
                                         'INFORMATION_REQUIRED (e.g. 24 B/cy)',
                                         'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")'],
@@ -120,7 +120,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                        'misses': 'INFORMATION_REQUIRED (e.g., '
                                                  'L2_LINES_IN_ALL__PMC1)'},
                                    'size per group': PrefixedUnit(25.0, 'M', 'B'),
-                                   'threads per group': 20.0},
+                                   'threads per group': 20},
                                   {'cores per group': 10,
                                    'non-overlap upstream throughput': [
                                         'full socket memory bandwidth',
