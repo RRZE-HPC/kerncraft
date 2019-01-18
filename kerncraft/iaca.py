@@ -379,9 +379,9 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
 
     unmatched_ratio = osaca.get_unmatched_instruction_ratio()
     if unmatched_ratio > 0.1:
-        print('WARNING: more than 10% ({:%.0}) of the instruction could not be matched during '
-              'incore analyssis with OSACA. Fix this by extending OSACAs instruction form database '
-              'with the required instructions.'.format(unmatched_ratio),
+        print('WARNING: {:.0%} of the instruction could not be matched during incore analyssis '
+              'with OSACA. Fix this by extending OSACAs instruction form database with the '
+              'required instructions.'.format(unmatched_ratio),
               file=sys.stderr)
 
     return result

@@ -95,7 +95,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                        'misses': 'INFORMATION_REQUIRED (e.g., '
                                                  'L2_LINES_IN_ALL__PMC1)'},
                                    'size per group': PrefixedUnit(256.0, 'k', 'B'),
-                                   'threads per group': 2.0},
+                                   'threads per group': 2},
                                   {'cache per group': {'cl_size': 'INFORMATION_REQUIRED '
                                                                   '(sets*ways*cl_size=25.00 MB)',
                                                        'replacement_policy': 'INFORMATION_REQUIRED (options: '
@@ -129,6 +129,7 @@ class TestLikwidBenchAuto(unittest.TestCase):
                                    'penalty cycles per read stream': 0,
                                    'size per group': None,
                                    'threads per group': 20}],
+             'micro-architecture-modeler': 'INFORMATION_REQUIRED (options: OSACA, IACA)',
              'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)',
              'model name': 'Intel(R) Xeon(R) CPU E5-2660 v2 @ 2.20GHz',
              'model type': 'Intel Xeon IvyBridge EN/EP/EX processor',
