@@ -311,9 +311,9 @@ class ECMCPU(PerformanceModel):
 
         # Compile most relevant information
         T_OL = max([v for k, v in list(port_cycles.items())
-                    if k in self.machine['overlapping model']['ports']])
+                    if k in self.machine['overlapping model']['ports']] + [0])
         T_nOL = max([v for k, v in list(port_cycles.items())
-                     if k in self.machine['non-overlapping model']['ports']])
+                     if k in self.machine['non-overlapping model']['ports']] + [0])
 
         # Use IACA throughput prediction if it is slower then T_nOL
         if T_nOL < cl_throughput:

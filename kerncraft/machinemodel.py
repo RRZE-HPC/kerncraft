@@ -5,6 +5,7 @@ from distutils.version import LooseVersion
 import re
 from collections import OrderedDict
 from copy import deepcopy
+from pprint import pprint
 
 import ruamel
 import cachesim
