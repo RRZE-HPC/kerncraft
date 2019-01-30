@@ -87,7 +87,7 @@ def find_asm_blocks(asm_lines):
                 int(m.group('scale')) if m.group('scale') else 1,
                 'load' if m.group('eol') is None else 'store'))
 
-        if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213)?)[h]?p[ds]", line):
+        if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]", line):
             if line.startswith('v'):
                 avx_ctr += 1
             packed_ctr += 1
