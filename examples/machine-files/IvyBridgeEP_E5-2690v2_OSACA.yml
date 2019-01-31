@@ -272,7 +272,7 @@ model name: Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz
 sockets: 2
 threads per core: 2
 overlapping model:
-    ports: ["0", "DV", "1", "4", "5"]
+    ports: ["0", "0DV", "1", "2", "3", "4", "5"]
     performance counter metric:
         Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
             UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],

@@ -33,7 +33,7 @@ compiler:
   - gcc: -O3 -march=skylake-avx512 -fopenmp
 cacheline size: 64 B
 overlapping model:
-  ports: ["0", "DV", "1", "4", "5", "6", "7"]
+  ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
   performance counter metric:
           Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
           UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
