@@ -110,6 +110,8 @@ memory hierarchy:
   threads per group: 40
 - level: MEM
   non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+  cores per group: 40
+  threads per group: 80
   penalty cycles per read stream: 0
 benchmarks:
   kernels:
