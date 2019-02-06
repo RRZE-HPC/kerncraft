@@ -425,8 +425,8 @@ class ECM(PerformanceModel):
         self.results = copy.deepcopy(self._CPU.results)
         self.results.update(copy.deepcopy(self._data.results))
 
-        # Saturation/multi-core scaling analysis
-        # very simple approach. Assumptions are:
+        # Simple scaling prediction:
+        # Assumptions are:
         #  - bottleneck is always LLC-MEM
         #  - all caches scale with number of cores (bw AND size(WRONG!))
         if self.results['cycles'][-1][1] == 0.0:
@@ -443,7 +443,7 @@ class ECM(PerformanceModel):
             self.results['T_OL'],
             sum([self.results['T_nOL']] + [i[1] for i in self.results['cycles']])))
 
-        # out-of-core scaling prediction:
+        # Detailed scaling:
         if self._args.cores > 1:
             notes = []
             cores_per_numa_domain = self.machine['cores per NUMA domain']
