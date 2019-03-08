@@ -425,64 +425,76 @@ class ECM(PerformanceModel):
         self.results = copy.deepcopy(self._CPU.results)
         self.results.update(copy.deepcopy(self._data.results))
 
-        # Simple scaling prediction:
-        # Assumptions are:
-        #  - bottleneck is always LLC-MEM
-        #  - all caches scale with number of cores (bw AND size(WRONG!))
-        if self.results['cycles'][-1][1] == 0.0:
-            # Full caching in higher cache level
-            self.results['scaling cores'] = float('inf')
-        else:
-            self.results['scaling cores'] = (
-                max(self.results['T_OL'],
-                    self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
-                self.results['cycles'][-1][1])
+        cores_per_numa_domain = self.machine['cores per NUMA domain']
 
         # Compile total single-core prediction
         self.results['total cycles'] = self._CPU.conv_cy(max(
             self.results['T_OL'],
             sum([self.results['T_nOL']] + [i[1] for i in self.results['cycles']])))
+        T_ECM = float(self.results['total cycles']['cy/CL'])
+
+        # T_MEM is the cycles accounted to memory transfers
+        T_MEM = self.results['cycles'][-1][1]
+
+        # Simple scaling prediction:
+        # Assumptions are:
+        #  - bottleneck is always LLC-MEM
+        #  - all caches scale with number of cores (bw AND size(WRONG!))
+
+        # Full caching in higher cache level
+        self.results['scaling cores'] = float('inf')
+        # Not full caching:
+        if self.results['cycles'][-1][1] != 0.0:
+            # Considering memory bus utilization
+            utilization = [0]
+            self.results['scaling cores'] = float('inf')
+            for c in range(1, cores_per_numa_domain + 1):
+                if c * T_MEM > (T_ECM + utilization[c - 1] * (c - 1) * T_MEM / 2):
+                    utilization.append(1.0)
+                    self.results['scaling cores'] = min(self.results['scaling cores'], c)
+                else:
+                    utilization.append(c * T_MEM / (T_ECM + utilization[c - 1] * (c - 1) * T_MEM / 2))
+            utilization = utilization[1:]
+            # FIXME remove this output
+            print(', '.join(['{:.2f}'.format(u) for u in utilization]))
+
+            # Old scaling code
+            #self.results['scaling cores'] = (
+            #    max(self.results['T_OL'],
+            #        self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
+            #    self.results['cycles'][-1][1])
 
         # Detailed scaling:
         if self._args.cores > 1:
             notes = []
-            cores_per_numa_domain = self.machine['cores per NUMA domain']
-            innuma_cores = min(self._args.cores, cores_per_numa_domain)
 
-            if self.results['scaling cores'] != float('inf'):
-                # TODO implement memory bus utilization penalty here
-                utilization = [0]
-                T_MEM = self.results['cycles'][-1][1]
-                T_ECM = float(self.results['total cycles']['cy/CL'])
-                print(T_MEM, T_ECM)
-                for c in range(1, int(self.results['scaling cores']+1)):
-                    utilization.append(c * T_MEM / (T_ECM + utilization[c-1] * 0 * (c-1) * T_MEM / 2))
-                utilization = utilization[1:]
-                print(utilization)
-
-            if innuma_cores <= self.results['scaling cores']:
+            if self._args.cores <= self.results['scaling cores']:
                 innuma_rectp = PrefixedUnit(
                     max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
-                        self.results['T_OL']) / innuma_cores,
+                        self.results['T_OL']) / (T_ECM/T_MEM),
                     "cy/CL")
                 notes.append("memory-interface not saturated")
             else:
                 innuma_rectp = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
-                notes.append("memory-interface saturated on first socket")
+                notes.append("memory-interface saturated on first NUMA domain")
+            # FIXME remove this output and include in results dict
+            print("innuma_rectp", innuma_rectp)
 
             if 0 < self._args.cores <= cores_per_numa_domain:
                 # only in-numa scaling to consider
-                multi_core_perf = self._CPU.conv_cy(innuma_rectp)
+                multi_core_perf = self._CPU.conv_cy(
+                    innuma_rectp / utilization[self._args.cores - 1])
                 notes.append("in-NUMA-domain scaling")
             elif self._args.cores <= self.machine['cores per socket'] * self.machine['sockets']:
                 # out-of-numa scaling behavior
-                multi_core_perf = self._CPU.conv_cy(innuma_rectp * innuma_cores / self._args.cores)
+                multi_core_perf = self._CPU.conv_cy(innuma_rectp * cores_per_numa_domain / self._args.cores)
                 notes.append("out-of-NUMA-domain scaling")
             else:
                 raise ValueError("Number of cores must be greater than zero and upto the max. "
                                  "number of cores defined by cores per socket and sockets in"
                                  "machine file.")
 
+            # FIXME also include prediction for all in-NUMA core counts
             self.results['multi-core'] = {
                 'cores': self._args.cores,
                 'performance': multi_core_perf,
@@ -516,7 +528,7 @@ class ECM(PerformanceModel):
         if self._args.cores > 1:
             report += " (single core)"
 
-        report += '\nsaturating at {:.1f} cores'.format(self.results['scaling cores'])
+        report += '\nsaturating at {:.0f} cores'.format(self.results['scaling cores'])
 
         if self.results['multi-core']:
             report += "\nprediction for {} cores,".format(self.results['multi-core']['cores']) + \
