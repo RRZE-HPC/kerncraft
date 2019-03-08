@@ -448,6 +448,18 @@ class ECM(PerformanceModel):
             notes = []
             cores_per_numa_domain = self.machine['cores per NUMA domain']
             innuma_cores = min(self._args.cores, cores_per_numa_domain)
+
+            if self.results['scaling cores'] != float('inf'):
+                # TODO implement memory bus utilization penalty here
+                utilization = [0]
+                T_MEM = self.results['cycles'][-1][1]
+                T_ECM = float(self.results['total cycles']['cy/CL'])
+                print(T_MEM, T_ECM)
+                for c in range(1, int(self.results['scaling cores']+1)):
+                    utilization.append(c * T_MEM / (T_ECM + utilization[c-1] * 0 * (c-1) * T_MEM / 2))
+                utilization = utilization[1:]
+                print(utilization)
+
             if innuma_cores <= self.results['scaling cores']:
                 innuma_rectp = PrefixedUnit(
                     max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
