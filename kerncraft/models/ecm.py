@@ -497,7 +497,7 @@ class ECM(PerformanceModel):
         # Also include prediction for all in-NUMA core counts in results
         self.results['scaling prediction'] = scaling_predictions
         if self._args.cores:
-            self.results['multi-core'] = scaling_predictions[self._args.cores]
+            self.results['multi-core'] = scaling_predictions[self._args.cores - 1]
         else:
             self.results['multi-core'] = None
 
@@ -535,6 +535,19 @@ class ECM(PerformanceModel):
             report += "{} ({})\n".format(
                 self.results['multi-core']['performance'][self._args.unit],
                 ', '.join(self.results['multi-core']['notes']))
+
+        if self.results['scaling prediction']:
+            report += "\nScaling prediction, considering memory bus utilization penalty and " \
+                "assuming all scalable caches:\n"
+            if self.machine['cores per socket'] > self.machine['cores per NUMA domain']:
+                report += "1st NUMA dom." + (len(self._args.unit) - 4) * ' ' + '||' + \
+                    '--------' * (self.machine['cores per NUMA domain']-1) + '-------|\n'
+
+            report +=  "cores " + (len(self._args.unit)+2)*' ' + " || " + ' | '.join(
+                ['{:<5}'.format(s['cores']) for s in self.results['scaling prediction']]) + '\n'
+            report +=  "perf. ({}) || ".format(self._args.unit) + ' | '.join(
+                ['{:<5.1f}'.format(float(s['performance'][self._args.unit]))
+                 for s in self.results['scaling prediction']]) + '\n'
 
         print(report, file=output_file)
 
