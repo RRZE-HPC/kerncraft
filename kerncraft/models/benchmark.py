@@ -410,7 +410,7 @@ class Benchmark(PerformanceModel):
             cache_metric_results = defaultdict(dict)
             for cache, mtrcs in cache_metrics.items():
                 for m, e in mtrcs.items():
-                    cache_metric_results[cache][m] = e.subs(event_counter_results)
+                    cache_metric_results[cache][m] = int(e.subs(event_counter_results))
 
             # Inter-cache transfers per CL
             cache_transfers_per_cl = {cache: {k: PrefixedUnit(v / total_cachelines, 'CL/CL')
