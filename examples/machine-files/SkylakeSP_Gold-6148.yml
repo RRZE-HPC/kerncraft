@@ -105,7 +105,7 @@ memory hierarchy:
     write_allocate: False
     write_back: True
   size per group: 28 MB
-  groups: 20
+  groups: 1
   cores per group: 20
   threads per group: 40
 - level: MEM
