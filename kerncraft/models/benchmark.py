@@ -293,7 +293,7 @@ class Benchmark(PerformanceModel):
         # FIXME currently only single core measurements support!
         perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
 
-        cpu = '0'
+        cpu = 'S0:0'
         if self._args.cores > 1:
             cpu += '-'+str(self._args.cores-1)
 
