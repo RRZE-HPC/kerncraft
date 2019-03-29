@@ -233,7 +233,7 @@ def select_best_block(blocks):
 def userselect_increment(block):
     """Let user interactively select byte increment."""
     print("Selected block:")
-    print('\n    ' + ('    '.join(block['lines'])))
+    print('\n    ' + ('\n    '.join(block['lines'])))
     print()
 
     increment = None
