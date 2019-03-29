@@ -15,6 +15,7 @@ import string
 from collections import defaultdict
 from itertools import chain
 import random
+import atexit
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -1277,7 +1278,9 @@ class KernelCode(Kernel):
             if self._filename:
                 out_filename = os.path.abspath(os.path.splitext(self._filename)[0]+suffix)
             else:
-                out_filename = tempfile.mkstemp(suffix=suffix)
+                out_filename = tempfile.mkstemp(suffix=suffix)[1]
+                # Register deletion for cleanup
+                atexit.register(os.remove, out_filename)
         out_filename_asm = out_filename+'.s'
 
         # insert iaca markers
