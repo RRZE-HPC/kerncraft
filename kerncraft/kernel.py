@@ -1418,7 +1418,9 @@ class KernelCode(Kernel):
         if self._filename:
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
-            outfile = tempfile.mkstemp(suffix='.likwid_marked')
+            outfile = tempfile.mkstemp(suffix='.likwid_marked')[1]
+            # Register deletion for cleanup
+            atexit.register(os.remove, outfile)
         cmd = [compiler] + infiles + compiler_args + ['-o', outfile]
         # remove empty arguments
         cmd = list(filter(bool, cmd))
