@@ -1278,7 +1278,9 @@ class KernelCode(Kernel):
             if self._filename:
                 out_filename = os.path.abspath(os.path.splitext(self._filename)[0]+suffix)
             else:
-                out_filename = tempfile.mkstemp(suffix=suffix)[1]
+                # FIXME use Directory / TemporaryDirectory instead
+                fd, out_filename = tempfile.mkstemp(suffix=suffix)
+                os.close(fd)
                 # Register deletion for cleanup
                 atexit.register(os.remove, out_filename)
         out_filename_asm = out_filename+'.s'
@@ -1418,7 +1420,9 @@ class KernelCode(Kernel):
         if self._filename:
             outfile = os.path.abspath(os.path.splitext(self._filename)[0]+'.likwid_marked')
         else:
-            outfile = tempfile.mkstemp(suffix='.likwid_marked')[1]
+            # FIXME use Directory / TemporaryDirectory instead
+            fd, outfile = tempfile.mkstemp(suffix='.likwid_marked')
+            os.close(fd)
             # Register deletion for cleanup
             atexit.register(os.remove, outfile)
         cmd = [compiler] + infiles + compiler_args + ['-o', outfile]
@@ -1433,7 +1437,6 @@ class KernelCode(Kernel):
             sys.exit(1)
         finally:
             source_file.close()
-
         return outfile
 
 
