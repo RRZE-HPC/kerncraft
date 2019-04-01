@@ -1293,8 +1293,9 @@ class KernelCode(Kernel):
 
         compiler, compiler_args = self._machine.get_compiler()
 
-        cmd = [compiler] + compiler_args + [os.path.basename(out_filename_asm), 'dummy.s',
-                                            '-o', out_filename]
+        cmd = [compiler] + [os.path.basename(out_filename_asm), 'dummy.s'] + compiler_args + \
+            ['-o', out_filename]
+
         if verbose:
             print('Executing (assemble): ', ' '.join(cmd))
 
@@ -1330,10 +1331,10 @@ class KernelCode(Kernel):
         compiler_args += ['-std=c99']
 
         cmd = ([compiler] +
-               compiler_args +
                [os.path.basename(in_file.name),
                 '-S',
-                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'])
+                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/'] +
+               compiler_args)
 
         if verbose:
             print('Executing (compile): ', ' '.join(cmd))
@@ -1344,9 +1345,9 @@ class KernelCode(Kernel):
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
 
             subprocess.check_output(
-                [compiler] + compiler_args + [
+                [compiler] + [
                     os.path.abspath(os.path.dirname(os.path.realpath(__file__))+'/headers/dummy.c'),
-                    '-S'],
+                    '-S'] + compiler_args,
                 cwd=os.path.dirname(os.path.realpath(in_file.name)))
         except subprocess.CalledProcessError as e:
             print("Compilation failed:", e, file=sys.stderr)
