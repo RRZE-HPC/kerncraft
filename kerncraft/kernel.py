@@ -568,6 +568,20 @@ class Kernel(object):
 
         return offsets
 
+    @property
+    def bytes_per_iteration(self):
+        """
+        Consecutive bytes written out per high-level iterations (as counted by loop stack).
+
+        Is used to compute number of iterations per cacheline.
+        """
+        # TODO Find longst consecutive writes to any variable and use as basis
+        var_name = list(self.destinations)[0]
+        var_type = self.variables[var_name][0]
+        # FIXME this is correct most of the time, but not guaranteed:
+        # Multiplying datatype size with step increment of inner-most loop
+        return self.datatypes_size[var_type] * self._loop_stack[-1][3]
+
     def print_kernel_info(self, output_file=sys.stdout):
         """Print kernel information in human readble format."""
         table = ('     idx |        min        max       step\n' +

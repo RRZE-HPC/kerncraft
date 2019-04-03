@@ -5,6 +5,7 @@ import sys
 import math
 import pprint
 
+import sympy
 try:
     import matplotlib
     matplotlib.use('Agg')
@@ -103,6 +104,9 @@ class ECMData(PerformanceModel):
         """
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = float(self.machine['cacheline size']) // element_size
+        iterations_per_cacheline = (sympy.Integer(self.machine['cacheline size']) /
+                                    sympy.Integer(self.kernel.bytes_per_iteration))
+        self.results['iterations per cacheline'] = iterations_per_cacheline
         cacheline_size = float(self.machine['cacheline size'])
 
         loads, stores = (self.predictor.get_loads(), self.predictor.get_stores())
