@@ -465,38 +465,46 @@ class ECM(PerformanceModel):
             #    max(self.results['T_OL'],
             #        self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
             #    self.results['cycles'][-1][1])
-        scaling_predictions = []
-        for cores in range(1, self.machine['cores per socket'] + 1):
-            scaling = {'cores': cores, 'notes': [], 'performance': None,
-                       'in-NUMA performance': None}
-            # Detailed scaling:
-            if cores <= self.results['scaling cores']:
-                innuma_rectp = PrefixedUnit(
-                    max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
-                        self.results['T_OL']) / (T_ECM/T_MEM),
-                    "cy/CL")
-                scaling['notes'].append("memory-interface not saturated")
-            else:
-                innuma_rectp = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
-                scaling['notes'].append("memory-interface saturated on first NUMA domain")
-            # Include NUMA-local performance in results dict
-            scaling['in-NUMA performance'] = innuma_rectp
+            scaling_predictions = []
+            for cores in range(1, self.machine['cores per socket'] + 1):
+                scaling = {'cores': cores, 'notes': [], 'performance': None,
+                           'in-NUMA performance': None}
+                # Detailed scaling:
+                if cores <= self.results['scaling cores']:
+                    # Is it purely in-cache?
+                    innuma_rectp = PrefixedUnit(
+                            max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
+                                self.results['T_OL']) / (T_ECM/T_MEM),
+                            "cy/CL")
+                    scaling['notes'].append("memory-interface not saturated")
+                else:
+                    innuma_rectp = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
+                    scaling['notes'].append("memory-interface saturated on first NUMA domain")
+                # Include NUMA-local performance in results dict
+                scaling['in-NUMA performance'] = innuma_rectp
 
-            if 0 < cores <= cores_per_numa_domain:
-                # only in-numa scaling to consider
-                scaling['performance'] = self._CPU.conv_cy(
-                    innuma_rectp / utilization[cores - 1])
-                scaling['notes'].append("in-NUMA-domain scaling")
-            elif cores <= self.machine['cores per socket'] * self.machine['sockets']:
-                # out-of-numa scaling behavior
-                scaling['performance'] = self._CPU.conv_cy(
-                    innuma_rectp * cores_per_numa_domain / cores)
-                scaling['notes'].append("out-of-NUMA-domain scaling")
-            else:
-                raise ValueError("Number of cores must be greater than zero and upto the max. "
-                                 "number of cores defined by cores per socket and sockets in"
-                                 "machine file.")
-            scaling_predictions.append(scaling)
+                if 0 < cores <= cores_per_numa_domain:
+                    # only in-numa scaling to consider
+                    scaling['performance'] = self._CPU.conv_cy(
+                        innuma_rectp / utilization[cores - 1])
+                    scaling['notes'].append("in-NUMA-domain scaling")
+                elif cores <= self.machine['cores per socket'] * self.machine['sockets']:
+                    # out-of-numa scaling behavior
+                    scaling['performance'] = self._CPU.conv_cy(
+                        innuma_rectp * cores_per_numa_domain / cores)
+                    scaling['notes'].append("out-of-NUMA-domain scaling")
+                else:
+                    raise ValueError("Number of cores must be greater than zero and upto the max. "
+                                     "number of cores defined by cores per socket and sockets in"
+                                     "machine file.")
+                scaling_predictions.append(scaling)
+        else:
+            # pure in-cache performace (perfect scaling)
+            scaling_predictions = [
+                {'cores': cores, 'notes': ['pure in-cache'],
+                 'performance': self._CPU.conv_cy(T_ECM/cores),
+                 'in-NUMA performance': self._CPU.conv_cy(T_ECM/cores_per_numa_domain)}
+                for cores in range(1, self.machine['cores per socket'] + 1)]
 
         # Also include prediction for all in-NUMA core counts in results
         self.results['scaling prediction'] = scaling_predictions
