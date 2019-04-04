@@ -1371,8 +1371,20 @@ class KernelCode(Kernel):
         finally:
             in_file.close()
 
+        out_filename = os.path.splitext(in_file.name)[0]+'.s'
+        # FIXME TODO FIXME TODO FIXME TODO
+        # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which are
+        # invalid and should be kmovb):
+        if compiler == 'icc':
+            with open(out_filename, 'r+') as f:
+                assembly = f.read()
+                f.seek(0)
+                f.write(assembly.replace('vkmovb', 'kmovb'))
+                f.truncate()
+        # FIXME TODO FIXME TODO FIXME TODO
+
         # Let's return the out_file name
-        return os.path.splitext(in_file.name)[0]+'.s'
+        return out_filename
 
     def iaca_analysis(self, micro_architecture, asm_block='auto',
                       pointer_increment='auto_with_manual_fallback', verbose=False):
