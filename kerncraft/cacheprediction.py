@@ -270,7 +270,7 @@ class CacheSimulationPredictor(CachePredictor):
         # Phase 1:
         # define warmup interval boundaries
         max_steps = 100
-        warmup_increment = ceildiv(max_cache_size // element_size, max_steps)
+        warmup_increment = ceildiv(max_cache_size // element_size, max_steps // 2)
         invalid_entries = self.csim.count_invalid_entries()
         step = 0
         warmup_iteration = 0
