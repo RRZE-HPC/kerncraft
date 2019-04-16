@@ -316,6 +316,11 @@ def iaca_instrumentation(input_file, output_file,
     """
     assembly_orig = input_file.readlines()
 
+    # If input and output files are the same, overwrite with output
+    if input_file is output_file:
+        output_file.seek(0)
+        output_file.truncate()
+
     if debug:
         block_selection = 'manual'
 

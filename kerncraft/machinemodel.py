@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Machine model and helper functions."""
+import os
+from datetime import datetime
 from distutils.spawn import find_executable
 from distutils.version import LooseVersion
 import re
 from collections import OrderedDict
 from copy import deepcopy
+import hashlib
 
 import ruamel
 import cachesim
@@ -85,6 +88,21 @@ class MachineModel(object):
             self.__class__.__name__,
             repr(self._path or self._data['model name']),
         )
+
+    def get_identifier(self):
+        """Return identifier which is either the machine file name or sha256 checksum of data."""
+        if self._path:
+            return os.path.basename(self._path)
+        else:
+            return hashlib.sha256(hashlib.sha256(repr(self._data).encode())).hexdigest()
+
+    def get_last_modified_datetime(self):
+        """Return datetime object of modified time of machine file. Return now if not a file."""
+        if self._path:
+            statbuf = os.stat(self._path)
+            return datetime.utcfromtimestamp(statbuf.st_mtime)
+        else:
+            return datetime.now()
 
     def get_cachesim(self, cores=1):
         """
