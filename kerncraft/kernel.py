@@ -1421,8 +1421,10 @@ class KernelCode(Kernel):
         if not executable:
             compiler_args.append('-c')
 
-        cmd = [compiler] + [in_filename, 'dummy.s'] + compiler_args + \
-            ['-o', out_filename]
+        cmd = [compiler] + [
+            in_filename,
+            os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c'] + \
+              compiler_args + ['-o', out_filename]
 
         if verbose:
             print('Executing (assemble): ', ' '.join(cmd))
