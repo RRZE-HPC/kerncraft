@@ -698,15 +698,48 @@ class KernelCode(Kernel):
 
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
-        assert all([type(s) in [c_ast.Decl, c_ast.Pragma]
-                    for s in self.kernel_ast.block_items[:-1]]), \
-            'all statements before the for loop need to be declarations or pragmas'
-        assert type(self.kernel_ast.block_items[-1]) is c_ast.For, \
-            'last statement in kernel code must be a loop'
 
-        for item in self.kernel_ast.block_items[:-1]:
-            if type(item) is c_ast.Pragma:
-                continue
+        declarations = []
+        loop_nest = []
+        swaps = []
+
+        # Check that code follows sections:
+        # Section in code are (in this specific order):
+        # 'declarations' (any number of array and scalar variable declarations)
+        # 'loopnest' (a single loop nest)
+        # 'swaps' (any number of swaps, may be none)
+        section = 'declarations'
+        for s in self.kernel_ast.block_items:
+            if section == 'declarations':
+                if type(s) in [c_ast.Decl]:
+                    declarations.append(s)
+                    continue
+                # anything not a Declaration terminates the declaration section
+                else:
+                    section = 'loopnest'
+            if section == 'loopnest':
+                # a single loop is expected, which may be preceded with Pragmas
+                if type(s) is c_ast.Pragma:
+                    loop_nest.append(s)
+                    continue
+                elif type(s) is c_ast.For:
+                    loop_nest.append(s)
+                    section = 'swaps'
+                    continue
+                else:
+                    raise ValueError("Expected for loop or pragma(s), found {} instead.".format(s))
+            if section == 'swaps':
+                if type(s) is c_ast.FuncCall and s.name.name == 'swap':
+                    swaps.append(s)
+                    continue
+                else:
+                    raise ValueError("Beyond the for loop, only function calls of 'swap' may be "
+                                     "placed, found {} instead.".format(s))
+            else:
+                raise ValueError("Malformed code, does not follow declaration-loopnest-swaps "
+                                 "structure.")
+
+        for item in declarations:
             array = type(item.type) is c_ast.ArrayDecl
 
             if array:
@@ -723,8 +756,8 @@ class KernelCode(Kernel):
                 assert len(item.type.type.names) == 1, "only single types are supported"
                 self.set_variable(item.name, item.type.type.names[0], None)
 
-        floop = self.kernel_ast.block_items[-1]
-        self._p_for(floop)
+        self._p_for(loop_nest[-1])
+        self.swaps = swaps
 
     def conv_ast_to_sym(self, math_ast):
         """
@@ -978,11 +1011,10 @@ class KernelCode(Kernel):
                 if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
 
     def get_kernel_loop_nest(self):
-        """Return kernel loop nest including any preceding pragmas."""
+        """Return kernel loop nest including any preceding pragmas and following swaps."""
         loop_nest = [s for s in self.kernel_ast
-                     if type(s) in [c_ast.For, c_ast.Pragma]]
+                     if type(s) in [c_ast.For, c_ast.Pragma, c_ast.FuncCall]]
         assert len(loop_nest) >= 1, "Found to few for statements in kernel"
-        assert type(loop_nest[-1]) is c_ast.For, "Last statement needs to be a for loop"
         return loop_nest
 
     def _build_array_declarations(self):
