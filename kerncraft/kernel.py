@@ -694,7 +694,8 @@ class KernelCode(Kernel):
         :return: (file object or file name, boolean if already existent and up-to-date)
         """
         if self._filename:
-            base_name = '.' + self._filename + '_kerncraft'
+            base_name = os.path.join(os.path.dirname(self._filename),
+                                     '.' + os.path.basename(self._filename) + '_kerncraft')
         else:
             base_name = tempfile.mkdtemp()
 
