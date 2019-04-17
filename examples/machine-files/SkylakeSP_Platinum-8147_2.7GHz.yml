@@ -98,10 +98,8 @@ memory hierarchy:
              CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
              CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   cache per group:
-    sets: 33792
-    # TODO is actuall something else, but necessary to get to 33 MB
-    ways: 16
-    # TODO is actually 11, but pycachesim only supports powers of two
+    sets: 49152
+    ways: 11
     cl_size: 64
     replacement_policy: 'LRU'
     write_allocate: False

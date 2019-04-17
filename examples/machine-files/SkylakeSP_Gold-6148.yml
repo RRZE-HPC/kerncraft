@@ -3,7 +3,7 @@
 # FIXME performance counters might be wrong. This will only affect the Benchmark model
 # FIXME bandwidth measurements need validataion
 # FIXME
-kerncraft version: 0.7.1  # which version of kerncraft was this file created for
+kerncraft version: 0.8.0  # which version of kerncraft was this file created for
 
 model name: Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz
 model type: Intel Skylake SP processor
@@ -96,10 +96,8 @@ memory hierarchy:
              CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
              CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   cache per group:
-    sets: 28672
-    # TODO is actuall something else, but necessary to get to 16.5 MB
-    ways: 16
-    # TODO is actually 11, but pycachesim only supports powers of two
+    sets: 24576
+    ways: 11
     cl_size: 64
     replacement_policy: 'LRU'
     write_allocate: False

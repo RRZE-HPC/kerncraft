@@ -1,4 +1,4 @@
-kerncraft version: 0.7.3
+kerncraft version: 0.8.0
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}
   SP: {ADD: 8, FMA: 16, MUL: 8, total: 32}
@@ -38,7 +38,7 @@ memory hierarchy:
       accesses: L1D_REPLACEMENT:PMC[0-3]
       misses: L2_LINES_IN_ALL:PMC[0-3]
       evicts: L2_TRANS_L2_WB:PMC[0-3]
-- cache per group: {cl_size: 64, replacement_policy: LRU, sets: 5632, ways: 64, # 22 MB (cluster on die mode!)
+- cache per group: {cl_size: 64, replacement_policy: LRU, sets: 18432, ways: 20, # 22.5 MB (cluster on die mode!)
   write_allocate: True, write_back: True}
   cores per group: 9
   non-overlap upstream throughput: [32 B/cy, 'half-duplex']

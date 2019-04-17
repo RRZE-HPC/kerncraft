@@ -3,7 +3,7 @@
 # FIXME bandwidth measurements need validation
 # FIXME
 
-kerncraft version: 0.7.1
+kerncraft version: 0.8.0
 model name: Intel(R) Xeon(R) Gold 5122 CPU @ 3.60GHz
 model type: Intel Core Skylake SP
 sockets: 2
@@ -96,10 +96,8 @@ memory hierarchy:
              CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
              CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   cache per group:
-    sets: 16896
-    # TODO is actuall something else, but necessary to get to 16.5 MB
-    ways: 16
-    # TODO is actually 11, but pycachesim only supports powers of two
+    sets: 24576
+    ways: 11
     cl_size: 64
     replacement_policy: 'LRU'
     write_allocate: False
