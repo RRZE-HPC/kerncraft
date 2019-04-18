@@ -193,7 +193,7 @@ class LC(PerformanceModel):
         # TODO support flattend array indexes
         for aref in list(self.kernel.index_order()):
             # Strip left most empty sets (refereces without index)
-            while len(aref[0]) == 0:
+            while aref and len(aref[0]) == 0:
                 aref.pop(0)
             for i, idx_names in enumerate(aref):
                 # 1. Check for that there are enough loops to handle access dimensions
@@ -208,12 +208,12 @@ class LC(PerformanceModel):
         # TODO use a public interface, not self.kernel._*
         for arefs in chain(chain(*self.kernel.sources.values()),
                            chain(*self.kernel.destinations.values())):
-            if arefs is None:
+            if not arefs:
                 continue
 
             # Strip left most constant offsets (refereces without index) to support things like:
             # a[0][i+1][j][k-1] with an i, j and k loop-nest
-            while not arefs[0].free_symbols:
+            while arefs and not arefs[0].free_symbols:
                 arefs = arefs[1:]
 
             # Check that remaining indices are in orde

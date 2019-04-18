@@ -254,6 +254,8 @@ class CacheSimulationPredictor(CachePredictor):
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         cacheline_size = self.machine['cacheline size']
         elements_per_cacheline = int(cacheline_size // element_size)
+        iterations_per_cacheline = (sympy.Integer(self.machine['cacheline size']) /
+                                    sympy.Integer(self.kernel.bytes_per_iteration))
 
         # Gathering some loop information:
         inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
@@ -268,7 +270,7 @@ class CacheSimulationPredictor(CachePredictor):
         # Phase 1:
         # define warmup interval boundaries
         max_steps = 100
-        warmup_increment = ceildiv(max_cache_size // element_size, max_steps)
+        warmup_increment = ceildiv(max_cache_size // element_size, max_steps // 2)
         invalid_entries = self.csim.count_invalid_entries()
         step = 0
         warmup_iteration = 0
@@ -330,7 +332,7 @@ class CacheSimulationPredictor(CachePredictor):
         bench_iteration = self._align_iteration_with_cl_boundary(min(
             warmup_iteration + 100000, max_iterations - 1))
         # print("bench_iteration", bench_iteration)
-        first_dim_factor = float((bench_iteration - warmup_iteration) / elements_per_cacheline)
+        first_dim_factor = float((bench_iteration - warmup_iteration) / iterations_per_cacheline)
         # If end point is less than 100 cacheline away, warn user of inaccuracy
         if first_dim_factor < 1000:
             print("Warning: benchmark iterations are very low ({} CL). This may lead to inaccurate "

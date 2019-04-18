@@ -293,7 +293,7 @@ class Benchmark(PerformanceModel):
         # FIXME currently only single core measurements support!
         perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
 
-        cpu = '0'
+        cpu = 'S0:0'
         if self._args.cores > 1:
             cpu += '-'+str(self._args.cores-1)
 
@@ -368,6 +368,17 @@ class Benchmark(PerformanceModel):
             time_per_repetition = runtime / float(repetitions)
         raw_results = [mem_results]
 
+        # Base metrics for further metric computations:
+        # An iteration is equal to one high-level code inner-most-loop iteration
+        iterations_per_repetition = reduce(
+            operator.mul,
+            [self.kernel.subs_consts(max_ - min_) / self.kernel.subs_consts(step)
+             for idx, min_, max_, step in self.kernel._loop_stack],
+            1)
+        iterations_per_cacheline = (float(self.machine['cacheline size']) /
+                                    self.kernel.bytes_per_iteration)
+        cys_per_repetition = time_per_repetition * float(self.machine['clock'])
+
         # Gather remaining counters
         if not self.no_phenoecm:
             # Build events and sympy expressions for all model metrics
@@ -402,9 +413,8 @@ class Benchmark(PerformanceModel):
 
             # Analytical metrics needed for futher calculation
             cl_size = float(self.machine['cacheline size'])
-            elements_per_cacheline = cl_size // element_size
-            total_iterations = self.kernel.iteration_length() * repetitions
-            total_cachelines = total_iterations / elements_per_cacheline
+            total_iterations = iterations_per_repetition * repetitions
+            total_cachelines = total_iterations / iterations_per_cacheline
 
             T_OL_result = T_OL.subs(event_counter_results) / total_cachelines
             cache_metric_results = defaultdict(dict)
@@ -454,17 +464,11 @@ class Benchmark(PerformanceModel):
         self.results = {'raw output': raw_results, 'ECM': ecm_model,
                         'data transfers': cache_transfers_per_cl,
                         'Runtime (per repetition) [s]': time_per_repetition,
-                        'event counters': event_counters}
+                        'event counters': event_counters,
+                        'Iterations per repetition': iterations_per_repetition,
+                        'Iterations per cacheline': iterations_per_cacheline}
 
         # TODO make more generic to support other (and multiple) constant names
-        iterations_per_repetition = reduce(
-            operator.mul,
-            [self.kernel.subs_consts(max_ - min_) / self.kernel.subs_consts(step)
-             for idx, min_, max_, step in self.kernel._loop_stack],
-            1)
-        self.results['Iterations per repetition'] = iterations_per_repetition
-        iterations_per_cacheline = float(self.machine['cacheline size']) / element_size
-        cys_per_repetition = time_per_repetition * float(self.machine['clock'])
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
             (cys_per_repetition / iterations_per_repetition) * iterations_per_cacheline
         self.results['MEM volume (per repetition) [B]'] = \

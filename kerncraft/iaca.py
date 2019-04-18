@@ -234,7 +234,7 @@ def select_best_block(blocks):
 def userselect_increment(block):
     """Let user interactively select byte increment."""
     print("Selected block:")
-    print('\n    ' + ('    '.join(block['lines'])))
+    print('\n    ' + ('\n    '.join(block['lines'])))
     print()
 
     increment = None
@@ -316,6 +316,11 @@ def iaca_instrumentation(input_file, output_file,
     :return: the instrumented assembly block
     """
     assembly_orig = input_file.readlines()
+
+    # If input and output files are the same, overwrite with output
+    if input_file is output_file:
+        output_file.seek(0)
+        output_file.truncate()
 
     if debug:
         block_selection = 'manual'

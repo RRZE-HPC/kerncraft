@@ -9,6 +9,8 @@ import shutil
 import math
 import re
 import itertools
+from datetime import datetime
+from functools import lru_cache
 
 from ruamel import yaml
 
@@ -62,6 +64,21 @@ def uniquify(l):
     # Uniquify list while preserving order
     seen = set()
     return [x for x in l if x not in seen and not seen.add(x)]
+
+
+@lru_cache()
+def get_last_modified_datetime(dir_path=os.path.dirname(__file__)):
+    """Return datetime object of latest change in kerncraft module directory."""
+    max_mtime = 0
+    for root, dirs, files in os.walk(dir_path):
+        for f in files:
+            p = os.path.join(root, f)
+            try:
+                max_mtime = max(max_mtime, os.stat(p).st_mtime)
+            except FileNotFoundError:
+                pass
+    return datetime.utcfromtimestamp(max_mtime)
+
 
 class AppendStringRange(argparse.Action):
     """
@@ -147,6 +164,8 @@ def create_parser():
                              'cores.')
     parser.add_argument('--kernel-description', action='store_true',
                         help='Use kernel description instead of analyzing the kernel code.')
+    parser.add_argument('--clean-intermediates', action='store_true',
+                        help='If set, will delete all intermediate files after completion.')
 
     # Needed for ECM, ECMData and Roofline model:
     parser.add_argument('--cache-predictor', '-P', choices=['LC', 'SIM'], default='SIM',
@@ -203,7 +222,8 @@ def run(parser, args, output_file=sys.stdout):
     if not args.kernel_description:
         code = str(args.code_file.read())
         code = clean_code(code)
-        kernel = KernelCode(code, filename=args.code_file.name, machine=machine)
+        kernel = KernelCode(code, filename=args.code_file.name, machine=machine,
+                            keep_intermediates=not args.clean_intermediates)
     else:
         description = str(args.code_file.read())
         kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)

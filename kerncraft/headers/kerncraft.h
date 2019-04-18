@@ -12,3 +12,9 @@ inline void* aligned_malloc(size_t size, size_t align) {
     #endif
     return result;
 }
+
+void swap(void* a, void* b) {
+    void* t = a;
+    a = b;
+    b = t;
+}

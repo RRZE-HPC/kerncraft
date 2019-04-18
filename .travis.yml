@@ -1,6 +1,5 @@
 language: python
 python:
-- '3.4'
 - '3.5'
 - '3.6'
 addons:
@@ -14,7 +13,7 @@ before_install:
 - pip install codecov
 - pip install requests
 install:
-- python ./setup.py install
+- pip install -e .
 - iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
 cache: pip
 script:
