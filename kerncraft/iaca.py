@@ -46,7 +46,8 @@ def strip_unreferenced_labels(asm_lines):
             # Found label
             label = line[0:line.find(':')]
             # Search for references to current label
-            if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l) for l in asm_lines]):
+            if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l)
+                        for l in asm_lines]):
                 # Skip labels without seen reference
                 line = ''
         asm_stripped.append(line)
@@ -252,8 +253,10 @@ def userselect_increment(block):
 def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
-    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
-          "----------------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
+    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |"
+          "GP   ||ptr.inc|\n"
+          "----------------+-----+------+-----++-----------+----------+----------+----------+"
+          "---------++-------|")
     for idx, b in blocks:
         print('{:>2} {b[labels]!r:>12} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[ZMM][0]:>3} ({b[ZMM][1]:>2}) | '
