@@ -1539,7 +1539,7 @@ class KernelCode(Kernel):
         micro_architecture = self._machine['micro-architecture']
         if 'micro-architecture-modeler' in self._machine and \
                 self._machine['micro-architecture-modeler'] == 'OSACA':
-            asm_marked_name = self.mark_assembler(asm_name, asm_block=asm_block,
+            asm_marked_name = self.mark_assembly(asm_name, asm_block=asm_block,
                                                   pointer_increment=pointer_increment,
                                                   verbose=verbose)
             return iaca.osaca_analyse_instrumented_assembly(asm_marked_name, micro_architecture), \

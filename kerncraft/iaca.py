@@ -152,7 +152,8 @@ def find_asm_blocks(asm_lines):
                             [r[2] for r in refs if r[2] is not None])))
                     for mref in refs:
                         for reg in list(possible_idx_regs):
-                            # Only consider references with two registers, where one could be an index
+                            # Only consider references with two registers, where one could be an
+                            # index
                             if None not in mref[1:3]:
                                 # One needs to mach, other registers will be excluded
                                 if not (reg == mref[1] or reg == mref[2]):
@@ -387,7 +388,7 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
 
     unmatched_ratio = osaca.get_unmatched_instruction_ratio()
     if unmatched_ratio > 0.1:
-        print('WARNING: {:.0%} of the instruction could not be matched during incore analyssis '
+        print('WARNING: {:.0%} of the instruction could not be matched during incore analysis '
               'with OSACA. Fix this by extending OSACAs instruction form database with the '
               'required instructions.'.format(unmatched_ratio),
               file=sys.stderr)
