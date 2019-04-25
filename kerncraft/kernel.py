@@ -698,7 +698,8 @@ class KernelCode(Kernel):
 
         self.check()
 
-    def _get_intermediate_file(self, name, machine_and_compiler_dependent=True, fp=True):
+    def _get_intermediate_file(self, name, machine_and_compiler_dependent=True, binary=False,
+                               fp=True):
         """
         Create or open intermediate file (may be used for caching).
 
@@ -707,6 +708,7 @@ class KernelCode(Kernel):
         :param machine_and_compiler_dependent: set to False if file content does not depend on
                                                machine file or compiler settings
         :param fp: if False, will only return file name, not file object
+        :paarm binary: if True, use binary mode for file access
 
         :return: (file object or file name, boolean if already existent and up-to-date)
         """
@@ -747,13 +749,16 @@ class KernelCode(Kernel):
 
         if fp:
             if already_exists:
-                f = open(file_path, 'r+')
+                mode = 'r+'
             else:
-                f = open(file_path, 'w')
+                mode = 'w'
+            if binary:
+                mode += 'b'
+            f = open(file_path, mode)
             return f, already_exists
         else:
-            return file_path, already_exists
-
+            return reduce_path(file_path), already_exists
+    
     def _strip_comments(self, code):
         clean_code = []
         for l in code.split('\n'):
@@ -1363,6 +1368,8 @@ class KernelCode(Kernel):
         else:
             parser = CParser()
             template_code = self.CODE_TEMPLATE
+            print(clean_code(template_code,
+                                                   macros=True, comments=True, pragmas=False))
             template_ast = parser.parse(clean_code(template_code,
                                                    macros=True, comments=True, pragmas=False))
             ast = deepcopy(template_ast)
@@ -1427,6 +1434,7 @@ class KernelCode(Kernel):
         # Build file name
         file_base_name = os.path.splitext(os.path.basename(in_filename))[0]
         out_filename, already_exists = self._get_intermediate_file(file_base_name + '.o',
+                                                                   binary=True,
                                                                    fp=False)
         if already_exists:
             # Do not use caching, because pointer_increment or asm_block selection may be different
@@ -1460,18 +1468,19 @@ class KernelCode(Kernel):
         """
         compiler, compiler_args = self._machine.get_compiler()
 
+        in_filename = self.get_kernel_code(openmp=openmp, as_filename=True)
+
         if assembly:
             compiler_args += ['-S']
-            file_name = 'kernel.s'
+            suffix = '.s'
         else:
-            file_name = 'kernel.o'
-        out_filename, already_exists = self._get_intermediate_file(file_name, fp=False)
+            suffix = '.o'
+        out_filename, already_exists = self._get_intermediate_file(
+            os.path.splitext(os.path.basename())[0]+suffix, binary=not assembly, fp=False)
         if already_exists:
             if verbose:
                 print('Executing (compile_kernel): ', 'using cached', out_filename)
             return out_filename
-
-        in_filename = self.get_kernel_code(openmp=openmp, as_filename=True)
 
         compiler_args += ['-std=c99']
 
@@ -1536,7 +1545,7 @@ class KernelCode(Kernel):
 
         kernel_obj_filename = self.compile_kernel(openmp=openmp, verbose=verbose)
         out_filename, already_exists = self._get_intermediate_file(
-            os.path.splitext(os.path.basename(kernel_obj_filename))[0], fp=False)
+            os.path.splitext(os.path.basename(kernel_obj_filename))[0], binary=True, fp=False)
 
         if not already_exists:
             main_source_filename = self.get_main_code(as_filename=True)
