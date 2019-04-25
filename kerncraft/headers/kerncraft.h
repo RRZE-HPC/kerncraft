@@ -2,6 +2,8 @@
 #define _KERNCRAFT_H
 #include <stdlib.h>
 
+#define swap(a, b) {void* t = a; a = b; b = t;}
+
 
 inline void* aligned_malloc(size_t size, size_t align) {
     // Based on http://stackoverflow.com/q/16376942
@@ -16,9 +18,4 @@ inline void* aligned_malloc(size_t size, size_t align) {
     return result;
 }
 
-void swap(void* a, void* b) {
-    void* t = a;
-    a = b;
-    b = t;
-}
 #endif
