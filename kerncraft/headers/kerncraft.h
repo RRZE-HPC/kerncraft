@@ -1,3 +1,5 @@
+#ifndef _KERNCRAFT_H
+#define _KERNCRAFT_H
 #include <stdlib.h>
 
 
@@ -19,3 +21,4 @@ void swap(void* a, void* b) {
     a = b;
     b = t;
 }
+#endif

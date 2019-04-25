@@ -758,7 +758,7 @@ class KernelCode(Kernel):
             return f, already_exists
         else:
             return reduce_path(file_path), already_exists
-    
+
     def _strip_comments(self, code):
         clean_code = []
         for l in code.split('\n'):
@@ -1297,7 +1297,7 @@ class KernelCode(Kernel):
         """Generate and return kernel call ast."""
         return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=[
             c_ast.ID(name=d.name) for d in (
-                    self._build_array_declarations() +
+                    self._build_array_declarations()[0] +
                     self._build_scalar_declarations() +
                     self._build_const_declartions())]))
 
@@ -1348,7 +1348,7 @@ class KernelCode(Kernel):
         }
         """)
 
-    def get_main_code(self, as_filename=False, kernel_function_name='main'):
+    def get_main_code(self, as_filename=False, kernel_function_name='kernel'):
         """
         Generate and return compilable source code from AST.
         """
@@ -1365,8 +1365,6 @@ class KernelCode(Kernel):
         else:
             parser = CParser()
             template_code = self.CODE_TEMPLATE
-            print(clean_code(template_code,
-                                                   macros=True, comments=True, pragmas=False))
             template_ast = parser.parse(clean_code(template_code,
                                                    macros=True, comments=True, pragmas=False))
             ast = deepcopy(template_ast)
@@ -1473,7 +1471,7 @@ class KernelCode(Kernel):
         else:
             suffix = '.o'
         out_filename, already_exists = self._get_intermediate_file(
-            os.path.splitext(os.path.basename())[0]+suffix, binary=not assembly, fp=False)
+            os.path.splitext(os.path.basename(in_filename))[0]+suffix, binary=not assembly, fp=False)
         if already_exists:
             if verbose:
                 print('Executing (compile_kernel): ', 'using cached', out_filename)
@@ -1502,7 +1500,7 @@ class KernelCode(Kernel):
         # FIXME TODO FIXME TODO FIXME TODO
         # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which are
         # invalid and should be kmovb):
-        if compiler == 'icc':
+        if compiler == 'icc' and assembly:
             with open(out_filename, 'r+') as f:
                 assembly = f.read()
                 f.seek(0)
