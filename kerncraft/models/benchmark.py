@@ -342,7 +342,7 @@ class Benchmark(PerformanceModel):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build(verbose=self.verbose > 1, openmp=self._args.cores > 1)
+        bench = self.kernel.build_executable(verbose=self.verbose > 1, openmp=self._args.cores > 1)
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:

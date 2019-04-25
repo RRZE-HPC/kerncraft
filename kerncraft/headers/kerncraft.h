@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+
 inline void* aligned_malloc(size_t size, size_t align) {
     // Based on http://stackoverflow.com/q/16376942
     void *result;

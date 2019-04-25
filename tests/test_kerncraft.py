@@ -320,8 +320,8 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        assert_relativly_equal(ecmd['T_OL'], 12, 0.05)
-        assert_relativly_equal(ecmd['T_nOL'], 10, 0.05)
+        assert_relativly_equal(ecmd['T_OL'], 11, 0.05)
+        assert_relativly_equal(ecmd['T_nOL'], 8, 0.05)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECM(self):
@@ -363,8 +363,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        assert_relativly_equal(ecmd['T_OL'], 12, 0.05)
-        assert_relativly_equal(ecmd['T_nOL'], 10, 0.05)
+        assert_relativly_equal(ecmd['T_OL'], 11, 0.05)
+        assert_relativly_equal(ecmd['T_nOL'], 8, 0.05)
         assert_relativly_equal(ecmd['L2'], 10, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         assert_relativly_equal(ecmd['MEM'], 13, 0.05)
