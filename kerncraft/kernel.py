@@ -1309,9 +1309,6 @@ class KernelCode(Kernel):
         void dummy(void *);
         extern int var_false;
 
-        // Kernel function declaration
-        KERNEL_DECL;
-
         int main(int argc, char **argv) {
           // Declaring constants
           DECLARE_CONSTS;
@@ -1388,7 +1385,7 @@ class KernelCode(Kernel):
             replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
 
             # Define and replace KERNEL_DECL
-            replace_id(ast, "KERNEL_DECL", self._build_kernel_function_declaration(
+            ast.ext.insert(0, self._build_kernel_function_declaration(
                 name=kernel_function_name))
 
             # Define and replace KERNEL_CALL
