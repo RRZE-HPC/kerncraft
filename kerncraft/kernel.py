@@ -753,7 +753,7 @@ class KernelCode(Kernel):
             return f, already_exists
         else:
             return file_path, already_exists
-    
+
     def _strip_comments(self, code):
         clean_code = []
         for l in code.split('\n'):
@@ -1303,10 +1303,10 @@ class KernelCode(Kernel):
 
         void dummy(void *);
         extern int var_false;
-        
+
         // Kernel function declaration
         KERNEL_DECL;
-        
+
         int main(int argc, char **argv) {
           // Declaring constants
           DECLARE_CONSTS;
@@ -1354,7 +1354,7 @@ class KernelCode(Kernel):
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
 
-        fp, already_available = self._get_intermediate_file('main.c'.format(type_),
+        fp, already_available = self._get_intermediate_file('main.c',
                                                             machine_and_compiler_dependent=False)
 
         # Use already cached version
