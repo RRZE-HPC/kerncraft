@@ -720,8 +720,10 @@ class KernelCode(Kernel):
         # Check if file exists and is still fresh
         if os.path.exists(file_path):
             file_modified = datetime.utcfromtimestamp(os.stat(file_path).st_mtime)
-            if file_modified < self._machine.get_last_modified_datetime() or \
-                file_modified < kerncraft.get_last_modified_datetime():
+            if (file_modified < self._machine.get_last_modified_datetime() or
+                file_modified < kerncraft.get_last_modified_datetime() or
+                (self._filename and
+                 file_modified < datetime.utcfromtimestamp(os.stat(self._filename).st_mtime))):
                 os.remove(file_path)
             else:
                 already_exists = True
