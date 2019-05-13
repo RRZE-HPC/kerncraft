@@ -40,6 +40,25 @@ def symbol_pos_int(*args, **kwargs):
     return sympy.Symbol(*args, **kwargs)
 
 
+def string_to_sympy(s):
+    """Convert any string to a sympy object or None."""
+    if isinstance(s, int):
+        return sympy.Integer(s)
+    elif isinstance(s, list):
+        return tuple([string_to_sympy(e) for e in s])
+    elif s is None:
+        return None
+    else:
+        # Step 1 build expression with the whole alphabet redefined:
+        local_dict = {c: symbol_pos_int(c) for c in s if c in string.ascii_letters}
+        # TODO find nicer solution for N and other pre-mapped letters
+        preliminary_expr = parse_expr(s, local_dict=local_dict)
+        # Replace all free symbols with positive integer versions:
+        local_dict.update(
+            {s.name: symbol_pos_int(s.name) for s in preliminary_expr.free_symbols})
+        return parse_expr(s, local_dict=local_dict)
+
+
 def prefix_indent(prefix, textblock, later_prefix=' '):
     """
     Prefix and indent all lines in *textblock*.
@@ -1615,27 +1634,27 @@ class KernelDescription(Kernel):
 
         # Loops
         self._loop_stack = list([
-            (l['index'], self.string_to_sympy(l['start']),
-             self.string_to_sympy(l['stop']), self.string_to_sympy(l['step']))
+            (l['index'], string_to_sympy(l['start']),
+             string_to_sympy(l['stop']), string_to_sympy(l['step']))
             for l in description['loops']
         ])
 
         # Variables
         for var_name, v in description['arrays'].items():
-            self.set_variable(var_name, v['type'], self.string_to_sympy(v['dimension']))
+            self.set_variable(var_name, v['type'], string_to_sympy(v['dimension']))
 
         # Datatype
         self.datatype = list(self.variables.values())[0][0]
 
         # Data sources
         self.sources = {
-            var_name: set([self.string_to_sympy(idx) for idx in v])
+            var_name: set([string_to_sympy(idx) for idx in v])
             for var_name, v in description['data sources'].items()
         }
 
         # Data destinations
         self.destinations = {
-            var_name: set([self.string_to_sympy(idx) for idx in v])
+            var_name: set([string_to_sympy(idx) for idx in v])
             for var_name, v in description['data destinations'].items()
         }
 
@@ -1644,22 +1663,4 @@ class KernelDescription(Kernel):
 
         self.check()
 
-    @classmethod
-    def string_to_sympy(cls, s):
-        """Convert any string to a sympy object or None."""
-        if isinstance(s, int):
-            return sympy.Integer(s)
-        elif isinstance(s, list):
-            return tuple([cls.string_to_sympy(e) for e in s])
-        elif s is None:
-            return None
-        else:
-            # Step 1 build expression with the whole alphabet redefined:
-            local_dict = {c: symbol_pos_int(c) for c in s if c in string.ascii_letters}
-            # TODO find nicer solution for N and other pre-mapped letters
-            preliminary_expr = parse_expr(s, local_dict=local_dict)
-            # Replace all free symbols with positive integer versions:
-            local_dict.update(
-                {s.name: symbol_pos_int(s.name) for s in preliminary_expr.free_symbols})
-            return parse_expr(s, local_dict=local_dict)
 

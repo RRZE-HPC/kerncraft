@@ -78,6 +78,7 @@ class LC(PerformanceModel):
                 accesses[var_name].append(w)
                 sympy_accesses[var_name].append(self.kernel.access_to_sympy(var_name, w))
             # order accesses by increasing order
+            print(accesses[var_name])
             accesses[var_name].sort(key=cmp_to_key(sympy_compare), reverse=True)
 
         results['accesses'] = accesses
@@ -198,6 +199,7 @@ class LC(PerformanceModel):
             for i, idx_names in enumerate(aref):
                 # 1. Check for that there are enough loops to handle access dimensions
                 # 2. Check that offset index matches loop index (in same order)
+                continue  # DONOTCOMMIT
                 if i >= len(loop_stack) or \
                         any([loop_stack[i]['index'] != idx.name for idx in idx_names]):
                     raise ValueError("Can not apply layer condition, order of indices in array "

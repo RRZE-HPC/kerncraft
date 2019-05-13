@@ -3,16 +3,94 @@
 from itertools import chain
 import sys
 from pprint import pprint
+from functools import cmp_to_key
 
 import sympy
 import numpy as np
 
-from kerncraft.kernel import symbol_pos_int
+from kerncraft.kernel import symbol_pos_int, string_to_sympy
 
 
 # From https://stackoverflow.com/a/17511341 by dlitz
 def ceildiv(a: int, b: int) -> object:
     return -(-a // b)
+
+
+def sympy_compare(a, b):
+    """Compare a and b, assuming that a and b are sympy expressions."""
+    c = 0
+    for i in range(min(len(a), len(b))):
+        s = a[i] - b[i]
+        if sympy.simplify(s > 0):
+            c = -1
+        elif sympy.simplify(s == 0):
+            c = 0
+        else:
+            c = 1
+        if c != 0:
+            break
+    return c
+
+
+def extract_offsets(expr, indices):
+    """
+    Extract dimensional offsets from single-dimension sympy array index expression.
+
+    :param expr: sympy expression
+    :param indices: list of indices in outer to inner order
+
+    >>> M = sympy.Symbol(name='M', positive=True, integer=True)
+    >>> N = sympy.Symbol(name='N', positive=True, integer=True)
+    >>> i = sympy.Symbol(name='i', positive=True, integer=True)
+    >>> j = sympy.Symbol(name='j', positive=True, integer=True)
+    >>> k = sympy.Symbol(name='k', positive=True, integer=True)
+    >>> extract_offsets(M*N*k + N*(j+1) + (i-1), [k, j, i])
+    (0, 1, -1)
+    >>> extract_offsets(M*N*k - M*N + N*j+ N*2 + i, [k, j, i])
+    (-1, 2, 0)
+    >>> extract_offsets(N**2*(k-2) + N*j+ N*2 + i, [k, j, i])
+    (-2, 2, 0)
+    >>> extract_offsets(N*N*k, [k,j,i])
+    ValueError: Invalid expression. Some dimension terms seem to be missing.
+    >>> extract_offsets(N*N*k + N*k + i + j, [k,j,i])
+    ValueError: Invalid expression. Dimensions do not seem to be coefficients of one another.
+
+    """
+    # Expand polynomial expressions, e.g., N*(j+1) -> N*j + N
+    eexpr = expr.expand()
+    terms = eexpr.as_ordered_terms()
+
+    # Find dimension factors belonging to indices
+    dimension_factors = []
+    for index in indices:
+        for term in terms:
+            c = term.as_coefficient(index)
+            if c:
+                dimension_factors.append(c)
+
+    # Check that dimension_factors include preceding dim. factor
+    for d1, d2 in zip(dimension_factors, dimension_factors[1:]):
+        # Check if d2 is contained in d1 AND d2 is part of a power in d1
+        if d1.as_coefficient(d2) is None and d1.as_coeff_exponent(d2)[1] < 1:
+            raise ValueError("Invalid expression. Dimensions do not seem to be coefficients of one "
+                             "another.")
+
+    # Find offsets associated with dimension factors
+    offsets = []
+    for dim_factor in dimension_factors:
+        for term in terms:
+            c = term.as_coefficient(dim_factor)
+            if c is not None and c.is_Integer:
+                offsets.append(c)
+                break
+        else:
+            offsets.append(0)
+
+    # TODO reassemble and compare to original expression to check for errors
+    # TODO offer to return dimension_factors as well
+    if not len(indices) == len(dimension_factors) == len(offsets):
+        raise ValueError("Invalid expression. Some dimension terms seem to be missing.")
+    return tuple(offsets)
 
 
 class CachePredictor(object):
@@ -143,16 +221,22 @@ class LayerConditionPredictor(CachePredictor):
             acs = accesses[var_name]
             # Transform them into sympy expressions
             acs = [self.kernel.access_to_sympy(var_name, r) for r in acs]
-            # Replace constants with their integer counter parts, to make the entries sortable
-            acs = [self.kernel.subs_consts(e) for e in acs]
             # Sort accesses by decreasing order
-            acs.sort(reverse=True)
+            indices = [string_to_sympy(l['index']) for l in self.kernel.get_loop_stack()]
+            acs.sort(key=lambda a: extract_offsets(a, indices), reverse=True)
+            # Replace constants with their integer counter parts, to make the entries numbers
+            #acs = [self.kernel.subs_consts(e) for e in acs] DONOTCOMMIT
 
             # Create reuse distances by substracting accesses pairwise in decreasing order
             distances += [(acs[i-1]-acs[i]).simplify() for i in range(1, len(acs))]
             # Add infinity for each array
             distances.append(sympy.oo)
 
+        # WIP
+        print(distances)
+        from IPython import embed
+        embed()
+        # /WIP
         # Sort distances by decreasing order
         distances.sort(reverse=True)
         # Create copy of distances in bytes:
