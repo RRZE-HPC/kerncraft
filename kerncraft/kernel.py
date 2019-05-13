@@ -107,24 +107,31 @@ def transform_multidim_to_1d_ref(aref, dimension_dict):
     aref.name = name
 
 
-def transform_array_decl_to_malloc(decl):
-    """Transform ast of "type var_name[N]" to "type* var_name = __mm_malloc(N, 32)" (in-place)."""
+def transform_array_decl_to_malloc(decl, with_init=True):
+    """
+    Transform ast of "type var_name[N]" to "type* var_name = aligned_malloc(sizeof(type)*N, 32)"
+
+    In-place operation.
+
+    :param with_init: if False, ommit malloc
+    """
     if type(decl.type) is not c_ast.ArrayDecl:
         # Not an array declaration, can be ignored
         return
 
     type_ = c_ast.PtrDecl([], decl.type.type)
-    decl.init = c_ast.FuncCall(
-        c_ast.ID('aligned_malloc'),
-        c_ast.ExprList([
-            c_ast.BinaryOp(
-                '*',
-                c_ast.UnaryOp(
-                    'sizeof',
-                    c_ast.Typename(None, [], c_ast.TypeDecl(
-                        None, [], decl.type.type.type))),
-                decl.type.dim),
-            c_ast.Constant('int', '32')]))
+    if with_init:
+        decl.init = c_ast.FuncCall(
+            c_ast.ID('aligned_malloc'),
+            c_ast.ExprList([
+                c_ast.BinaryOp(
+                    '*',
+                    c_ast.UnaryOp(
+                        'sizeof',
+                        c_ast.Typename(None, [], c_ast.TypeDecl(
+                            None, [], decl.type.type.type))),
+                    decl.type.dim),
+                c_ast.Constant('int', '32')]))
     decl.type = type_
 
 
@@ -146,6 +153,7 @@ def find_pragmas(ast):
     if type(ast) is c_ast.Pragma:
         return [ast]
 
+
 def force_iterable(f):
     """Will make any functions return an iterable objects by wrapping its result in a list."""
     def wrapper(*args, **kwargs):
@@ -155,6 +163,15 @@ def force_iterable(f):
         else:
             return [r]
     return wrapper
+
+
+def reduce_path(path):
+    """Reduce absolute path to relative (if shorter) for easier readability."""
+    relative_path = os.path.relpath(path)
+    if len(relative_path) < len(path):
+        return relative_path
+    else:
+        return path
 
 
 class Kernel(object):
@@ -638,7 +655,7 @@ class Kernel(object):
         raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
                                   "Try a different model or kernel input format.")
 
-    def build(self, *args, **kwargs):
+    def build_executable(self, *args, **kwargs):
         """Compile and build binary."""
         raise NotImplementedError("Kernel does not support compilation. Try a different model or "
                                   "kernel input format.")
@@ -681,7 +698,8 @@ class KernelCode(Kernel):
 
         self.check()
 
-    def _get_intermediate_file(self, name, machine_and_compiler_dependent=True, fp=True):
+    def _get_intermediate_file(self, name, machine_and_compiler_dependent=True, binary=False,
+                               fp=True):
         """
         Create or open intermediate file (may be used for caching).
 
@@ -690,6 +708,7 @@ class KernelCode(Kernel):
         :param machine_and_compiler_dependent: set to False if file content does not depend on
                                                machine file or compiler settings
         :param fp: if False, will only return file name, not file object
+        :paarm binary: if True, use binary mode for file access
 
         :return: (file object or file name, boolean if already existent and up-to-date)
         """
@@ -720,21 +739,26 @@ class KernelCode(Kernel):
         # Check if file exists and is still fresh
         if os.path.exists(file_path):
             file_modified = datetime.utcfromtimestamp(os.stat(file_path).st_mtime)
-            if file_modified < self._machine.get_last_modified_datetime() or \
-                file_modified < kerncraft.get_last_modified_datetime():
+            if (file_modified < self._machine.get_last_modified_datetime() or
+                file_modified < kerncraft.get_last_modified_datetime() or
+                (self._filename and
+                 file_modified < datetime.utcfromtimestamp(os.stat(self._filename).st_mtime))):
                 os.remove(file_path)
             else:
                 already_exists = True
 
         if fp:
             if already_exists:
-                f = open(file_path, 'r+')
+                mode = 'r+'
             else:
-                f = open(file_path, 'w')
+                mode = 'w'
+            if binary:
+                mode += 'b'
+            f = open(file_path, mode)
             return f, already_exists
         else:
-            return file_path, already_exists
-    
+            return reduce_path(file_path), already_exists
+
     def _strip_comments(self, code):
         clean_code = []
         for l in code.split('\n'):
@@ -1028,7 +1052,7 @@ class KernelCode(Kernel):
         """
         Return index type used in loop nest.
 
-        If they differ, an exception is raised.
+        If index type between loops differ, an exception is raised.
         """
         if loop_nest is None:
             loop_nest = self.get_kernel_loop_nest()
@@ -1037,14 +1061,18 @@ class KernelCode(Kernel):
         index_types = (None, None)
         for s in loop_nest:
             if type(s) is c_ast.For:
-                index_types = (s.init.decls[0].type.type.names,
-                               self.get_index_type(loop_nest=s.stmt))
+                if type(s.stmt) in [c_ast.For, c_ast.Compound]:
+                    other = self.get_index_type(loop_nest=s.stmt)
+                else:
+                    other = None
+                index_types = (s.init.decls[0].type.type.names, other)
+                break
         if index_types[0] == index_types[1] or index_types[1] is None:
             return index_types[0]
         else:
             raise ValueError("Loop indices must have same type, found {}.".format(index_types))
 
-    def _build_const_declartions(self):
+    def _build_const_declartions(self, with_init=True):
         """
         Generate constants declarations
 
@@ -1061,9 +1089,12 @@ class KernelCode(Kernel):
             # with increasing N and 1
             # TODO change subscript of argv depending on constant count
             type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(index_type))
-            init = c_ast.FuncCall(
-                c_ast.ID('atoi'),
-                c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'), c_ast.Constant('int', str(i)))]))
+            init = None
+            if with_init:
+                init = c_ast.FuncCall(
+                    c_ast.ID('atoi'),
+                    c_ast.ExprList([c_ast.ArrayRef(c_ast.ID('argv'),
+                                                   c_ast.Constant('int', str(i)))]))
             i += 1
             decls.append(c_ast.Decl(
                 k.name, ['const'], [], [],
@@ -1073,21 +1104,23 @@ class KernelCode(Kernel):
 
     def get_array_declarations(self):
         """Return array declarations."""
-        return [d for d in self.kernel_ast
+        return [d for d in self.kernel_ast.block_items
                 if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
 
     def get_kernel_loop_nest(self):
         """Return kernel loop nest including any preceding pragmas and following swaps."""
-        loop_nest = [s for s in self.kernel_ast
+        loop_nest = [s for s in self.kernel_ast.block_items
                      if type(s) in [c_ast.For, c_ast.Pragma, c_ast.FuncCall]]
         assert len(loop_nest) >= 1, "Found to few for statements in kernel"
         return loop_nest
 
-    def _build_array_declarations(self):
+    def _build_array_declarations(self, with_init=True):
         """
         Generate declaration statements for arrays.
 
         Also transforming multi-dim to 1d arrays and initializing with malloc.
+
+        :param with_init: ommit malloc initialization
 
         :return: list of declarations nodes, dictionary of array names and original dimensions
         """
@@ -1097,7 +1130,7 @@ class KernelCode(Kernel):
         for d in array_declarations:
             # We need to transform
             array_dict.append(transform_multidim_to_1d_decl(d))
-            transform_array_decl_to_malloc(d)
+            transform_array_decl_to_malloc(d, with_init=with_init)
         return array_declarations, dict(array_dict)
 
     def _find_inner_most_loop(self, loop_nest):
@@ -1110,16 +1143,15 @@ class KernelCode(Kernel):
                 r = r or self._find_inner_most_loop(s)
         return r
 
-    def _build_array_initializations(self, array_dimensions, kernel):
+    def _build_array_initializations(self, array_dimensions):
         """
         Generate initialization statements for arrays.
 
         :param array_dimensions: dictionary of array dimensions
-        :param kernel: use this kernel as basis
 
         :return: list of nodes
         """
-        kernel = deepcopy(kernel)
+        kernel = deepcopy(deepcopy(self.get_kernel_loop_nest()))
         # traverse to the inner most for loop:
         inner_most = self._find_inner_most_loop(kernel)
         orig_inner_stmt = inner_most.stmt
@@ -1164,162 +1196,24 @@ class KernelCode(Kernel):
             iffalse=None)
         return dummy_stmt
 
+    def _build_kernel_function_declaration(self, name='kernel'):
+        """Build and return kernel function declaration"""
+        array_declarations, array_dimensions = self._build_array_declarations(with_init=False)
+        scalar_declarations = self._build_scalar_declarations(with_init=False)
+        const_declarations = self._build_const_declartions(with_init=False)
+        return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations + scalar_declarations +
+                                                          const_declarations),
+                              type=c_ast.TypeDecl(declname=name,
+                                                  quals=[],
+                                                  type=c_ast.IdentifierType(names=['void'])))
 
-    CODE_TEMPLATES = {
-        'iaca': textwrap.dedent("""
-                    #include "kerncraft.h"
-                    #include <stdlib.h>
-
-                    void dummy(void *);
-                    extern int var_false;
-                    int main(int argc, char **argv) {
-                      // Declaring constants
-                      DECLARE_CONSTS;
-                      // Declaring arrays
-                      DECLARE_ARRAYS;
-                      // Declaring and initializing scalars
-                      DECLARE_INIT_SCALARS;
-
-                      // Initializing arrays
-                      INIT_ARRAYS;
-
-                      // Dummy call
-                      DUMMY_CALLS;
-
-                      KERNEL_LOOP_NEST;
-
-                      // Dummy call
-                      DUMMY_CALLS;
-                    }
-                """),
-        'likwid': textwrap.dedent("""
-                    #include <likwid.h>
-                    #include "kerncraft.h"
-                    #include <stdlib.h>
-
-                    void dummy(void *);
-                    extern int var_false;
-                    int main(int argc, char **argv) {
-                      // Declaring constants
-                      DECLARE_CONSTS;
-                      // Declaring arrays
-                      DECLARE_ARRAYS;
-                      // Declaring and initializing scalars
-                      DECLARE_INIT_SCALARS;
-
-                      likwid_markerInit();
-                      likwid_markerRegisterRegion("loop");
-
-                      // Initializing arrays
-                      INIT_ARRAYS;
-
-                      // Dummy call
-                      DUMMY_CALLS;
-
-                      for(int warmup = 1; warmup >= 0; --warmup) {
-                        int repeat = 2;
-                        if(warmup == 0) {
-                          repeat = atoi(argv[1]);
-                          likwid_markerStartRegion("loop");
-                        }
-
-                        for(; repeat > 0; --repeat) {
-                          KERNEL_LOOP_NEST;
-                          DUMMY_CALLS;
-                        }
-
-                      }
-                      likwid_markerStopRegion("loop");
-                      likwid_markerClose();
-                    }
-                """),
-        'likwid-openmp': textwrap.dedent("""
-                    #include <likwid.h>
-                    #include "kerncraft.h"
-                    #include <stdlib.h>
-
-                    void dummy(void *);
-                    extern int var_false;
-                    int main(int argc, char **argv) {
-                      // Declaring constants
-                      DECLARE_CONSTS;
-                      // Declaring arrays
-                      DECLARE_ARRAYS;
-                      // Declaring and initializing scalars
-                      DECLARE_INIT_SCALARS;
-
-                      likwid_markerInit();
-                      #pragma omp parallel
-                      {
-                        likwid_markerRegisterRegion("loop");
-                        #pragma omp barrier
-
-                        // Initializing arrays in same order as touched in kernel loop nest
-                        INIT_ARRAYS;
-
-                        // Dummy call
-                        DUMMY_CALLS;
-
-                        for(int warmup = 1; warmup >= 0; --warmup) {
-                          int repeat = 2;
-                          if(warmup == 0) {
-                            repeat = atoi(argv[1]);
-                            likwid_markerStartRegion("loop");
-                          }
-
-                          for(; repeat > 0; --repeat) {
-                            KERNEL_LOOP_NEST;
-                            DUMMY_CALLS;
-                          }
-
-                        }
-                        likwid_markerStopRegion("loop");
-                      }
-                      likwid_markerClose();
-                    }
-                """)
-    }
-
-    def as_code(self, type_='iaca', openmp=False, as_filename=False):
-        """
-        Generate and return compilable source code from AST.
-
-        :param type: can be iaca or likwid.
-        :param openmp: if true, openmp code will be generated
-        """
-        # TODO produce nicer code, including help text and other "comfort features".
-        assert type_ in self.CODE_TEMPLATES, "Only 'iaca' or 'likwid' are valid type_ arguments."
-        assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
-                                            "based on a kernel description rather than code."
-        if openmp:
-            assert type_ == 'likwid', "openmp may only be used in combination with type likwid."
-            type_ += '-openmp'
-
-        fp, already_available = self._get_intermediate_file('kernel_{}.c'.format(type_),
-                                                            machine_and_compiler_dependent=False)
-
-        # Use already cached version
-        if already_available:
-            code = fp.read()
-        else:
-            parser = CParser()
-            template_code = self.CODE_TEMPLATES[type_]
-            template_ast = parser.parse(clean_code(template_code,
-                                                   macros=True, comments=True, pragmas=False))
-            ast = deepcopy(template_ast)
-
-            # Define and replace DECLARE_CONSTS
-            replace_id(ast, "DECLARE_CONSTS", self._build_const_declartions())
-
-            # Define and replace DECLARE_ARRAYS
-            array_declarations, array_dimensions = self._build_array_declarations()
-            replace_id(ast, "DECLARE_ARRAYS", array_declarations)
-
-            # Define and replace DECLARE_INIT_SCALARS
-            # copy scalar declarations from from kernel ast
-            scalar_declarations = [deepcopy(d) for d in self.kernel_ast
-                                  if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
-            # add init values to declarations
+    def _build_scalar_declarations(self, with_init=True):
+        """Build and return scalar variable declarations"""
+        # copy scalar declarations from from kernel ast
+        scalar_declarations = [deepcopy(d) for d in self.kernel_ast.block_items
+                               if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+        # add init values to declarations
+        if with_init:
             random.seed(2342)  # we want reproducible random numbers
             for d in scalar_declarations:
                 if d.type.type.names[0] in ['double', 'float']:
@@ -1327,12 +1221,35 @@ class KernelCode(Kernel):
                 elif d.type.type.names[0] in ['int', 'long', 'long long',
                                               'unsigned int', 'unsigned long', 'unsigned long long']:
                     d.init = c_ast.Constant('int', 2)
-            replace_id(ast, "DECLARE_INIT_SCALARS", scalar_declarations)
 
-            # Define and replace DUMMY_CALLS
-            replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
+        return scalar_declarations
 
-            # Define and replace KERNEL_LOOP_NEST
+
+    def get_kernel_code(self, openmp=False, as_filename=False, name='kernel'):
+        """
+        Generate and return compilable source code with kernel function from AST.
+
+        :param openmp: if true, OpenMP code will be generated
+        :param as_filename: if true, will save to file and return filename
+        :param name: name of kernel function
+        """
+        assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
+                                            "based on a kernel description rather than code."
+        file_name = 'kernel'
+        if openmp:
+            file_name += '-omp'
+        file_name += '.c'
+
+        fp, already_available = self._get_intermediate_file(
+            file_name, machine_and_compiler_dependent=False)
+
+        # Use already cached version
+        if already_available:
+            code = fp.read()
+        else:
+            array_declarations, array_dimensions = self._build_array_declarations()
+
+            # Prepare actual kernel loop nest
             if openmp:
                 # with OpenMP code
                 kernel = deepcopy(self.get_kernel_loop_nest())
@@ -1342,12 +1259,11 @@ class KernelCode(Kernel):
                     transform_multidim_to_1d_ref(aref, array_dimensions)
                 omp_pragmas = [p for p in find_node_type(kernel, c_ast.Pragma)
                                if 'omp' in p.string]
-                # TODO if omp parallel was found, remove it (also for parallel for -> for:w)
+                # TODO if omp parallel was found, remove it (also replace "parallel for" -> "for")
                 # if no omp for pragmas are present, insert suitable ones
                 if not omp_pragmas:
                     kernel.insert(0, c_ast.Pragma("omp for"))
                 # otherwise do not change anything
-                replace_id(ast, "KERNEL_LOOP_NEST", kernel)
             else:
                 # with original code
                 kernel = deepcopy(self.get_kernel_loop_nest())
@@ -1355,10 +1271,126 @@ class KernelCode(Kernel):
                 for aref in find_node_type(kernel, c_ast.ArrayRef):
                     # transform to 1d references
                     transform_multidim_to_1d_ref(aref, array_dimensions)
-                replace_id(ast, "KERNEL_LOOP_NEST", kernel)
+
+            function_ast = c_ast.FuncDef(decl=c_ast.Decl(
+                name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
+                storage=[], funcspec=[], init=None, bitsize=None),
+                body=c_ast.Compound(block_items=kernel),
+                param_decls=None)
+
+            # Generate code
+            code = CGenerator().visit(function_ast)
+
+            # Insert missing #includes from template to top of code
+            code = '#include "kerncraft.h"\n\n' + code
+
+            # Store to file
+            fp.write(code)
+        fp.close()
+
+        if as_filename:
+            return fp.name
+        else:
+            return code
+
+    def _build_kernel_call(self, name='kernel'):
+        """Generate and return kernel call ast."""
+        return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=[
+            c_ast.ID(name=d.name) for d in (
+                    self._build_array_declarations()[0] +
+                    self._build_scalar_declarations() +
+                    self._build_const_declartions())]))
+
+    CODE_TEMPLATE = textwrap.dedent("""
+        #include <likwid.h>
+        #include <stdlib.h>
+        #include "kerncraft.h"
+
+        void dummy(void *);
+        extern int var_false;
+
+        int main(int argc, char **argv) {
+          // Declaring constants
+          DECLARE_CONSTS;
+          // Declaring arrays
+          DECLARE_ARRAYS;
+          // Declaring and initializing scalars
+          DECLARE_INIT_SCALARS;
+
+          likwid_markerInit();
+          #pragma omp parallel
+          {
+            likwid_markerRegisterRegion("loop");
+            #pragma omp barrier
+
+            // Initializing arrays in same order as touched in kernel loop nest
+            INIT_ARRAYS;
+
+            // Dummy call
+            DUMMY_CALLS;
+
+            for(int warmup = 1; warmup >= 0; --warmup) {
+              int repeat = 2;
+              if(warmup == 0) {
+                repeat = atoi(argv[1]);
+                likwid_markerStartRegion("loop");
+              }
+
+              for(; repeat > 0; --repeat) {
+                KERNEL_CALL;
+                DUMMY_CALLS;
+              }
+
+            }
+            likwid_markerStopRegion("loop");
+          }
+          likwid_markerClose();
+        }
+        """)
+
+    def get_main_code(self, as_filename=False, kernel_function_name='kernel'):
+        """
+        Generate and return compilable source code from AST.
+        """
+        # TODO produce nicer code, including help text and other "comfort features".
+        assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
+                                            "based on a kernel description rather than code."
+
+        fp, already_available = self._get_intermediate_file('main.c',
+                                                            machine_and_compiler_dependent=False)
+
+        # Use already cached version
+        if already_available:
+            code = fp.read()
+        else:
+            parser = CParser()
+            template_code = self.CODE_TEMPLATE
+            template_ast = parser.parse(clean_code(template_code,
+                                                   macros=True, comments=True, pragmas=False))
+            ast = deepcopy(template_ast)
+
+            # Define and replace DECLARE_CONSTS
+            replace_id(ast, "DECLARE_CONSTS", self._build_const_declartions(with_init=True))
+
+            # Define and replace DECLARE_ARRAYS
+            array_declarations, array_dimensions = self._build_array_declarations()
+            replace_id(ast, "DECLARE_ARRAYS", array_declarations)
+
+            # Define and replace DECLARE_INIT_SCALARS
+            replace_id(ast, "DECLARE_INIT_SCALARS", self._build_scalar_declarations())
+
+            # Define and replace DUMMY_CALLS
+            replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
+
+            # Define and replace KERNEL_DECL
+            ast.ext.insert(0, self._build_kernel_function_declaration(
+                name=kernel_function_name))
+
+            # Define and replace KERNEL_CALL
+            replace_id(ast, "KERNEL_CALL", self._build_kernel_call())
 
             # Define and replace INIT_ARRAYS based on previously generated kernel
-            replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions, kernel))
+            replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions))
 
             # Generate code
             code = CGenerator().visit(ast)
@@ -1376,44 +1408,9 @@ class KernelCode(Kernel):
         else:
             return code
 
-    def mark_assembly(self, in_filename, out_filename=None, asm_block='auto',
-                       pointer_increment='auto_with_manual_fallback', verbose=False):
+    def assemble_to_object(self, in_filename, verbose=False):
         """
-        Insert IACA-style markers into *in_filename* and saves to *out_filename* (or temp. file).
-
-        If *out_filename* is not given input file will be updated.
-
-        If *iaca_marked* is set to true, markers are inserted around the block with most packed
-        instructions or (if no packed instr. were found) the largest block and modified file is
-        saved to *in_file*.
-
-        *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
-        the largest block, "manual" results in interactive and a number in the according block.
-
-        *pointer_increment* is the number of bytes the pointer is incremented after the loop or
-           - 'auto': automatic detection, RuntimeError is raised in case of failure
-           - 'auto_with_manual_fallback': automatic detection, fallback to manual input
-           - 'manual': prompt user
-
-        Returns filename to temp assembly file or out_filename.
-        """
-        if not out_filename:
-            out_filename = in_filename
-
-        # insert iaca markers
-        with open(in_filename) as in_file, open(out_filename, 'r+') as out_file:
-            self.asm_block = iaca.iaca_instrumentation(
-                in_file, out_file,
-                block_selection=asm_block,
-                pointer_increment=pointer_increment)
-            out_file.truncate()
-
-        return out_filename
-
-    def assemble(self, in_filename, iaca_markers=True, executable=True,
-                 asm_block='auto', pointer_increment='auto_with_manual_fallback', verbose=False):
-        """
-        Assemble *in_filename* assembly into *out_filename* binary.
+        Assemble *in_filename* assembly into *out_filename* object.
 
         If *iaca_marked* is set to true, markers are inserted around the block with most packed
         instructions or (if no packed instr. were found) the largest block and modified file is
@@ -1429,37 +1426,26 @@ class KernelCode(Kernel):
 
         Returns filename to temp binary file or out_filename.
         """
-        # Build file name (typically kernel_iaca.o, kernel_likwid or kernel_likwid-openmp)
+        # Build file name
         file_base_name = os.path.splitext(os.path.basename(in_filename))[0]
-        if executable:
-            suffix = ''
-        else:
-            suffix = '.o'
-        out_filename, already_exists = self._get_intermediate_file(file_base_name + suffix,
+        out_filename, already_exists = self._get_intermediate_file(file_base_name + '.o',
+                                                                   binary=True,
                                                                    fp=False)
         if already_exists:
             # Do not use caching, because pointer_increment or asm_block selection may be different
             pass
 
-        # insert iaca markers
-        if iaca_markers:
-            self.mark_assembly(
-                in_filename,
-                asm_block=asm_block, pointer_increment=pointer_increment, verbose=verbose)
-
         compiler, compiler_args = self._machine.get_compiler()
 
-        # Compile to object file if no executable is required
-        if not executable:
-            compiler_args.append('-c')
+        # Compile to object file
+        compiler_args.append('-c')
 
         cmd = [compiler] + [
-            in_filename,
-            os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c'] + \
+            in_filename] + \
               compiler_args + ['-o', out_filename]
 
         if verbose:
-            print('Executing (assemble): ', ' '.join(cmd))
+            print('Executing (assemble_to_object): ', ' '.join(cmd))
 
         try:
             # Assemble all to a binary
@@ -1470,36 +1456,40 @@ class KernelCode(Kernel):
 
         return out_filename
 
-    def compile(self, type_='iaca', verbose=False):
+    def compile_kernel(self, openmp=False, assembly=False, verbose=False):
         """
-        Compile source (from as_code(type_)) to assembly and return 2-tuple (filepointer, filename).
+        Compile source (from as_code(type_)) to assembly or object and return (fileptr, filename).
 
         Output can be used with Kernel.assemble()
         """
         compiler, compiler_args = self._machine.get_compiler()
 
-        out_filename, already_exists = self._get_intermediate_file('kernel_{}.s'.format(type_),
-                                                                   fp=False)
-        if already_exists and not 'iaca' in type_:
-            # Do not use caching with iaca, because pointer_increment or asm_block selection may be
-            # different
-            if verbose:
-                print('Executing (compile): ', 'using cached', out_filename)
-            return out_filename
+        in_filename = self.get_kernel_code(openmp=openmp, as_filename=True)
 
-        in_filename = self.as_code(type_=type_, as_filename=True)
+        if assembly:
+            compiler_args += ['-S']
+            suffix = '.s'
+        else:
+            suffix = '.o'
+        out_filename, already_exists = self._get_intermediate_file(
+            os.path.splitext(os.path.basename(in_filename))[0]+suffix, binary=not assembly, fp=False)
+        if already_exists:
+            if verbose:
+                print('Executing (compile_kernel): ', 'using cached', out_filename)
+            return out_filename
 
         compiler_args += ['-std=c99']
 
         cmd = ([compiler] +
                [in_filename,
-                '-S',
-                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
+                '-c',
+                '-I'+reduce_path(os.path.abspath(os.path.dirname(
+                    os.path.realpath(__file__)))+'/headers/'),
                 '-o', out_filename] +
                compiler_args)
 
         if verbose:
-            print('Executing (compile): ', ' '.join(cmd))
+            print('Executing (compile_kernel): ', ' '.join(cmd))
 
         try:
             subprocess.check_output(cmd)
@@ -1511,7 +1501,7 @@ class KernelCode(Kernel):
         # FIXME TODO FIXME TODO FIXME TODO
         # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which are
         # invalid and should be kmovb):
-        if compiler == 'icc':
+        if compiler == 'icc' and assembly:
             with open(out_filename, 'r+') as f:
                 assembly = f.read()
                 f.seek(0)
@@ -1535,30 +1525,35 @@ class KernelCode(Kernel):
            - 'auto_with_manual_fallback': automatic detection, fallback to manual input
            - 'manual': prompt user
         """
-        asm_name = self.compile(verbose=verbose)
+        asm_filename = self.compile_kernel(assembly=True, verbose=verbose)
+        asm_marked_filename = os.path.splitext(asm_filename)[0]+'-iaca.s'
+        with open(asm_filename, 'r') as in_file, open(asm_marked_filename, 'w') as out_file:
+            self.asm_block = iaca.iaca_instrumentation(
+                in_file, out_file,
+                block_selection=asm_block,
+                pointer_increment=pointer_increment)
         micro_architecture = self._machine['micro-architecture']
         if 'micro-architecture-modeler' in self._machine and \
                 self._machine['micro-architecture-modeler'] == 'OSACA':
-            asm_marked_name = self.mark_assembly(asm_name, asm_block=asm_block,
-                                                  pointer_increment=pointer_increment,
-                                                  verbose=verbose)
-            return iaca.osaca_analyse_instrumented_assembly(asm_marked_name, micro_architecture), \
+            return iaca.osaca_analyse_instrumented_assembly(asm_marked_filename,
+                                                            micro_architecture), \
                    self.asm_block
         else:  # self._machine['micro-architecture-modeler'] == 'IACA'
-            bin_name = self.assemble(asm_name, iaca_markers=True, asm_block=asm_block,
-                                     pointer_increment=pointer_increment, verbose=verbose)
-            return iaca.iaca_analyse_instrumented_binary(bin_name, micro_architecture), \
+            obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
+            return iaca.iaca_analyse_instrumented_binary(obj_name, micro_architecture), \
                    self.asm_block
 
-    def build(self, lflags=None, verbose=False, openmp=False):
+    def build_executable(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
         compiler, compiler_args = self._machine.get_compiler()
 
-        source_filename = self.as_code(type_='likwid', openmp=openmp, as_filename=True)
+        kernel_obj_filename = self.compile_kernel(openmp=openmp, verbose=verbose)
         out_filename, already_exists = self._get_intermediate_file(
-            os.path.splitext(os.path.basename(source_filename))[0], fp=False)
+            os.path.splitext(os.path.basename(kernel_obj_filename))[0], binary=True, fp=False)
 
         if not already_exists:
+            main_source_filename = self.get_main_code(as_filename=True)
+
             if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                     'LIKWID_LIB' in os.environ):
                 print('Could not find LIKWID_INCLUDE (e.g., "-I/app/likwid/4.1.2/include") and '
@@ -1568,7 +1563,8 @@ class KernelCode(Kernel):
 
             compiler_args += [
                 '-std=c99',
-                '-I'+os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/',
+                '-I'+reduce_path(os.path.abspath(os.path.dirname(
+                    os.path.realpath(__file__)))+'/headers/'),
                 os.environ.get('LIKWID_INCLUDE', ''),
                 os.environ.get('LIKWID_INC', ''),
                 '-llikwid']
@@ -1582,14 +1578,15 @@ class KernelCode(Kernel):
             lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
             compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
-            infiles = [os.path.abspath(os.path.dirname(os.path.realpath(__file__)))+'/headers/dummy.c',
-                       source_filename]
+            infiles = [reduce_path(os.path.abspath(os.path.dirname(
+                os.path.realpath(__file__)))+'/headers/dummy.c'),
+                       kernel_obj_filename, main_source_filename]
 
             cmd = [compiler] + infiles + compiler_args + ['-o', out_filename]
             # remove empty arguments
             cmd = list(filter(bool, cmd))
             if verbose:
-                print('Executing (build): ', ' '.join(cmd))
+                print('Executing (build_executable): ', ' '.join(cmd))
             try:
                 subprocess.check_output(cmd)
             except subprocess.CalledProcessError as e:
@@ -1597,7 +1594,7 @@ class KernelCode(Kernel):
                 sys.exit(1)
         else:
             if verbose:
-                print('Executing (build): ', 'using cached', out_filename)
+                print('Executing (build_executable): ', 'using cached', out_filename)
 
         return out_filename
 
@@ -1613,7 +1610,7 @@ class KernelDescription(Kernel):
     def incore_analysis(self, *args, **kwargs):
         raise NotImplementedError("IACA analysis is not possible based on a Kernel Description")
 
-    def build(self, *args, **kwargs):
+    def build_executable(self, *args, **kwargs):
         raise NotImplementedError("Building and compilation is not possible based on a Kernel "
                                   "Description")
 
