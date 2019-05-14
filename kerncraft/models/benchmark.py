@@ -363,10 +363,11 @@ class Benchmark(PerformanceModel):
         # TODO if cores > 1, results are for openmp run. Things might need to be changed here!
 
         # Check for MEM group existence
-        if "MEM" in get_supported_likwid_groups():
+        valid_groups = get_supported_likwid_groups()
+        if "MEM" in valid_groups:
             group = "MEM"
         else:
-            group = "CLOCK"
+            group = valid_groups[0]
 
         while runtime < 1.5:
             # Interpolate to a 2.0s run
@@ -376,7 +377,7 @@ class Benchmark(PerformanceModel):
                 repetitions = int(repetitions * 10)
 
             results = self.perfctr([bench] + [str(repetitions)] + args, group=group)
-            runtime = mem_results['Runtime (RDTSC) [s]']
+            runtime = results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime / float(repetitions)
         raw_results = [results]
 
