@@ -310,6 +310,8 @@ class Kernel(object):
 
         Also works with flat array accesses.
         """
+        if var_name not in self.variables:
+            raise ValueError("No declaration of variable {!r} found.".format(var_name))
         base_sizes = self.variables[var_name][1]
 
         expr = sympy.Number(0)

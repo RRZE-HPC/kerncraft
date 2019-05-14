@@ -189,6 +189,12 @@ def build_minimal_runs(events):
     return runs
 
 
+def get_supported_likwid_groups():
+    """Return list of likwid groups, supported by current architecture and likwid version."""
+    output = subprocess.check_output(['likwid-perfctr', '-a']).decode('utf-8')
+    return re.findall('^\s*([A-Z_0-9]{2,})\s', output, re.MULTILINE)
+
+
 class Benchmark(PerformanceModel):
     """Produce a benchmarkable binary to be used with likwid."""
 
@@ -352,9 +358,15 @@ class Benchmark(PerformanceModel):
         runtime = 0.0
         time_per_repetition = 2.0 / 10.0
         repetitions = self.iterations // 10
-        mem_results = {}
+        results = {}
 
         # TODO if cores > 1, results are for openmp run. Things might need to be changed here!
+
+        # Check for MEM group existence
+        if "MEM" in get_supported_likwid_groups():
+            group = "MEM"
+        else:
+            group = "CLOCK"
 
         while runtime < 1.5:
             # Interpolate to a 2.0s run
@@ -363,10 +375,10 @@ class Benchmark(PerformanceModel):
             else:
                 repetitions = int(repetitions * 10)
 
-            mem_results = self.perfctr([bench] + [str(repetitions)] + args, group="MEM")
+            results = self.perfctr([bench] + [str(repetitions)] + args, group=group)
             runtime = mem_results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime / float(repetitions)
-        raw_results = [mem_results]
+        raw_results = [results]
 
         # Base metrics for further metric computations:
         # An iteration is equal to one high-level code inner-most-loop iteration
@@ -471,19 +483,24 @@ class Benchmark(PerformanceModel):
         # TODO make more generic to support other (and multiple) constant names
         self.results['Runtime (per cacheline update) [cy/CL]'] = \
             (cys_per_repetition / iterations_per_repetition) * iterations_per_cacheline
-        self.results['MEM volume (per repetition) [B]'] = \
-            mem_results['Memory data volume [GBytes]'] * 1e9 / repetitions
+        if 'Memory data volume [GBytes]' in results:
+            self.results['MEM volume (per repetition) [B]'] = \
+                results['Memory data volume [GBytes]'] * 1e9 / repetitions
+        else:
+            self.results['MEM volume (per repetition) [B]'] = float('nan')
         self.results['Performance [MFLOP/s]'] = \
             sum(self.kernel._flops.values()) / (
             time_per_repetition / iterations_per_repetition) / 1e6
-        if 'Memory bandwidth [MBytes/s]' in mem_results:
-            self.results['MEM BW [MByte/s]'] = mem_results['Memory bandwidth [MBytes/s]']
+        if 'Memory bandwidth [MBytes/s]' in results:
+            self.results['MEM BW [MByte/s]'] = results['Memory bandwidth [MBytes/s]']
+        elif 'Memory BW [MBytes/s]' in results:
+            self.results['MEM BW [MByte/s]'] = results['Memory BW [MBytes/s]']
         else:
-            self.results['MEM BW [MByte/s]'] = mem_results['Memory BW [MBytes/s]']
-        self.results['Performance [MLUP/s]'] = (
-                                               iterations_per_repetition / time_per_repetition) / 1e6
-        self.results['Performance [MIt/s]'] = (
-                                              iterations_per_repetition / time_per_repetition) / 1e6
+            self.results['MEM BW [MByte/s]'] = float('nan')
+        self.results['Performance [MLUP/s]'] = \
+            (iterations_per_repetition / time_per_repetition) / 1e6
+        self.results['Performance [MIt/s]'] = \
+            (iterations_per_repetition / time_per_repetition) / 1e6
 
     def report(self, output_file=sys.stdout):
         """Report gathered analysis data in human readable form."""
