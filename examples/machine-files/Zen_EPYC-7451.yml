@@ -392,8 +392,9 @@ cacheline size: 64 B
 clock: 2.3 GHz
 compiler:
     !!omap
-    - clang: -O3 -march=znver1 -D_POSIX_C_SOURCE=200112L
-    - gcc: -O3 -march=znver1
+    - clang: -O3 -march=znver1 -D_POSIX_C_SOURCE=200112L -fopenmp
+    - gcc: -O3 -march=znver1 -fopenmp
+    - icc: -O3 -xHost -fno-alias -qopenmp
 cores per NUMA domain: 6
 cores per socket: 24
 kerncraft version: 0.7.2
