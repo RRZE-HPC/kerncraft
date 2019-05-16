@@ -397,7 +397,7 @@ compiler:
     - icc: -O3 -xHost -fno-alias -qopenmp
 cores per NUMA domain: 6
 cores per socket: 24
-kerncraft version: 0.7.2
+kerncraft version: 0.8.1dev0
 memory hierarchy:
     # Based on Section 2.6 in "Software Optimization Guide for AMD Family 17h Processors"
     - level: L1
@@ -418,6 +418,8 @@ memory hierarchy:
           misses: DATA_CACHE_MISSES__PMC[0-3]
       size per group: 32.00 kB
       threads per group: 2
+      upstream throughput: ['architecture code analyzer', ['8', '9']]
+      transfers overlap: True
     - level: L2
       cache per group:
           sets: 1024
@@ -431,7 +433,8 @@ memory hierarchy:
           store_to: L3
       cores per group: 1
       groups: 48
-      non-overlap upstream throughput: [32 B/cy, 'full-duplex']  # https://en.wikichip.org/wiki/amd/microarchitectures/zen
+      upstream throughput: [32 B/cy, 'full-duplex']  # https://en.wikichip.org/wiki/amd/microarchitectures/zen
+      transfers overlap: True
       performance counter metrics:
           accesses: 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)'
           evicts: 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
@@ -448,7 +451,8 @@ memory hierarchy:
           write_back: True
       cores per group: 3
       groups: 16
-      non-overlap upstream throughput: [32 B/cy, 'full-duplex']  # https://en.wikichip.org/wiki/amd/microarchitectures/zen
+      upstream throughput: [32 B/cy, 'half-duplex']  # J. Hofmann SC19 paper (not published)
+      transfers overlap: False
       performance counter metrics:
           accesses: EVENT_L3_ACCESS__CMPC[0-5]
           evicts: 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
@@ -457,7 +461,8 @@ memory hierarchy:
       threads per group: 6
     - cores per group: 24
       level: MEM
-      non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+      upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+      transfers overlap: False
       penalty cycles per read stream: 0
       size per group: null
       threads per group: 48
@@ -467,11 +472,11 @@ model name: AMD EPYC 7451 24-Core Processor
 model type: AMD K17 (Zen) architecture
 non-overlapping model:
     performance counter metric: INFORAMTION_REQUIRED T_L3 + T_MEM, TODO
-    ports: []  # No ports overlap. https://hpc.fau.de/files/2018/09/SC18-Poster-ECM_DRAFT.pdf
+    ports: ['8', '9']  # Not actually overlapping, but this is described in the memory hierarchy description. https://hpc.fau.de/files/2018/09/SC18-Poster-ECM_DRAFT.pdf
 overlapping model:
     performance counter metric: 'INFORAMTION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
     UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
-    ports: ['0', '1', '2', '3', '3DV', '4', '5', '6', '7', '8', '9']  # https://arxiv.org/pdf/1809.00912.pdf
+    ports: ['0', '1', '2', '3', '3DV', '4', '5', '6', '7']  # https://arxiv.org/pdf/1809.00912.pdf
 sockets: 2
 threads per core: 2
 

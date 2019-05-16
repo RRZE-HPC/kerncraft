@@ -226,7 +226,7 @@ class TestKerncraft(unittest.TestCase):
         ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
 
         # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        assert_relativly_equal(ecmd['L2'], 4, 0.05)
+        assert_relativly_equal(ecmd['L2'], 2, 0.05)
         self.assertAlmostEqual(ecmd['L3'], 0.0, places=2)
         self.assertAlmostEqual(ecmd['MEM'], 0.0, places=2)
 
@@ -253,7 +253,7 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L2'], 3, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         self.assertAlmostEqual(ecmd['MEM'], 0, places=2)
 
@@ -281,7 +281,7 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L2'], 3, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
 
@@ -320,8 +320,8 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        assert_relativly_equal(ecmd['T_OL'], 11, 0.2)
-        assert_relativly_equal(ecmd['T_nOL'], 8, 0.2)
+        assert_relativly_equal(ecmd['T_comp'], 11, 0.2)
+        assert_relativly_equal(ecmd['T_RegL1'], 8, 0.2)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECM(self):
@@ -363,8 +363,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        assert_relativly_equal(ecmd['T_OL'], 11, 0.2)
-        assert_relativly_equal(ecmd['T_nOL'], 8, 0.2)
+        assert_relativly_equal(ecmd['T_comp'], 11, 0.2)
+        assert_relativly_equal(ecmd['T_RegL1'], 8, 0.2)
         assert_relativly_equal(ecmd['L2'], 10, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         assert_relativly_equal(ecmd['MEM'], 13, 0.05)
