@@ -1326,6 +1326,7 @@ class KernelCode(Kernel):
             #pragma omp barrier
 
             // Initializing arrays in same order as touched in kernel loop nest
+            #pragma omp for
             INIT_ARRAYS;
 
             // Dummy call
