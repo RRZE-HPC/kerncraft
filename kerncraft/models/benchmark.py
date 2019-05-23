@@ -454,11 +454,11 @@ class Benchmark(PerformanceModel):
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
                            total_cachelines * cl_size /
-                           self.machine['memory hierarchy'][1]['non-overlap upstream throughput'][0]),
+                           self.machine['memory hierarchy'][1]['upstream throughput'][0]),
                 'T_L2L3': ((cache_metric_results['L2']['misses'] +
                             cache_metric_results['L2']['evicts']) /
                            total_cachelines * cl_size /
-                           self.machine['memory hierarchy'][2]['non-overlap upstream throughput'][0]),
+                           self.machine['memory hierarchy'][2]['upstream throughput'][0]),
                 'T_L3MEM': ((cache_metric_results['L3']['misses'] +
                              cache_metric_results['L3']['evicts']) *
                             float(self.machine['cacheline size']) /
