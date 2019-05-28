@@ -3,7 +3,7 @@
 # FIXME bandwidth measurements need validation
 # FIXME
 
-kerncraft version: 0.8.1dev0
+kerncraft version: 0.8.1.dev0
 model name: Intel(R) Xeon(R) Gold 5122 CPU @ 3.60GHz
 model type: Intel Core Skylake SP
 sockets: 2

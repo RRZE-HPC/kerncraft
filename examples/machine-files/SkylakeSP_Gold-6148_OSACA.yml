@@ -3,7 +3,7 @@
 # FIXME performance counters might be wrong. This will only affect the Benchmark model
 # FIXME bandwidth measurements need validataion
 # FIXME
-kerncraft version: 0.8.1dev0
+kerncraft version: 0.8.1.dev0
 
 model name: Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz
 model type: Intel Skylake SP processor

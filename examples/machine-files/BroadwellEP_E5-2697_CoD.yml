@@ -1,4 +1,4 @@
-kerncraft version: 0.8.1dev0
+kerncraft version: 0.8.1.dev0
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}
   SP: {ADD: 8, FMA: 16, MUL: 8, total: 32}

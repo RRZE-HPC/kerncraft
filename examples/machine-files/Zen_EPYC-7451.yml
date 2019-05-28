@@ -397,7 +397,7 @@ compiler:
     - icc: -O3 -xHost -fno-alias -qopenmp
 cores per NUMA domain: 6
 cores per socket: 24
-kerncraft version: 0.8.1dev0
+kerncraft version: 0.8.1.dev0
 memory hierarchy:
     # Based on Section 2.6 in "Software Optimization Guide for AMD Family 17h Processors"
     - level: L1
