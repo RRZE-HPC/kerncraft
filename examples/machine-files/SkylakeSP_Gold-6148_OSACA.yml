@@ -30,7 +30,7 @@ compiler:
   !!omap
   - icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp
   - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L -fopenmp
-  - gcc: -O3 -march=skylake-avx512 -fopenmp
+  - gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L -fopenmp
 cacheline size: 64 B
 overlapping model:
   ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
