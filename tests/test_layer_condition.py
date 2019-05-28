@@ -42,7 +42,7 @@ class TestLayerCondition(unittest.TestCase):
     def test_kernel_requirements(self):
         output_stream = StringIO()
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'LC',
                                   self._find_file('2d-5pt-unrolled.c')])
         kc.check_arguments(args, parser)
@@ -53,7 +53,7 @@ class TestLayerCondition(unittest.TestCase):
         store_file = os.path.join(self.temp_dir, 'test_3d7pt_LC.pickle')
         output_stream = StringIO()
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'LC',
                                   self._find_file('3d-7pt.c'),
                                   '-D', 'N', '0',
@@ -116,7 +116,7 @@ class TestLayerCondition(unittest.TestCase):
         store_file = os.path.join(self.temp_dir, 'test_constantdim_LC.pickle')
         output_stream = StringIO()
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'LC',
                                   self._find_file('constantdim.c'),
                                   '-D', 'N', '1224',
