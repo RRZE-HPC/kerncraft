@@ -262,7 +262,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.ymlHa'),
+        args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('copy.c'),
                                   '-D', 'N', '1000000',
