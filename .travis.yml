@@ -1,3 +1,4 @@
+dist: xenial
 language: python
 python:
 - '3.5'
@@ -7,8 +8,8 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     packages:
-    - gcc-4.9
-    - g++-4.9
+    - gcc-9
+    - g++-9
 before_install:
 - pip install codecov
 - pip install requests

@@ -17,7 +17,7 @@ from . import prefixedunit
 from . import __version__
 
 
-MIN_SUPPORTED_VERSION = "0.7.1"
+MIN_SUPPORTED_VERSION = "0.8.1dev0"
 
 CHANGES_SINCE = OrderedDict([
     ("0.6.6",
@@ -33,6 +33,15 @@ CHANGES_SINCE = OrderedDict([
      The dictionary under 'compiler' needs to be tagged with '!!omap' and formatted
      as a sequence. For example: '- compiler_command: arg u ment s'. Pay attention
      to the leading dash.
+     """),
+    ("0.8.1dev0",
+     """
+     Removed 'non-overlap upstream throughput' and replaced it by 
+     'upstream throughput' in cache levels. This new parameter
+     takes additionally the following argument: 
+     ['architecture code analyzer', ['data ports' ,'list']
+     New argument 'transfers overlap' in cache levels, which may be True or False.
+     **Preliminary solution! Subjected to future changes.**
      """),
 ])
 
@@ -81,6 +90,10 @@ class MachineModel(object):
     def __getitem__(self, key):
         """Return configuration entry."""
         return self._data[key]
+
+    def __contains__(self, key):
+        """Return true if configuration key is present."""
+        return key in self._data
 
     def __repr__(self):
         """Return object representation."""

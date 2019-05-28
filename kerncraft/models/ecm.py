@@ -112,7 +112,7 @@ class ECMData(PerformanceModel):
         loads, stores = (self.predictor.get_loads(), self.predictor.get_stores())
 
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[1:]:
-            throughput, duplexness = cache_info['non-overlap upstream throughput']
+            throughput, duplexness = cache_info['upstream throughput']
 
             if type(throughput) is str and throughput == 'full socket memory bandwidth':
                 # Memory transfer
@@ -286,13 +286,12 @@ class ECMCPU(PerformanceModel):
         Run complete analysis and return results.
         """
         try:
-            incore_analysis, asm_block =  self.kernel.iaca_analysis(
-                micro_architecture=self.machine['micro-architecture'],
+            incore_analysis, asm_block = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 verbose=self.verbose > 2)
         except RuntimeError as e:
-            print("IACA analysis failed: " + str(e))
+            print("In-core analysis failed: " + str(e))
             sys.exit(1)
 
         block_throughput = incore_analysis['throughput']
@@ -310,26 +309,27 @@ class ECMCPU(PerformanceModel):
             sys.exit(1)
 
         port_cycles = dict([(i[0], i[1]*block_to_cl_ratio) for i in list(port_cycles.items())])
-        uops = uops*block_to_cl_ratio
+        if uops is not None:
+            uops = uops*block_to_cl_ratio
         cl_throughput = block_throughput*block_to_cl_ratio
 
         # Compile most relevant information
-        T_OL = max([v for k, v in list(port_cycles.items())
-                    if k in self.machine['overlapping model']['ports']])
-        T_nOL = max([v for k, v in list(port_cycles.items())
-                     if k in self.machine['non-overlapping model']['ports']])
+        T_comp = float(max([v for k, v in list(port_cycles.items())
+                            if k in self.machine['overlapping model']['ports']] + [0]))
+        T_RegL1 = float(max([v for k, v in list(port_cycles.items())
+                             if k in self.machine['non-overlapping model']['ports']] + [0]))
 
-        # Use IACA throughput prediction if it is slower then T_nOL
-        if T_nOL < cl_throughput:
-            T_OL = cl_throughput
+        # Use IACA throughput prediction if it is slower then T_RegL1
+        if T_RegL1 < cl_throughput:
+            T_comp = cl_throughput
 
         # Create result dictionary
         self.results = {
             'port cycles': port_cycles,
             'cl throughput': self.conv_cy(cl_throughput),
             'uops': uops,
-            'T_nOL': T_nOL,
-            'T_OL': T_OL,
+            'T_comp': T_comp,
+            'T_RegL1': T_RegL1,
             'IACA output': incore_analysis['output'],
             'elements_per_block': elements_per_block,
             'pointer_increment': asm_block['pointer_increment'],
@@ -343,7 +343,10 @@ class ECMCPU(PerformanceModel):
         clock = self.machine['clock']
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(self.machine['cacheline size']) // element_size
-        it_s = clock/cy_cl*elements_per_cacheline
+        if cy_cl == 0.0:
+            it_s = PrefixedUnit(float('inf'))
+        else:
+            it_s = clock/cy_cl*elements_per_cacheline
         it_s.unit = 'It/s'
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
@@ -374,8 +377,8 @@ class ECMCPU(PerformanceModel):
             print('Throughput: {}'.format(self.results['cl throughput'][self._args.unit]),
                   file=output_file)
 
-        print('T_nOL = {:.1f} cy/CL'.format(self.results['T_nOL']), file=output_file)
-        print('T_OL = {:.1f} cy/CL'.format(self.results['T_OL']), file=output_file)
+        print('T_comp = {:.1f} cy/CL'.format(self.results['T_comp']), file=output_file)
+        print('T_RegL1 = {:.1f} cy/CL'.format(self.results['T_RegL1']), file=output_file)
 
 
 class ECM(PerformanceModel):
@@ -431,12 +434,42 @@ class ECM(PerformanceModel):
 
         cores_per_numa_domain = self.machine['cores per NUMA domain']
 
-        # Compile total single-core prediction
-        self.results['total cycles'] = self._CPU.conv_cy(max(
-            self.results['T_OL'],
-            sum([self.results['T_nOL']] + [i[1] for i in self.results['cycles']])))
-        T_ECM = float(self.results['total cycles']['cy/CL'])
+        # Compile ECM model
+        ECM_OL, ECM_OL_construction = [self.results['T_comp']], ['T_comp']
+        ECM_nOL, ECM_nOL_construction = [], []
+        if self.machine['memory hierarchy'][0]['transfers overlap']:
+            nonoverlap_region = False
+            ECM_OL.append(self.results['T_RegL1'])
+            ECM_OL_construction.append('T_RegL1')
+        else:
+            nonoverlap_region = True
+            ECM_nOL.append(self.results['T_RegL1'])
+            ECM_nOL_construction.append('T_RegL1')
 
+        for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[1:]:
+            cycles = self.results['cycles'][cache_level-1][1]
+            if cache_info['transfers overlap']:
+                if nonoverlap_region:
+                    raise ValueError("Overlapping changes back and forth between levels, this is "
+                                     "currently not supported.")
+                ECM_OL.append(cycles)
+                ECM_OL_construction.append(
+                    'T_' + self.machine['memory hierarchy'][cache_level-1]['level'] +
+                    cache_info['level'])
+            else:
+                nonoverlap_region = True
+                ECM_nOL.append(cycles)
+                ECM_nOL_construction.append(
+                    'T_' + self.machine['memory hierarchy'][cache_level-1]['level'] +
+                    cache_info['level'])
+        # TODO consider multiple paths per cache level with victim caches
+        self.results['ECM'] = tuple(ECM_OL + [tuple(ECM_nOL)])
+        self.results['ECM Model Construction'] = tuple(ECM_OL_construction +
+                                                       [tuple(ECM_nOL_construction)])
+
+        # Compile total single-core prediction
+        self.results['total cycles'] = self._CPU.conv_cy(max(sum(ECM_nOL), *ECM_OL))
+        T_ECM = float(self.results['total cycles']['cy/CL'])
         # T_MEM is the cycles accounted to memory transfers
         T_MEM = self.results['cycles'][-1][1]
 
@@ -457,14 +490,11 @@ class ECM(PerformanceModel):
                     utilization.append(1.0)
                     self.results['scaling cores'] = min(self.results['scaling cores'], c)
                 else:
-                    utilization.append(c * T_MEM / (T_ECM + utilization[c - 1] * (c - 1) * T_MEM / 2))
+                    utilization.append(c * T_MEM /
+                                       (T_ECM + utilization[c - 1] * (c - 1) * T_MEM / 2))
             utilization = utilization[1:]
 
-            # Old scaling code
-            #self.results['scaling cores'] = (
-            #    max(self.results['T_OL'],
-            #        self.results['T_nOL'] + sum([c[1] for c in self.results['cycles']])) /
-            #    self.results['cycles'][-1][1])
+            # scaling code
             scaling_predictions = []
             for cores in range(1, self.machine['cores per socket'] + 1):
                 scaling = {'cores': cores, 'notes': [], 'performance': None,
@@ -472,10 +502,8 @@ class ECM(PerformanceModel):
                 # Detailed scaling:
                 if cores <= self.results['scaling cores']:
                     # Is it purely in-cache?
-                    innuma_rectp = PrefixedUnit(
-                            max(sum([c[1] for c in self.results['cycles']]) + self.results['T_nOL'],
-                                self.results['T_OL']) / (T_ECM/T_MEM),
-                            "cy/CL")
+                    innuma_rectp = PrefixedUnit(T_ECM / (T_ECM/T_MEM),
+                                                "cy/CL")
                     scaling['notes'].append("memory-interface not saturated")
                 else:
                     innuma_rectp = PrefixedUnit(self.results['cycles'][-1][1], 'cy/CL')
@@ -520,21 +548,15 @@ class ECM(PerformanceModel):
             self._CPU.report()
             self._data.report()
 
-        report += '{{ {:.1f} || {:.1f} | {} }} cy/CL'.format(
-            self.results['T_OL'],
-            self.results['T_nOL'],
-            ' | '.join(['{:.1f}'.format(i[1]) for i in self.results['cycles']]))
-
-        if self._args.cores > 1:
-            report += " (single core)"
-
-        report += ' = {}'.format(self.results['total cycles'][self._args.unit])
-
-        report += '\n{{ {:.1f} \ {} }} cy/CL'.format(
-            max(self.results['T_OL'], self.results['T_nOL']),
-            ' \ '.join(['{:.1f}'.format(max(sum([x[1] for x in self.results['cycles'][:i+1]]) +
-                                            self.results['T_nOL'], self.results['T_OL']))
-                        for i in range(len(self.results['cycles']))]))
+        model_construction = 'max({}, sum({})) cy/CL'.format(
+            ', '.join(self.results['ECM Model Construction'][:-1]),
+            ', '.join(self.results['ECM Model Construction'][-1]))
+        ecm_string = 'max({}, sum({})) cy/CL'.format(
+            ', '.join(['{:.1f}'.format(c) for c in self.results['ECM'][:-1]]),
+            ', '.join(['{:.1f}'.format(c) for c in self.results['ECM'][-1]]))
+        report += 'T_ECM = ' + model_construction + '\n' + \
+                  '      = ' + ecm_string + '\n' + \
+                  '      = {}'.format(self.results['total cycles'][self._args.unit])
 
         if self._args.cores > 1:
             report += " (single core)"
@@ -589,25 +611,25 @@ class ECM(PerformanceModel):
         height = 0.9
 
         i = 0
-        # T_OL
+        # T_comp
         colors = ([(254. / 255, 177. / 255., 178. / 255.)] +
                   [(255. / 255., 255. / 255., 255. / 255.)] * (len(sorted_overlapping_ports) - 1))
         for p, c in sorted_overlapping_ports:
             ax.barh(i, c, height, align='center', color=colors.pop(),
                     edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
             if i == len(sorted_overlapping_ports) - 1:
-                ax.text(c / 2.0, i, '$T_\mathrm{OL}$', ha='center', va='center')
+                ax.text(c / 2.0, i, '$T_\mathrm{comp}$', ha='center', va='center')
             yticks_labels.append(p)
             yticks.append(i)
             i += 1
         xticks.append(sorted_overlapping_ports[-1][1])
         xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
 
-        # T_nOL + memory transfers
+        # T_RegL1 + memory transfers
         y = 0
         colors = [(187. / 255., 255 / 255., 188. / 255.)] * (len(self.results['cycles'])) + \
                  [(119. / 255, 194. / 255., 255. / 255.)]
-        for k, v in [('nOL', self.results['T_nOL'])] + self.results['cycles']:
+        for k, v in [('RegL1', self.results['T_RegL1'])] + self.results['cycles']:
             ax.barh(i, v, height, y, align='center', color=colors.pop())
             ax.text(y + v / 2.0, i, '$T_\mathrm{' + k + '}$', ha='center', va='center')
             xticks.append(y + v)

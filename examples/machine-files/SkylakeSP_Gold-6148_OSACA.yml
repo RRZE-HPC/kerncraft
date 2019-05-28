@@ -24,12 +24,13 @@ FLOPs per cycle:
     FMA: 32
     ADD: 16
     MUL: 16
-micro-architecture: SKX
+micro-architecture: SKL
+micro-architecture-modeler: OSACA
 compiler:
   !!omap
   - icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp
-  - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp
-  - gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+  - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L -fopenmp
+  - gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L -fopenmp
 cacheline size: 64 B
 overlapping model:
   ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
@@ -41,7 +42,7 @@ overlapping model:
           UOPS_DISPATCHED_PORT_PORT_6:PMC[0-3],
           UOPS_DISPATCHED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
-  ports: ["2D", "3D"]
+  ports: ["2", "3"]
   performance counter metric:
     T_OL + T_L2 + T_L3 + T_MEM
 memory hierarchy:

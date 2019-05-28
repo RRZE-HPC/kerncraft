@@ -15,7 +15,7 @@ from kerncraft.kernel import KernelCode
 
 class TestLayerConditionPredictor(unittest.TestCase):
     def setUp(self):
-        self.machine = MachineModel(self._find_file('phinally_gcc.yaml'))
+        self.machine = MachineModel(self._find_file('SandyBridgeEP_E5-2680.yml'))
 
     @staticmethod
     def _find_file(name):

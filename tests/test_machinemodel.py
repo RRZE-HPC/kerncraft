@@ -19,7 +19,7 @@ class TestMachineModel(unittest.TestCase):
         return name
 
     def setUp(self):
-        self.machine = machinemodel.MachineModel(self._find_file('phinally_gcc.yaml'))
+        self.machine = machinemodel.MachineModel(self._find_file('SandyBridgeEP_E5-2680.yml'))
 
     def test_types(self):
         self.assertEqual(type(self.machine['clock']), PrefixedUnit)

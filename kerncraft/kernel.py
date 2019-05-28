@@ -310,6 +310,8 @@ class Kernel(object):
 
         Also works with flat array accesses.
         """
+        if var_name not in self.variables:
+            raise ValueError("No declaration of variable {!r} found.".format(var_name))
         base_sizes = self.variables[var_name][1]
 
         expr = sympy.Number(0)
@@ -650,7 +652,7 @@ class Kernel(object):
             table += '{!s:>8} | {:<10}\n'.format(name, value)
         print(prefix_indent('constants: ', table), file=output_file)
 
-    def iaca_analysis(self, *args, **kwargs):
+    def incore_analysis(self, *args, **kwargs):
         """Run IACA analysis."""
         raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
                                   "Try a different model or kernel input format.")
@@ -1324,6 +1326,7 @@ class KernelCode(Kernel):
             #pragma omp barrier
 
             // Initializing arrays in same order as touched in kernel loop nest
+            #pragma omp for
             INIT_ARRAYS;
 
             // Dummy call
@@ -1424,7 +1427,7 @@ class KernelCode(Kernel):
            - 'auto_with_manual_fallback': automatic detection, fallback to manual input
            - 'manual': prompt user
 
-        Returns two-tuple (filepointer, filename) to temp binary file.
+        Returns filename to temp binary file or out_filename.
         """
         # Build file name
         file_base_name = os.path.splitext(os.path.basename(in_filename))[0]
@@ -1434,6 +1437,7 @@ class KernelCode(Kernel):
         if already_exists:
             # Do not use caching, because pointer_increment or asm_block selection may be different
             pass
+
         compiler, compiler_args = self._machine.get_compiler()
 
         # Compile to object file
@@ -1511,10 +1515,10 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return out_filename
 
-    def iaca_analysis(self, micro_architecture, asm_block='auto',
-                      pointer_increment='auto_with_manual_fallback', verbose=False):
+    def incore_analysis(self, asm_block='auto',
+                        pointer_increment='auto_with_manual_fallback', verbose=False):
         """
-        Run an IACA analysis and return its outcome.
+        Run an in-core analysis and return its outcome.
 
         *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
         the largest block, "manual" results in interactive and a number in the according block.
@@ -1531,8 +1535,16 @@ class KernelCode(Kernel):
                 in_file, out_file,
                 block_selection=asm_block,
                 pointer_increment=pointer_increment)
-        obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
-        return iaca.iaca_analyse_instrumented_binary(obj_name, micro_architecture), self.asm_block
+        micro_architecture = self._machine['micro-architecture']
+        if 'micro-architecture-modeler' in self._machine and \
+                self._machine['micro-architecture-modeler'] == 'OSACA':
+            return iaca.osaca_analyse_instrumented_assembly(asm_marked_filename,
+                                                            micro_architecture), \
+                   self.asm_block
+        else:  # self._machine['micro-architecture-modeler'] == 'IACA'
+            obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
+            return iaca.iaca_analyse_instrumented_binary(obj_name, micro_architecture), \
+                   self.asm_block
 
     def build_executable(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
@@ -1598,7 +1610,7 @@ class KernelDescription(Kernel):
     and LIKWID benchmarking (benchmark).
     """
 
-    def iaca_analysis(self, *args, **kwargs):
+    def incore_analysis(self, *args, **kwargs):
         raise NotImplementedError("IACA analysis is not possible based on a Kernel Description")
 
     def build_executable(self, *args, **kwargs):
