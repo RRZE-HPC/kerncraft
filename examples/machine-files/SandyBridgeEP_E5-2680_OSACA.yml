@@ -1,0 +1,284 @@
+kerncraft version: 0.8.1.dev0
+clock: 2.7 GHz
+cores per socket: 8
+cores per NUMA domain: 8
+NUMA domains per socket: 1
+model type: Intel Core SandyBridge EP processor
+model name: Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz
+sockets: 2
+threads per core: 2
+cacheline size: 64 B
+compiler:
+    !!omap
+    - icc: -O3 -xAVX -fno-alias -qopenmp
+    - clang: -O3 -march=corei7-avx -mtune=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp
+    - gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+micro-architecture: SNB
+micro-architecture-modeler: OSACA
+FLOPs per cycle:
+    SP: {total: 16, ADD: 8, MUL: 8}
+    DP: {total: 8, ADD: 4, MUL: 4}
+overlapping model:
+    ports: ["0", "0DV", "1", "2", "3", "4", "5"]
+    performance counter metric:
+        Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3],
+            UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])
+non-overlapping model:
+    ports: ["2", "3"]
+    performance counter metric: T_OL + T_L1L2 + T_L2L3 + T_L3MEM
+write-allocate: True
+memory hierarchy:
+    - level: L1
+      cache per group: {
+         'sets': 64, 'ways': 8, 'cl_size': 64, # 32 kB
+         'replacement_policy': 'LRU',
+         'write_allocate': True, 'write_back': True,
+         'load_from': 'L2', 'store_to': 'L2'}
+      cores per group: 1
+      threads per group: 2
+      groups: 16
+      performance counter metrics:
+          accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3]
+          misses: L1D_REPLACEMENT:PMC[0-3]
+          evicts: L1D_M_EVICT:PMC[0-3]
+      upstream throughput: ['architecture code analyzer', ['2D', '3D']]
+      transfers overlap: False
+    - level: L2
+      cache per group: {
+         'sets': 512, 'ways': 8, 'cl_size': 64, # 256 kB
+         'replacement_policy': 'LRU',
+         'write_allocate': True, 'write_back': True,
+         'load_from': 'L3', 'store_to': 'L3'}
+      cores per group: 1
+      threads per group: 2
+      groups: 16
+      upstream throughput: [32 B/cy, 'half-duplex']
+      transfers overlap: False
+      performance counter metrics:
+          accesses: L1D_REPLACEMENT:PMC[0-3]
+          misses: L2_LINES_IN_ALL:PMC[0-3]
+          evicts: L2_TRANS_L2_WB:PMC[0-3]
+    - level: L3
+      cache per group: {
+         'sets': 20480, 'ways': 16, 'cl_size': 64, # 20 MB
+         'replacement_policy': 'LRU', 
+         'write_allocate': True, 'write_back': True}
+      cores per group: 8
+      threads per group: 16
+      groups: 2
+      upstream throughput: [32 B/cy, 'half-duplex']
+      transfers overlap: False
+      performance counter metrics:
+          accesses: L2_LINES_IN_ALL:PMC[0-3]
+          misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
+                   CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01])
+          evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] +
+                   CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01])
+    - level: MEM
+      cores per group: 8
+      upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+      transfers overlap: False
+      size per group: null
+      threads per group: 16
+benchmarks:
+  kernels:
+    copy:
+      FLOPs per iteration: 0
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 8.00 B, streams: 1}
+    daxpy:
+      FLOPs per iteration: 2
+      read streams: {bytes: 16.00 B, streams: 2}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
+    load:
+      FLOPs per iteration: 0
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 0.00 B, streams: 0}
+    triad:
+      FLOPs per iteration: 2
+      read streams: {bytes: 24.00 B, streams: 3}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 8.00 B, streams: 1}
+    update:
+      FLOPs per iteration: 0
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
+  measurements:
+    L1:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [81.98 GB/s, 163.75 GB/s, 245.62 GB/s, 327.69 GB/s, 409.41 GB/s, 489.83
+              GB/s, 571.67 GB/s, 653.50 GB/s]
+          daxpy: [71.55 GB/s, 143.01 GB/s, 214.86 GB/s, 286.26 GB/s, 355.60 GB/s,
+            426.71 GB/s, 497.45 GB/s, 568.97 GB/s]
+          load: [61.92 GB/s, 122.79 GB/s, 183.01 GB/s, 244.30 GB/s, 306.76 GB/s, 368.46
+              GB/s, 427.41 GB/s, 490.88 GB/s]
+          triad: [81.61 GB/s, 163.25 GB/s, 244.92 GB/s, 326.65 GB/s, 406.69 GB/s,
+            487.76 GB/s, 569.10 GB/s, 650.39 GB/s]
+          update: [84.03 GB/s, 168.02 GB/s, 252.10 GB/s, 335.94 GB/s, 419.90 GB/s,
+            503.88 GB/s, 587.86 GB/s, 671.88 GB/s]
+        size per core: [16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB,
+          16.00 kB, 16.00 kB]
+        size per thread: [16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00
+            kB, 16.00 kB, 16.00 kB]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8]
+        threads per core: 1
+        total size: [16.00 kB, 32.00 kB, 48.00 kB, 64.00 kB, 80.00 kB, 96.00 kB, 112.00
+            kB, 128.00 kB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [79.53 GB/s, 158.70 GB/s, 238.20 GB/s, 317.62 GB/s, 397.09 GB/s, 476.33
+              GB/s, 555.69 GB/s, 634.96 GB/s]
+          daxpy: [70.94 GB/s, 141.90 GB/s, 212.97 GB/s, 283.91 GB/s, 354.93 GB/s,
+            425.85 GB/s, 496.74 GB/s, 567.40 GB/s]
+          load: [57.01 GB/s, 114.11 GB/s, 171.11 GB/s, 228.13 GB/s, 285.15 GB/s, 342.11
+              GB/s, 399.11 GB/s, 456.11 GB/s]
+          triad: [79.48 GB/s, 159.03 GB/s, 238.53 GB/s, 318.04 GB/s, 392.11 GB/s,
+            477.10 GB/s, 538.36 GB/s, 636.02 GB/s]
+          update: [82.75 GB/s, 165.55 GB/s, 248.50 GB/s, 331.32 GB/s, 414.06 GB/s,
+            496.82 GB/s, 579.83 GB/s, 662.36 GB/s]
+        size per core: [16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB,
+          16.00 kB, 16.00 kB]
+        size per thread: [8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00
+            kB, 8.00 kB]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16]
+        threads per core: 2
+        total size: [16.00 kB, 32.00 kB, 48.00 kB, 64.00 kB, 80.00 kB, 96.00 kB, 112.00
+            kB, 128.00 kB]
+    L2:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [41.28 GB/s, 81.96 GB/s, 120.28 GB/s, 160.70 GB/s, 203.22 GB/s, 239.97
+              GB/s, 271.13 GB/s, 307.01 GB/s]
+          daxpy: [48.85 GB/s, 98.62 GB/s, 143.29 GB/s, 197.76 GB/s, 230.58 GB/s, 284.98
+              GB/s, 334.22 GB/s, 385.72 GB/s]
+          load: [38.51 GB/s, 76.67 GB/s, 114.73 GB/s, 152.90 GB/s, 188.69 GB/s, 223.64
+              GB/s, 265.21 GB/s, 289.41 GB/s]
+          triad: [40.92 GB/s, 83.49 GB/s, 124.48 GB/s, 165.24 GB/s, 206.74 GB/s, 237.90
+              GB/s, 274.96 GB/s, 329.09 GB/s]
+          update: [50.37 GB/s, 100.05 GB/s, 145.43 GB/s, 196.82 GB/s, 244.07 GB/s,
+            301.62 GB/s, 336.88 GB/s, 403.78 GB/s]
+        size per core: [128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00
+            kB, 128.00 kB, 128.00 kB]
+        size per thread: [128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00
+            kB, 128.00 kB, 128.00 kB]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8]
+        threads per core: 1
+        total size: [128.00 kB, 256.00 kB, 384.00 kB, 512.00 kB, 640.00 kB, 768.00
+            kB, 0.90 MB, 1.02 MB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [42.17 GB/s, 83.47 GB/s, 124.57 GB/s, 163.78 GB/s, 202.56 GB/s, 242.80
+              GB/s, 276.95 GB/s, 311.36 GB/s]
+          daxpy: [50.87 GB/s, 98.72 GB/s, 152.12 GB/s, 193.48 GB/s, 251.36 GB/s, 301.72
+              GB/s, 352.55 GB/s, 365.28 GB/s]
+          load: [39.62 GB/s, 79.03 GB/s, 118.03 GB/s, 157.85 GB/s, 196.48 GB/s, 237.44
+              GB/s, 276.81 GB/s, 309.71 GB/s]
+          triad: [44.80 GB/s, 88.35 GB/s, 125.13 GB/s, 169.94 GB/s, 209.60 GB/s, 260.15
+              GB/s, 300.75 GB/s, 333.08 GB/s]
+          update: [49.80 GB/s, 100.70 GB/s, 150.56 GB/s, 196.44 GB/s, 251.90 GB/s,
+            280.93 GB/s, 352.74 GB/s, 399.27 GB/s]
+        size per core: [128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00
+            kB, 128.00 kB, 128.00 kB]
+        size per thread: [64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00
+            kB, 64.00 kB, 64.00 kB]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16]
+        threads per core: 2
+        total size: [128.00 kB, 256.00 kB, 384.00 kB, 512.00 kB, 640.00 kB, 768.00
+            kB, 0.90 MB, 1.02 MB]
+    L3:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [23.21 GB/s, 46.01 GB/s, 67.96 GB/s, 90.17 GB/s, 111.47 GB/s, 133.14
+              GB/s, 153.84 GB/s, 174.92 GB/s]
+          daxpy: [30.35 GB/s, 60.32 GB/s, 90.00 GB/s, 119.71 GB/s, 148.87 GB/s, 178.39
+              GB/s, 207.10 GB/s, 236.25 GB/s]
+          load: [23.35 GB/s, 46.52 GB/s, 69.57 GB/s, 92.60 GB/s, 115.77 GB/s, 138.89
+              GB/s, 161.82 GB/s, 184.11 GB/s]
+          triad: [25.18 GB/s, 50.08 GB/s, 74.33 GB/s, 98.78 GB/s, 122.66 GB/s, 146.78
+              GB/s, 170.52 GB/s, 194.47 GB/s]
+          update: [32.67 GB/s, 64.65 GB/s, 95.98 GB/s, 127.29 GB/s, 157.67 GB/s, 188.22
+              GB/s, 217.41 GB/s, 246.99 GB/s]
+        size per core: [1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25
+            MB, 1.25 MB]
+        size per thread: [1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25
+            MB, 1.25 MB]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8]
+        threads per core: 1
+        total size: [1.25 MB, 2.50 MB, 3.75 MB, 5.00 MB, 6.25 MB, 7.50 MB, 8.75 MB,
+          10.00 MB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [23.83 GB/s, 47.25 GB/s, 69.84 GB/s, 92.61 GB/s, 114.31 GB/s, 136.48
+              GB/s, 157.55 GB/s, 178.99 GB/s]
+          daxpy: [31.52 GB/s, 62.72 GB/s, 93.43 GB/s, 124.29 GB/s, 154.55 GB/s, 185.18
+              GB/s, 215.10 GB/s, 245.24 GB/s]
+          load: [27.63 GB/s, 54.93 GB/s, 81.57 GB/s, 108.63 GB/s, 134.91 GB/s, 161.72
+              GB/s, 188.15 GB/s, 214.94 GB/s]
+          triad: [25.90 GB/s, 51.76 GB/s, 76.73 GB/s, 102.29 GB/s, 126.17 GB/s, 152.10
+              GB/s, 176.71 GB/s, 200.64 GB/s]
+          update: [34.10 GB/s, 67.67 GB/s, 100.62 GB/s, 133.50 GB/s, 165.61 GB/s,
+            197.74 GB/s, 228.73 GB/s, 259.05 GB/s]
+        size per core: [1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25
+            MB, 1.25 MB]
+        size per thread: [625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00
+            kB, 625.00 kB, 625.00 kB]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16]
+        threads per core: 2
+        total size: [1.25 MB, 2.50 MB, 3.75 MB, 5.00 MB, 6.25 MB, 7.50 MB, 8.75 MB,
+          10.00 MB]
+    MEM:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [11.60 GB/s, 21.29 GB/s, 25.94 GB/s, 27.28 GB/s, 27.47 GB/s, 27.36
+              GB/s, 27.21 GB/s, 27.12 GB/s]
+          daxpy: [17.33 GB/s, 31.89 GB/s, 38.65 GB/s, 40.50 GB/s, 40.81 GB/s, 40.62
+              GB/s, 40.59 GB/s, 40.26 GB/s]
+          load: [12.01 GB/s, 23.04 GB/s, 32.79 GB/s, 40.21 GB/s, 43.39 GB/s, 44.14
+              GB/s, 44.42 GB/s, 44.40 GB/s]
+          triad: [12.73 GB/s, 24.27 GB/s, 30.43 GB/s, 31.46 GB/s, 31.77 GB/s, 31.74
+              GB/s, 31.65 GB/s, 31.52 GB/s]
+          update: [18.91 GB/s, 32.43 GB/s, 37.28 GB/s, 39.98 GB/s, 40.99 GB/s, 40.92
+              GB/s, 40.61 GB/s, 40.34 GB/s]
+        size per core: [40.00 MB, 20.00 MB, 13.33 MB, 10.00 MB, 8.00 MB, 6.67 MB,
+          5.71 MB, 5.00 MB]
+        size per thread: [40.00 MB, 20.00 MB, 13.33 MB, 10.00 MB, 8.00 MB, 6.67 MB,
+          5.71 MB, 5.00 MB]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8]
+        threads per core: 1
+        total size: [40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8]
+        results:
+          copy: [10.92 GB/s, 20.62 GB/s, 25.34 GB/s, 26.22 GB/s, 26.32 GB/s, 26.31
+              GB/s, 26.22 GB/s, 26.16 GB/s]
+          daxpy: [17.15 GB/s, 31.96 GB/s, 38.12 GB/s, 39.19 GB/s, 39.38 GB/s, 39.16
+              GB/s, 39.06 GB/s, 38.87 GB/s]
+          load: [13.49 GB/s, 25.92 GB/s, 36.16 GB/s, 41.56 GB/s, 43.34 GB/s, 43.40
+              GB/s, 43.01 GB/s, 42.66 GB/s]
+          triad: [12.38 GB/s, 23.17 GB/s, 28.69 GB/s, 29.98 GB/s, 30.50 GB/s, 30.59
+              GB/s, 30.75 GB/s, 30.70 GB/s]
+          update: [19.67 GB/s, 34.93 GB/s, 39.93 GB/s, 40.79 GB/s, 40.43 GB/s, 40.03
+              GB/s, 39.62 GB/s, 39.33 GB/s]
+        size per core: [40.00 MB, 20.00 MB, 13.33 MB, 10.00 MB, 8.00 MB, 6.67 MB,
+          5.71 MB, 5.00 MB]
+        size per thread: [20.00 MB, 10.00 MB, 6.67 MB, 5.00 MB, 4.00 MB, 3.33 MB,
+          2.86 MB, 2.50 MB]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16]
+        threads per core: 2
+        total size: [40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB, 40.00 MB]
+
+

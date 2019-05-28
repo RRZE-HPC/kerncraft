@@ -329,7 +329,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('SkylakeSP_Gold-6148_OSACA.yml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680_OSACA.yml'),
                                   '-p', 'ECMCPU',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '2000',
@@ -359,8 +359,8 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        assert_relativly_equal(ecmd['T_comp'], 6, 0.2)
-        assert_relativly_equal(ecmd['T_RegL1'], 5, 0.2)
+        assert_relativly_equal(ecmd['T_comp'], 10, 0.2)
+        assert_relativly_equal(ecmd['T_RegL1'], 10, 0.2)
 
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
