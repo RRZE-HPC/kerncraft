@@ -5,7 +5,7 @@
 # FIXME performance counters might be wrong. This will only affect the Benchmark model
 # FIXME bandwidth measurements need validataion
 # FIXME
-kerncraft version: 0.7.3  # which version of kerncraft was this file created for
+kerncraft version: 0.8.1.dev0
 model name: Intel(R) Xeon(R) Platinum 8174 CPU @ 3.10GHz
 model type: Intel Skylake SP processor
 sockets: 2
@@ -66,8 +66,11 @@ memory hierarchy:
   groups: 20
   cores per group: 1
   threads per group: 2
+  upstream throughput: ['architecture code analyzer', ['2D', '3D']]
+  transfers overlap: False
 - level: L2
-  non-overlap upstream throughput: [64 B/cy, 'half-duplex']
+  upstream throughput: [64 B/cy, 'half-duplex']
+  transfers overlap: False
   performance counter metrics:
     accesses: L1D_REPLACEMENT:PMC[0-3]
     misses: L2_LINES_IN_ALL:PMC[0-3]
@@ -87,7 +90,8 @@ memory hierarchy:
   cores per group: 1
   threads per group: 2
 - level: L3
-  non-overlap upstream throughput: [16 B/cy, 'full-duplex']
+  upstream throughput: [16 B/cy, 'full-duplex']
+  transfers overlap: False
   performance counter metrics:
     accesses: L2_LINES_IN_ALL:PMC[0-3]
     # FIXME not all misses in L2 lead to loads from L3, only the hits do
@@ -109,7 +113,8 @@ memory hierarchy:
   cores per group: 24
   threads per group: 48
 - level: MEM
-  non-overlap upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+  upstream throughput: ['full socket memory bandwidth', 'half-duplex']
+  transfers overlap: False
   cores per group: 24
   threads per group: 48
   penalty cycles per read stream: 0

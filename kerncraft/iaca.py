@@ -7,11 +7,12 @@ import subprocess
 import os
 from copy import copy
 import argparse
-from pprint import pformat
+from pprint import pformat, pprint
 import textwrap
 from collections import OrderedDict
 
 from distutils.spawn import find_executable
+from osaca.osaca import OSACA
 
 from kerncraft import iaca_get
 from . import __version__
@@ -45,7 +46,8 @@ def strip_unreferenced_labels(asm_lines):
             # Found label
             label = line[0:line.find(':')]
             # Search for references to current label
-            if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l) for l in asm_lines]):
+            if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l)
+                        for l in asm_lines]):
                 # Skip labels without seen reference
                 line = ''
         asm_stripped.append(line)
@@ -150,7 +152,8 @@ def find_asm_blocks(asm_lines):
                             [r[2] for r in refs if r[2] is not None])))
                     for mref in refs:
                         for reg in list(possible_idx_regs):
-                            # Only consider references with two registers, where one could be an index
+                            # Only consider references with two registers, where one could be an
+                            # index
                             if None not in mref[1:3]:
                                 # One needs to mach, other registers will be excluded
                                 if not (reg == mref[1] or reg == mref[2]):
@@ -251,8 +254,10 @@ def userselect_increment(block):
 def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
-    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |    GP   ||ptr.inc|\n"
-          "----------------+-----+------+-----++-----------+----------+----------+----------+---------++-------|")
+    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |"
+          "GP   ||ptr.inc|\n"
+          "----------------+-----+------+-----++-----------+----------+----------+----------+"
+          "---------++-------|")
     for idx, b in blocks:
         print('{:>2} {b[labels]!r:>12} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
               '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[ZMM][0]:>3} ({b[ZMM][1]:>2}) | '
@@ -360,6 +365,37 @@ def iaca_instrumentation(input_file, output_file,
     return block
 
 
+def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_architecture):
+    """
+    Run OSACA analysis on an instrumented assembly.
+
+    :param instrumented_assembly_file: path of assembly that was built with markers
+    :param micro_architecture: micro architecture string as taken by OSACA.
+                               one of: SNB, IVB, HSW, BDW, SKL
+    :return: a dictionary with the following keys:
+        - 'output': the output of the iaca executable
+        - 'throughput': the block throughput in cycles for one possibly vectorized loop iteration
+        - 'port cycles': dict, mapping port name to number of active cycles
+        - 'uops': total number of Uops
+    """
+    result = {}
+    with open(instrumented_assembly_file) as f:
+        osaca = OSACA(micro_architecture, f.read())
+    result['output'] = osaca.create_output()
+    result['port cycles'] = OrderedDict(osaca.get_port_occupation_cycles())
+    result['throughput'] = osaca.get_total_throughput()
+    result['uops'] = None  # Not given by OSACA
+
+    unmatched_ratio = osaca.get_unmatched_instruction_ratio()
+    if unmatched_ratio > 0.1:
+        print('WARNING: {:.0%} of the instruction could not be matched during incore analysis '
+              'with OSACA. Fix this by extending OSACAs instruction form database with the '
+              'required instructions.'.format(unmatched_ratio),
+              file=sys.stderr)
+
+    return result
+
+
 def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architecture):
     """
     Run IACA analysis on an instrumented binary.
@@ -430,7 +466,7 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
             port_cycles.append((subports[0] + subports[1], float(subcycles[1])))
         elif ports[i] and cycles[i]:
             port_cycles.append((ports[i], float(cycles[i])))
-    result['port cycles'] = dict(port_cycles)
+    result['port cycles'] = OrderedDict(port_cycles)
 
     match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
     assert match, "Could not find Uops in IACA output."

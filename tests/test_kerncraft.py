@@ -52,7 +52,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '10000-100000:2log10',
@@ -95,7 +95,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '10000-100000:2log10',
@@ -139,7 +139,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Roofline',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1024-4096:3log2',
@@ -210,7 +210,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('hasep1.yaml'),
+        args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('scalar_product.c'),
                                   '-D', 'N', '10000',
@@ -226,7 +226,7 @@ class TestKerncraft(unittest.TestCase):
         ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
 
         # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        assert_relativly_equal(ecmd['L2'], 4, 0.05)
+        assert_relativly_equal(ecmd['L2'], 2, 0.05)
         self.assertAlmostEqual(ecmd['L3'], 0.0, places=2)
         self.assertAlmostEqual(ecmd['MEM'], 0.0, places=2)
 
@@ -235,7 +235,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('hasep1.yaml'),
+        args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('copy.c'),
                                   '-D', 'N', '1000000',
@@ -253,7 +253,7 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L2'], 3, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         self.assertAlmostEqual(ecmd['MEM'], 0, places=2)
 
@@ -262,7 +262,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('hasep1.yaml'),
+        args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('copy.c'),
                                   '-D', 'N', '1000000',
@@ -281,7 +281,7 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(ecmd['L2'], 6, 0.05)
+        assert_relativly_equal(ecmd['L2'], 3, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
 
@@ -291,7 +291,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'ECMCPU',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '2000',
@@ -320,8 +320,48 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['ECMCPU'])
 
         ecmd = result['ECMCPU']
-        assert_relativly_equal(ecmd['T_OL'], 11, 0.2)
-        assert_relativly_equal(ecmd['T_nOL'], 8, 0.2)
+        assert_relativly_equal(ecmd['T_comp'], 11, 0.2)
+        assert_relativly_equal(ecmd['T_RegL1'], 8, 0.2)
+
+    @unittest.skipUnless(find_executable('gcc'), "GCC not available")
+    def test_2d5pt_ECMCPU_OSACA(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMCPU.pickle')
+        output_stream = StringIO()
+
+        parser = kc.create_parser()
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680_OSACA.yml'),
+                                  '-p', 'ECMCPU',
+                                  self._find_file('2d-5pt.c'),
+                                  '-D', 'N', '2000',
+                                  '-D', 'M', '1000',
+                                  '-vvv',
+                                  '--unit=cy/CL',
+                                  '--compiler=gcc',
+                                  '--store', store_file])
+        kc.check_arguments(args, parser)
+        kc.run(parser, args, output_file=output_stream)
+        print(output_stream.read())
+
+        with open(store_file, 'rb') as f:
+            results = pickle.load(f)
+
+        # Check if results contains correct kernel
+        self.assertEqual(list(results), ['2d-5pt.c'])
+
+        # Check for correct variations of constants
+        self.assertCountEqual(
+            [sorted(map(str, r)) for r in results['2d-5pt.c']],
+            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
+
+        # Output of first result:
+        result = list(results['2d-5pt.c'].values())[0]
+
+        self.assertCountEqual(result, ['ECMCPU'])
+
+        ecmd = result['ECMCPU']
+        assert_relativly_equal(ecmd['T_comp'], 10, 0.2)
+        assert_relativly_equal(ecmd['T_RegL1'], 10, 0.2)
+
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECM(self):
@@ -329,7 +369,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'ECM',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '2000',
@@ -363,8 +403,8 @@ class TestKerncraft(unittest.TestCase):
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        assert_relativly_equal(ecmd['T_OL'], 11, 0.2)
-        assert_relativly_equal(ecmd['T_nOL'], 8, 0.2)
+        assert_relativly_equal(ecmd['T_comp'], 11, 0.2)
+        assert_relativly_equal(ecmd['T_RegL1'], 8, 0.2)
         assert_relativly_equal(ecmd['L2'], 10, 0.05)
         assert_relativly_equal(ecmd['L3'], 6, 0.05)
         assert_relativly_equal(ecmd['MEM'], 13, 0.05)
@@ -375,7 +415,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'RooflineIACA',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '4000',
@@ -421,7 +461,7 @@ class TestKerncraft(unittest.TestCase):
         os.environ['LIKWID_INCLUDE'] = '-I' + self._find_file('dummy_likwid/include')
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   '--ignore-warnings',
                                   self._find_file('2d-5pt.c'),
@@ -470,7 +510,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'ECMData',
                                   self._find_file('2d-5pt_pragma.c'),
                                   '-D', 'N', '1000',
@@ -481,7 +521,7 @@ class TestKerncraft(unittest.TestCase):
     def test_argument_parser_asm_block(self):
         # valid --asm-block
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--asm-block', 'auto'])
@@ -489,7 +529,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --asm-block
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--asm-block', 'manual'])
@@ -497,7 +537,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --asm-block
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--asm-block', '23'])
@@ -505,7 +545,7 @@ class TestKerncraft(unittest.TestCase):
 
         # invalid --asm-block
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--asm-block', 'foobar'])
@@ -517,7 +557,7 @@ class TestKerncraft(unittest.TestCase):
         # invalid --define
         parser = kc.create_parser()
         with self.assertRaises(SystemExit) as cm:
-            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+            args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'M', '1000', '23'])
@@ -527,7 +567,7 @@ class TestKerncraft(unittest.TestCase):
         # invalid --define
         parser = kc.create_parser()
         with self.assertRaises(SystemExit) as cm:
-            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+            args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'N'])
@@ -537,7 +577,7 @@ class TestKerncraft(unittest.TestCase):
         # invalid --define
         parser = kc.create_parser()
         with self.assertRaises(SystemExit) as cm:
-            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+            args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'M', '1000', '23'])
@@ -546,7 +586,7 @@ class TestKerncraft(unittest.TestCase):
         # invalid --define
         parser = kc.create_parser()
         with self.assertRaises(SystemExit) as cm:
-            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+            args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'M'])
@@ -555,7 +595,7 @@ class TestKerncraft(unittest.TestCase):
         # invalid --define
         parser = kc.create_parser()
         with self.assertRaises(SystemExit) as cm:
-            args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+            args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'M', 'foobar'])
@@ -563,7 +603,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --define
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '23'])
@@ -571,7 +611,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --define
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '23-42'])
@@ -580,7 +620,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --define
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '23-42:4'])
@@ -589,7 +629,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --define
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '1-8:4log2'])
@@ -598,7 +638,7 @@ class TestKerncraft(unittest.TestCase):
 
         # valid --define
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('phinally_gcc.yaml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '10-1000:3log10'])

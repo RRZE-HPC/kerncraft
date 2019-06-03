@@ -282,8 +282,7 @@ class RooflineIACA(Roofline):
         """Run complete analysis."""
         self.results = self.calculate_cache_access()
         try:
-            iaca_analysis, asm_block = self.kernel.iaca_analysis(
-                micro_architecture=self.machine['micro-architecture'],
+            iaca_analysis, asm_block = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 verbose=self.verbose > 2)
@@ -307,7 +306,8 @@ class RooflineIACA(Roofline):
             sys.exit(1)
 
         port_cycles = dict([(i[0], i[1]*block_to_cl_ratio) for i in list(port_cycles.items())])
-        uops = uops*block_to_cl_ratio
+        if uops is not None:
+            uops = uops*block_to_cl_ratio
         cl_throughput = block_throughput*block_to_cl_ratio
         flops_per_element = sum(self.kernel._flops.values())
 

@@ -18,7 +18,7 @@ class TestExampleFiles(unittest.TestCase):
         return name
 
     def setUp(self):
-        self.default_machine = machinemodel.MachineModel(self._find_file('phinally_gcc.yaml'))
+        self.default_machine = machinemodel.MachineModel(self._find_file('SandyBridgeEP_E5-2680.yml'))
 
     def test_kernelfiles(self):
         kernel_files_glob = os.path.join(os.path.dirname(__file__), '../examples/kernels/', '*.c')
