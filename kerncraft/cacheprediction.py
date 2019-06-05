@@ -3,7 +3,7 @@
 from itertools import chain
 import sys
 from pprint import pprint
-from functools import cmp_to_key
+from functools import cmp_to_key, reduce
 
 import sympy
 import numpy as np
@@ -32,42 +32,144 @@ def sympy_compare(a, b):
     return c
 
 
-def extract_offsets(expr, indices):
+def sympy_expr_abs_distance_key(e):
     """
-    Extract dimensional offsets from single-dimension sympy array index expression.
+    Transform expression into tuple for sorting and comparison.
 
-    :param expr: sympy expression
-    :param indices: list of indices in outer to inner order
+    e.g., sympy_expr_abs_distance_key(N**2 + 23) -> ((2, 0.0), (1, 0.0), (0, 23.0))
+
+    Multiple variables are treated equal (N*M == N**2).
+    """
+    # Integers
+    if type(e) is int or e.is_Integer:
+        return ((0, abs(e)),)
+
+    # Infinity
+    if abs(e) is sympy.oo:
+        return ((sympy.oo, sympy.oo),)
+
+    # Expressions, replace all free_symbols with one
+    first_s = None
+    for i, s in enumerate(e.free_symbols):
+        # Skip and remember first symbol
+        if i == 0:
+            first_s = s
+            continue
+        e = e.subs(s, first_s)
+    e = e.expand()
+
+    key = []
+    # split into terms
+    terms, gens = e.as_terms()
+    assert gens == [first_s] or first_s is None and gens == [], \
+        "Expression was split into unusable terms: {}, expected.".format(gens, first_s)
+    # extract exponent and coefficient
+    for term, (coeff, cpart, ncpart) in terms:
+        coeff_real, coeff_imag = coeff
+        assert coeff_imag == 0, "Not supporting imaginary coefficients."
+        # Sort order: exponent (cpart), factor
+        key.append(cpart + (coeff_real,))
+    key[0] = (key[0][0], abs(key[0][1]))
+    # build key
+    key.sort(reverse=True)
+    # add missing exponent, coefficient tuples
+    i = 0
+    for exponent in reversed(range(key[0][0]+1)):
+        if len(key) > i and key[i][0] == exponent:
+            i += 1
+            continue
+        else:
+            key[i:i] = [(exponent, 0.0)]
+            i += 1
+    key = tuple(key)
+    return key
+
+
+def dimension_from_factor(dimension_factor):
+    """
+    Extract dimension from sympy factor
 
     >>> M = sympy.Symbol(name='M', positive=True, integer=True)
     >>> N = sympy.Symbol(name='N', positive=True, integer=True)
+    >>> dimension_from_factor(M*N)
+    2
+    >>> dimension_from_factor(N**2)
+    2
+    >>> dimension_from_factor(23)
+    0
+    >>> dimension_from_factor(N)
+    1
+
+    :param dimension_factor: sympy expression, integer or symbol
+    :return: dimension integer
+    """
+    if isinstance(dimension_factor, (sympy.Number, int)):
+        return 0
+    if isinstance(dimension_factor, sympy.Symbol):
+        return 1
+    # Replace all free symbols with one:
+    if not dimension_factor.free_symbols:
+        raise ValueError("dimension_factor is neither a number, a symbol nor an expression based "
+                         "on symbols.")
+    free_symbols = list(dimension_factor.free_symbols)
+    for s in free_symbols[1:]:
+        dimension_factor = dimension_factor.subs(s, free_symbols[0])
+    if isinstance(dimension_factor, sympy.Pow):
+        return dimension_factor.as_base_exp()[1]
+
+
+# TODO support this delinearization in KernelCode?
+def split_sympy_access_in_dim_offset_and_factor(expr, indices):
+    """
+    Extract dimensional offsets and factors from single-dimension sympy array index expression.
+
+    :param expr: sympy expression
+    :param indices: list of index symbols
+    :return tuple of offsets with indices and dimension factors
+
+    >>> M = sympy.Symbol(name='M', positive=True, integer=True)
+    >>> N = sympy.Symbol(name='N', positive=True, integer=True)
+    >>> L = sympy.Symbol(name='L', positive=True, integer=True)
     >>> i = sympy.Symbol(name='i', positive=True, integer=True)
     >>> j = sympy.Symbol(name='j', positive=True, integer=True)
     >>> k = sympy.Symbol(name='k', positive=True, integer=True)
-    >>> extract_offsets(M*N*k + N*(j+1) + (i-1), [k, j, i])
-    (0, 1, -1)
-    >>> extract_offsets(M*N*k - M*N + N*j+ N*2 + i, [k, j, i])
-    (-1, 2, 0)
-    >>> extract_offsets(N**2*(k-2) + N*j+ N*2 + i, [k, j, i])
-    (-2, 2, 0)
-    >>> extract_offsets(N*N*k, [k,j,i])
+    >>> split_sympy_access_in_dim_offset_and_factor(M*N*k + N*(j+1) + (i-1), [i, j, k])
+    ((k, j + 1, i - 1), (M*N, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(M*N*k - M*N + N*j+ N*2 + i, [i, j, k])
+    ((k - 1, j + 2, i), (M*N, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(N**2*(k-2) + N*j+ N*2 + i, [i, j, k])
+    ((k - 2, j + 2, i), (N**2, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(2*L*N*M + N*M*(k+1)+ N*(2+j) + i, [i, j, k])
+    ((2*L + k + 1, j + 2, i), (M*N, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + N*k + i + j, [i, j, k])
+    ((k, k, i + j), (N**2, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k, [i, j, k])
+    Traceback (most recent call last):
+        ...
     ValueError: Invalid expression. Some dimension terms seem to be missing.
-    >>> extract_offsets(N*N*k + N*k + i + j, [k,j,i])
+    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + M*k + i + j, [i, j, k])
+    Traceback (most recent call last):
+        ...
     ValueError: Invalid expression. Dimensions do not seem to be coefficients of one another.
-
+    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + i + j, [i, j, k])
+    Traceback (most recent call last):
+        ...
+    ValueError: Invalid expression. Some dimension terms seem to be missing.
     """
     # Expand polynomial expressions, e.g., N*(j+1) -> N*j + N
     eexpr = expr.expand()
     terms = eexpr.as_ordered_terms()
 
-    # Find dimension factors belonging to indices
-    dimension_factors = []
-    for index in indices:
-        for term in terms:
+    # Find dimension factors belonging to indices and remember unmatched terms
+    dimension_factors = set()
+    for term in terms:
+        for index in indices:
             c = term.as_coefficient(index)
-            if c:
-                dimension_factors.append(c)
+            if c is not None:
+                dimension_factors.add(c)
+                break
 
+    dimension_factors = sorted(dimension_factors, key=dimension_from_factor, reverse=True)
     # Check that dimension_factors include preceding dim. factor
     for d1, d2 in zip(dimension_factors, dimension_factors[1:]):
         # Check if d2 is contained in d1 AND d2 is part of a power in d1
@@ -78,19 +180,18 @@ def extract_offsets(expr, indices):
     # Find offsets associated with dimension factors
     offsets = []
     for dim_factor in dimension_factors:
-        for term in terms:
+        offsets.append(sympy.Integer(0))
+        for term in list(terms):
             c = term.as_coefficient(dim_factor)
-            if c is not None and c.is_Integer:
-                offsets.append(c)
-                break
-        else:
-            offsets.append(0)
+            if c is not None:
+                offsets[-1] += c
+                terms.remove(term)
 
     # TODO reassemble and compare to original expression to check for errors
     # TODO offer to return dimension_factors as well
     if not len(indices) == len(dimension_factors) == len(offsets):
         raise ValueError("Invalid expression. Some dimension terms seem to be missing.")
-    return tuple(offsets)
+    return tuple(offsets), tuple(dimension_factors)
 
 
 class CachePredictor(object):
@@ -156,6 +257,7 @@ class LayerConditionPredictor(CachePredictor):
             if next(iter(arefs)) is None:
                 # Anything that is a scalar may be ignored
                 continue
+
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
                 for t in a.expand().as_ordered_terms():
                     # Check each and every term if they are valid according to loop order and array
@@ -190,11 +292,12 @@ class LayerConditionPredictor(CachePredictor):
         inner_index = symbol_pos_int(loop_stack[-1]['index'])
         inner_increment = loop_stack[-1]['increment']
         # TODO use a public interface, not self.kernel._*
-        for arefs in chain(chain(*self.kernel.sources.values()),
-                           chain(*self.kernel.destinations.values())):
-            if arefs is None:
+        for aref in chain(chain(*self.kernel.sources.values()),
+                          chain(*self.kernel.destinations.values())):
+            if aref is None:
                 continue
-            for expr in arefs:
+
+            for expr in aref:
                 diff = expr.subs(inner_index, 1+inner_increment) - expr.subs(inner_index, 1)
                 if diff != 0 and diff != 1:
                     # TODO support -1 aswell
@@ -203,13 +306,24 @@ class LayerConditionPredictor(CachePredictor):
         # FIXME handle multiple datatypes
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
+        indices = list([symbol_pos_int(l[0]) for l in self.kernel._loop_stack])
+        sympy_accesses = self.kernel.compile_sympy_accesses()
         accesses = {}
         destinations = set()
         distances = []
         for var_name in self.kernel.variables:
-            # Gather all access to current variable/array
-            accesses[var_name] = self.kernel.sources.get(var_name, set()).union(
-                                    self.kernel.destinations.get(var_name, set()))
+            # Gather all access to current variable/array and delinearize accesses
+            accesses[var_name] = []
+            dimension_factors = None
+            for a in sympy_accesses[var_name]:
+                o, df = split_sympy_access_in_dim_offset_and_factor(a, indices)
+                accesses[var_name].append(o)
+                if dimension_factors is None:
+                    dimension_factors = df
+                elif dimension_factors != df:
+                    raise ValueError("Extracted dimension factors are different within one "
+                                     "variable. Must be a bug. {!r}".format(
+                        df, dimension_factors))
             # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
             # up from constant offsets
             if not any(accesses[var_name]) or not any(
@@ -218,27 +332,19 @@ class LayerConditionPredictor(CachePredictor):
                 continue
             destinations.update(
                 [(var_name, tuple(r)) for r in self.kernel.destinations.get(var_name, [])])
-            acs = accesses[var_name]
-            # Transform them into sympy expressions
-            acs = [self.kernel.access_to_sympy(var_name, r) for r in acs]
+            acs = list(accesses[var_name])
             # Sort accesses by decreasing order
-            indices = [string_to_sympy(l['index']) for l in self.kernel.get_loop_stack()]
-            acs.sort(key=lambda a: extract_offsets(a, indices), reverse=True)
-            # Replace constants with their integer counter parts, to make the entries numbers
-            #acs = [self.kernel.subs_consts(e) for e in acs] DONOTCOMMIT
-
+            acs.sort(reverse=True)
+            # Transform back into sympy expressions
+            for i in range(len(acs)):
+                acs[i] = reduce(sympy.Add, [f*df for f, df in zip(acs[i], dimension_factors)])
             # Create reuse distances by substracting accesses pairwise in decreasing order
-            distances += [(acs[i-1]-acs[i]).simplify() for i in range(1, len(acs))]
+            distances += [acs[i-1]-acs[i].simplify() for i in range(1, len(acs))]
             # Add infinity for each array
             distances.append(sympy.oo)
 
-        # WIP
-        print(distances)
-        from IPython import embed
-        embed()
-        # /WIP
         # Sort distances by decreasing order
-        distances.sort(reverse=True)
+        distances.sort(reverse=True, key=sympy_expr_abs_distance_key)
         # Create copy of distances in bytes:
         distances_bytes = [d*element_size for d in distances]
         # CAREFUL! From here on we are working in byte offsets and not in indices anymore.
@@ -265,22 +371,35 @@ class LayerConditionPredictor(CachePredictor):
                 misses = 0
                 cache_requirement = sum_array_sizes
             else:
-                for tail in sorted(set(distances_bytes), reverse=True):
+                for tail in sorted(set(distances_bytes), reverse=True,\
+                                   key=sympy_expr_abs_distance_key):
                     # Assuming decreasing order of tails
                     # Ignoring infinity tail:
                     if tail is sympy.oo:
                         continue
                     cache_requirement = (
                         # Sum of inter-access caches
-                        sum([d for d in distances_bytes if d <= tail]) +
+                        sum([d for d in distances_bytes
+                             if sympy_expr_abs_distance_key(d) <= sympy_expr_abs_distance_key(tail)]
+                            ) +
                         # Tails
-                        tail*len([d for d in distances_bytes if d > tail]))
+                        tail*len([d for d in distances_bytes
+                                  if sympy_expr_abs_distance_key(d) >
+                                     sympy_expr_abs_distance_key(tail)]))
+                    # Replace with real numbers
+
+                    cache_requirement = self.kernel.subs_consts(cache_requirement)
 
                     if cache_requirement <= c.size():
                         # If we found a tail that fits into our available cache size
                         # note hits and misses and break
-                        hits = len([d for d in distances_bytes if d <= tail])
-                        misses = len([d for d in distances_bytes if d > tail])
+                        hits = len(
+                            [d for d in distances_bytes
+                             if sympy_expr_abs_distance_key(d) <= sympy_expr_abs_distance_key(tail)]
+                        )
+                        misses = len(
+                            [d for d in distances_bytes
+                             if sympy_expr_abs_distance_key(d) > sympy_expr_abs_distance_key(tail)])
                         break
 
             # Resulting analysis for current cache level

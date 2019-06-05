@@ -218,7 +218,7 @@ class LC(PerformanceModel):
             while arefs and not arefs[0].free_symbols:
                 arefs = arefs[1:]
 
-            # Check that remaining indices are in orde
+            # Check that remaining indices are in order
             for i, expr in enumerate(arefs):
                 diff = sympy.diff(expr, sympy.Symbol(loop_stack[i]['index']))
                 if diff != 0 and diff != 1:
