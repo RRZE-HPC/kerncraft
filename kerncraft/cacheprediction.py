@@ -140,9 +140,13 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
     >>> split_sympy_access_in_dim_offset_and_factor(N**2*(k-2) + N*j+ N*2 + i, [i, j, k])
     ((k - 2, j + 2, i), (N**2, N, 1))
     >>> split_sympy_access_in_dim_offset_and_factor(2*L*N*M + N*M*(k+1)+ N*(2+j) + i, [i, j, k])
-    ((2*L + k + 1, j + 2, i), (M*N, N, 1))
+    ((2, k + 1, j + 2, i), (L*M*N, M*N, N, 1))
     >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + N*k + i + j, [i, j, k])
     ((k, k, i + j), (N**2, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + N*k + i + j + 2, [i, j, k])
+    ((k, k, i + j + 2), (N**2, N, 1))
+    >>> split_sympy_access_in_dim_offset_and_factor(sympy.Integer(2), [i, j, k])
+    ((2,), (1,))
     >>> split_sympy_access_in_dim_offset_and_factor(N*N*k, [i, j, k])
     Traceback (most recent call last):
         ...
@@ -150,7 +154,7 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
     >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + M*k + i + j, [i, j, k])
     Traceback (most recent call last):
         ...
-    ValueError: Invalid expression. Dimensions do not seem to be coefficients of one another.
+    ValueError: Invalid expression. Dimensions do not seem to be coefficients of one another. M*k + N**2*k + i + j
     >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + i + j, [i, j, k])
     Traceback (most recent call last):
         ...
@@ -161,21 +165,38 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
     terms = eexpr.as_ordered_terms()
 
     # Find dimension factors belonging to indices and remember unmatched terms
-    dimension_factors = set()
+    one = sympy.Integer(1)
+    dimension_factors = set([one])
+    terms_without_index = []
     for term in terms:
         for index in indices:
-            c = term.as_coefficient(index)
-            if c is not None:
+            c = term.coeff(index)
+            if c:
                 dimension_factors.add(c)
                 break
+        else:
+            terms_without_index.append(term)
 
+    # Find additional dimension factors, not based on indices, e.g., L*M*N
+    for term in terms_without_index:
+        for dim_factor in dimension_factors:
+            c = term.coeff(dim_factor)
+            if isinstance(c, sympy.Mul):
+                dimension_factors.add(reduce(sympy.Mul, c.free_symbols) * dim_factor)
+                break
+
+    # Sort dimension factors by dimension (highest to lowest)
     dimension_factors = sorted(dimension_factors, key=dimension_from_factor, reverse=True)
     # Check that dimension_factors include preceding dim. factor
     for d1, d2 in zip(dimension_factors, dimension_factors[1:]):
         # Check if d2 is contained in d1 AND d2 is part of a power in d1
         if d1.as_coefficient(d2) is None and d1.as_coeff_exponent(d2)[1] < 1:
             raise ValueError("Invalid expression. Dimensions do not seem to be coefficients of one "
-                             "another.")
+                             "another. {!r}".format(expr))
+
+    # Check that all intermediate dimensions are represented
+    if dimension_from_factor(dimension_factors[0]) + 1 != len(dimension_factors):
+        raise ValueError("Invalid expression. Some dimension terms seem to be missing.")
 
     # Find offsets associated with dimension factors
     offsets = []
@@ -186,11 +207,16 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
             if c is not None:
                 offsets[-1] += c
                 terms.remove(term)
+            # because 1.as_coefficient(1) is None, we need to consider integers manually
+            elif isinstance(term, sympy.Integer) and dim_factor == 1:
+                offsets[-1] += term
+                terms.remove(term)
 
-    # TODO reassemble and compare to original expression to check for errors
-    # TODO offer to return dimension_factors as well
-    if not len(indices) == len(dimension_factors) == len(offsets):
-        raise ValueError("Invalid expression. Some dimension terms seem to be missing.")
+    # Reassemble and check for equality
+    assert eexpr == reduce(
+        sympy.Add, [o * df for o, df in zip(offsets, dimension_factors)]).expand(), \
+        "Reassembly of expression from offsets and dimension_factors did not succeed. May be a bug."
+
     return tuple(offsets), tuple(dimension_factors)
 
 
@@ -311,7 +337,7 @@ class LayerConditionPredictor(CachePredictor):
         accesses = {}
         destinations = set()
         distances = []
-        for var_name in self.kernel.variables:
+        for var_name in sorted(self.kernel.variables):
             # Gather all access to current variable/array and delinearize accesses
             accesses[var_name] = []
             dimension_factors = None
@@ -320,9 +346,9 @@ class LayerConditionPredictor(CachePredictor):
                 accesses[var_name].append(o)
                 if dimension_factors is None:
                     dimension_factors = df
-                elif dimension_factors != df:
+                elif dimension_factors[-len(indices):] != df[-len(indices):]:
                     raise ValueError("Extracted dimension factors are different within one "
-                                     "variable. Must be a bug. {!r}".format(
+                                     "variable. Must be a bug. {!r} != {!r}".format(
                         df, dimension_factors))
             # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
             # up from constant offsets
@@ -333,6 +359,11 @@ class LayerConditionPredictor(CachePredictor):
             destinations.update(
                 [(var_name, tuple(r)) for r in self.kernel.destinations.get(var_name, [])])
             acs = list(accesses[var_name])
+            # If accesses are of unequal length, pad with leading zero elements
+            max_dims = max(map(len, acs))
+            for i in range(len(acs)):
+                if len(acs[i]) < max_dims:
+                    acs[i] = (sympy.Integer(0),)*(max_dims-len(acs[i])) + acs[i]
             # Sort accesses by decreasing order
             acs.sort(reverse=True)
             # Transform back into sympy expressions
