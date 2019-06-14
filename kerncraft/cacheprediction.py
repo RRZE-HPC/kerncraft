@@ -6,6 +6,7 @@ from pprint import pprint
 from functools import cmp_to_key, reduce
 
 import sympy
+from sympy.logic.boolalg import BooleanTrue
 import numpy as np
 
 from kerncraft.kernel import symbol_pos_int, string_to_sympy
@@ -264,7 +265,7 @@ class CachePredictor(object):
 class LayerConditionPredictor(CachePredictor):
     """Predictor class based on layer condition analysis."""
 
-    def __init__(self, kernel, machine, cores=1):
+    def __init__(self, kernel, machine, cores=1, symbolic=False):
         """Initialize layer condition based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores=cores)
 
@@ -387,62 +388,68 @@ class LayerConditionPredictor(CachePredictor):
                    'distances_bytes': distances_bytes,
                    'cache': []}
 
-        sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
+        sum_array_sizes = sum(self.kernel.array_sizes(in_bytes=True, subs_consts=False).values())
 
         for c in self.machine.get_cachesim(self.cores).levels(with_mem=False):
             # Assuming increasing order of cache sizes
-            hits = 0
-            misses = len(distances_bytes)
-            cache_requirement = 0
+            options = []
+            # Full caching
+            options.append({
+                'condition': (c.size() > sum_array_sizes).simplify(),
+                'hits': len(distances),
+                'misses': 0,
+                'evicts': 0,
+                'tail': sympy.oo,
+            })
 
-            tail = 0
-            # Test for full caching
-            if c.size() > sum_array_sizes:
-                hits = misses
-                misses = 0
-                cache_requirement = sum_array_sizes
+            for tail in sorted(set([d.simplify() for d in distances_bytes]), reverse=True,
+                               key=sympy_expr_abs_distance_key):
+                # Assuming decreasing order of tails
+                # Ignoring infinity tail:
+                if tail is sympy.oo:
+                    continue
+                cache_requirement = (
+                    # Sum of inter-access caches
+                    sum([d for d in distances_bytes
+                         if sympy_expr_abs_distance_key(d) <= sympy_expr_abs_distance_key(tail)]
+                        ) +
+                    # Tails
+                    tail*len([d for d in distances_bytes
+                              if sympy_expr_abs_distance_key(d) >
+                                 sympy_expr_abs_distance_key(tail)]))
+                condition = (cache_requirement <= c.size()).simplify()
+
+                hits = len(
+                    [d for d in distances_bytes
+                     if sympy_expr_abs_distance_key(d) <= sympy_expr_abs_distance_key(tail)])
+                misses = len(
+                    [d for d in distances_bytes
+                     if sympy_expr_abs_distance_key(d) > sympy_expr_abs_distance_key(tail)])
+
+                # Resulting analysis
+                options.append({
+                    'condition': condition,
+                    'hits': hits,
+                    'misses': misses,
+                    'evicts': len(destinations),
+                    'tail': tail})
+            if not isinstance(options[-1]['condition'], BooleanTrue):
+                # Fallback: no condition matched
+                options.append({
+                    'condition': True,
+                    'hits': 0,
+                    'misses': len(distances),
+                    'evicts': len(destinations),
+                    'tail': 0
+                })
+
+            if symbolic:
+                results['cache'].append(options)
             else:
-                for tail in sorted(set(distances_bytes), reverse=True,\
-                                   key=sympy_expr_abs_distance_key):
-                    # Assuming decreasing order of tails
-                    # Ignoring infinity tail:
-                    if tail is sympy.oo:
-                        continue
-                    cache_requirement = (
-                        # Sum of inter-access caches
-                        sum([d for d in distances_bytes
-                             if sympy_expr_abs_distance_key(d) <= sympy_expr_abs_distance_key(tail)]
-                            ) +
-                        # Tails
-                        tail*len([d for d in distances_bytes
-                                  if sympy_expr_abs_distance_key(d) >
-                                     sympy_expr_abs_distance_key(tail)]))
-                    # Replace with real numbers
-
-                    cache_requirement = self.kernel.subs_consts(cache_requirement)
-
-                    if cache_requirement <= c.size():
-                        # If we found a tail that fits into our available cache size
-                        # note hits and misses and break
-                        hits = len(
-                            [d for d in distances_bytes
-                             if sympy_expr_abs_distance_key(d) <= sympy_expr_abs_distance_key(tail)]
-                        )
-                        misses = len(
-                            [d for d in distances_bytes
-                             if sympy_expr_abs_distance_key(d) > sympy_expr_abs_distance_key(tail)])
+                for o in options:
+                    if self.kernel.subs_consts(o['condition']):
+                        results['cache'].append(o)
                         break
-
-            # Resulting analysis for current cache level
-            # TODO include loads and stores
-            results['cache'].append({
-                'name': c.name,
-                'hits': hits,
-                'misses': misses,
-                'evicts': len(destinations) if c.size() < sum_array_sizes else 0,
-                'requirement': cache_requirement,
-                'tail': tail})
-
         self.results = results
 
     def get_loads(self):
