@@ -10,6 +10,7 @@ import pickle
 from io import StringIO
 
 import sympy
+from sympy import oo
 
 from kerncraft import kerncraft as kc
 from kerncraft.prefixedunit import PrefixedUnit
@@ -66,42 +67,80 @@ class TestLayerCondition(unittest.TestCase):
             results = pickle.load(f)
         result = next(iter(results['3d-7pt.c'].values()))['LC']
 
-        N = sympy.var('N')
-        result_expected = {
-            'dimensions': {
-                1: {
-                    'slices_sum': 2,
-                    'slices_count': 6,
-                    'caches': {
-                        'L1': {'lt': True},
-                        'L2': {'lt': True},
-                        'L3': {'lt': True},
-                    },
-                    'cache_requirement_bytes': 64,
-                },
-                2: {
-                    'slices_sum': 2*N,
-                    'slices_count': 4,
-                    'caches': {
-                        'L1': {'lt': 48*N - 32 <= 32768},
-                        'L2': {'lt': 48*N - 32 <= 262144},
-                        'L3': {'lt': 48*N - 32 <= 20971520},
-                    },
-                    'cache_requirement_bytes': 48*N - 32,
-                },
-                3: {
-                    'slices_sum': 2*N*(N-1)+2*N,
-                    'slices_count': 2,
-                    'caches': {
-                        'L1': {'lt': 16*N**2 + 16*N*(N - 1) <= 32768},
-                        'L2': {'lt': 16*N**2 + 16*N*(N - 1) <= 262144},
-                        'L3': {'lt': 16*N**2 + 16*N*(N - 1) <= 20971520},
-                    },
-                    'cache_requirement_bytes': 16*N**2 + 16*N*(N - 1),
-                },
-            }
-        }
-
+        N, M, i, j, k = sympy.var('N, M, i, j, k')
+        result_expected = {'accesses':
+                     {'a': [(k - 1, j, i),
+                            (k, j - 1, i),
+                            (k, j, i - 1),
+                            (k, j, i),
+                            (k, j, i + 1),
+                            (k, j + 1, i),
+                            (k + 1, j, i)],
+                      'b': [(k, j, i)],
+                      's': []},
+         'cache': [[{'condition': 16 * M * N ** 2 < 32768,
+                     'evicts': 0,
+                     'hits': 8,
+                     'misses': 0,
+                     'tail': oo},
+                    {'condition': 32 * N ** 2 - 16 * N <= 32768,
+                     'evicts': 1,
+                     'hits': 6,
+                     'misses': 2,
+                     'tail': 8 * N ** 2 - 8 * N},
+                    {'condition': 48 * N - 32 <= 32768,
+                     'evicts': 1,
+                     'hits': 4,
+                     'misses': 4,
+                     'tail': 8 * N - 8},
+                    {'condition': True,
+                     'evicts': 1,
+                     'hits': 2,
+                     'misses': 6,
+                     'tail': 8}],
+                   [{'condition': 16 * M * N ** 2 < 262144,
+                     'evicts': 0,
+                     'hits': 8,
+                     'misses': 0,
+                     'tail': oo},
+                    {'condition': 32 * N ** 2 - 16 * N <= 262144,
+                     'evicts': 1,
+                     'hits': 6,
+                     'misses': 2,
+                     'tail': 8 * N ** 2 - 8 * N},
+                    {'condition': 48 * N - 32 <= 262144,
+                     'evicts': 1,
+                     'hits': 4,
+                     'misses': 4,
+                     'tail': 8 * N - 8},
+                    {'condition': True,
+                     'evicts': 1,
+                     'hits': 2,
+                     'misses': 6,
+                     'tail': 8}],
+                   [{'condition': 16 * M * N ** 2 < 20971520,
+                     'evicts': 0,
+                     'hits': 8,
+                     'misses': 0,
+                     'tail': oo},
+                    {'condition': 32 * N ** 2 - 16 * N <= 20971520,
+                     'evicts': 1,
+                     'hits': 6,
+                     'misses': 2,
+                     'tail': 8 * N ** 2 - 8 * N},
+                    {'condition': 48 * N - 32 <= 20971520,
+                     'evicts': 1,
+                     'hits': 4,
+                     'misses': 4,
+                     'tail': 8 * N - 8},
+                    {'condition': True,
+                     'evicts': 1,
+                     'hits': 2,
+                     'misses': 6,
+                     'tail': 8}]],
+         'destinations': {('b', (k, j, i))},
+         'distances': [oo, oo, N * (N - 1), N * (N - 1), N - 1, N - 1, 1, 1],
+         'distances_bytes': [oo, oo, 8 * N * (N - 1), 8 * N * (N - 1), 8 * N - 8, 8 * N - 8, 8, 8]}
         # Iterate over expected results and validate with generated results
         stack = [((k,), v) for k, v in result_expected.items()]
         while stack:
@@ -129,32 +168,74 @@ class TestLayerCondition(unittest.TestCase):
             results = pickle.load(f)
         result = next(iter(results['constantdim.c'].values()))['LC']
 
-        N = sympy.var('N')
-        result_expected = {
-            'dimensions': {
-                1: {
-                    'slices_sum': 2,
-                    'slices_count': 6,
-                    'caches': {
-                        'L1': {'lt': True},
-                        'L2': {'lt': True},
-                        'L3': {'lt': True},
-                    },
-                    'cache_requirement_bytes': 64,
-                },
-                2: {
-                    'slices_sum': 2*N,
-                    'slices_count': 4,
-                    'caches': {
-                        'L1': {'lt': 48*N - 32 <= 32768},
-                        'L2': {'lt': 48*N - 32 <= 262144},
-                        'L3': {'lt': 48*N - 32 <= 20971520},
-                    },
-                    'cache_requirement_bytes': 48*N - 32,
-                },
-            }
-        }
-
+        N, M, j, i = sympy.var('N'), sympy.var('M'), sympy.var('j'), sympy.var('i')
+        result_expected = \
+            {'accesses': {'W': [(j, i), (1, j, i)],
+                          'a': [(j - 1, i), (j, i - 1), (j, i), (j, i + 1), (j + 1, i)],
+                          'b': [(j, i)]},
+             'cache': [[{'condition': 32 * M * N < 32768,
+                         'evicts': 0,
+                         'hits': 8,
+                         'misses': 0,
+                         'tail': oo},
+                        {'condition': 32 * M * N + 16 * N <= 32768,
+                         'evicts': 1,
+                         'hits': 5,
+                         'misses': 3,
+                         'tail': 8 * M * N},
+                        {'condition': 48 * N - 32 <= 32768,
+                         'evicts': 1,
+                         'hits': 4,
+                         'misses': 4,
+                         'tail': 8 * N - 8},
+                        {'condition': True,
+                         'evicts': 1,
+                         'hits': 2,
+                         'misses': 6,
+                         'tail': 8}],
+                       [{'condition': 32 * M * N < 262144,
+                         'evicts': 0,
+                         'hits': 8,
+                         'misses': 0,
+                         'tail': oo},
+                        {'condition': 32 * M * N + 16 * N <= 262144,
+                         'evicts': 1,
+                         'hits': 5,
+                         'misses': 3,
+                         'tail': 8 * M * N},
+                        {'condition': 48 * N - 32 <= 262144,
+                         'evicts': 1,
+                         'hits': 4,
+                         'misses': 4,
+                         'tail': 8 * N - 8},
+                        {'condition': True,
+                         'evicts': 1,
+                         'hits': 2,
+                         'misses': 6,
+                         'tail': 8}],
+                       [{'condition': 32 * M * N < 20971520,
+                         'evicts': 0,
+                         'hits': 8,
+                         'misses': 0,
+                         'tail': oo},
+                        {'condition': 32 * M * N + 16 * N <= 20971520,
+                         'evicts': 1,
+                         'hits': 5,
+                         'misses': 3,
+                         'tail': 8 * M * N},
+                        {'condition': 48 * N - 32 <= 20971520,
+                         'evicts': 1,
+                         'hits': 4,
+                         'misses': 4,
+                         'tail': 8 * N - 8},
+                        {'condition': True,
+                         'evicts': 1,
+                         'hits': 2,
+                         'misses': 6,
+                         'tail': 8}]],
+             'destinations': {('b', (j, i))},
+             'distances': [oo, oo, oo, M * N, N - 1, N - 1, 1, 1],
+             'distances_bytes': [oo, oo, oo, 8 * M * N, 8 * N - 8, 8 * N - 8, 8, 8]}
         # Iterate over expected results and validate with generated results
         stack = [((k,), v) for k, v in result_expected.items()]
         while stack:

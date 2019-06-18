@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
-import sys
-from pprint import pprint
 from functools import cmp_to_key, reduce
 
 import sympy
 from sympy.logic.boolalg import BooleanTrue
 import numpy as np
 
-from kerncraft.kernel import symbol_pos_int, string_to_sympy
+from kerncraft.kernel import symbol_pos_int
 
 
 # From https://stackoverflow.com/a/17511341 by dlitz
@@ -17,20 +15,18 @@ def ceildiv(a: int, b: int) -> object:
     return -(-a // b)
 
 
-def sympy_compare(a, b):
-    """Compare a and b, assuming that a and b are sympy expressions."""
-    c = 0
-    for i in range(min(len(a), len(b))):
-        s = a[i] - b[i]
-        if sympy.simplify(s > 0):
-            c = -1
-        elif sympy.simplify(s == 0):
-            c = 0
-        else:
-            c = 1
-        if c != 0:
-            break
-    return c
+def uneven_tuple_cmp(a, b):
+    length_diff = max(len(a), len(b)) - min(len(a), len(b))
+    if len(a) < len(b):
+        a = (0,)*length_diff + a
+    elif len(b) < len(a):
+        b = (0,)*length_diff + b
+    if a > b:
+        return 1
+    elif a < b:
+        return -1
+    else:
+        return 0
 
 
 def sympy_expr_abs_distance_key(e):
@@ -351,6 +347,8 @@ class LayerConditionPredictor(CachePredictor):
                     raise ValueError("Extracted dimension factors are different within one "
                                      "variable. Must be a bug. {!r} != {!r}".format(
                         df, dimension_factors))
+                elif len(dimension_factors) < len(df):
+                    dimension_factors = df
             # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
             # up from constant offsets
             if not any(accesses[var_name]) or not any(
@@ -371,7 +369,7 @@ class LayerConditionPredictor(CachePredictor):
             for i in range(len(acs)):
                 acs[i] = reduce(sympy.Add, [f*df for f, df in zip(acs[i], dimension_factors)])
             # Create reuse distances by substracting accesses pairwise in decreasing order
-            distances += [acs[i-1]-acs[i].simplify() for i in range(1, len(acs))]
+            distances += [(acs[i-1]-acs[i]).simplify() for i in range(1, len(acs))]
             # Add infinity for each array
             distances.append(sympy.oo)
 
@@ -382,7 +380,8 @@ class LayerConditionPredictor(CachePredictor):
         # CAREFUL! From here on we are working in byte offsets and not in indices anymore.
 
         # converting access sets to lists, otherwise pprint will fail during obligatory sorting step
-        results = {'accesses': {k: list(v) for k,v in accesses.items()},
+        results = {'accesses': {k: sorted(list(v), key=cmp_to_key(uneven_tuple_cmp))
+                                for k,v in accesses.items()},
                    'distances': distances,
                    'destinations': destinations,
                    'distances_bytes': distances_bytes,
@@ -395,14 +394,14 @@ class LayerConditionPredictor(CachePredictor):
             options = []
             # Full caching
             options.append({
-                'condition': (c.size() > sum_array_sizes).simplify(),
+                'condition': (c.size() > sum_array_sizes).simplify().expand(),
                 'hits': len(distances),
                 'misses': 0,
                 'evicts': 0,
                 'tail': sympy.oo,
             })
 
-            for tail in sorted(set([d.simplify() for d in distances_bytes]), reverse=True,
+            for tail in sorted(set([d.simplify().expand() for d in distances_bytes]), reverse=True,
                                key=sympy_expr_abs_distance_key):
                 # Assuming decreasing order of tails
                 # Ignoring infinity tail:
@@ -417,7 +416,7 @@ class LayerConditionPredictor(CachePredictor):
                     tail*len([d for d in distances_bytes
                               if sympy_expr_abs_distance_key(d) >
                                  sympy_expr_abs_distance_key(tail)]))
-                condition = (cache_requirement <= c.size()).simplify()
+                condition = (cache_requirement <= c.size()).simplify().expand()
 
                 hits = len(
                     [d for d in distances_bytes
