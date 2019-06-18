@@ -227,11 +227,8 @@ def run(parser, args, output_file=sys.stdout):
     else:
         description = str(args.code_file.read())
         kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
-    # if no defines were given, guess suitable defines in-mem
-    # TODO support in-cache
-    # TODO broaden cases to n-dimensions
-    # TODO make configurable (no hardcoded 512MB/1GB/min. 3 iteration ...)
-    # works only for up to 3 dimensions
+
+    # define constants
     required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
     required_consts += [[l['start'], l['stop']] for l in kernel.get_loop_stack()]
     # split into individual consts
