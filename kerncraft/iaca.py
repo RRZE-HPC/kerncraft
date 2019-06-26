@@ -12,7 +12,7 @@ import textwrap
 from collections import OrderedDict
 
 from distutils.spawn import find_executable
-from osaca.osaca import OSACA
+from osaca.osaca import OSACA, extract_marked_section
 
 from kerncraft import iaca_get
 from . import __version__
@@ -392,6 +392,57 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
               'with OSACA. Fix this by extending OSACAs instruction form database with the '
               'required instructions.'.format(unmatched_ratio),
               file=sys.stderr)
+
+    return result
+
+
+def llvm_mca_analyse_instrumented_assembly(instrumented_assembly_file, micro_architecture):
+    """
+    Run LLVM-MCA analysis on an instrumented assembly.
+
+    :param instrumented_assembly_file: path of assembly that was built with markers
+    :param micro_architecture: micro architecture string as taken by OSACA.
+                               one of: SNB, IVB, HSW, BDW, SKL
+    :return: a dictionary with the following keys:
+        - 'output': the output of the iaca executable
+        - 'throughput': the block throughput in cycles for one possibly vectorized loop iteration
+        - 'port cycles': dict, mapping port name to number of active cycles
+        - 'uops': total number of Uops
+    """
+    result = {}
+    with open(instrumented_assembly_file) as f:
+        assembly_section = extract_marked_section(f.read())
+
+    output = subprocess.check_output(['llvm-mca']+micro_architecture.split(' '),
+                                     input=assembly_section.encode('utf-8')).decode('utf-8')
+    result['output'] = output
+
+    # Extract port names
+    port_names = OrderedDict()
+    m = re.search(r'Resources:\n(?:[^\n]+\n)+', output)
+    for m in re.finditer(r'(\[[0-9]+\])\s+-\s+([a-zA-Z0-9]+)', m.group()):
+        port_names[m.group(1)] = m.group(2)
+
+    # Extract cycles per port
+    port_cycles = OrderedDict()
+    m = re.search(r'Resource pressure per iteration:\n[^\n]+\n[^\n]+', output)
+    port_cycle_lines = m.group().split('\n')[1:]
+    for port, cycles in zip(port_cycle_lines[0].split(), port_cycle_lines[1].split()):
+        if cycles == '-':
+            cycles = 0.0
+        port_cycles[port_names[port]] = float(cycles)
+
+    result['port cycles'] = port_cycles
+    result['throughput'] = max(port_cycles.values())
+
+    # Extract uops
+    uops = 0
+    uops_raw = re.search(r'\n\[1\](\s+\[[0-9]+\]\s+)+Instructions:\n(:?\s*[0-9]+\s+[^\n]+\n)+',
+                         output).group()
+    for l in uops_raw.strip().split('\n')[2:]:
+        uops += int(l.strip().split(' ')[0])
+
+    result['uops'] = uops
 
     return result
 

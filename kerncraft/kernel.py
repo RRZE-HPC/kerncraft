@@ -1560,6 +1560,11 @@ class KernelCode(Kernel):
             return iaca.osaca_analyse_instrumented_assembly(asm_marked_filename,
                                                             micro_architecture), \
                    self.asm_block
+        elif 'micro-architecture-modeler' in self._machine and \
+                self._machine['micro-architecture-modeler'] == 'LLVM-MCA':
+            return iaca.llvm_mca_analyse_instrumented_assembly(asm_marked_filename,
+                                                            micro_architecture), \
+                   self.asm_block
         else:  # self._machine['micro-architecture-modeler'] == 'IACA'
             obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
             return iaca.iaca_analyse_instrumented_binary(obj_name, micro_architecture), \
@@ -1585,7 +1590,7 @@ class KernelCode(Kernel):
 
             compiler_args += [
                 '-std=c99',
-                '-I'+reduce_path(os.path.abspath(os.path.dirname(
+                '-I'+reduce_path(os.path.abspath(os.path.dirgit name(
                     os.path.realpath(__file__)))+'/headers/'),
                 os.environ.get('LIKWID_INCLUDE', ''),
                 os.environ.get('LIKWID_INC', ''),
