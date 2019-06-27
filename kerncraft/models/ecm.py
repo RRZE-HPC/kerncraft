@@ -227,6 +227,11 @@ class ECMData(PerformanceModel):
             print(file=output_file)
             print(self.report_data_transfers(), file=output_file)
 
+        if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
+                self._args.unit == 'FLOP/s':
+            print("WARNING: FLOP counts are probably wrong, because complex flops are counted\n"
+                  "         as single flops. All other units should not be affected.\n",
+                  file=sys.stderr)
 
 
 class ECMCPU(PerformanceModel):
@@ -379,6 +384,12 @@ class ECMCPU(PerformanceModel):
 
         print('T_comp = {:.1f} cy/CL'.format(self.results['T_comp']), file=output_file)
         print('T_RegL1 = {:.1f} cy/CL'.format(self.results['T_RegL1']), file=output_file)
+
+        if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
+                self._args.unit == 'FLOP/s':
+            print("WARNING: FLOP counts are probably wrong, because complex flops are counted \n"
+                  "         as single flops. All other units should not be affected.\n",
+                  file=sys.stderr)
 
 
 class ECM(PerformanceModel):
@@ -589,6 +600,12 @@ class ECM(PerformanceModel):
             assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
             fig = plt.figure(frameon=False)
             self.plot(fig)
+
+        if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
+                self._args.unit == 'FLOP/s':
+            print("WARNING: FLOP counts are probably wrong, because complex flops are counted\n"
+                  "         as single flops. All other units should not be affected.\n",
+                  file=sys.stderr)
 
     def plot(self, fig=None):
         """Plot visualization of model prediction."""

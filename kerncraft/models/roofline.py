@@ -226,6 +226,11 @@ class Roofline(PerformanceModel):
             print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
 
+        if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]):
+            print("WARNING: FLOP counts are probably wrong, because complex flops are counted\n"
+                  "         as single flops. All other units should not be affected.\n",
+                  file=sys.stderr)
+
 
 class RooflineIACA(Roofline):
     """
@@ -384,3 +389,9 @@ class RooflineIACA(Roofline):
                   file=output_file)
             print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
+
+        if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
+                self._args.unit == 'FLOP/s':
+            print("WARNING: FLOP counts are probably wrong, because complex flops are counted\n"
+                  "         as single flops. All other units should not be affected.\n",
+                  file=sys.stderr)

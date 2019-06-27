@@ -432,6 +432,9 @@ class LayerConditionPredictor(CachePredictor):
                     'misses': misses,
                     'evicts': len(destinations),
                     'tail': tail})
+                # If we encountered a True condition, break to not include multiple such.
+                if isinstance(condition, BooleanTrue):
+                    break
             if not isinstance(options[-1]['condition'], BooleanTrue):
                 # Fallback: no condition matched
                 options.append({

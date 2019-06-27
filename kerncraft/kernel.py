@@ -197,7 +197,7 @@ class Kernel(object):
     """Kernel information with functons to analyze and report access patterns."""
 
     # Datatype sizes in bytes
-    datatypes_size = {'double': 8, 'float': 4}
+    datatypes_size = {('double', '_Complex'): 16, ('double',): 8, ('float',): 4}
 
     def __init__(self, machine=None):
         """Create kernel representation."""
@@ -657,10 +657,10 @@ class Kernel(object):
 
     def print_variables_info(self, output_file=sys.stdout):
         """Print variables information in human readble format."""
-        table = ('    name |   type size             \n' +
-                 '---------+-------------------------\n')
+        table = ('    name |   type          size             \n' +
+                 '---------+----------------------------------\n')
         for name, var_info in list(self.variables.items()):
-            table += '{:>8} | {:>6} {!s:<10}\n'.format(name, var_info[0], var_info[1])
+            table += '{:>8} | {:>15} {!s:<10}\n'.format(name, ' '.join(var_info[0]), var_info[1])
         print(prefix_indent('variables: ', table), file=output_file)
 
     def print_constants_info(self, output_file=sys.stdout):
@@ -860,12 +860,11 @@ class KernelCode(Kernel):
                     dims.append(self.conv_ast_to_sym(t.dim))
                     t = t.type
 
-                assert len(t.type.names) == 1, "only single types are supported"
-                self.set_variable(item.name, t.type.names[0], tuple(dims))
+                self.set_variable(item.name, tuple(t.type.names), tuple(dims))
 
             else:
                 assert len(item.type.type.names) == 1, "only single types are supported"
-                self.set_variable(item.name, item.type.type.names[0], None)
+                self.set_variable(item.name, tuple(item.type.type.names), None)
 
         self._p_for(loop_nest[-1])
         self.swaps = swaps
