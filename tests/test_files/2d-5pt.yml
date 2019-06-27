@@ -11,13 +11,13 @@ code: >
 
 arrays:
     a: 
-        type: double
+        type: !!python/tuple ['double',]
         dimension: [M, N]
     b: 
-        type: double
+        type: !!python/tuple ['double',]
         dimension: [M, N]
     s:  # optional, since scalars are irrelevant
-        type: double
+        type: !!python/tuple ['double',]
         dimension: null
 
 loops:

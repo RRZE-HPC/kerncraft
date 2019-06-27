@@ -242,7 +242,8 @@ class Kernel(object):
         :param type_: may be any key from Kernel.datatypes_size (typically float or double)
         :param size: either None for scalars or an n-tuple of ints for an n-dimensional array
         """
-        assert type_ in self.datatypes_size, 'only float and double variables are supported'
+        assert type_ in self.datatypes_size, 'only float, double and double _Complex variables ' \
+                                             'are supported'
         if self.datatype is None:
             self.datatype = type_
         else:
