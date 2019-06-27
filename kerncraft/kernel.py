@@ -1590,7 +1590,7 @@ class KernelCode(Kernel):
 
             compiler_args += [
                 '-std=c99',
-                '-I'+reduce_path(os.path.abspath(os.path.dirgit name(
+                '-I'+reduce_path(os.path.abspath(os.path.dirname(
                     os.path.realpath(__file__)))+'/headers/'),
                 os.environ.get('LIKWID_INCLUDE', ''),
                 os.environ.get('LIKWID_INC', ''),
