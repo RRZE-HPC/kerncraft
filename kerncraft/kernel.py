@@ -864,7 +864,6 @@ class KernelCode(Kernel):
                 self.set_variable(item.name, tuple(t.type.names), tuple(dims))
 
             else:
-                assert len(item.type.type.names) == 1, "only single types are supported"
                 self.set_variable(item.name, tuple(item.type.type.names), None)
 
         self._p_for(loop_nest[-1])
