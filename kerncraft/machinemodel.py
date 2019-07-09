@@ -129,9 +129,9 @@ class MachineModel(object):
             if 'cache per group' not in c:
                 continue
             cache_dict[c['level']] = deepcopy(c['cache per group'])
-            # Scale size of shared caches according to cores
+            # Scale size of last cache according to cores (typically shared within NUMA domain)
             if c['cores per group'] > 1:
-                cache_dict[c['level']]['sets'] //= cores
+                cache_dict[c['level']]['sets'] //= min(cores, self['cores per NUMA domain'])
 
         cs, caches, mem = cachesim.CacheSimulator.from_dict(cache_dict)
 
