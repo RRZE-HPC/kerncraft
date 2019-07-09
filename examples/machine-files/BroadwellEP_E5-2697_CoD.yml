@@ -7,7 +7,7 @@ clock: 2.3 GHz
 compiler:
     !!omap
     - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
-    - clang: -03 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
+    - clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
     - gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200809L -fopenmp -lm
 cores per socket: 18
 cores per NUMA domain: 9
