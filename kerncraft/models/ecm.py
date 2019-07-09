@@ -487,7 +487,8 @@ class ECM(PerformanceModel):
         # Simple scaling prediction:
         # Assumptions are:
         #  - bottleneck is always LLC-MEM
-        #  - all caches scale with number of cores (bw AND size(WRONG!))
+        #  - all caches scale with number of cores (bw AND size, which is WRONG but good enough
+        #    for a first estimate)
 
         # Full caching in higher cache level
         self.results['scaling cores'] = float('inf')
@@ -530,7 +531,8 @@ class ECM(PerformanceModel):
                 elif cores <= self.machine['cores per socket'] * self.machine['sockets']:
                     # out-of-numa scaling behavior
                     scaling['performance'] = self._CPU.conv_cy(
-                        innuma_rectp * cores_per_numa_domain / cores)
+                        innuma_rectp / utilization[cores_per_numa_domain - 1] *
+                        cores_per_numa_domain / cores)
                     scaling['notes'].append("out-of-NUMA-domain scaling")
                 else:
                     raise ValueError("Number of cores must be greater than zero and upto the max. "
