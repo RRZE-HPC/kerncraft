@@ -313,6 +313,7 @@ class Benchmark(PerformanceModel):
             try:
                 # Metrics
                 results[line[0]] = float(line[1])
+                continue
             except ValueError:
                 # Would not convert to float
                 pass
@@ -328,12 +329,17 @@ class Benchmark(PerformanceModel):
                 if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
                     results.setdefault(line[0], {})
                     results[line[0]][line[1]] = counter_value
+                    continue
             except (IndexError, ValueError):
                 pass
+            if line[0].endswith(":") and len(line) == 3 and line[2] == "":
+                # CPU information strings
+                results[line[0]] = line[1]
+                continue
 
         # Check that frequency during measurement matches machine description
         expected_clock = float(self.machine['clock'])
-        current_clock = float(results['CPU clock'].replace(" GHz")) * 1e9
+        current_clock = float(results['CPU clock:'].replace(" GHz", "")) * 1e9
         if abs(current_clock - expected_clock) > expected_clock * 0.01:
             print("WARNING: measured CPU frequency and machine description did "
                   "not match during likwid-perfctr run. ({!r} vs {!r})".format(
