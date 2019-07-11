@@ -265,19 +265,6 @@ class Benchmark(PerformanceModel):
                   "match. ({!r} vs {!r})".format(self.machine['model name'],
                                                  current_cpu_model))
             warning = True
-        try:
-            current_cpu_freq = re.search(r'^cpu MHz\s+:\s+'
-                                         r'([0-9]+(?:\.[0-9]+)?)\s*$',
-                                         cpuinfo,
-                                         flags=re.MULTILINE).groups()[0]
-            current_cpu_freq = float(current_cpu_freq) * 1e6
-        except AttributeError:
-            current_cpu_freq = None
-        if float(self.machine['clock']) != current_cpu_freq:
-            print("WARNING: current CPU frequency and machine description do "
-                  "not match. ({!r} vs {!r})".format(float(self.machine['clock']),
-                                                     current_cpu_freq))
-            warning = True
         if warning and not args.ignore_warnings:
             print("You may ignore warnings by adding --ignore-warnings to the command line.")
             sys.exit(1)
@@ -343,6 +330,17 @@ class Benchmark(PerformanceModel):
                     results[line[0]][line[1]] = counter_value
             except (IndexError, ValueError):
                 pass
+
+        # Check that frequency during measurement matches machine description
+        expected_clock = float(self.machine['clock'])
+        current_clock = float(results['CPU clock'].replace(" GHz")) * 1e9
+        if abs(current_clock - expected_clock) > expected_clock * 0.01:
+            print("WARNING: measured CPU frequency and machine description did "
+                  "not match during likwid-perfctr run. ({!r} vs {!r})".format(
+                expected_clock, current_clock))
+            if not self._args.ignore_warnings:
+                print("You may ignore warnings by adding --ignore-warnings to the command line.")
+                sys.exit(1)
 
         return results
 
