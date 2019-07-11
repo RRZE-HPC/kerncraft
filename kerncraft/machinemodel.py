@@ -13,6 +13,7 @@ import ruamel
 import cachesim
 from sympy.parsing.sympy_parser import parse_expr
 
+from .likwid_bench_auto import get_machine_topology
 from . import prefixedunit
 from . import __version__
 
@@ -229,6 +230,26 @@ class MachineModel(object):
             flags = self['compiler'].get(compiler, '')
 
         return compiler, flags.split(' ')
+
+    def current_system(self, print_diff=False):
+        """
+        Check if current system is same as machine model (specs and configuration)
+
+        Does not check frequency! This needs to be done during runtime with likwid-perfctr.
+
+        :param print_diff: print which data differs if True
+
+        :return: True if it is the same
+        """
+        current_topology = get_machine_topology()
+        for k in ['model type', 'model name', 'sockets', 'cores per socket', 'threads per core',
+                  'NUMA domains per socket', 'cores per NUMA domain']:
+            if current_topology[k] != self[k]:
+                if print_diff:
+                    print("Expected {!r} and found {!r} for key {}.".format(
+                        self[k], current_topology[k], k))
+                return False
+        return True
 
     @staticmethod
     def parse_perfctr_event(perfctr):

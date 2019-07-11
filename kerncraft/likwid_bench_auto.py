@@ -5,6 +5,7 @@ import subprocess
 import re
 from copy import copy
 from pprint import pprint
+from functools import lru_cache
 
 from ruamel import yaml
 
@@ -37,6 +38,7 @@ def read_cpuinfo(cpuinfo_path: str='/proc/cpuinfo') -> str:
     return cpuinfo
 
 
+@lru_cache(maxsize=1)
 def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
     topo = get_likwid_topology()
     cpuinfo = read_cpuinfo(cpuinfo_path)

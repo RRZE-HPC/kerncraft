@@ -246,28 +246,11 @@ class Benchmark(PerformanceModel):
             print("Info: If this takes too long and a phenological ECM model is not required, run "
                   "with --no-phenoecm.", file=sys.stderr)
 
-        warning = False
-        cpuinfo = ''
-        try:
-            with open('/proc/cpuinfo') as f:
-                cpuinfo = f.read()
-        except FileNotFoundError:
-            pass
-
-        try:
-            current_cpu_model = re.search(r'^model name\s+:\s+(.+?)\s*$',
-                                          cpuinfo,
-                                          flags=re.MULTILINE).groups()[0]
-        except AttributeError:
-            current_cpu_model = None
-        if self.machine['model name'] != current_cpu_model:
-            print("WARNING: current CPU model and machine description do not "
-                  "match. ({!r} vs {!r})".format(self.machine['model name'],
-                                                 current_cpu_model))
-            warning = True
-        if warning and not args.ignore_warnings:
-            print("You may ignore warnings by adding --ignore-warnings to the command line.")
-            sys.exit(1)
+        if not self.machine.current_system(print_diff=True):
+            print("WARNING: current machine and machine description do not match.")
+            if not args.ignore_warnings:
+                print("You may ignore warnings by adding --ignore-warnings to the command line.")
+                sys.exit(1)
 
     def perfctr(self, cmd, group='MEM', code_markers=True):
         """
