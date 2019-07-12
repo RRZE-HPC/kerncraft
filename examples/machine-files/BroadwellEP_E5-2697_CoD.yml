@@ -24,7 +24,7 @@ memory hierarchy:
   upstream throughput: ['architecture code analyzer', ['2D', '3D']]
   transfers overlap: False
   performance counter metrics:
-      accesses: MEM_UOPS_RETIRED_LOADS_ALL:PMC[0-3]
+      accesses: MEM_UOPS_RETIRED_LOADS_ALL:PMC[0-3] + MEM_UOPS_RETIRED_STORES_ALL:PMC[0-3]
       misses: L1D_REPLACEMENT:PMC[0-3]
       evicts: L2_TRANS_L1D_WB:PMC[0-3]
 - cache per group: {cl_size: 64, load_from: L3,
@@ -38,7 +38,7 @@ memory hierarchy:
   size per group: 256.00 kB
   threads per group: 2.0
   performance counter metrics:
-      accesses: L1D_REPLACEMENT:PMC[0-3]
+      accesses: L1D_REPLACEMENT:PMC[0-3] + L2_TRANS_L1D_WB:PMC[0-3]
       misses: L2_LINES_IN_ALL:PMC[0-3]
       evicts: L2_TRANS_L2_WB:PMC[0-3]
 - cache per group: {cl_size: 64, replacement_policy: LRU, sets: 18432, ways: 20, # 22.5 MB (cluster on die mode!)
@@ -51,7 +51,7 @@ memory hierarchy:
   size per group: 22.00 MB
   threads per group: 18
   performance counter metrics:
-      accesses: L2_LINES_IN_ALL:PMC[0-3]
+      accesses: L2_LINES_IN_ALL:PMC[0-3] + L2_TRANS_L2_WB:PMC[0-3]
       misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
                CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
                CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01] +
@@ -81,7 +81,7 @@ overlapping model:
             UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
     ports: ["2D", "3D"]
-    performance counter metric: T_OL + T_L1L2 + T_L2L3 + T_L3MEM
+    performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
 sockets: 2
 threads per core: 2
 benchmarks:
