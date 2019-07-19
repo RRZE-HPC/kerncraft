@@ -249,8 +249,8 @@ memory hierarchy:
          'sets': 25600, 'ways': 16, 'cl_size': 64, # 25 MB
          'replacement_policy': 'LRU', 
          'write_allocate': True, 'write_back': True}
-      cores per group: 8
-      threads per group: 16
+      cores per group: 10
+      threads per group: 20
       groups: 2
       upstream throughput: [32 B/cy, 'half-duplex']
       transfers overlap: False
@@ -265,11 +265,11 @@ memory hierarchy:
                    CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01] +
                    CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
     - level: MEM
-      cores per group: 8
+      cores per group: 10
       upstream throughput: ['full socket memory bandwidth', 'half-duplex']
       transfers overlap: False
       size per group: null
-      threads per group: 16
+      threads per group: 20
 micro-architecture: IVB
 micro-architecture-modeler: OSACA
 model type: Intel Core IvyBridge EP processor
