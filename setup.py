@@ -104,6 +104,7 @@ setup(
         'requests',
         'pycparser>=2.19',
         'osaca>=0.2.1',
+        'psutil',
     ],
     python_requires='>=3.5',
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Machine model and helper functions."""
+import io
 import os
+import subprocess
 from datetime import datetime
 from distutils.spawn import find_executable
 from distutils.version import LooseVersion
@@ -8,17 +10,17 @@ import re
 from collections import OrderedDict
 from copy import deepcopy
 import hashlib
+from functools import lru_cache
 
 import ruamel
 import cachesim
 from sympy.parsing.sympy_parser import parse_expr
 
-from .likwid_bench_auto import get_machine_topology
-from . import prefixedunit
+from .prefixedunit import PrefixedUnit
 from . import __version__
 
 
-MIN_SUPPORTED_VERSION = "0.8.1dev0"
+MIN_SUPPORTED_VERSION = "0.8.1.dev0"
 
 CHANGES_SINCE = OrderedDict([
     ("0.6.6",
@@ -35,12 +37,12 @@ CHANGES_SINCE = OrderedDict([
      as a sequence. For example: '- compiler_command: arg u ment s'. Pay attention
      to the leading dash.
      """),
-    ("0.8.1dev0",
+    ("0.8.1.dev0",
      """
      Removed 'non-overlap upstream throughput' and replaced it by 
      'upstream throughput' in cache levels. This new parameter
      takes additionally the following argument: 
-     ['architecture code analyzer', ['data ports' ,'list']
+     ['architecture code analyzer', 'data ports' ,'list']
      New argument 'transfers overlap' in cache levels, which may be True or False.
      **Preliminary solution! Subjected to future changes.**
      """),
@@ -56,22 +58,96 @@ def sanitize_symbolname(name):
     return re.subn('(^[0-9])|[^0-9a-zA-Z_]', '_', name)[0]
 
 
+def recursive_dict_update(new, old):
+    for k in new:
+        if k in old:
+            if isinstance(old[k], dict):
+                recursive_dict_update(new[k], old[k])
+            elif isinstance(old[k], str) and old[k].startswith('INFORMATION_REQUIRED'):
+                old[k] = new[k]
+            elif isinstance(old[k], list):
+                for i in range(new[k]):
+                    if isinstance(old[k][i], dict):
+                        recursive_dict_update(new[k][i], old[k][i])
+                    else:
+                        old[k][i] = new[k][i]
+            else:
+                old[k] = new[k]
+
+
 class MachineModel(object):
     """Representation of the hardware and machine architecture."""
 
+    _data = OrderedDict([
+        ('kerncraft version', 'INFORAMTION_REQUIRED (e.g., 0.1.23)'),
+        ('model type', 'INFORAMTION_REQUIRED'),
+        ('model name', 'INFORAMTION_REQUIRED'),
+        ('sockets', 'INFORAMTION_REQUIRED'),
+        ('cores per socket', 'INFORAMTION_REQUIRED'),
+        ('threads per core', 'INFORAMTION_REQUIRED'),
+        ('NUMA domains per socket', 'INFORAMTION_REQUIRED'),
+        ('cores per NUMA domain', 'INFORAMTION_REQUIRED'),
+        ('clock', 'INFORMATION_REQUIRED (e.g., 2.7 GHz)'),
+        ('FLOPs per cycle', {'SP': {'total': 'INFORMATION_REQUIRED',
+                                    'FMA': 'INFORMATION_REQUIRED',
+                                    'ADD': 'INFORMATION_REQUIRED',
+                                    'MUL': 'INFORMATION_REQUIRED'},
+                             'DP': {'total': 'INFORMATION_REQUIRED',
+                                    'FMA': 'INFORMATION_REQUIRED',
+                                    'ADD': 'INFORMATION_REQUIRED',
+                                    'MUL': 'INFORMATION_REQUIRED'}}),
+        ('micro-architecture-modeler', 'INFORMATION_REQUIRED (options: OSACA, IACA, LLVM-MCA)'),
+        ('micro-architecture',
+         'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL or SKX)'),
+        ('compiler', OrderedDict([
+            ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
+            ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L, check '
+                      '`gcc -march=native -Q --help=target | grep -- "-march="`)'),
+            ('gcc', 'INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge, check `gcc -march=native -Q '
+                    '--help=target | grep -- "-march="`)')])),
+        ('cacheline size', 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)'),
+        ('overlapping model', {
+            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+            'performance counter metric':
+                'INFORAMTION_REQUIRED Example:'
+                'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+        }),
+        ('non-overlapping model', {
+            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+            'performance counter metric':
+                'INFORAMTION_REQUIRED Example:'
+                'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+        }),
+        ('memory hierarchy', 'INFORMATION_REQUIRED'),
+        ('benchmarks', 'INFORMATION_REQUIRED'),
+    ])
+
     def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
-        """Create machine representation from yaml file."""
-        if not path_to_yaml and not machine_yaml:
-            raise ValueError('Either path_to_yaml or machine_yaml is required')
+        """
+        Create machine representation from yaml file or current system
+
+        :param path_to_yaml: path to YAML machine file
+        :param machine_yaml: string containing YAML machine information
+
+        One or the other needs to be passed. If none is given
+
+        """
         if path_to_yaml and machine_yaml:
             raise ValueError('Only one of path_to_yaml and machine_yaml is allowed')
+        elif not path_to_yaml and not machine_yaml:
+            self.update()
         self._path = path_to_yaml
-        self._data = machine_yaml
         self._args = args
         if path_to_yaml:
             with open(path_to_yaml, 'r') as f:
                 # Ignore ruamel unsafe loading warning, by supplying Loader parameter
                 self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.Loader)
+        elif machine_yaml:
+            self._data = machine_yaml
 
         assert 'kerncraft version' in self._data, \
             "Machine description requires a 'kerncraft version' entry, containg the kerncraft " \
@@ -87,6 +163,32 @@ class MachineModel(object):
                              "Supported versions are from {} to {}. Check change logs and examples "
                              "to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
+
+    def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True):
+        """Update model from readouts and benchmarks on current machine."""
+        data = {}
+        if readouts:
+            data.update(get_machine_readouts())
+        if memory_hierarchy:
+            data.update(get_memory_hierarchy(placeholders=overwrite))
+        if benchmarks:
+            data.update(self._update_benchmarks())
+
+        keys_stack = [(k,) for k in data.keys()]
+        while keys_stack:
+            keys = keys_stack.pop()
+            v_orig = self._data
+            v_updd = data
+            for i in range(len(keys)):
+                k = keys[i]
+                if k not in v_orig:
+                    v_orig[k] = deepcopy(v_updd[k])
+                elif type(v_orig[k]) is str and v_orig[k].startswith('INFORMATION_REQUIRED'):
+                    v_orig[k] = v_updd[k]
+                v_orig = v_orig[k]
+                v_updd = v_updd[k]
+            else:
+
 
     def __getitem__(self, key):
         """Return configuration entry."""
@@ -303,3 +405,133 @@ class MachineModel(object):
                   if s.name in perfcounters}
 
         return expr, events
+
+    def dump(self, f=None):
+        """
+        Return YAML string to store machine model and store to f (if path or fp passed).
+        """
+        yaml_string = ruamel.yaml.dump(self._data, Dumper=ruamel.yaml.Dumper)
+        if isinstance(f, io.IOBase):
+            f.write(yaml_string)
+        else:
+            with open(f, 'w') as fp:
+                fp.write(yaml_string)
+
+        return yaml_string
+
+
+def get_match_or_break(regex, haystack, flags=re.MULTILINE):
+    m = re.search(regex, haystack, flags)
+    if not m:
+        raise ValueError("could not find " + repr(regex) + " in " + repr(haystack))
+    return m.groups()
+
+
+@lru_cache(1)
+def get_likwid_topology() -> str:
+    topo = subprocess.check_output(['likwid-topology']).decode("utf-8")
+    return topo
+
+
+@lru_cache(1)
+def read_cpuinfo(cpuinfo_path: str='/proc/cpuinfo') -> str:
+    with open(cpuinfo_path, 'r') as f:
+        cpuinfo = f.read()
+    return cpuinfo
+
+
+@lru_cache(1)
+def get_machine_readouts():
+    """Read machine information using different commands and files and return dictionary."""
+    topology = get_likwid_topology()
+    cpu_info = read_cpuinfo()
+
+    readouts = {'kerncraft version': __version__,
+                'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topology)[0],
+                'model name': get_match_or_break(r'^model name\s+:\s+(.+?)\s*$', cpu_info)[0],
+                'threads per core': int(
+                    get_match_or_break(r'^Threads per core:\s+([0-9]+)\s*$', topology)[0]),
+                'sockets': (int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topology)[0]),),
+                'cores per socket': int(
+                    get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topology)[0])}
+    readouts['NUMA domains per socket'] = int(
+        get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topology)[0]) // readouts['sockets']
+    readouts['cores per NUMA domain'] = \
+        readouts['cores per socket'] // readouts['NUMA domains per socket']
+    clock = psutil.cpu_freq()
+    if clock is not None:
+        readouts['clocks'] = PrefixedUnit(clock*1e6, "Hz")
+
+    return readouts
+
+
+@lru_cache(1)
+def get_memory_hierarchy(placeholders=True):
+    """Read cache hierarchy using different commands and files and return dictionary."""
+    readouts = get_machine_readouts()
+    topology = get_likwid_topology()
+
+    threads_start = topology.find('HWThread')
+    threads_end = topology.find('Cache Topology')
+    threads = {}
+    for line in topology[threads_start:threads_end].split('\n'):
+        m = re.match(r'([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)', line)
+        if m:
+            threads[m.groups()[0]] = (m.groups()[1:])
+
+    cache_start = topology.find('Cache Topology')
+    cache_end = topology.find('NUMA Topology')
+    memory_hierarchy = []
+    mem_level = OrderedDict()
+    for line in topology[cache_start:cache_end].split('\n'):
+        if line.startswith('Level:'):
+            mem_level = OrderedDict([('level', 'L' + line.split(':')[1].strip())])
+            memory_hierarchy.append(mem_level)
+            if mem_level['level'] != 'L1' and placeholders:
+                mem_level['non-overlap upstream throughput'] = [
+                    'INFORMATION_REQUIRED (e.g. 24 B/cy)',
+                    'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
+        elif line.startswith('Size:'):
+            size = PrefixedUnit(line.split(':')[1].strip())
+            if placeholders:
+                mem_level['cache per group'] = OrderedDict([
+                    ('sets', 'INFORMATION_REQUIRED (sets*ways*cl_size=' + str(size) + ')'),
+                    ('ways', 'INFORMATION_REQUIRED (sets*ways*cl_size=' + str(size) + ')'),
+                    ('cl_size', 'INFORMATION_REQUIRED (sets*ways*cl_size=' + str(size) + ')'),
+                    ('replacement_policy', 'INFORMATION_REQUIRED (options: LRU, FIFO, MRU, RR)'),
+                    ('write_allocate', 'INFORMATION_REQUIRED (True/False)'),
+                    ('write_back', 'INFORMATION_REQUIRED (True/False)'),
+                ])
+            mem_level['cache per group']['load_from'] = 'L' + str(int(mem_level['level'][1:]) + 1)
+            mem_level['cache per group']['store_to'] = 'L' + str(int(mem_level['level'][1:]) + 1)
+            mem_level['size per group'] = size
+        elif line.startswith('Cache groups:'):
+            mem_level['groups'] = line.count('(')
+            mem_level['cores per group'] = \
+                (readouts['cores per socket'] * readouts['sockets']) // mem_level['groups']
+            mem_level['threads per group'] = \
+                int(mem_level['cores per group'] * readouts['threads per core'])
+        if placeholders:
+            mem_level['performance counter metrics'] = {
+                'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
+                'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
+                'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
+            }
+
+    # Remove last caches load_from and store_to:
+    del memory_hierarchy[-1]['cache per group']['load_from']
+    del memory_hierarchy[-1]['cache per group']['store_to']
+
+    memory_hierarchy.append(OrderedDict([
+        ('level', 'MEM'),
+        ('cores per group', int(readouts['cores per socket'])),
+        ('threads per group', int(readouts['threads per core'] * readouts['cores per socket'])),
+    ]))
+    if placeholders:
+        memory_hierarchy[-1]['non-overlap upstream throughput'] = [
+            'full socket memory bandwidth',
+            'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
+    memory_hierarchy[-1]['penalty cycles per read stream'] = 0
+    memory_hierarchy[-1]['size per group'] = None
+
+    return {'memory hierarchy': memory_hierarchy}

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 import collections
 import sys
-import subprocess
+from subprocess import check_output
 import re
 from copy import copy
 from pprint import pprint
 from functools import lru_cache
+import argparse
 
 from ruamel import yaml
 
 from .prefixedunit import PrefixedUnit
 from . import __version__
+from .machinemodel import MachineModel
 
 
 def get_match_or_break(regex, haystack, flags=re.MULTILINE):
@@ -22,9 +24,7 @@ def get_match_or_break(regex, haystack, flags=re.MULTILINE):
 
 def get_likwid_topology(cmd: str='likwid-topology') -> str:
     try:
-        topo = subprocess.Popen(
-            ['likwid-topology'], stdout=subprocess.PIPE
-        ).communicate()[0].decode("utf-8")
+        topo = check_output(['likwid-topology']).decode("utf-8")
     except OSError as e:
         print('likwid-topology execution failed ({}), is it installed and loaded?'.format(e),
               file=sys.stderr)
@@ -69,6 +69,9 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
         'micro-architecture-modeler': 'INFORMATION_REQUIRED (options: OSACA, IACA)',
         'micro-architecture': 'INFORMATION_REQUIRED (options: NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)',
         # TODO retrive flags automatically from compiler with -march=native
+        # gcc: gcc -march=native -Q --help=target | grep -- '-march='
+        # clang: echo | clang -E - -march=native -###
+        # icc: ???
         'compiler': collections.OrderedDict([
                     ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
                     ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L'),
@@ -155,8 +158,14 @@ def get_machine_topology(cpuinfo_path: str='/proc/cpuinfo') -> dict:
 
 
 def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
-               sockets):
+               sockets, repeat=1):
     """*size* is given in kilo bytes"""
+    # FIXME DONOTCOMMIT
+    if repeat > 1:
+        return repeat*[None]
+    else:
+        return None
+
     groups = []
     for s in range(sockets):
         groups += [
@@ -167,35 +176,45 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
     cmd = ['likwid-bench', '-t', type_] + groups
     sys.stderr.write(' '.join(cmd))
-    output = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0].decode('utf-8')
-    if not output:
-        print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
-                              '(requires 4.0 or later)', file=sys.stderr)
-        sys.exit(1)
-    bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
-    print(' ', PrefixedUnit(bw, 'MB/s'), file=sys.stderr)
-    return PrefixedUnit(bw, 'MB/s')
+    results = []
+    for i in range(repeat):
+        output = check_output(cmd).decode('utf-8')
+        if not output:
+            print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
+                                  '(requires 4.0 or later)', file=sys.stderr)
+            sys.exit(1)
+        bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
+        print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
+        results.append(PrefixedUnit(bw, 'MB/s'))
+    print(file=sys.stder)
+    if len(results) == 1:
+        return results[0]
+    else:
+        return results
 
 
-def cli():
-    # TODO support everything described here
-    if '-h' in sys.argv[1:] or '--help' in sys.argv[1:]:
-        print("""Usage:', sys.argv[0], '[-h] {collect|measure} [machinefile] | upgrade machinefile
-
-        collect will retrieve as much hardware information as possible, without benchmarking
-        measure will do the same as collect, but also include memory benchmarks
-
-        If machinefile already exists the CPU name will be compared. If they matche, measurements
-        will proceed and the file is updated accordingly. All other information in the file
-        (typically manually inserted) will be left alone.
-
-        If no machinefile is given, the information will be printed to stdout.
-
-        upgrade will transform machinefile to the most up-to-date machine file version.
-        """)
+def process_argv():
+    # Build parser
+    parser = argparse.ArgumentParser(
+        description="Measure and extract machine hardware specs, configuration and performance "
+                    "data. The resulting data will be printed to stdout. Any additional "
+                    "information is printed to stderr.")
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        help='Increases verbosity level.')
+    parser.add_argument("machinefile", required=False, type=argparse.FileType(),
+                        help="Machine file for default values. Will NOT be updated. If not "
+                             "provided, placeholder strings will be used.")
+    # Parse command line
+    return parser.parse_args()
 
 
 def main():
+    args = process_argv()
+
+    default_machine = {}
+    if args.machinefile:
+        default_machine = MachineModel(path_to_yaml=args.machinefile)
+
     machine = get_machine_topology()
 
     machine['benchmarks'] = {
