@@ -322,14 +322,15 @@ class Benchmark(PerformanceModel):
 
         # Check that frequency during measurement matches machine description
         expected_clock = float(self.machine['clock'])
-        current_clock = float(results['CPU clock:'].replace(" GHz", "")) * 1e9
-        if abs(current_clock - expected_clock) > expected_clock * 0.01:
-            print("WARNING: measured CPU frequency and machine description did "
-                  "not match during likwid-perfctr run. ({!r} vs {!r})".format(
-                expected_clock, current_clock))
-            if not self._args.ignore_warnings:
-                print("You may ignore warnings by adding --ignore-warnings to the command line.")
-                sys.exit(1)
+        if 'CPU clock:' in results:
+            current_clock = float(results['CPU clock:'].replace(" GHz", "")) * 1e9
+            if abs(current_clock - expected_clock) > expected_clock * 0.01:
+                print("WARNING: measured CPU frequency and machine description did "
+                      "not match during likwid-perfctr run. ({!r} vs {!r})".format(
+                    expected_clock, current_clock))
+                if not self._args.ignore_warnings:
+                    print("You may ignore warnings by adding --ignore-warnings to the command line.")
+                    sys.exit(1)
 
         return results
 
