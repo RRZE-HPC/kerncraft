@@ -26,7 +26,7 @@ FLOPs per cycle:
 micro-architecture: SKX
 compiler:
   !!omap
-  - icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp
+  - icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high
   - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp
   - gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
 cacheline size: 64 B
