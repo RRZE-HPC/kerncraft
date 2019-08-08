@@ -524,7 +524,7 @@ class Kernel(object):
         if isinstance(iteration, range):
             iteration = numpy.arange(iteration.start, iteration.stop, iteration.step, dtype='O')
         else:
-            if not isinstance(iteration, collections.Sequence):
+            if not isinstance(iteration, collections.abc.Sequence):
                 iteration = [iteration]
             iteration = numpy.array(iteration, dtype='O')
 
