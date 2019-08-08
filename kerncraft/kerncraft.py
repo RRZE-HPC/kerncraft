@@ -123,13 +123,31 @@ class AppendStringRange(argparse.Action):
             setattr(namespace, self.dest, [values])
 
 
+class VersionAction(argparse.Action):
+    """Reimplementation of the version action, because argparse's version outputs to stderr."""
+    def __init__(self, option_strings, version, dest=argparse.SUPPRESS,
+                 default=argparse.SUPPRESS,
+                 help="show program's version number and exit"):
+        super(VersionAction, self).__init__(
+            option_strings=option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            help=help)
+        self.version = version
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(parser.prog, self.version)
+        parser.exit()
+
+
 def create_parser():
     """Return argparse parser."""
     parser = argparse.ArgumentParser(
         description='Analytical performance modelling and benchmarking toolkit.',
         epilog='For help, examples, documentation and bug reports go to:\nhttps://github.com'
-               '/RRZE-HPC/kerncraft\nLicense: AGPLv3')
-    parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
+               '/RRZE-HPC/kerncraft\nLicense: AGPLv3',)
+    parser.add_argument('--version', action=VersionAction, version='{}'.format(__version__))
     parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=True,
                         help='Path to machine description yaml file.')
     parser.add_argument('--pmodel', '-p', choices=models.__all__, required=True, action='append',

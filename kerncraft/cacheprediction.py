@@ -66,7 +66,7 @@ def sympy_expr_abs_distance_key(e):
         assert coeff_imag == 0, "Not supporting imaginary coefficients."
         # Sort order: exponent (cpart), factor
         key.append(cpart + (coeff_real,))
-    key[0] = (key[0][0], abs(key[0][1]))
+    key[0] = (key[0][0], key[0][1])
     # build key
     key.sort(reverse=True)
     # add missing exponent, coefficient tuples
