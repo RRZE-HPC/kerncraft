@@ -87,13 +87,13 @@ class MachineModel(object):
 
     _data = OrderedDict([
         ('kerncraft version', __version__),
-        ('model type', 'INFORAMTION_REQUIRED'),
-        ('model name', 'INFORAMTION_REQUIRED'),
-        ('sockets', 'INFORAMTION_REQUIRED'),
-        ('cores per socket', 'INFORAMTION_REQUIRED'),
-        ('threads per core', 'INFORAMTION_REQUIRED'),
-        ('NUMA domains per socket', 'INFORAMTION_REQUIRED'),
-        ('cores per NUMA domain', 'INFORAMTION_REQUIRED'),
+        ('model type', 'INFORMATION_REQUIRED'),
+        ('model name', 'INFORMATION_REQUIRED'),
+        ('sockets', 'INFORMATION_REQUIRED'),
+        ('cores per socket', 'INFORMATION_REQUIRED'),
+        ('threads per core', 'INFORMATION_REQUIRED'),
+        ('NUMA domains per socket', 'INFORMATION_REQUIRED'),
+        ('cores per NUMA domain', 'INFORMATION_REQUIRED'),
         ('clock', 'INFORMATION_REQUIRED (e.g., 2.7 GHz)'),
         ('FLOPs per cycle', {'SP': {'total': 'INFORMATION_REQUIRED',
                                     'FMA': 'INFORMATION_REQUIRED',
@@ -114,18 +114,18 @@ class MachineModel(object):
                     '--help=target | grep -- "-march="`)')])),
         ('cacheline size', 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)'),
         ('overlapping model', {
-            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+            'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
                      ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
             'performance counter metric':
-                'INFORAMTION_REQUIRED Example:'
+                'INFORMATION_REQUIRED Example:'
                 'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
                 '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
         }),
         ('non-overlapping model', {
-            'ports': 'INFORAMTION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+            'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
                      ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
             'performance counter metric':
-                'INFORAMTION_REQUIRED Example:'
+                'INFORMATION_REQUIRED Example:'
                 'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
                 '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
         }),
