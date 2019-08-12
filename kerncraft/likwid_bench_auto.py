@@ -274,23 +274,32 @@ def main():
                 'size per core': sizes_per_core,
                 'size per thread': sizes_per_thread,
                 'total size': total_sizes,
-                'results': {}, }
+                'results': {},
+                'stats': {}}
     print('Progress: ', end='', file=sys.stderr)
     sys.stderr.flush()
     for mem_level in list(machine['benchmarks']['measurements'].keys()):
         for threads_per_core in list(machine['benchmarks']['measurements'][mem_level].keys()):
             measurement = machine['benchmarks']['measurements'][mem_level][threads_per_core]
             measurement['results'] = {}
+            measurement['stats'] = {}
             for kernel in list(machine['benchmarks']['kernels'].keys()):
                 measurement['results'][kernel] = []
+                measurement['stats'][kernel] = []
                 for i, total_size in enumerate(measurement['total size']):
-                    measurement['results'][kernel].append(measure_bw(
-                        kernel,
-                        int(float(total_size) / 1000),
-                        threads_per_core,
-                        machine['threads per core'],
-                        measurement['cores'][i],
-                        sockets=1))
+                    # Repeat measurement 10 times
+                    stats = []
+                    for r in range(10):
+                        stats.append(measure_bw(
+                            kernel,
+                            int(float(total_size) / 1000),
+                            threads_per_core,
+                            machine['threads per core'],
+                            measurement['cores'][i],
+                            sockets=1))
+
+                    measurement['results'][kernel].append(min(stats))
+                    measurement['stats'][kernel].append(stats)
 
                     print('.', end='', file=sys.stderr)
                     sys.stderr.flush()
