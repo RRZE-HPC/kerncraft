@@ -71,7 +71,7 @@ def recursive_dict_update(old, new):
                 # extend old list to match length of new list:
                 d = len(new[k]) - len(old[k])
                 if d > 0:
-                    new += [None]*d
+                    old += new[len(old):]
 
                 for i in range(len(new[k])):
                     if isinstance(old[k][i], dict):
