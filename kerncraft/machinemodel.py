@@ -68,7 +68,12 @@ def recursive_dict_update(old, new):
             elif isinstance(old[k], str) and old[k].startswith('INFORMATION_REQUIRED'):
                 old[k] = new[k]
             elif isinstance(old[k], list):
-                for i in range(new[k]):
+                # extend old list to match length of new list:
+                d = len(new[k]) - len(old[k])
+                if d > 0:
+                    new += [None]*d
+
+                for i in range(len(new[k])):
                     if isinstance(old[k][i], dict):
                         recursive_dict_update(new[k][i], old[k][i])
                     else:
