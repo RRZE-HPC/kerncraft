@@ -12,6 +12,7 @@ from copy import deepcopy
 import hashlib
 from functools import lru_cache
 
+import psutil
 import ruamel
 import cachesim
 from sympy.parsing.sympy_parser import parse_expr
@@ -329,7 +330,8 @@ class MachineModel(object):
 
         :return: True if it is the same
         """
-        current_topology = get_machine_topology()
+        current_topology = get_machine_readouts()
+        current_topology.update(get_memory_hierarchy())
         for k in ['model type', 'model name', 'sockets', 'cores per socket', 'threads per core',
                   'NUMA domains per socket', 'cores per NUMA domain']:
             if current_topology[k] != self[k]:
