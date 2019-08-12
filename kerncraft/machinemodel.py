@@ -86,7 +86,7 @@ class MachineModel(object):
     """Representation of the hardware and machine architecture."""
 
     _data = OrderedDict([
-        ('kerncraft version', 'INFORAMTION_REQUIRED (e.g., 0.1.23)'),
+        ('kerncraft version', __version__),
         ('model type', 'INFORAMTION_REQUIRED'),
         ('model name', 'INFORAMTION_REQUIRED'),
         ('sockets', 'INFORAMTION_REQUIRED'),
@@ -160,7 +160,7 @@ class MachineModel(object):
             "Machine description requires a 'kerncraft version' entry, containg the kerncraft " \
             "version it was written for."
         file_version = LooseVersion(self._data['kerncraft version'])
-        if not (MIN_SUPPORTED_VERSION <= file_version
+        if not (LooseVersion(MIN_SUPPORTED_VERSION) <= file_version
                 <= LooseVersion(__version__)):
             print("Relevant changes to the machine description file format:")
             print('\n'.join(['{}: {}'.format(version, help_text)
