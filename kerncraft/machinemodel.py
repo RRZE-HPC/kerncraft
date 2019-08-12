@@ -446,7 +446,7 @@ def get_machine_readouts():
         get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topology)[0]) // readouts['sockets']
     readouts['cores per NUMA domain'] = \
         readouts['cores per socket'] // readouts['NUMA domains per socket']
-    clock = psutil.cpu_freq()
+    clock = psutil.cpu_freq().current
     if clock is not None:
         readouts['clocks'] = PrefixedUnit(clock*1e6, "Hz")
 
