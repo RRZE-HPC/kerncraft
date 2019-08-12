@@ -3,12 +3,13 @@
 import io
 import os
 import subprocess
+import sys
 from datetime import datetime
 from distutils.spawn import find_executable
 from distutils.version import LooseVersion
 import re
 from collections import OrderedDict
-from copy import deepcopy
+from copy import deepcopy, copy
 import hashlib
 from functools import lru_cache
 
@@ -172,10 +173,100 @@ class MachineModel(object):
             data.update(get_machine_readouts())
         if memory_hierarchy:
             data.update(get_memory_hierarchy(placeholders=overwrite))
-        if benchmarks:
-            data.update(self._update_benchmarks())
 
         recursive_dict_update(self._data, data)
+
+        self._update_benchmarks()
+
+    def _update_benchmarks(self, stats=10, kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
+                           usage_factor=0.66, mem_factor=15.0):
+        """Run benchmarks and update internal dataset"""
+        benchmarks = {
+            'kernels': {
+                'load': {
+                    'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                    'write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                    'FLOPs per iteration': 0},
+                'copy': {
+                    'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                    'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'FLOPs per iteration': 0},
+                'update': {
+                    'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'FLOPs per iteration': 0},
+                'triad': {
+                    'read streams': {'streams': 3, 'bytes': PrefixedUnit(24, 'B')},
+                    'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
+                    'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'FLOPs per iteration': 2},
+                'daxpy': {
+                    'read streams': {'streams': 2, 'bytes': PrefixedUnit(16, 'B')},
+                    'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
+                    'FLOPs per iteration': 2}, },
+            'measurements': {}}
+
+        cores = list(range(1, self['cores per socket'] + 1))
+        for mem in self['memory hierarchy']:
+            measurement = {}
+            benchmarks['measurements'][mem['level']] = measurement
+
+            for threads_per_core in range(1, self['threads per core'] + 1):
+                threads = [c * threads_per_core for c in cores]
+                if mem['size per group'] is not None:
+                    total_sizes = [
+                        PrefixedUnit(max(int(mem['size per group']) * c / mem['cores per group'],
+                                         int(mem['size per group'])) * usage_factor, 'B')
+                        for c in cores]
+                else:
+                    last_mem = self['memory hierarchy'][-2]
+                    total_sizes = [last_mem['size per group'] * mem_factor for c in cores]
+                sizes_per_core = [t / cores[i] for i, t in enumerate(total_sizes)]
+                sizes_per_thread = [t / threads[i] for i, t in enumerate(total_sizes)]
+
+                measurement[threads_per_core] = {
+                    'threads per core': threads_per_core,
+                    'cores': copy(cores),
+                    'threads': threads,
+                    'size per core': sizes_per_core,
+                    'size per thread': sizes_per_thread,
+                    'total size': total_sizes,
+                    'results': {},
+                    'stats': {}}
+        print('Progress: ', end='', file=sys.stderr)
+        sys.stderr.flush()
+
+        for mem_level in list(benchmarks['measurements'].keys()):
+            for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
+                measurement = benchmarks['measurements'][mem_level][threads_per_core]
+                measurement['results'] = {}
+                measurement['stats'] = {}
+                for kernel in list(benchmarks['kernels'].keys()):
+                    measurement['results'][kernel] = []
+                    measurement['stats'][kernel] = []
+                    for i, total_size in enumerate(measurement['total size']):
+                        # Repeat measurement 10 times
+                        stats = []
+                        for r in range(stats):
+                            stats.append(measure_bw(
+                                kernel,
+                                int(float(total_size) / 1000),
+                                threads_per_core,
+                                self['threads per core'],
+                                measurement['cores'][i],
+                                sockets=1))
+
+                        measurement['results'][kernel].append(min(stats))
+                        measurement['stats'][kernel].append(stats)
+
+                        print('.', end='', file=sys.stderr)
+                        sys.stderr.flush()
+
+        self._data['benchmarks'] = benchmarks
 
     def __getitem__(self, key):
         """Return configuration entry."""
@@ -523,3 +614,33 @@ def get_memory_hierarchy(placeholders=True):
     memory_hierarchy[-1]['size per group'] = None
 
     return {'memory hierarchy': memory_hierarchy}
+
+def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
+               sockets, repeat=1):
+    """*size* is given in kilo bytes"""
+
+    groups = []
+    for s in range(sockets):
+        groups += [
+            '-w',
+            'S' + str(s) + ':' + str(total_size) + 'kB:' +
+            str(threads_per_core * cores_per_socket) +
+            ':1:' + str(int(max_threads_per_core / threads_per_core))]
+    # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
+    cmd = ['likwid-bench', '-t', type_] + groups
+    sys.stderr.write(' '.join(cmd))
+    results = []
+    for i in range(repeat):
+        output = check_output(cmd).decode('utf-8')
+        if not output:
+            print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
+                                  '(requires 4.0 or later)', file=sys.stderr)
+            sys.exit(1)
+        bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
+        print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
+        results.append(PrefixedUnit(bw, 'MB/s'))
+    print(file=sys.stder)
+    if len(results) == 1:
+        return results[0]
+    else:
+        return results
