@@ -58,7 +58,7 @@ def sanitize_symbolname(name):
     return re.subn('(^[0-9])|[^0-9a-zA-Z_]', '_', name)[0]
 
 
-def recursive_dict_update(new, old):
+def recursive_dict_update(old, new):
     for k in new:
         if k in old:
             if isinstance(old[k], dict):
@@ -71,8 +71,8 @@ def recursive_dict_update(new, old):
                         recursive_dict_update(new[k][i], old[k][i])
                     else:
                         old[k][i] = new[k][i]
-            else:
-                old[k] = new[k]
+        else:
+            old[k] = new[k]
 
 
 class MachineModel(object):
@@ -174,21 +174,7 @@ class MachineModel(object):
         if benchmarks:
             data.update(self._update_benchmarks())
 
-        keys_stack = [(k,) for k in data.keys()]
-        while keys_stack:
-            keys = keys_stack.pop()
-            v_orig = self._data
-            v_updd = data
-            for i in range(len(keys)):
-                k = keys[i]
-                if k not in v_orig:
-                    v_orig[k] = deepcopy(v_updd[k])
-                elif type(v_orig[k]) is str and v_orig[k].startswith('INFORMATION_REQUIRED'):
-                    v_orig[k] = v_updd[k]
-                v_orig = v_orig[k]
-                v_updd = v_updd[k]
-            else:
-
+        recursive_dict_update(self._data, data)
 
     def __getitem__(self, key):
         """Return configuration entry."""
