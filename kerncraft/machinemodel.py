@@ -85,54 +85,6 @@ def recursive_dict_update(old, new):
 class MachineModel(object):
     """Representation of the hardware and machine architecture."""
 
-    _data = OrderedDict([
-        ('kerncraft version', __version__),
-        ('model type', 'INFORMATION_REQUIRED'),
-        ('model name', 'INFORMATION_REQUIRED'),
-        ('sockets', 'INFORMATION_REQUIRED'),
-        ('cores per socket', 'INFORMATION_REQUIRED'),
-        ('threads per core', 'INFORMATION_REQUIRED'),
-        ('NUMA domains per socket', 'INFORMATION_REQUIRED'),
-        ('cores per NUMA domain', 'INFORMATION_REQUIRED'),
-        ('clock', 'INFORMATION_REQUIRED (e.g., 2.7 GHz)'),
-        ('FLOPs per cycle', {'SP': {'total': 'INFORMATION_REQUIRED',
-                                    'FMA': 'INFORMATION_REQUIRED',
-                                    'ADD': 'INFORMATION_REQUIRED',
-                                    'MUL': 'INFORMATION_REQUIRED'},
-                             'DP': {'total': 'INFORMATION_REQUIRED',
-                                    'FMA': 'INFORMATION_REQUIRED',
-                                    'ADD': 'INFORMATION_REQUIRED',
-                                    'MUL': 'INFORMATION_REQUIRED'}}),
-        ('micro-architecture-modeler', 'INFORMATION_REQUIRED (options: OSACA, IACA, LLVM-MCA)'),
-        ('micro-architecture',
-         'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL or SKX)'),
-        ('compiler', OrderedDict([
-            ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
-            ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L, check '
-                      '`gcc -march=native -Q --help=target | grep -- "-march="`)'),
-            ('gcc', 'INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge, check `gcc -march=native -Q '
-                    '--help=target | grep -- "-march="`)')])),
-        ('cacheline size', 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)'),
-        ('overlapping model', {
-            'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
-                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
-            'performance counter metric':
-                'INFORMATION_REQUIRED Example:'
-                'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
-                '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
-        }),
-        ('non-overlapping model', {
-            'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
-                     ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
-            'performance counter metric':
-                'INFORMATION_REQUIRED Example:'
-                'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
-                '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
-        }),
-        ('memory hierarchy', 'INFORMATION_REQUIRED'),
-        ('benchmarks', 'INFORMATION_REQUIRED'),
-    ])
-
     def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
         """
         Create machine representation from yaml file or current system
@@ -143,10 +95,56 @@ class MachineModel(object):
         One or the other needs to be passed. If none is given
 
         """
+        self._data = OrderedDict([
+            ('kerncraft version', __version__),
+            ('model type', 'INFORMATION_REQUIRED'),
+            ('model name', 'INFORMATION_REQUIRED'),
+            ('sockets', 'INFORMATION_REQUIRED'),
+            ('cores per socket', 'INFORMATION_REQUIRED'),
+            ('threads per core', 'INFORMATION_REQUIRED'),
+            ('NUMA domains per socket', 'INFORMATION_REQUIRED'),
+            ('cores per NUMA domain', 'INFORMATION_REQUIRED'),
+            ('clock', 'INFORMATION_REQUIRED (e.g., 2.7 GHz)'),
+            ('FLOPs per cycle', {'SP': {'total': 'INFORMATION_REQUIRED',
+                                        'FMA': 'INFORMATION_REQUIRED',
+                                        'ADD': 'INFORMATION_REQUIRED',
+                                        'MUL': 'INFORMATION_REQUIRED'},
+                                 'DP': {'total': 'INFORMATION_REQUIRED',
+                                        'FMA': 'INFORMATION_REQUIRED',
+                                        'ADD': 'INFORMATION_REQUIRED',
+                                        'MUL': 'INFORMATION_REQUIRED'}}),
+            ('micro-architecture-modeler', 'INFORMATION_REQUIRED (options: OSACA, IACA, LLVM-MCA)'),
+            ('micro-architecture',
+             'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL or SKX)'),
+            ('compiler', OrderedDict([
+                ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
+                ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L, check '
+                          '`gcc -march=native -Q --help=target | grep -- "-march="`)'),
+                ('gcc', 'INFORMATION_REQUIRED (e.g., -O3 -march=ivybridge, check `gcc -march=native -Q '
+                        '--help=target | grep -- "-march="`)')])),
+            ('cacheline size', 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)'),
+            ('overlapping model', {
+                'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                         ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+                'performance counter metric':
+                    'INFORMATION_REQUIRED Example:'
+                    'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                    '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+            }),
+            ('non-overlapping model', {
+                'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                         ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
+                'performance counter metric':
+                    'INFORMATION_REQUIRED Example:'
+                    'max(UOPS_DISPATCHED_PORT_PORT_0__PMC2, UOPS_DISPATCHED_PORT_PORT_1__PMC3,'
+                    '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+            }),
+            ('memory hierarchy', 'INFORMATION_REQUIRED'),
+            ('benchmarks', 'INFORMATION_REQUIRED'),
+        ])
+
         if path_to_yaml and machine_yaml:
             raise ValueError('Only one of path_to_yaml and machine_yaml is allowed')
-        elif not path_to_yaml and not machine_yaml:
-            self.update()
         self._path = path_to_yaml
         self._args = args
         if path_to_yaml:
@@ -181,11 +179,14 @@ class MachineModel(object):
 
         recursive_dict_update(self._data, data)
 
-        self._update_benchmarks()
+        if benchmarks:
+            self._update_benchmarks()
 
-    def _update_benchmarks(self, stats=10, kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
+    def _update_benchmarks(self, repetitions=10,
+                           kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
                            usage_factor=0.66, mem_factor=15.0):
         """Run benchmarks and update internal dataset"""
+        # TODO only include kernels in argument list
         benchmarks = {
             'kernels': {
                 'load': {
@@ -256,7 +257,7 @@ class MachineModel(object):
                     for i, total_size in enumerate(measurement['total size']):
                         # Repeat measurement 10 times
                         stats = []
-                        for r in range(stats):
+                        for r in range(repetitions):
                             stats.append(measure_bw(
                                 kernel,
                                 int(float(total_size) / 1000),
