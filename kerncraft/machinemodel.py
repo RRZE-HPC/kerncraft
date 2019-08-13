@@ -639,7 +639,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     sys.stderr.write(' '.join(cmd))
     results = []
     for i in range(repeat):
-        output = subprocess.check_output(cmd).decode('utf-8')
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
         if not output:
             print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
                                   '(requires 4.0 or later)', file=sys.stderr)
@@ -647,7 +647,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
         bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
         print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
         results.append(PrefixedUnit(bw, 'MB/s'))
-    print(file=sys.stder)
+    print(file=sys.stderr)
     if len(results) == 1:
         return results[0]
     else:
