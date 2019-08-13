@@ -14,7 +14,8 @@ import hashlib
 from functools import lru_cache
 
 import psutil
-import ruamel
+from ruamel import yaml
+from ruamel.yaml.comments import CommentedMap
 import cachesim
 from sympy.parsing.sympy_parser import parse_expr
 
@@ -95,7 +96,7 @@ class MachineModel(object):
         One or the other needs to be passed. If none is given
 
         """
-        self._data = OrderedDict([
+        self._data = dict([
             ('kerncraft version', __version__),
             ('model type', 'INFORMATION_REQUIRED'),
             ('model name', 'INFORMATION_REQUIRED'),
@@ -116,7 +117,7 @@ class MachineModel(object):
             ('micro-architecture-modeler', 'INFORMATION_REQUIRED (options: OSACA, IACA, LLVM-MCA)'),
             ('micro-architecture',
              'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL or SKX)'),
-            ('compiler', OrderedDict([
+            ('compiler', dict([
                 ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
                 ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L, check '
                           '`gcc -march=native -Q --help=target | grep -- "-march="`)'),
@@ -150,7 +151,7 @@ class MachineModel(object):
         if path_to_yaml:
             with open(path_to_yaml, 'r') as f:
                 # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                self._data = ruamel.yaml.load(f, Loader=ruamel.yaml.Loader)
+                self._data = yaml.load(f, Loader=yaml.Loader)
         elif machine_yaml:
             self._data = machine_yaml
 
@@ -495,7 +496,7 @@ class MachineModel(object):
         """
         Return YAML string to store machine model and store to f (if path or fp passed).
         """
-        yaml_string = ruamel.yaml.dump(self._data, Dumper=ruamel.yaml.Dumper)
+        yaml_string = yaml.dump(self._data, Dumper=yaml.Dumper)
         if isinstance(f, io.IOBase):
             f.write(yaml_string)
         else:
