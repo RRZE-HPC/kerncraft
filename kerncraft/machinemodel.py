@@ -244,8 +244,15 @@ class MachineModel(object):
                     'total size': total_sizes,
                     'results': {},
                     'stats': {}}
-        print('Progress: ', end='', file=sys.stderr)
-        sys.stderr.flush()
+
+        if self._args:
+            verbose = self._args.verbose
+        else:
+            verbose = 0
+
+        if verbose:
+            print('Progress: ', end='', file=sys.stderr)
+            sys.stderr.flush()
 
         for mem_level in list(benchmarks['measurements'].keys()):
             for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
@@ -257,20 +264,21 @@ class MachineModel(object):
                     measurement['stats'][kernel] = []
                     for i, total_size in enumerate(measurement['total size']):
                         # Repeat measurement 10 times
-                        stats = []
-                        for r in range(repetitions):
-                            stats.append(measure_bw(
-                                kernel,
-                                int(float(total_size) / 1000),
-                                threads_per_core,
-                                self['threads per core'],
-                                measurement['cores'][i],
-                                sockets=1))
+                        stats = measure_bw(
+                            kernel,
+                            int(float(total_size) / 1000),
+                            threads_per_core,
+                            self['threads per core'],
+                            measurement['cores'][i],
+                            sockets=1,
+                            repeat=repetitions,
+                            verbose=verbose > 1)
 
                         measurement['results'][kernel].append(min(stats))
                         measurement['stats'][kernel].append(stats)
 
-                        print('.', end='', file=sys.stderr)
+                        if verbose:
+                            print('.', end='', file=sys.stderr)
                         sys.stderr.flush()
 
         self._data['benchmarks'] = benchmarks
@@ -624,7 +632,7 @@ def get_memory_hierarchy(placeholders=True):
 
 
 def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
-               sockets, repeat=1):
+               sockets, repeat=1, verbose=False):
     """*size* is given in kilo bytes"""
 
     groups = []
@@ -636,7 +644,9 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
             ':1:' + str(int(max_threads_per_core / threads_per_core))]
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
     cmd = ['likwid-bench', '-t', type_] + groups
-    sys.stderr.write(' '.join(cmd))
+    if verbose:
+        print(' '.join(cmd), end='', file=sys.stderr)
+
     results = []
     for i in range(repeat):
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
@@ -645,9 +655,11 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
                                   '(requires 4.0 or later)', file=sys.stderr)
             sys.exit(1)
         bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
-        print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
+        if verbose:
+            print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
         results.append(PrefixedUnit(bw, 'MB/s'))
-    print(file=sys.stderr)
+    if verbose:
+        print(file=sys.stderr)
     if len(results) == 1:
         return results[0]
     else:
