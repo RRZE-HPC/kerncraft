@@ -622,6 +622,7 @@ def get_memory_hierarchy(placeholders=True):
 
     return {'memory hierarchy': memory_hierarchy}
 
+
 def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
                sockets, repeat=1):
     """*size* is given in kilo bytes"""
@@ -638,7 +639,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     sys.stderr.write(' '.join(cmd))
     results = []
     for i in range(repeat):
-        output = check_output(cmd).decode('utf-8')
+        output = subprocess.check_output(cmd).decode('utf-8')
         if not output:
             print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
                                   '(requires 4.0 or later)', file=sys.stderr)
