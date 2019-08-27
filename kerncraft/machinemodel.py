@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Machine model and helper functions."""
+import argparse
 import io
 import os
 import subprocess
@@ -216,6 +217,8 @@ class MachineModel(object):
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'FLOPs per iteration': 2}, },
             'measurements': {}}
+        # Only inlclude the named kernels
+        benchmarks = dict([(k,v) for k,v in benchmarks.items() if k in kernels])
 
         cores = list(range(1, self['cores per socket'] + 1))
         for mem in self['memory hierarchy']:
@@ -664,3 +667,44 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
         return results[0]
     else:
         return results
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Machine description file generator.',
+        epilog='For help, examples, documentation and bug reports go to:\nhttps://github.com'
+               '/RRZE-HPC/kerncraft\nLicense: AGPLv3', )
+    # parser.add_argument('--version', action=VersionAction, version='{}'.format(__version__))
+    parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=False,
+                        help='Path to machine description yaml file as basis for new file.')
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        help='Increases verbosity level.')
+    parser.add_argument('--readouts', dest='readouts', action='store_true')
+    parser.add_argument('--no-readouts', dest='readouts', action='store_false')
+    parser.add_argument('--memory-hierarchy', dest='memory_hierarchy', action='store_true')
+    parser.add_argument('--no-memory-hierarchy', dest='memory_hierarchy', action='store_false')
+    parser.add_argument('--benchmarks', dest='benchmarks', action='store_true')
+    parser.add_argument('--no-benchmarks', dest='benchmarks', action='store_false')
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true')
+    parser.add_argument('--no-overwrite', dest='overwrite', action='store_false')
+    parser.add_argument('output_file', metavar='FILE', type=argparse.FileType('w'),
+                        help='File to save new machine description to.')
+
+    parser.set_defaults(readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True)
+
+    args = parser.parse_args()
+    print(args)
+
+    if args.machine:
+        m = MachineModel(args.machine, args=args)
+    else:
+        m = MachineModel(args=args)
+
+    m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
+             benchmarks=args.benchmarks, overwrite=args.overwrite)
+
+    m.dump(args.output_file)
+
+
+if __name__ == '__main__':
+    main()
