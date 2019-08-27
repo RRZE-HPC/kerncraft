@@ -62,28 +62,6 @@ def sanitize_symbolname(name):
     return re.subn('(^[0-9])|[^0-9a-zA-Z_]', '_', name)[0]
 
 
-def recursive_dict_update(old, new):
-    for k in new:
-        if k in old:
-            if isinstance(old[k], dict):
-                recursive_dict_update(new[k], old[k])
-            elif isinstance(old[k], str) and old[k].startswith('INFORMATION_REQUIRED'):
-                old[k] = new[k]
-            elif isinstance(old[k], list):
-                # extend old list to match length of new list:
-                d = len(new[k]) - len(old[k])
-                if d > 0:
-                    old += new[len(old):]
-
-                for i in range(len(new[k])):
-                    if isinstance(old[k][i], dict):
-                        recursive_dict_update(new[k][i], old[k][i])
-                    else:
-                        old[k][i] = new[k][i]
-        else:
-            old[k] = new[k]
-
-
 class MachineModel(object):
     """Representation of the hardware and machine architecture."""
 
@@ -173,13 +151,10 @@ class MachineModel(object):
 
     def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True):
         """Update model from readouts and benchmarks on current machine."""
-        data = {}
         if readouts:
-            data.update(get_machine_readouts())
+            self._data.update(get_machine_readouts())
         if memory_hierarchy:
-            data.update(get_memory_hierarchy(placeholders=overwrite))
-
-        recursive_dict_update(self._data, data)
+            self._data.update(get_memory_hierarchy(placeholders=overwrite))
 
         if benchmarks:
             self._update_benchmarks()
@@ -551,7 +526,7 @@ def get_machine_readouts():
                     get_match_or_break(r'^Threads per core:\s+([0-9]+)\s*$', topology)[0]),
                 'sockets': int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topology)[0]),
                 'cores per socket': int(
-                    get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topology)[0])}
+                    get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topology)[0]),}
     readouts['NUMA domains per socket'] = int(
         get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topology)[0]) // readouts['sockets']
     readouts['cores per NUMA domain'] = \
