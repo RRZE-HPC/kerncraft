@@ -696,7 +696,7 @@ def main():
     print(args)
 
     if args.machine:
-        m = MachineModel(args.machine, args=args)
+        m = MachineModel(args.machine.name, args=args)
     else:
         m = MachineModel(args=args)
 
