@@ -218,7 +218,8 @@ class MachineModel(object):
                     'FLOPs per iteration': 2}, },
             'measurements': {}}
         # Only inlclude the named kernels
-        benchmarks = dict([(k,v) for k,v in benchmarks.items() if k in kernels])
+        benchmarks['kernels'] = \
+            dict([(k,v) for k,v in benchmarks['kernels'].items() if k in kernels])
 
         cores = list(range(1, self['cores per socket'] + 1))
         for mem in self['memory hierarchy']:
@@ -693,7 +694,6 @@ def main():
     parser.set_defaults(readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True)
 
     args = parser.parse_args()
-    print(args)
 
     if args.machine:
         m = MachineModel(args.machine.name, args=args)
