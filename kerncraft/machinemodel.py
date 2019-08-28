@@ -513,6 +513,12 @@ def read_cpuinfo(cpuinfo_path: str='/proc/cpuinfo') -> str:
     return cpuinfo
 
 
+def get_cpu_frequency():
+    """Get CPU frequency in Hz"""
+    # TODO use likwid to read actual base frequency
+    return psutil.cpu_freq().current*1e6
+
+
 @lru_cache(1)
 def get_machine_readouts():
     """Read machine information using different commands and files and return dictionary."""
@@ -531,9 +537,9 @@ def get_machine_readouts():
         get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topology)[0]) // readouts['sockets']
     readouts['cores per NUMA domain'] = \
         readouts['cores per socket'] // readouts['NUMA domains per socket']
-    clock = psutil.cpu_freq().current
+    clock = get_cpu_frequency()
     if clock is not None:
-        readouts['clocks'] = PrefixedUnit(clock*1e6, "Hz")
+        readouts['clock'] = PrefixedUnit(clock*1e6, "Hz")
 
     return readouts
 
