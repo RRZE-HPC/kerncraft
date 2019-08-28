@@ -253,7 +253,7 @@ class MachineModel(object):
                             repeat=repetitions,
                             verbose=verbose > 1)
 
-                        measurement['results'][kernel].append(min(stats))
+                        measurement['results'][kernel].append(min(copy(stats)))
                         measurement['stats'][kernel].append(stats)
 
                         if verbose:
