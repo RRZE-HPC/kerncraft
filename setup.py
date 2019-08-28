@@ -139,8 +139,7 @@ setup(
         'console_scripts': [
             'kerncraft=kerncraft.kerncraft:main',
             'iaca_marker=kerncraft.iaca:main',
-            'likwid_bench_auto=kerncraft.likwid_bench_auto:main',
-            'kerncraft-machine=kerncraft.machinemodel:main',
+            'likwid_bench_auto=kerncraft.machinemodel:main',
             'picklemerge=kerncraft.picklemerge:main',
             'cachetile=kerncraft.cachetile:main',
             'iaca_get=kerncraft.iaca_get:main'

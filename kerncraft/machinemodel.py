@@ -95,8 +95,8 @@ class MachineModel(object):
                                         'MUL': 'INFORMATION_REQUIRED'}}),
             ('micro-architecture-modeler', 'INFORMATION_REQUIRED (options: OSACA, IACA, LLVM-MCA)'),
             ('micro-architecture',
-             'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL or SKX)'),
-            ('compiler', dict([
+             'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
+            ('compiler', OrderedDict([
                 ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
                 ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L, check '
                           '`gcc -march=native -Q --help=target | grep -- "-march="`)'),
@@ -149,12 +149,14 @@ class MachineModel(object):
                              "to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
 
-    def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True):
+    def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True,
+               cpuinfo_path: str='/proc/cpuinfo'):
         """Update model from readouts and benchmarks on current machine."""
         if readouts:
-            self._data.update(get_machine_readouts())
+            self._data.update(get_machine_readouts(cpuinfo_path=cpuinfo_path))
         if memory_hierarchy:
-            self._data.update(get_memory_hierarchy(placeholders=overwrite))
+            self._data.update(get_memory_hierarchy(placeholders=overwrite,
+                                                   cpuinfo_path=cpuinfo_path))
 
         if benchmarks:
             self._update_benchmarks()
@@ -520,10 +522,10 @@ def get_cpu_frequency():
 
 
 @lru_cache(1)
-def get_machine_readouts():
+def get_machine_readouts(cpuinfo_path: str='/proc/cpuinfo'):
     """Read machine information using different commands and files and return dictionary."""
     topology = get_likwid_topology()
-    cpu_info = read_cpuinfo()
+    cpu_info = read_cpuinfo(cpuinfo_path=cpuinfo_path)
 
     readouts = {'kerncraft version': __version__,
                 'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topology)[0],
@@ -539,15 +541,15 @@ def get_machine_readouts():
         readouts['cores per socket'] // readouts['NUMA domains per socket']
     clock = get_cpu_frequency()
     if clock is not None:
-        readouts['clock'] = PrefixedUnit(clock*1e6, "Hz")
+        readouts['clock'] = PrefixedUnit(clock, "Hz")
 
     return readouts
 
 
 @lru_cache(1)
-def get_memory_hierarchy(placeholders=True):
+def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
     """Read cache hierarchy using different commands and files and return dictionary."""
-    readouts = get_machine_readouts()
+    readouts = get_machine_readouts(cpuinfo_path=cpuinfo_path)
     topology = get_likwid_topology()
 
     threads_start = topology.find('HWThread')
