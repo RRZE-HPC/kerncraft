@@ -101,13 +101,13 @@ memory hierarchy:
              CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
              CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   cache per group:
-    sets: 24576
+    sets: 40960
     ways: 11
     cl_size: 64
     replacement_policy: 'LRU'
     write_allocate: False
     write_back: True
-  size per group: 28 MB
+  size per group: 27.5 MB
   groups: 1
   cores per group: 20
   threads per group: 40
