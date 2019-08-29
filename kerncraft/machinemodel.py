@@ -536,7 +536,8 @@ def get_machine_readouts(cpuinfo_path: str='/proc/cpuinfo'):
 
     readouts = {'kerncraft version': __version__,
                 'model type': get_match_or_break(r'^CPU type:\s+(.+?)\s*$', topology)[0],
-                'model name': get_match_or_default(r'^model name\s+:\s+(.+?)\s*$', cpu_info)[0],
+                'model name': get_match_or_default(r'^model name\s+:\s+(.+?)\s*$', cpu_info,
+                                                   default=[None])[0],
                 'threads per core': int(
                     get_match_or_break(r'^Threads per core:\s+([0-9]+)\s*$', topology)[0]),
                 'sockets': int(get_match_or_break(r'^Sockets:\s+([0-9]+)\s*$', topology)[0]),
