@@ -10,7 +10,7 @@ model type: Intel Skylake SP processor
 sockets: 2
 cores per socket: 20
 threads per core: 2
-NUMA domains per socket: 1
+NUMA domains per socket: 2
 cores per NUMA domain: 10
 clock: 2.4 GHz
 FLOPs per cycle:
