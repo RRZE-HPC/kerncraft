@@ -525,7 +525,11 @@ def read_cpuinfo(cpuinfo_path: str='/proc/cpuinfo') -> str:
 def get_cpu_frequency():
     """Get CPU frequency in Hz"""
     # TODO use likwid to read actual base frequency
-    return psutil.cpu_freq().current*1e6
+    cpu_frequency = psutil.cpu_freq()
+    if cpu_frequency:
+        return cpu_frequency.current*1e6
+    else:
+        return None
 
 
 @lru_cache(1)
