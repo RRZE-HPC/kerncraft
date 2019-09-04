@@ -200,6 +200,8 @@ class MachineModel(object):
         benchmarks['kernels'] = \
             dict([(k,v) for k,v in benchmarks['kernels'].items() if k in kernels])
 
+        self._data['benchmarks'] = benchmarks
+
         cores = list(range(1, self['cores per socket'] + 1))
         for mem in self['memory hierarchy']:
             measurement = {}
@@ -281,8 +283,6 @@ class MachineModel(object):
                         if verbose:
                             print('.', end='', file=sys.stderr)
                         sys.stderr.flush()
-
-        self._data['benchmarks'] = benchmarks
 
     def __getitem__(self, key):
         """Return configuration entry."""
