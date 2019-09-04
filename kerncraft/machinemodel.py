@@ -271,16 +271,15 @@ class MachineModel(object):
                                          self['threads per core'],
                                          measurement['cores'][i],
                                          sockets=1,
+                                         repetitions=repetitions,
                                          verbose=verbose > 1))
-                        if verbose:
-                            print(file=sys.stderr)
 
                         measurement['results'][kernel].append(copy(min(stats)))
                         measurement['stats'][kernel].append(stats)
 
                         self.dump()
 
-                        if verbose:
+                        if not verbose:
                             print('.', end='', file=sys.stderr)
                         sys.stderr.flush()
 
@@ -667,7 +666,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
     cmd = ['likwid-bench', '-t', type_] + groups
     if verbose:
-        print(' '.join(cmd), end='', file=sys.stderr)
+        print('{:<50} = '.format(' '.join(cmd)), end='', file=sys.stderr)
 
     output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
     if not output:
@@ -676,7 +675,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
         sys.exit(1)
     bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
     if verbose:
-        print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
+        print(PrefixedUnit(bw, 'MB/s'), file=sys.stderr)
 
     return PrefixedUnit(bw, 'MB/s')
 
