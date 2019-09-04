@@ -253,7 +253,7 @@ class MachineModel(object):
                                 self._data['benchmarks']['measurements'][mem_level][threads_per_core]['results'][kernel]
                             measurement['stats'][kernel] = \
                                 self._data['benchmarks']['measurements'][mem_level][threads_per_core]['stats'][kernel]
-                        except KeyError:
+                        except (KeyError, TypeError):
                             pass
 
                     for i, total_size in enumerate(measurement['total size']):
