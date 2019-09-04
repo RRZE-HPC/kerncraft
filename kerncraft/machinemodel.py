@@ -149,6 +149,9 @@ class MachineModel(object):
                              "to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
 
+    def set_path(self, path):
+        self._path = path
+
     def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True,
                cpuinfo_path: str='/proc/cpuinfo'):
         """Update model from readouts and benchmarks on current machine."""
@@ -163,9 +166,8 @@ class MachineModel(object):
 
     def _update_benchmarks(self, repetitions=10,
                            kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
-                           usage_factor=0.66, mem_factor=15.0):
+                           usage_factor=0.66, mem_factor=15.0, overwrite=False):
         """Run benchmarks and update internal dataset"""
-        # TODO only include kernels in argument list
         benchmarks = {
             'kernels': {
                 'load': {
@@ -243,20 +245,38 @@ class MachineModel(object):
                 for kernel in list(benchmarks['kernels'].keys()):
                     measurement['results'][kernel] = []
                     measurement['stats'][kernel] = []
-                    for i, total_size in enumerate(measurement['total size']):
-                        # Repeat measurement 10 times
-                        stats = measure_bw(
-                            kernel,
-                            int(float(total_size) / 1000),
-                            threads_per_core,
-                            self['threads per core'],
-                            measurement['cores'][i],
-                            sockets=1,
-                            repeat=repetitions,
-                            verbose=verbose > 1)
 
-                        measurement['results'][kernel].append(min(copy(stats)))
+                    if not overwrite:
+                        # Try to load already present data:
+                        try:
+                            measurement['results'][kernel] = \
+                                self._data['benchmarks']['measurements'][mem_level][threads_per_core]['results'][kernel]
+                            measurement['stats'][kernel] = \
+                                self._data['benchmarks']['measurements'][mem_level][threads_per_core]['stats'][kernel]
+                        except KeyError:
+                            pass
+
+                    for i, total_size in enumerate(measurement['total size']):
+                        if len(measurement['results'][kernel]) > i:
+                            # Skip already existing data
+                            continue
+                        stats = []
+                        for r in range(repetitions - len(measurement['stats'][kernel][i])):
+                            stats.append(measure_bw(
+                                         kernel,
+                                         int(float(total_size) / 1000),
+                                         threads_per_core,
+                                         self['threads per core'],
+                                         measurement['cores'][i],
+                                         sockets=1,
+                                         verbose=verbose > 1))
+                        if verbose:
+                            print(file=sys.stderr)
+
+                        measurement['results'][kernel].append(copy(min(stats)))
                         measurement['stats'][kernel].append(stats)
+
+                        self.dump()
 
                         if verbose:
                             print('.', end='', file=sys.stderr)
@@ -486,6 +506,9 @@ class MachineModel(object):
         Return YAML string to store machine model and store to f (if path or fp passed).
         """
         yaml_string = yaml.dump(self._data, Dumper=yaml.Dumper)
+        if f is None:
+            f = self._path
+
         if isinstance(f, io.IOBase):
             f.write(yaml_string)
         else:
@@ -631,7 +654,7 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
 
 
 def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
-               sockets, repeat=1, verbose=False):
+               sockets, verbose=False):
     """*size* is given in kilo bytes"""
 
     groups = []
@@ -646,23 +669,17 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     if verbose:
         print(' '.join(cmd), end='', file=sys.stderr)
 
-    results = []
-    for i in range(repeat):
-        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
-        if not output:
-            print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
-                                  '(requires 4.0 or later)', file=sys.stderr)
-            sys.exit(1)
-        bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
-        if verbose:
-            print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
-        results.append(PrefixedUnit(bw, 'MB/s'))
+    output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
+    if not output:
+        print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
+                              '(requires 4.0 or later)', file=sys.stderr)
+        sys.exit(1)
+    bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
     if verbose:
-        print(file=sys.stderr)
-    if len(results) == 1:
-        return results[0]
-    else:
-        return results
+        print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
+
+    return PrefixedUnit(bw, 'MB/s')
+
 
 
 def main():
@@ -695,10 +712,12 @@ def main():
     else:
         m = MachineModel(args=args)
 
+    m.set_path(args.output_file.name)
+
     m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
              benchmarks=args.benchmarks, overwrite=args.overwrite)
 
-    m.dump(args.output_file)
+    m.dump()
 
 
 if __name__ == '__main__':
