@@ -261,7 +261,7 @@ class MachineModel(object):
                             # Skip already existing data
                             continue
                         stats = []
-                        for r in range(repetitions - len(measurement['stats'][kernel][i])):
+                        for r in range(repetitions):
                             stats.append(measure_bw(
                                          kernel,
                                          int(float(total_size) / 1000),
