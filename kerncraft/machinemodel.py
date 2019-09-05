@@ -165,7 +165,6 @@ class MachineModel(object):
             self._update_benchmarks()
 
     def _update_benchmarks(self, repetitions=10,
-                           kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
                            usage_factor=0.66, mem_factor=15.0, overwrite=False):
         """Run benchmarks and update internal dataset"""
         self._data['benchmarks']['kernels'] = {
@@ -196,9 +195,6 @@ class MachineModel(object):
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'FLOPs per iteration': 2}, }}
         benchmarks = self._data['benchmarks']
-        # Only inlclude the named kernels
-        benchmarks['kernels'] = \
-            dict([(k,v) for k,v in benchmarks['kernels'].items() if k in kernels])
 
         if 'measurements' not in benchmarks:
             benchmarks['measurements'] = {}
