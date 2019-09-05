@@ -168,7 +168,7 @@ class MachineModel(object):
                            kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
                            usage_factor=0.66, mem_factor=15.0, overwrite=False):
         """Run benchmarks and update internal dataset"""
-        benchmarks = {
+        self._data['benchmarks']['kernels'] = {
             'kernels': {
                 'load': {
                     'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
@@ -194,13 +194,14 @@ class MachineModel(object):
                     'read streams': {'streams': 2, 'bytes': PrefixedUnit(16, 'B')},
                     'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-                    'FLOPs per iteration': 2}, },
-            'measurements': {}}
+                    'FLOPs per iteration': 2}, }}
+        benchmarks = self._data['benchmarks']
         # Only inlclude the named kernels
         benchmarks['kernels'] = \
             dict([(k,v) for k,v in benchmarks['kernels'].items() if k in kernels])
 
-        self._data['benchmarks'] = benchmarks
+        if 'measurements' not in benchmarks:
+            benchmarks['measurements'] = {}
 
         cores = list(range(1, self['cores per socket'] + 1))
         for mem in self['memory hierarchy']:
