@@ -204,8 +204,11 @@ class MachineModel(object):
 
         cores = list(range(1, self['cores per socket'] + 1))
         for mem in self['memory hierarchy']:
-            measurement = {}
-            benchmarks['measurements'][mem['level']] = measurement
+            try:
+                measurement = benchmarks['measurements'][mem['level']]
+            except (KeyError, TypeError):
+                measurement = benchmarks['measurements'][mem['level']] = {}
+
 
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
@@ -220,15 +223,25 @@ class MachineModel(object):
                 sizes_per_core = [t / cores[i] for i, t in enumerate(total_sizes)]
                 sizes_per_thread = [t / threads[i] for i, t in enumerate(total_sizes)]
 
-                measurement[threads_per_core] = {
+                sizes_dict = {
                     'threads per core': threads_per_core,
                     'cores': copy(cores),
                     'threads': threads,
                     'size per core': sizes_per_core,
                     'size per thread': sizes_per_thread,
-                    'total size': total_sizes,
-                    'results': {},
-                    'stats': {}}
+                    'total size': total_sizes}
+
+                if overwrite or threads_per_core not in measurement or \
+                        threads_per_core in measurement and \
+                        {k: v for k, v in measurement[threads_per_core].items()
+                         if k in sizes_dict} != sizes_dict:
+                    measurement[threads_per_core] = sizes_dict
+                    # Invalidate results and stats
+                    measurement[threads_per_core]['results'] = {}
+                    measurement[threads_per_core]['stats'] = {}
+                else:
+                    # No need to change anything
+                    pass
 
         if self._args:
             verbose = self._args.verbose
