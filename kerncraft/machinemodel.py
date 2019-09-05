@@ -168,7 +168,6 @@ class MachineModel(object):
                            usage_factor=0.66, mem_factor=15.0, overwrite=False):
         """Run benchmarks and update internal dataset"""
         self._data['benchmarks']['kernels'] = {
-            'kernels': {
                 'load': {
                     'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
@@ -193,7 +192,7 @@ class MachineModel(object):
                     'read streams': {'streams': 2, 'bytes': PrefixedUnit(16, 'B')},
                     'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-                    'FLOPs per iteration': 2}, }}
+                    'FLOPs per iteration': 2}, }
         benchmarks = self._data['benchmarks']
 
         if 'measurements' not in benchmarks:
