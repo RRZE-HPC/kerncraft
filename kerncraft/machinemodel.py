@@ -231,10 +231,19 @@ class MachineModel(object):
                     'size per thread': sizes_per_thread,
                     'total size': total_sizes}
 
-                if overwrite or threads_per_core not in measurement or \
-                        threads_per_core in measurement and \
-                        {k: v for k, v in measurement[threads_per_core].items()
-                         if k in sizes_dict} != sizes_dict:
+                needs_update = False
+                if threads_per_core in measurement:
+                    for k, v in measurement[threads_per_core].items():
+                        if k in sizes_dict:
+                            for i, j in zip(v, sizes_dict[k]):
+                                if abs(i - j)/min(i, j) >= 0.01:
+                                    needs_update = True
+                                    break
+                        else:
+                            needs_update = True
+                            break
+
+                if overwrite or threads_per_core not in measurement or needs_update:
                     measurement[threads_per_core] = sizes_dict
                     # Invalidate results and stats
                     measurement[threads_per_core]['results'] = {}
