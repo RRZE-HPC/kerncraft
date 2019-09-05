@@ -268,23 +268,13 @@ class MachineModel(object):
             for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
                 measurement = benchmarks['measurements'][mem_level][threads_per_core]
                 for kernel in list(benchmarks['kernels'].keys()):
-                    if not overwrite or kernel not in measurement['results'] or \
+                    if overwrite or kernel not in measurement['results'] or \
                             kernel not in measurement['stats'] or \
                             not (len(measurement['results'][kernel]) ==
                                  len(measurement['stats'][kernel]) ==
                                  len(measurement['total size'])):
                         measurement['results'][kernel] = []
                         measurement['stats'][kernel] = []
-
-                    if not overwrite:
-                        # Try to load already present data:
-                        try:
-                            measurement['results'][kernel] = \
-                                self._data['benchmarks']['measurements'][mem_level][threads_per_core]['results'][kernel]
-                            measurement['stats'][kernel] = \
-                                self._data['benchmarks']['measurements'][mem_level][threads_per_core]['stats'][kernel]
-                        except (KeyError, TypeError):
-                            pass
 
                     for i, total_size in enumerate(measurement['total size']):
                         if len(measurement['results'][kernel]) > i:
