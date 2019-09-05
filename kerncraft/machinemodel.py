@@ -271,7 +271,6 @@ class MachineModel(object):
                                          self['threads per core'],
                                          measurement['cores'][i],
                                          sockets=1,
-                                         repetitions=repetitions,
                                          verbose=verbose > 1))
 
                         measurement['results'][kernel].append(copy(min(stats)))
