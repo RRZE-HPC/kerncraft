@@ -234,13 +234,18 @@ class MachineModel(object):
 
                 needs_update = False
                 if threads_per_core in measurement:
-                    for k, v in measurement[threads_per_core].items():
-                        if k in sizes_dict:
+                    for k, v in sizes_dict.items():
+                        if k in measurement[threads_per_core]:
+                            if v == sizes_dict[k]:
+                                # Exact compartison matched
+                                continue
                             for i, j in zip(v, sizes_dict[k]):
+                                # Fuzzy comparison with relative error tolerance of 1%
                                 if abs(i - j)/min(i, j) >= 0.01:
                                     needs_update = True
                                     break
                         else:
+                            # If k is missing in measurement, will need to overwrite
                             needs_update = True
                             break
 
