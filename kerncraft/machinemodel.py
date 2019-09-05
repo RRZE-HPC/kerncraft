@@ -249,7 +249,9 @@ class MachineModel(object):
                             needs_update = True
                             break
 
-                if overwrite or threads_per_core not in measurement or needs_update:
+                if overwrite or threads_per_core not in measurement or needs_update or \
+                        'results' not in measurement[threads_per_core] or \
+                        'stats' not in measurement[threads_per_core]:
                     measurement[threads_per_core] = sizes_dict
                     # Invalidate results and stats
                     measurement[threads_per_core]['results'] = {}
@@ -264,17 +266,20 @@ class MachineModel(object):
             verbose = 0
 
         if verbose:
-            print('Progress: ', end='', file=sys.stderr)
+            print('Progress: ', file=sys.stderr)
             sys.stderr.flush()
 
         for mem_level in list(benchmarks['measurements'].keys()):
             for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
                 measurement = benchmarks['measurements'][mem_level][threads_per_core]
-                measurement['results'] = {}
-                measurement['stats'] = {}
                 for kernel in list(benchmarks['kernels'].keys()):
-                    measurement['results'][kernel] = []
-                    measurement['stats'][kernel] = []
+                    if not overwrite or kernel not in measurement['results'] or \
+                            kernel not in measurement['stats'] or \
+                            not (len(measurement['results'][kernel]) ==
+                                 len(measurement['stats'][kernel]) ==
+                                 len(measurement['total size'])):
+                        measurement['results'][kernel] = []
+                        measurement['stats'][kernel] = []
 
                     if not overwrite:
                         # Try to load already present data:
