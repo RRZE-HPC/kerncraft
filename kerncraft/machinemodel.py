@@ -149,6 +149,9 @@ class MachineModel(object):
                              "to update your own machine description file format.".format(
                                 MIN_SUPPORTED_VERSION, __version__))
 
+    def set_path(self, path):
+        self._path = path
+
     def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True,
                cpuinfo_path: str='/proc/cpuinfo'):
         """Update model from readouts and benchmarks on current machine."""
@@ -162,12 +165,9 @@ class MachineModel(object):
             self._update_benchmarks()
 
     def _update_benchmarks(self, repetitions=10,
-                           kernels=['load', 'copy', 'update', 'triad', 'daxpy'],
-                           usage_factor=0.66, mem_factor=15.0):
+                           usage_factor=0.66, mem_factor=15.0, overwrite=False):
         """Run benchmarks and update internal dataset"""
-        # TODO only include kernels in argument list
-        benchmarks = {
-            'kernels': {
+        self._data['benchmarks']['kernels'] = {
                 'load': {
                     'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
@@ -192,16 +192,19 @@ class MachineModel(object):
                     'read streams': {'streams': 2, 'bytes': PrefixedUnit(16, 'B')},
                     'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
-                    'FLOPs per iteration': 2}, },
-            'measurements': {}}
-        # Only inlclude the named kernels
-        benchmarks['kernels'] = \
-            dict([(k,v) for k,v in benchmarks['kernels'].items() if k in kernels])
+                    'FLOPs per iteration': 2}, }
+        benchmarks = self._data['benchmarks']
+
+        if 'measurements' not in benchmarks:
+            benchmarks['measurements'] = {}
 
         cores = list(range(1, self['cores per socket'] + 1))
         for mem in self['memory hierarchy']:
-            measurement = {}
-            benchmarks['measurements'][mem['level']] = measurement
+            try:
+                measurement = benchmarks['measurements'][mem['level']]
+            except (KeyError, TypeError):
+                measurement = benchmarks['measurements'][mem['level']] = {}
+
 
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
@@ -216,15 +219,41 @@ class MachineModel(object):
                 sizes_per_core = [t / cores[i] for i, t in enumerate(total_sizes)]
                 sizes_per_thread = [t / threads[i] for i, t in enumerate(total_sizes)]
 
-                measurement[threads_per_core] = {
+                sizes_dict = {
                     'threads per core': threads_per_core,
                     'cores': copy(cores),
                     'threads': threads,
                     'size per core': sizes_per_core,
                     'size per thread': sizes_per_thread,
-                    'total size': total_sizes,
-                    'results': {},
-                    'stats': {}}
+                    'total size': total_sizes}
+
+                needs_update = False
+                if threads_per_core in measurement:
+                    for k, v in sizes_dict.items():
+                        if k in measurement[threads_per_core]:
+                            if v == sizes_dict[k]:
+                                # Exact compartison matched
+                                continue
+                            for i, j in zip(v, sizes_dict[k]):
+                                # Fuzzy comparison with relative error tolerance of 1%
+                                if abs(i - j)/min(i, j) >= 0.01:
+                                    needs_update = True
+                                    break
+                        else:
+                            # If k is missing in measurement, will need to overwrite
+                            needs_update = True
+                            break
+
+                if overwrite or threads_per_core not in measurement or needs_update or \
+                        'results' not in measurement[threads_per_core] or \
+                        'stats' not in measurement[threads_per_core]:
+                    measurement[threads_per_core] = sizes_dict
+                    # Invalidate results and stats
+                    measurement[threads_per_core]['results'] = {}
+                    measurement[threads_per_core]['stats'] = {}
+                else:
+                    # No need to change anything
+                    pass
 
         if self._args:
             verbose = self._args.verbose
@@ -232,37 +261,44 @@ class MachineModel(object):
             verbose = 0
 
         if verbose:
-            print('Progress: ', end='', file=sys.stderr)
+            print('Progress: ', file=sys.stderr)
             sys.stderr.flush()
 
         for mem_level in list(benchmarks['measurements'].keys()):
             for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
                 measurement = benchmarks['measurements'][mem_level][threads_per_core]
-                measurement['results'] = {}
-                measurement['stats'] = {}
                 for kernel in list(benchmarks['kernels'].keys()):
-                    measurement['results'][kernel] = []
-                    measurement['stats'][kernel] = []
-                    for i, total_size in enumerate(measurement['total size']):
-                        # Repeat measurement 10 times
-                        stats = measure_bw(
-                            kernel,
-                            int(float(total_size) / 1000),
-                            threads_per_core,
-                            self['threads per core'],
-                            measurement['cores'][i],
-                            sockets=1,
-                            repeat=repetitions,
-                            verbose=verbose > 1)
+                    if overwrite or kernel not in measurement['results'] or \
+                            kernel not in measurement['stats'] or \
+                            not (len(measurement['results'][kernel]) ==
+                                 len(measurement['stats'][kernel]) ==
+                                 len(measurement['total size'])):
+                        measurement['results'][kernel] = []
+                        measurement['stats'][kernel] = []
 
-                        measurement['results'][kernel].append(min(copy(stats)))
+                    for i, total_size in enumerate(measurement['total size']):
+                        if len(measurement['results'][kernel]) > i:
+                            # Skip already existing data
+                            continue
+                        stats = []
+                        for r in range(repetitions):
+                            stats.append(measure_bw(
+                                         kernel,
+                                         int(float(total_size) / 1000),
+                                         threads_per_core,
+                                         self['threads per core'],
+                                         measurement['cores'][i],
+                                         sockets=1,
+                                         verbose=verbose > 1))
+
+                        measurement['results'][kernel].append(copy(min(stats)))
                         measurement['stats'][kernel].append(stats)
 
-                        if verbose:
+                        self.dump()
+
+                        if not verbose:
                             print('.', end='', file=sys.stderr)
                         sys.stderr.flush()
-
-        self._data['benchmarks'] = benchmarks
 
     def __getitem__(self, key):
         """Return configuration entry."""
@@ -486,6 +522,9 @@ class MachineModel(object):
         Return YAML string to store machine model and store to f (if path or fp passed).
         """
         yaml_string = yaml.dump(self._data, Dumper=yaml.Dumper)
+        if f is None:
+            f = self._path
+
         if isinstance(f, io.IOBase):
             f.write(yaml_string)
         else:
@@ -631,7 +670,7 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
 
 
 def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
-               sockets, repeat=1, verbose=False):
+               sockets, verbose=False):
     """*size* is given in kilo bytes"""
 
     groups = []
@@ -644,25 +683,19 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
     cmd = ['likwid-bench', '-t', type_] + groups
     if verbose:
-        print(' '.join(cmd), end='', file=sys.stderr)
+        print('{:<50} = '.format(' '.join(cmd)), end='', file=sys.stderr)
 
-    results = []
-    for i in range(repeat):
-        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
-        if not output:
-            print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
-                                  '(requires 4.0 or later)', file=sys.stderr)
-            sys.exit(1)
-        bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
-        if verbose:
-            print(' ', PrefixedUnit(bw, 'MB/s'), end="", file=sys.stderr)
-        results.append(PrefixedUnit(bw, 'MB/s'))
+    output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
+    if not output:
+        print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
+                              '(requires 4.0 or later)', file=sys.stderr)
+        sys.exit(1)
+    bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
     if verbose:
-        print(file=sys.stderr)
-    if len(results) == 1:
-        return results[0]
-    else:
-        return results
+        print(PrefixedUnit(bw, 'MB/s'), file=sys.stderr)
+
+    return PrefixedUnit(bw, 'MB/s')
+
 
 
 def main():
@@ -695,10 +728,12 @@ def main():
     else:
         m = MachineModel(args=args)
 
+    m.set_path(args.output_file.name)
+
     m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
              benchmarks=args.benchmarks, overwrite=args.overwrite)
 
-    m.dump(args.output_file)
+    m.dump()
 
 
 if __name__ == '__main__':
