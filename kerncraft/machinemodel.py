@@ -29,10 +29,10 @@ MIN_SUPPORTED_VERSION = "0.8.1.dev0"
 CHANGES_SINCE = OrderedDict([
     ("0.6.6",
      """
-     Removed 'cycles per cache line transfer' and replaced it by 
+     Removed 'cycles per cache line transfer' and replaced it by
      'non-overlap upstream throughput' in cache levels. The new parameter
-     takes the following arguments and is now associated with the cache level 
-     that is read from or written to: 
+     takes the following arguments and is now associated with the cache level
+     that is read from or written to:
      [$TP B/cy or 'full socket memory bandwidth', 'half-duplex' or 'full-duplex']
      """),
     ("0.7.1",
@@ -43,9 +43,9 @@ CHANGES_SINCE = OrderedDict([
      """),
     ("0.8.1.dev0",
      """
-     Removed 'non-overlap upstream throughput' and replaced it by 
+     Removed 'non-overlap upstream throughput' and replaced it by
      'upstream throughput' in cache levels. This new parameter
-     takes additionally the following argument: 
+     takes additionally the following argument:
      ['architecture code analyzer', 'data ports' ,'list']
      New argument 'transfers overlap' in cache levels, which may be True or False.
      **Preliminary solution! Subjected to future changes.**
@@ -167,6 +167,8 @@ class MachineModel(object):
     def _update_benchmarks(self, repetitions=10,
                            usage_factor=0.66, mem_factor=15.0, overwrite=False):
         """Run benchmarks and update internal dataset"""
+        if not isinstance(self._data['benchmarks'], dict):
+            self._data['benchmarks'] = {}
         self._data['benchmarks']['kernels'] = {
                 'load': {
                     'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
