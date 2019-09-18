@@ -165,7 +165,7 @@ class MachineModel(object):
             self._update_benchmarks()
 
     def _update_benchmarks(self, repetitions=10,
-                           usage_factor=0.66, min_surpass_factor=0.25, mem_factor=15.0,
+                           usage_factor=0.66, min_surpass_factor=0.2, mem_factor=15.0,
                            overwrite=False):
         """Run benchmarks and update internal dataset"""
         if not isinstance(self._data['benchmarks'], dict):
@@ -224,7 +224,7 @@ class MachineModel(object):
                             max(int(mem['size per group']) * c / mem['cores per group'],
                                 int(mem['size per group'])) * usage_factor,
                             max(int(mem_previous['size per group']) * c / mem_previous['cores per group'],
-                                int(mem_previous['size per group'])) * min_surpass_factor), 'B')
+                                int(mem_previous['size per group'])) * (1.0 + min_surpass_factor)), 'B')
                         for c in cores]
                 else:
                     last_mem = self['memory hierarchy'][-2]
