@@ -165,7 +165,8 @@ class MachineModel(object):
             self._update_benchmarks()
 
     def _update_benchmarks(self, repetitions=10,
-                           usage_factor=0.66, mem_factor=15.0, overwrite=False):
+                           usage_factor=0.66, min_surpass_factor=0.25, mem_factor=15.0,
+                           overwrite=False):
         """Run benchmarks and update internal dataset"""
         if not isinstance(self._data['benchmarks'], dict):
             self._data['benchmarks'] = {}
@@ -201,19 +202,29 @@ class MachineModel(object):
             benchmarks['measurements'] = {}
 
         cores = list(range(1, self['cores per socket'] + 1))
-        for mem in self['memory hierarchy']:
+        for mem_index, mem in enumerate(self['memory hierarchy']):
             try:
                 measurement = benchmarks['measurements'][mem['level']]
             except (KeyError, TypeError):
                 measurement = benchmarks['measurements'][mem['level']] = {}
 
+            if mem_index > 0:
+                mem_previous = self['memory hierarchy'][mem_index - 1]
+            else:
+                mem_previous = {
+                    'size per group': 0,
+                    'cores per group': 1
+                }
 
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
                 if mem['size per group'] is not None:
                     total_sizes = [
-                        PrefixedUnit(max(int(mem['size per group']) * c / mem['cores per group'],
-                                         int(mem['size per group'])) * usage_factor, 'B')
+                        PrefixedUnit(max(
+                            max(int(mem['size per group']) * c / mem['cores per group'],
+                                int(mem['size per group'])) * usage_factor,
+                            max(int(mem_previous['size per group']) * c / mem_previous['cores per group'],
+                                int(mem_previous['size per group'])) * min_surpass_factor), 'B')
                         for c in cores]
                 else:
                     last_mem = self['memory hierarchy'][-2]
