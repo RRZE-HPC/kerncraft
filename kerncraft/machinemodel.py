@@ -293,7 +293,7 @@ class MachineModel(object):
                                          sockets=1,
                                          verbose=verbose > 1))
 
-                        measurement['results'][kernel].append(copy(min(stats)))
+                        measurement['results'][kernel].append(copy(max(stats)))
                         measurement['stats'][kernel].append(stats)
 
                         self.dump()
@@ -622,7 +622,7 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
             mem_level = OrderedDict([('level', 'L' + line.split(':')[1].strip())])
             memory_hierarchy.append(mem_level)
             if mem_level['level'] != 'L1' and placeholders:
-                mem_level['non-overlap upstream throughput'] = [
+                mem_level['upstream throughput'] = [
                     'INFORMATION_REQUIRED (e.g. 24 B/cy)',
                     'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
         elif line.startswith('Size:'):
@@ -662,7 +662,7 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
         ('threads per group', int(readouts['threads per core'] * readouts['cores per socket'])),
     ]))
     if placeholders:
-        memory_hierarchy[-1]['non-overlap upstream throughput'] = [
+        memory_hierarchy[-1]['upstream throughput'] = [
             'full socket memory bandwidth',
             'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
     memory_hierarchy[-1]['penalty cycles per read stream'] = 0
