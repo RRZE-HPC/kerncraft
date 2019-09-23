@@ -25,50 +25,44 @@ FLOPs per cycle:
     ADD: 16
     MUL: 16
 micro-architecture: SKX
-compiler:
-  !!omap
-  - icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high
-  - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp
-  - gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+compiler: !!omap
+- icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high
+- clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp
+- gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
 cacheline size: 64 B
 overlapping model:
-  ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
-  performance counter metric:
-          Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3],
-          UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
-          UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3],
-          UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3],
-          UOPS_DISPATCHED_PORT_PORT_6:PMC[0-3],
-          UOPS_DISPATCHED_PORT_PORT_7:PMC[0-3])
+  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+  performance counter metric: Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
+    UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_6:PMC[0-3],
+    UOPS_DISPATCHED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
-  ports: ["2D", "3D"]
-  performance counter metric:
-    T_nOL + T_L2 + T_L3 + T_MEM
+  ports: [2D, 3D]
+  performance counter metric: T_nOL + T_L2 + T_L3 + T_MEM
 memory hierarchy:
 - level: L1
   # non-overlap upstream throughput is gathered from port assignment (non-overlapping model -> ports)
   performance counter metrics:
-    accesses:  MEM_INST_RETIRED_ALL_LOADS:PMC[0-3] + MEM_INST_RETIRED_ALL_STORES:PMC[0-3]
+    accesses: MEM_INST_RETIRED_ALL_LOADS:PMC[0-3] + MEM_INST_RETIRED_ALL_STORES:PMC[0-3]
     misses: L1D_REPLACEMENT:PMC[0-3]
     evicts: L2_TRANS_L1D_WB:PMC[0-3]
   cache per group:
     sets: 64
     ways: 8
     cl_size: 64
-    replacement_policy: 'LRU'
-    write_allocate: True
-    write_back: True
+    replacement_policy: LRU
+    write_allocate: true
+    write_back: true
     load_from: L2
     store_to: L2
   size per group: 32.00 kB
   groups: 20
   cores per group: 1
   threads per group: 2
-  upstream throughput: ['architecture code analyzer', ['2D', '3D']]
-  transfers overlap: False
+  upstream throughput: [architecture code analyzer, [2D, 3D]]
+  transfers overlap: false
 - level: L2
-  upstream throughput: [64 B/cy, 'half-duplex']
-  transfers overlap: False
+  upstream throughput: [64 B/cy, half-duplex]
+  transfers overlap: false
   performance counter metrics:
     accesses: L1D_REPLACEMENT:PMC[0-3] + L2_TRANS_L1D_WB:PMC[0-3]
     misses: L2_LINES_IN_ALL:PMC[0-3]
@@ -77,10 +71,10 @@ memory hierarchy:
     sets: 1024
     ways: 16
     cl_size: 64
-    replacement_policy: 'LRU'
-    write_allocate: True
-    write_back: True
-    load_from: null  # L3 is a victim cache, thus unless a hit in L3, misses get forwarded to MEM
+    replacement_policy: LRU
+    write_allocate: true
+    write_back: true
+    load_from:       # L3 is a victim cache, thus unless a hit in L3, misses get forwarded to MEM
     victims_to: L3  # all victims, modified or not are passed onto L3
     store_to: L3
   size per group: 1.00 MB
@@ -88,31 +82,29 @@ memory hierarchy:
   cores per group: 1
   threads per group: 2
 - level: L3
-  upstream throughput: [16 B/cy, 'full-duplex']
-  transfers overlap: False
+  upstream throughput: [16 B/cy, full-duplex]
+  transfers overlap: false
   performance counter metrics:
     accesses: L2_LINES_IN_ALL:PMC[0-3] + L2_TRANS_L2_WB:PMC[0-3]
     # FIXME not all misses in L2 lead to loads from L3, only the hits do
-    misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
-             CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
-             CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01])
-    evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] +
-             CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
-             CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
+    misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01]
+      + CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01])
+    evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01]
+      + CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   cache per group:
     sets: 40960
     ways: 11
     cl_size: 64
-    replacement_policy: 'LRU'
-    write_allocate: False
-    write_back: True
+    replacement_policy: LRU
+    write_allocate: false
+    write_back: true
   size per group: 27.5 MB
   groups: 2
   cores per group: 10
   threads per group: 20
 - level: MEM
-  upstream throughput: ['full socket memory bandwidth', 'half-duplex']
-  transfers overlap: False
+  upstream throughput: [full socket memory bandwidth, half-duplex]
+  transfers overlap: false
   cores per group: 40
   threads per group: 80
   penalty cycles per read stream: 0
