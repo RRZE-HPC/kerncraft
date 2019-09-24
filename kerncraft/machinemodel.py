@@ -741,9 +741,11 @@ def find_fastest_bench_kernel(kernels, *args, **kwargs):
         except (ValueError, subprocess.CalledProcessError):
             # Ignore failed likwid-bench runs, because some kernels may not be supported on
             # all architectures (e.g., avx512 is not supported on Sandy Bridge)
+            if 'verbose' in kwargs and kwargs['verbose']:
+                print(file=sys.stderr)
             pass
 
-    return sorted(results)[0][1]
+    return max(results)[1]
 
 
 def get_available_bench_kernels(prefix="", exclude=None):
