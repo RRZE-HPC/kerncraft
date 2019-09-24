@@ -285,7 +285,7 @@ class MachineModel(object):
                     benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
                 threads_per_core=1,
                 max_threads_per_core=self['threads per core'],
-                cores=1,
+                cores_per_socket=1,
                 sockets=1,
                 verbose=verbose > 1)
             if verbose > 1:
