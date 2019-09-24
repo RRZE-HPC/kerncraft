@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3
+kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz
 model type: Intel Cascadelake SP processor
 clock: 2.5 GHz
@@ -9,8 +9,10 @@ threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 10
 
-micro-architecture: SKX  # IACA does not support anything newer than SKX, which is similar to CLX
-micro-architecture-modeler: IACA
+in-core model: !!omap
+  - IACA: SKX  # IACA does not support anything newer than SKX, which is similar to CLX
+  - OSACA: CSX
+  - LLVM-MCA: -mcpu=cascadelake
 
 FLOPs per cycle:
   DP: {ADD: 16, FMA: 32, MUL: 16, total: 32}

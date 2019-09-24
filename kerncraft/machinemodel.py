@@ -24,7 +24,7 @@ from .prefixedunit import PrefixedUnit
 from . import __version__
 
 
-MIN_SUPPORTED_VERSION = "0.8.1.dev0"
+MIN_SUPPORTED_VERSION = "0.8.3.dev0"
 
 CHANGES_SINCE = OrderedDict([
     ("0.6.6",
@@ -49,6 +49,15 @@ CHANGES_SINCE = OrderedDict([
      ['architecture code analyzer', 'data ports' ,'list']
      New argument 'transfers overlap' in cache levels, which may be True or False.
      **Preliminary solution! Subjected to future changes.**
+     """),
+    ("0.8.3.dev0",
+     """
+     Replaced 'micro-architecture' and 'micro-architecture modeller' with
+     'in-core model' ordered map, which allows multiple model tools to be
+     supported by a single machine file. The first entry is used by default.
+     
+     Also added stats to benchmark measurements for (manual) validation of model
+     parameters.
      """),
 ])
 
@@ -93,9 +102,10 @@ class MachineModel(object):
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'ADD': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED'}}),
-            ('micro-architecture-modeler', 'INFORMATION_REQUIRED (options: OSACA, IACA, LLVM-MCA)'),
-            ('micro-architecture',
-             'INFORMATION_REQUIRED (e.g. NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
+            ('in-core model', OrderedDict([
+                ('IACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
+                ('OSACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
+                ('LLVM-MCA', 'INFORMATION_REQUIRED (e.g., -mcpu=skylake-avx512)')])),
             ('compiler', OrderedDict([
                 ('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
                 ('clang', 'INFORMATION_REQUIRED (e.g., -O3 -mavx, -D_POSIX_C_SOURCE=200112L, check '
@@ -104,7 +114,7 @@ class MachineModel(object):
                         '--help=target | grep -- "-march="`)')])),
             ('cacheline size', 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)'),
             ('overlapping model', {
-                'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.,'
                          ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
                 'performance counter metric':
                     'INFORMATION_REQUIRED Example:'
@@ -112,7 +122,7 @@ class MachineModel(object):
                     '    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
             }),
             ('non-overlapping model', {
-                'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.)'
+                'ports': 'INFORMATION_REQUIRED (list of ports as they appear in IACA, e.g.,'
                          ', ["0", "0DV", "1", "2", "2D", "3", "3D", "4", "5", "6", "7"])',
                 'performance counter metric':
                     'INFORMATION_REQUIRED Example:'

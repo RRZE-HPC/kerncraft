@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3
+kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) CPU E5-2680 0 @ 2.70GHz
 model type: Intel Xeon SandyBridge EN/EP processor
 clock: 2.7 GHz
@@ -9,8 +9,10 @@ threads per core: 2
 NUMA domains per socket: 1
 cores per NUMA domain: 8
 
-micro-architecture: SNB
-micro-architecture-modeler: IACA
+in-core model: !!omap
+  - IACA: SNB
+  - OSACA: SNB
+  - LLVM-MCA: -mcpu=sandybridge
 
 FLOPs per cycle:
   SP: {total: 16, ADD: 8, MUL: 8}

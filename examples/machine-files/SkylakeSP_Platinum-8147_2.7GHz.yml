@@ -5,7 +5,7 @@
 # FIXME performance counters might be wrong. This will only affect the Benchmark model
 # FIXME bandwidth measurements need validataion
 # FIXME
-kerncraft version: 0.8.1.dev0
+kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) Platinum 8174 CPU @ 3.10GHz
 model type: Intel Skylake SP processor
 sockets: 2
@@ -26,7 +26,10 @@ FLOPs per cycle:
     FMA: 32
     ADD: 16
     MUL: 16
-micro-architecture: SKX
+in-core model: !!omap
+  - IACA: SKX
+  - OSACA: SKX
+  - LLVM-MCA: -mcpu=skylake-avx512
 compiler: !!omap
 - icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high
 - clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp

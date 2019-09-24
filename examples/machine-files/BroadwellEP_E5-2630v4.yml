@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3
+kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) CPU E5-2630 v4 @ 2.20GHz
 model type: Intel Xeon Broadwell EN/EP/EX processor
 clock: 2.20 GHz
@@ -9,8 +9,10 @@ threads per core: 1
 NUMA domains per socket: 1
 cores per NUMA domain: 10
 
-micro-architecture: BDW
-micro-architecture-modeler: IACA
+in-core model: !!omap
+  - IACA: BDW
+  - OSACA: BDW
+  - LLVM-MCA: -mcpu=broadwell
 
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}

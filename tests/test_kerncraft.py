@@ -329,7 +329,7 @@ class TestKerncraft(unittest.TestCase):
         output_stream = StringIO()
 
         parser = kc.create_parser()
-        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680_OSACA.yml'),
+        args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'ECMCPU',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '2000',
@@ -337,6 +337,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-vvv',
                                   '--unit=cy/CL',
                                   '--compiler=gcc',
+                                  '-i', 'OSACA',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)

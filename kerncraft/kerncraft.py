@@ -185,17 +185,21 @@ def create_parser():
     parser.add_argument('--clean-intermediates', action='store_true',
                         help='If set, will delete all intermediate files after completion.')
 
-    # Needed for ECM, ECMData and Roofline model:
+    # Needed for ECM, ECMData and Roofline models:
     parser.add_argument('--cache-predictor', '-P', choices=['LC', 'SIM'], default='SIM',
                         help='Change cache predictor to use, options are LC (layer conditions) and '
                              'SIM (cache simulation with pycachesim), default is SIM.')
 
-    # Needed for ECM, RooflineIACA and Benchmark model:
+    # Needed for ECM, RooflineIACA and Benchmark models:
     parser.add_argument('--compiler', '-C', type=str, default=None,
                         help='Compiler to use, default is first in machine description file.')
     parser.add_argument('--compiler-flags', type=str, default=None,
                         help='Compiler flags to use. If not set, flags are taken from machine '
                              'description file (-std=c99 is always added).')
+
+    # Needed for ECM and RooflineIACA models:
+    parser.add_argument('--incore-model', '-i', type=str, default=None,
+                        help='In-core model to use, default is first in machine description file.')
 
     for m in models.__all__:
         ag = parser.add_argument_group('arguments for ' + m + ' model', getattr(models, m).name)

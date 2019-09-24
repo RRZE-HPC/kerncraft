@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3
+kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz
 model type: Intel Xeon IvyBridge EN/EP/EX processor
 clock: 3.00 GHz
@@ -9,8 +9,10 @@ threads per core: 2
 NUMA domains per socket: 1
 cores per NUMA domain: 10
 
-micro-architecture: IVB
-micro-architecture-modeler: IACA
+in-core model: !!omap
+  - IACA: IVB
+  - OSACA: IVB
+  - LLVM-MCA: -mcpu=ivybridge
 
 FLOPs per cycle:
   SP: {total: 16, ADD: 8, MUL: 8}
