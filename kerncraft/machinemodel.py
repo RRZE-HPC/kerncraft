@@ -753,7 +753,7 @@ def get_available_bench_kernels(prefix="", exclude=None):
     :param exclude: do not return kernels which contain this substring
     :return: list of strings
     """
-    output = subprocess.check_output(['likwid-bench', '-a']).decode('utf-8')
+    output = subprocess.check_output(['likwid-bench', '-a']).decode('utf-8').strip().split('\n')
     return list([l[0] for l in output.split(' - ')
                  if l[0].startswith(prefix) and (exclude is None or exclude not in l[0])])
 
