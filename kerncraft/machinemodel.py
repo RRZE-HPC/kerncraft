@@ -313,7 +313,7 @@ class MachineModel(object):
                         stats = []
                         for r in range(repetitions):
                             stats.append(measure_bw(
-                                         kernel,
+                                         fastest_kernel,
                                          int(float(total_size) / 1000),
                                          threads_per_core,
                                          self['threads per core'],
