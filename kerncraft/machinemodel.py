@@ -737,7 +737,7 @@ def find_fastest_bench_kernel(kernels, *args, **kwargs):
     results = []
     for k in kernels:
         try:
-            results.append(measure_bw(k, *args, **kwargs), k)
+            results.append((measure_bw(k, *args, **kwargs), k))
         except (ValueError, subprocess.CalledProcessError):
             # Ignore failed likwid-bench runs, because some kernels may not be supported on
             # all architectures (e.g., avx512 is not supported on Sandy Bridge)
