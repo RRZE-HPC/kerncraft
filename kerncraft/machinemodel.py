@@ -280,7 +280,7 @@ class MachineModel(object):
             # Select fastest kernel version
             mem_level = 'L1'
             fastest_kernel = find_fastest_bench_kernel(
-                get_available_bench_kernels(prefix=kernel, exclude='_mem'),
+                get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
                 total_size=int(float(
                     benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
                 threads_per_core=1,
@@ -748,17 +748,28 @@ def find_fastest_bench_kernel(kernels, *args, **kwargs):
     return max(results)[1]
 
 
-def get_available_bench_kernels(prefix="", exclude=None):
+def get_available_bench_kernels(prefix="", excludes=None):
     """
     Return list of available likwid-bench kernels
     :param prefix: only return kernels which start with this prefix
-    :param exclude: do not return kernels which contain this substring
+    :param exclude: list of substrings, which must not be found in kernel name
     :return: list of strings
     """
     output = subprocess.check_output(['likwid-bench', '-a']).decode('utf-8').strip()
-    output = [l.split(' - ') for l in output.split('\n')]
-    return list([l[0] for l in output
-                 if l[0].startswith(prefix) and (exclude is None or exclude not in l[0])])
+    output = [l.split(' - ')[0] for l in output.split('\n')]
+
+    result = []
+    for l in output:
+        # Check if prefix matches
+        if l.startswith(prefix):
+
+            if e is not None:
+                # Check each exclude
+                for e in excludes:
+                    if e in l:
+                        continue
+            result.append(l)
+    return l
 
 
 def main():
