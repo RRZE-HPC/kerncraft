@@ -763,10 +763,13 @@ def get_available_bench_kernels(prefix="", excludes=[]):
         # Check if prefix matches
         if l.startswith(prefix):
             # Check each exclude
+            skip = False
             for e in excludes:
                 if e in l:
-                    continue
-            result.append(l)
+                    skip = True
+                    break
+            if not skip:
+                result.append(l)
     return result
 
 
