@@ -767,7 +767,7 @@ def get_available_bench_kernels(prefix="", excludes=[]):
                 if e in l:
                     continue
             result.append(l)
-    return l
+    return result
 
 
 def main():
