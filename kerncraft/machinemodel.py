@@ -748,7 +748,7 @@ def find_fastest_bench_kernel(kernels, *args, **kwargs):
     return max(results)[1]
 
 
-def get_available_bench_kernels(prefix="", excludes=None):
+def get_available_bench_kernels(prefix="", excludes=[]):
     """
     Return list of available likwid-bench kernels
     :param prefix: only return kernels which start with this prefix
@@ -762,12 +762,10 @@ def get_available_bench_kernels(prefix="", excludes=None):
     for l in output:
         # Check if prefix matches
         if l.startswith(prefix):
-
-            if e is not None:
-                # Check each exclude
-                for e in excludes:
-                    if e in l:
-                        continue
+            # Check each exclude
+            for e in excludes:
+                if e in l:
+                    continue
             result.append(l)
     return l
 
