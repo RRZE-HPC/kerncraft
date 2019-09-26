@@ -278,21 +278,26 @@ class MachineModel(object):
 
         for kernel in list(benchmarks['kernels'].keys()):
             # Select fastest kernel version
-            mem_level = 'L1'
-            fastest_kernel = find_fastest_bench_kernel(
-                get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
-                total_size=int(float(
-                    benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
-                threads_per_core=1,
-                max_threads_per_core=self['threads per core'],
-                cores_per_socket=1,
-                sockets=1,
-                verbose=verbose > 1)
+            if 'fastest bench kernel' not in benchmarks['kernels'][kernel] or \
+                    benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
+                mem_level = 'L1'
+                fastest_kernel = find_fastest_bench_kernel(
+                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
+                    total_size=int(float(
+                        benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
+                    threads_per_core=1,
+                    max_threads_per_core=self['threads per core'],
+                    cores_per_socket=1,
+                    sockets=1,
+                    verbose=verbose > 1)
+
+                benchmarks['kernels'][kernel]['fastest bench kernel'] = fastest_kernel
+            else:
+                fastest_kernel = benchmarks['kernels'][kernel]['fastest bench kernel']
+
             if verbose > 1:
                 print('Selected {} as fastest bench kernel for {}'.format(fastest_kernel, kernel),
                       file=sys.stderr)
-
-            benchmarks['kernels'][kernel]['fastest bench kernel'] = fastest_kernel
 
             # Run actual benchmarks and safe machine file in between
             for mem_level in list(benchmarks['measurements'].keys()):
