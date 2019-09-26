@@ -179,7 +179,8 @@ class MachineModel(object):
         """Run benchmarks and update internal dataset"""
         if not isinstance(self._data['benchmarks'], dict):
             self._data['benchmarks'] = {}
-        self._data['benchmarks']['kernels'] = {
+
+        benchmark_kernels = {
                 'load': {
                     'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
@@ -205,6 +206,9 @@ class MachineModel(object):
                     'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'FLOPs per iteration': 2}, }
+        for kernel in benchmark_kernels:
+            if kernel not in self._data['benchmarks']['kernels']:
+                self._data['benchmarks']['kernels'][kernel] = benchmark_kernels[kernel]
         benchmarks = self._data['benchmarks']
 
         if 'measurements' not in benchmarks:
