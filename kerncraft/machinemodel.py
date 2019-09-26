@@ -276,7 +276,7 @@ class MachineModel(object):
             print('Progress: ', file=sys.stderr)
             sys.stderr.flush()
 
-        for kernel in list(benchmarks['kernels'].keys()):
+        for kernel in sorted(list(benchmarks['kernels'].keys())):
             # Select fastest kernel version
             if 'fastest bench kernel' not in benchmarks['kernels'][kernel] or \
                     benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
@@ -300,8 +300,8 @@ class MachineModel(object):
                       file=sys.stderr)
 
             # Run actual benchmarks and safe machine file in between
-            for mem_level in list(benchmarks['measurements'].keys()):
-                for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
+            for mem_level in sorted(list(benchmarks['measurements'].keys())):
+                for threads_per_core in sorted(list(benchmarks['measurements'][mem_level].keys())):
                     measurement = benchmarks['measurements'][mem_level][threads_per_core]
                     if overwrite or kernel not in measurement['results'] or \
                             kernel not in measurement['stats'] or \
