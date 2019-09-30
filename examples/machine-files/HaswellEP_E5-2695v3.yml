@@ -1,7 +1,7 @@
-kerncraft version: 0.8.1.dev0
+kerncraft version: 0.8.3.dev0
 FLOPs per cycle:
-    SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
-    DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
+  SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
+  DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
 benchmarks:
   kernels:
     copy:
@@ -227,9 +227,9 @@ benchmarks:
             MB]
         threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
         threads per core: 1
-        total size: [70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB,
-          70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB,
-          70.00 MB]
+        total size: [70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
+            MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
+            MB]
       2:
         cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
         results:
@@ -254,93 +254,81 @@ benchmarks:
           5.00 MB, 4.38 MB, 3.89 MB, 3.50 MB, 3.18 MB, 2.92 MB, 2.69 MB, 2.50 MB]
         threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
         threads per core: 2
-        total size: [70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB,
-          70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB,
-          70.00 MB]
+        total size: [70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
+            MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
+            MB]
 cacheline size: 64 B
 clock: 2.3 GHz
 cores per socket: 14
 cores per NUMA domain: 14
 NUMA domains per socket: 1
-compiler:
-    !!omap
-    - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
-    - clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
-    - gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
-write-allocate: True
+compiler: !!omap
+- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
+- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
+- gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+write-allocate: true
 memory hierarchy:
-    - level: L1
-      cache per group: {
-         'sets': 64, 'ways': 8, 'cl_size': 64, # 32 kB
-         'replacement_policy': 'LRU',
-         'write_allocate': True, 'write_back': True,
-         'load_from': 'L2', 'store_to': 'L2'}
-      cores per group: 1
-      threads per group: 2
-      groups: 28
-      upstream throughput: ['architecture code analyzer', ['2D', '3D']]
-      transfers overlap: False
-      performance counter metrics:
-          accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3] + MEM_UOPS_RETIRED_STORES:PMC[0-3]
-          misses: L1D_REPLACEMENT:PMC[0-3]
-          evicts: L1D_M_EVICT:PMC[0-3]
-    - level: L2
-      cache per group: {
-         'sets': 512, 'ways': 8, 'cl_size': 64, # 256 kB
-         'replacement_policy': 'LRU',
-         'write_allocate': True, 'write_back': True,
-         'load_from': 'L3', 'store_to': 'L3'}
-      cores per group: 1
-      threads per group: 2
-      groups: 28
-      upstream throughput: [64 B/cy, 'half-duplex']
-      transfers overlap: False
-      performance counter metrics:
-          accesses: L1D_REPLACEMENT:PMC[0-3] + L1D_M_EVICT:PMC[0-3]
-          misses: L2_LINES_IN_ALL:PMC[0-3]
-          evicts: L2_TRANS_L2_WB:PMC[0-3]
-    - level: L3
-      cache per group: {
-         'sets': 35840, 'ways': 16, 'cl_size': 64, # 35 MB
-         'replacement_policy': 'LRU', 
-         'write_allocate': True, 'write_back': True}
-      cores per group: 14
-      threads per group: 28
-      groups: 2
-      upstream throughput: [32 B/cy, 'half-duplex']
-      transfers overlap: False
-      performance counter metrics:
-          accesses: L2_LINES_IN_ALL:PMC[0-3] + L2_TRANS_L2_WB:PMC[0-3]
-          misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] +
-                   CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] +
-                   CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01] +
-                   CAS_COUNT_RD:MBOX6C[01] + CAS_COUNT_RD:MBOX7C[01])
-          evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] +
-                   CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] +
-                   CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01] +
-                   CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
-    - level: MEM
-      cores per group: 14
-      upstream throughput: ['full socket memory bandwidth', 'half-duplex']
-      transfers overlap: False
-      penalty cycles per read stream: 0
-      size per group: null
-      threads per group: 28
-micro-architecture: HSW
+- level: L1
+  cache per group: {sets: 64, ways: 8, cl_size: 64, replacement_policy: LRU, write_allocate: true,
+    write_back: true, load_from: L2, store_to: L2}
+  cores per group: 1
+  threads per group: 2
+  groups: 28
+  upstream throughput: [architecture code analyzer, [2D, 3D]]
+  transfers overlap: false
+  performance counter metrics:
+    accesses: MEM_UOPS_RETIRED_LOADS:PMC[0-3] + MEM_UOPS_RETIRED_STORES:PMC[0-3]
+    misses: L1D_REPLACEMENT:PMC[0-3]
+    evicts: L1D_M_EVICT:PMC[0-3]
+- level: L2
+  cache per group: {sets: 512, ways: 8, cl_size: 64, replacement_policy: LRU, write_allocate: true,
+    write_back: true, load_from: L3, store_to: L3}
+  cores per group: 1
+  threads per group: 2
+  groups: 28
+  upstream throughput: [64 B/cy, half-duplex]
+  transfers overlap: false
+  performance counter metrics:
+    accesses: L1D_REPLACEMENT:PMC[0-3] + L1D_M_EVICT:PMC[0-3]
+    misses: L2_LINES_IN_ALL:PMC[0-3]
+    evicts: L2_TRANS_L2_WB:PMC[0-3]
+- level: L3
+  cache per group: {sets: 35840, ways: 16, cl_size: 64, replacement_policy: LRU, write_allocate: true,
+    write_back: true}
+  cores per group: 14
+  threads per group: 28
+  groups: 2
+  upstream throughput: [32 B/cy, half-duplex]
+  transfers overlap: false
+  performance counter metrics:
+    accesses: L2_LINES_IN_ALL:PMC[0-3] + L2_TRANS_L2_WB:PMC[0-3]
+    misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01]
+      + CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01]
+      + CAS_COUNT_RD:MBOX6C[01] + CAS_COUNT_RD:MBOX7C[01])
+    evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01]
+      + CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01]
+      + CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
+- level: MEM
+  cores per group: 14
+  upstream throughput: [full socket memory bandwidth, half-duplex]
+  transfers overlap: false
+  penalty cycles per read stream: 0
+  size per group:
+  threads per group: 28
+in-core model: !!omap
+  - IACA: HSW
+  - OSACA: HSW
+  - LLVM-MCA: -mcpu=haswell
 model type: Intel Core Haswell EX processor
 model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
 overlapping model:
-    ports: ["0", "0DV", "1", "2", "3", "4", "5", "6", "7"]
-    performance counter metric:
-        Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3],
-            UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
-            UOPS_EXECUTED_PORT_PORT_4:PMC[0-3],
-            UOPS_EXECUTED_PORT_PORT_5:PMC[0-3],
-            UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
-            UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
+  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+  performance counter metric: Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3], UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
+    UOPS_EXECUTED_PORT_PORT_4:PMC[0-3], UOPS_EXECUTED_PORT_PORT_5:PMC[0-3], UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
+    UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
-    ports: ["2D", "3D"]
-    performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
+  ports: [2D, 3D]
+  performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
 sockets: 2
 threads per core: 2
 

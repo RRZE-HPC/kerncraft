@@ -673,8 +673,8 @@ class Kernel(object):
         print(prefix_indent('constants: ', table), file=output_file)
 
     def incore_analysis(self, *args, **kwargs):
-        """Run IACA analysis."""
-        raise NotImplementedError("Kernel does not support compilation and iaca analysis. "
+        """Run in-core analysis (e.g., IACA)."""
+        raise NotImplementedError("Kernel does not support compilation and in-core analysis. "
                                   "Try a different model or kernel input format.")
 
     def build_executable(self, *args, **kwargs):
@@ -1533,18 +1533,19 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return out_filename
 
-    def incore_analysis(self, asm_block='auto',
-                        pointer_increment='auto_with_manual_fallback', verbose=False):
+    def incore_analysis(self, asm_block='auto', pointer_increment='auto_with_manual_fallback',
+                        model=None, verbose=False):
         """
         Run an in-core analysis and return its outcome.
 
-        *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
-        the largest block, "manual" results in interactive and a number in the according block.
-
-        *pointer_increment* is the number of bytes the pointer is incremented after the loop or
-           - 'auto': automatic detection, RuntimeError is raised in case of failure
-           - 'auto_with_manual_fallback': automatic detection, fallback to manual input
-           - 'manual': prompt user
+        :param asm_block: controls how the to-be-marked block is chosen. "auto" (default) results in
+                          the largest block, "manual" results in interactive and a number in the
+                          according block.
+        :param pointer_increment: number of bytes the pointer is incremented after the loop or
+                                   - 'auto': automatic detection, RuntimeError raised if failed
+                                   - 'auto_with_manual_fallback': like auto, fallsback to manual input
+                                   - 'manual': prompt user
+        :param model: which model to use, "IACA", "OSACA" or "LLVM-MCA"
         """
         asm_filename = self.compile_kernel(assembly=True, verbose=verbose)
         asm_marked_filename = os.path.splitext(asm_filename)[0]+'-iaca.s'
@@ -1553,21 +1554,23 @@ class KernelCode(Kernel):
                 in_file, out_file,
                 block_selection=asm_block,
                 pointer_increment=pointer_increment)
-        micro_architecture = self._machine['micro-architecture']
-        if 'micro-architecture-modeler' in self._machine and \
-                self._machine['micro-architecture-modeler'] == 'OSACA':
-            return iaca.osaca_analyse_instrumented_assembly(asm_marked_filename,
-                                                            micro_architecture), \
-                   self.asm_block
-        elif 'micro-architecture-modeler' in self._machine and \
-                self._machine['micro-architecture-modeler'] == 'LLVM-MCA':
-            return iaca.llvm_mca_analyse_instrumented_assembly(asm_marked_filename,
-                                                            micro_architecture), \
-                   self.asm_block
-        else:  # self._machine['micro-architecture-modeler'] == 'IACA'
+
+        # Get model and parameter
+        if model is None:
+            model = next(iter(self._machine['in-core model']))
+        model_parameter = self._machine['in-core model'][model]
+
+        if model == 'OSACA':
+            return iaca.osaca_analyse_instrumented_assembly(
+                asm_marked_filename, model_parameter), self.asm_block
+        elif model == 'LLVM-MCA':
+            return iaca.llvm_mca_analyse_instrumented_assembly(
+                asm_marked_filename, model_parameter), self.asm_block
+        elif model == 'IACA':
             obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
-            return iaca.iaca_analyse_instrumented_binary(obj_name, micro_architecture), \
-                   self.asm_block
+            return iaca.iaca_analyse_instrumented_binary(obj_name, model_parameter), self.asm_block
+        else:
+            raise ValueError("Unknown micro-architecture model: {!r}".format(model))
 
     def build_executable(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""

@@ -294,6 +294,7 @@ class ECMCPU(PerformanceModel):
             incore_analysis, asm_block = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
+                model=self._args.incore_model,
                 verbose=self.verbose > 2)
         except RuntimeError as e:
             print("In-core analysis failed: " + str(e))
