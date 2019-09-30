@@ -55,7 +55,7 @@ CHANGES_SINCE = OrderedDict([
      Replaced 'micro-architecture' and 'micro-architecture modeller' with
      'in-core model' ordered map, which allows multiple model tools to be
      supported by a single machine file. The first entry is used by default.
-     
+
      Also added stats to benchmark measurements for (manual) validation of model
      parameters.
      """),
@@ -302,7 +302,7 @@ class MachineModel(object):
                     benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
                 mem_level = 'L1'
                 fastest_kernel = find_fastest_bench_kernel(
-                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
+                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp', '_nt']),
                     total_size=int(float(
                         benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
                     threads_per_core=1,
