@@ -215,7 +215,6 @@ class MachineModel(object):
                 if kernel not in benchmarks['kernels']:
                     benchmarks['kernels'][kernel] = benchmark_kernels[kernel]
 
-
         if 'measurements' not in benchmarks:
             benchmarks['measurements'] = {}
 
@@ -225,7 +224,6 @@ class MachineModel(object):
                 measurement = benchmarks['measurements'][mem['level']]
             except (KeyError, TypeError):
                 measurement = benchmarks['measurements'][mem['level']] = {}
-
 
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
