@@ -1,4 +1,4 @@
-kerncraft version: 0.8.1.dev0
+kerncraft version: 0.8.3.dev0
 FLOPs per cycle:
   SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
   DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
@@ -315,7 +315,10 @@ memory hierarchy:
   penalty cycles per read stream: 0
   size per group:
   threads per group: 28
-micro-architecture: HSW
+in-core model: !!omap
+  - IACA: HSW
+  - OSACA: HSW
+  - LLVM-MCA: -mcpu=haswell
 model type: Intel Core Haswell EX processor
 model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
 overlapping model:

@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3
+kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
 model type: Intel Xeon Haswell EN/EP/EX processor
 clock: 2.3 GHz
@@ -9,8 +9,10 @@ threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 7
 
-micro-architecture: HSW
-micro-architecture-modeler: IACA
+in-core model: !!omap
+  - IACA: HSW
+  - OSACA: HSW
+  - LLVM-MCA: -mcpu=haswell
 
 FLOPs per cycle:
   SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
