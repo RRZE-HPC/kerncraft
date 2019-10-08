@@ -179,7 +179,9 @@ class MachineModel(object):
         """Run benchmarks and update internal dataset"""
         if not isinstance(self._data['benchmarks'], dict):
             self._data['benchmarks'] = {}
-        self._data['benchmarks']['kernels'] = {
+        benchmarks = self._data['benchmarks']
+
+        benchmark_kernels = {
                 'load': {
                     'read streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'read+write streams': {'streams': 0, 'bytes': PrefixedUnit(0, 'B')},
@@ -205,7 +207,13 @@ class MachineModel(object):
                     'read+write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'write streams': {'streams': 1, 'bytes': PrefixedUnit(8, 'B')},
                     'FLOPs per iteration': 2}, }
-        benchmarks = self._data['benchmarks']
+
+        if 'kernels' not in benchmarks:
+            benchmarks['kernels'] = benchmark_kernels
+        else:
+            for kernel in benchmark_kernels:
+                if kernel not in benchmarks['kernels']:
+                    benchmarks['kernels'][kernel] = benchmark_kernels[kernel]
 
         if 'measurements' not in benchmarks:
             benchmarks['measurements'] = {}
@@ -216,7 +224,6 @@ class MachineModel(object):
                 measurement = benchmarks['measurements'][mem['level']]
             except (KeyError, TypeError):
                 measurement = benchmarks['measurements'][mem['level']] = {}
-
 
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
@@ -276,10 +283,33 @@ class MachineModel(object):
             print('Progress: ', file=sys.stderr)
             sys.stderr.flush()
 
-        for mem_level in list(benchmarks['measurements'].keys()):
-            for threads_per_core in list(benchmarks['measurements'][mem_level].keys()):
-                measurement = benchmarks['measurements'][mem_level][threads_per_core]
-                for kernel in list(benchmarks['kernels'].keys()):
+        for kernel in sorted(list(benchmarks['kernels'].keys())):
+            # Select fastest kernel version
+            if 'fastest bench kernel' not in benchmarks['kernels'][kernel] or \
+                    benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
+                mem_level = 'L1'
+                fastest_kernel = find_fastest_bench_kernel(
+                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
+                    total_size=int(float(
+                        benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
+                    threads_per_core=1,
+                    max_threads_per_core=self['threads per core'],
+                    cores_per_socket=1,
+                    sockets=1,
+                    verbose=verbose > 1)
+
+                benchmarks['kernels'][kernel]['fastest bench kernel'] = fastest_kernel
+            else:
+                fastest_kernel = benchmarks['kernels'][kernel]['fastest bench kernel']
+
+            if verbose > 1:
+                print('Selected {} as fastest bench kernel for {}'.format(fastest_kernel, kernel),
+                      file=sys.stderr)
+
+            # Run actual benchmarks and safe machine file in between
+            for mem_level in sorted(list(benchmarks['measurements'].keys())):
+                for threads_per_core in sorted(list(benchmarks['measurements'][mem_level].keys())):
+                    measurement = benchmarks['measurements'][mem_level][threads_per_core]
                     if overwrite or kernel not in measurement['results'] or \
                             kernel not in measurement['stats'] or \
                             not (len(measurement['results'][kernel]) ==
@@ -295,7 +325,7 @@ class MachineModel(object):
                         stats = []
                         for r in range(repetitions):
                             stats.append(measure_bw(
-                                         kernel,
+                                         fastest_kernel,
                                          int(float(total_size) / 1000),
                                          threads_per_core,
                                          self['threads per core'],
@@ -681,7 +711,7 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
     return {'memory hierarchy': memory_hierarchy}
 
 
-def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
+def measure_bw(kernel, total_size, threads_per_core, max_threads_per_core, cores_per_socket,
                sockets, verbose=False):
     """*size* is given in kilo bytes"""
 
@@ -693,7 +723,7 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
             str(threads_per_core * cores_per_socket) +
             ':1:' + str(int(max_threads_per_core / threads_per_core))]
     # for older likwid versions add ['-g', str(sockets), '-i', str(iterations)] to cmd
-    cmd = ['likwid-bench', '-t', type_] + groups
+    cmd = ['likwid-bench', '-t', kernel] + groups
     if verbose:
         print('{:<50} = '.format(' '.join(cmd)), end='', file=sys.stderr)
 
@@ -708,6 +738,51 @@ def measure_bw(type_, total_size, threads_per_core, max_threads_per_core, cores_
 
     return PrefixedUnit(bw, 'MB/s')
 
+
+def find_fastest_bench_kernel(kernels, *args, **kwargs):
+    """
+    Measure and return fastest kernel
+
+    :param kernels: list of kernels to test
+    all other arguments will be passed onto `measure_bw(...)`
+    """
+    results = []
+    for k in kernels:
+        try:
+            results.append((measure_bw(k, *args, **kwargs), k))
+        except (ValueError, subprocess.CalledProcessError):
+            # Ignore failed likwid-bench runs, because some kernels may not be supported on
+            # all architectures (e.g., avx512 is not supported on Sandy Bridge)
+            if 'verbose' in kwargs and kwargs['verbose']:
+                print(file=sys.stderr)
+            pass
+
+    return max(results)[1]
+
+
+def get_available_bench_kernels(prefix="", excludes=[]):
+    """
+    Return list of available likwid-bench kernels
+    :param prefix: only return kernels which start with this prefix
+    :param exclude: list of substrings, which must not be found in kernel name
+    :return: list of strings
+    """
+    output = subprocess.check_output(['likwid-bench', '-a']).decode('utf-8').strip()
+    output = [l.split(' - ')[0] for l in output.split('\n')]
+
+    result = []
+    for l in output:
+        # Check if prefix matches
+        if l.startswith(prefix):
+            # Check each exclude
+            skip = False
+            for e in excludes:
+                if e in l:
+                    skip = True
+                    break
+            if not skip:
+                result.append(l)
+    return result
 
 
 def main():
