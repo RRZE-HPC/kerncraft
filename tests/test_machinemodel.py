@@ -5,6 +5,7 @@ Tests for validity of example files.
 import os
 from glob import glob
 import unittest
+from unittest import mock
 from collections import OrderedDict
 
 from kerncraft import machinemodel
@@ -29,6 +30,7 @@ class TestMachineModel(unittest.TestCase):
         self.assertEqual(self.machine['clock'].base_value(), 2700000000.0)
         self.assertEqual(self.machine['clock'].unit, "Hz")
 
+    @mock.patch('kerncraft.machinemodel.get_cpu_frequency', new=lambda: 2.2e9)
     def test_machine_model_update(self):
         # patch environment to include dummy likwid
         environ_orig = os.environ
@@ -52,7 +54,7 @@ class TestMachineModel(unittest.TestCase):
                    'NUMA domains per socket': 1,
                    'benchmarks': 'INFORMATION_REQUIRED',
                    'cacheline size': 'INFORMATION_REQUIRED (in bytes, e.g. 64 B)',
-                   'clock': PrefixedUnit(2600000000.0, '', 'Hz'),
+                   'clock': PrefixedUnit(2200000000.0, '', 'Hz'),
                    'compiler': OrderedDict(
                        [('icc', 'INFORMATION_REQUIRED (e.g., -O3 -fno-alias -xAVX)'),
                         ('clang',

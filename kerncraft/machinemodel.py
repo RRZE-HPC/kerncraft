@@ -216,7 +216,6 @@ class MachineModel(object):
                 if kernel not in benchmarks['kernels']:
                     benchmarks['kernels'][kernel] = benchmark_kernels[kernel]
 
-
         if 'measurements' not in benchmarks:
             benchmarks['measurements'] = {}
 
