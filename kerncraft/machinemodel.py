@@ -302,7 +302,7 @@ class MachineModel(object):
                     benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
                 mem_level = 'L1'
                 fastest_kernel = find_fastest_bench_kernel(
-                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp', '_nt]),
+                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp', '_nt']),
                     total_size=int(float(
                         benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
                     threads_per_core=1,
