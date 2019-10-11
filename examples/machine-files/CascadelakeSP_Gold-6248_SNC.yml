@@ -13,6 +13,7 @@ in-core model: !!omap
   - IACA: SKX  # IACA does not support anything newer than SKX, which is similar to CLX
   - OSACA: CSX
   - LLVM-MCA: -mcpu=cascadelake
+isa: x86
 
 FLOPs per cycle:
   DP: {ADD: 16, FMA: 32, MUL: 16, total: 32}

@@ -28,7 +28,7 @@ from pycparser import CParser, c_ast, plyparser
 from pycparser.c_generator import CGenerator
 
 from . import kerncraft
-from . import iaca
+from . import incore_model
 from .pycparser_utils import clean_code, replace_id
 
 
@@ -1550,7 +1550,7 @@ class KernelCode(Kernel):
         asm_filename = self.compile_kernel(assembly=True, verbose=verbose)
         asm_marked_filename = os.path.splitext(asm_filename)[0]+'-iaca.s'
         with open(asm_filename, 'r') as in_file, open(asm_marked_filename, 'w') as out_file:
-            self.asm_block = iaca.iaca_instrumentation(
+            self.asm_block = incore_model.asm_instrumentation(
                 in_file, out_file,
                 block_selection=asm_block,
                 pointer_increment=pointer_increment)
@@ -1561,14 +1561,14 @@ class KernelCode(Kernel):
         model_parameter = self._machine['in-core model'][model]
 
         if model == 'OSACA':
-            return iaca.osaca_analyse_instrumented_assembly(
+            return incore_model.osaca_analyse_instrumented_assembly(
                 asm_marked_filename, model_parameter), self.asm_block
         elif model == 'LLVM-MCA':
-            return iaca.llvm_mca_analyse_instrumented_assembly(
+            return incore_model.llvm_mca_analyse_instrumented_assembly(
                 asm_marked_filename, model_parameter), self.asm_block
         elif model == 'IACA':
             obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
-            return iaca.iaca_analyse_instrumented_binary(obj_name, model_parameter), self.asm_block
+            return incore_model.iaca_analyse_instrumented_binary(obj_name, model_parameter), self.asm_block
         else:
             raise ValueError("Unknown micro-architecture model: {!r}".format(model))
 

@@ -12,6 +12,7 @@ cores per NUMA domain: 6
 in-core model: !!omap
   - OSACA: ZEN
   - LLVM-MCA: -mcpu=znver1
+isa: x86
 
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 4, MUL: 4, total: 8}

@@ -13,6 +13,7 @@ in-core model: !!omap
   - IACA: SNB
   - OSACA: SNB
   - LLVM-MCA: -mcpu=sandybridge
+isa: x86
 
 FLOPs per cycle:
   SP: {total: 16, ADD: 8, MUL: 8}

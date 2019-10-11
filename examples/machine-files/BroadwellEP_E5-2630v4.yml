@@ -13,6 +13,7 @@ in-core model: !!omap
   - IACA: BDW
   - OSACA: BDW
   - LLVM-MCA: -mcpu=broadwell
+isa: x86
 
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}

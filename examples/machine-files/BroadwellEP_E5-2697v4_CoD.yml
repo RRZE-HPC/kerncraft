@@ -14,6 +14,7 @@ in-core model: !!omap
   - IACA: BDW
   - OSACA: BDW
   - LLVM-MCA: -mcpu=broadwell
+isa: x86
 
 compiler: !!omap
 - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp

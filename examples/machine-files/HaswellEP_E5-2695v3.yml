@@ -19,6 +19,8 @@ in-core model: !!omap
   - IACA: HSW
   - OSACA: HSW
   - LLVM-MCA: -mcpu=haswell
+isa: x86
+
 overlapping model:
   ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
   performance counter metric: Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3], UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
