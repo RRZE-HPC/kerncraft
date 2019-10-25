@@ -718,7 +718,7 @@ def measure_bw(kernel, total_size, threads_per_core, max_threads_per_core, cores
     groups = []
     for s in range(sockets):
         groups += [
-            '-w',
+            '-W',
             'S' + str(s) + ':' + str(total_size) + 'kB:' +
             str(threads_per_core * cores_per_socket) +
             ':1:' + str(int(max_threads_per_core / threads_per_core))]
@@ -730,7 +730,7 @@ def measure_bw(kernel, total_size, threads_per_core, max_threads_per_core, cores
     output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode('utf-8')
     if not output:
         print(' '.join(cmd) + ' returned no output, possibly wrong version installed '
-                              '(requires 4.0 or later)', file=sys.stderr)
+                              '(requires 5.0 or later)', file=sys.stderr)
         sys.exit(1)
     bw = float(get_match_or_break(r'^MByte/s:\s+([0-9]+(?:\.[0-9]+)?)\s*$', output)[0])
     if verbose:
