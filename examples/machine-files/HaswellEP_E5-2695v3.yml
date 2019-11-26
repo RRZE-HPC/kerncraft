@@ -1,272 +1,41 @@
 kerncraft version: 0.8.3.dev0
-FLOPs per cycle:
-  SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
-  DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
-benchmarks:
-  kernels:
-    copy:
-      FLOPs per iteration: 0
-      read streams: {bytes: 8.00 B, streams: 1}
-      read+write streams: {bytes: 0.00 B, streams: 0}
-      write streams: {bytes: 8.00 B, streams: 1}
-    daxpy:
-      FLOPs per iteration: 2
-      read streams: {bytes: 16.00 B, streams: 2}
-      read+write streams: {bytes: 8.00 B, streams: 1}
-      write streams: {bytes: 8.00 B, streams: 1}
-    load:
-      FLOPs per iteration: 0
-      read streams: {bytes: 8.00 B, streams: 1}
-      read+write streams: {bytes: 0.00 B, streams: 0}
-      write streams: {bytes: 0.00 B, streams: 0}
-    triad:
-      FLOPs per iteration: 2
-      read streams: {bytes: 24.00 B, streams: 3}
-      read+write streams: {bytes: 0.00 B, streams: 0}
-      write streams: {bytes: 8.00 B, streams: 1}
-    update:
-      FLOPs per iteration: 0
-      read streams: {bytes: 8.00 B, streams: 1}
-      read+write streams: {bytes: 8.00 B, streams: 1}
-      write streams: {bytes: 8.00 B, streams: 1}
-  measurements:
-    L1:
-      1:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [70.38 GB/s, 140.73 GB/s, 211.14 GB/s, 281.39 GB/s, 351.76 GB/s, 422.11
-              GB/s, 492.67 GB/s, 562.99 GB/s, 633.24 GB/s, 702.02 GB/s, 765.68 GB/s,
-            835.20 GB/s, 906.53 GB/s, 971.14 GB/s]
-          daxpy: [70.92 GB/s, 141.90 GB/s, 198.99 GB/s, 268.09 GB/s, 354.74 GB/s,
-            425.55 GB/s, 496.37 GB/s, 567.52 GB/s, 638.24 GB/s, 709.06 GB/s, 745.22
-              GB/s, 768.85 GB/s, 922.08 GB/s, 898.48 GB/s]
-          load: [56.15 GB/s, 112.07 GB/s, 169.00 GB/s, 225.37 GB/s, 281.61 GB/s, 337.14
-              GB/s, 394.32 GB/s, 450.68 GB/s, 506.95 GB/s, 559.02 GB/s, 619.59 GB/s,
-            675.52 GB/s, 730.13 GB/s, 782.80 GB/s]
-          triad: [69.25 GB/s, 140.16 GB/s, 210.24 GB/s, 280.41 GB/s, 350.19 GB/s,
-            420.43 GB/s, 490.47 GB/s, 560.69 GB/s, 630.63 GB/s, 700.63 GB/s, 766.44
-              GB/s, 836.34 GB/s, 905.74 GB/s, 968.42 GB/s]
-          update: [71.86 GB/s, 143.75 GB/s, 215.61 GB/s, 287.48 GB/s, 359.22 GB/s,
-            431.04 GB/s, 503.08 GB/s, 574.14 GB/s, 642.61 GB/s, 713.94 GB/s, 785.32
-              GB/s, 856.76 GB/s, 927.86 GB/s, 999.31 GB/s]
-        size per core: [16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB,
-          16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00
-            kB]
-        size per thread: [16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00
-            kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00
-            kB, 16.00 kB]
-        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        threads per core: 1
-        total size: [16.00 kB, 32.00 kB, 48.00 kB, 64.00 kB, 80.00 kB, 96.00 kB, 112.00
-            kB, 128.00 kB, 144.00 kB, 160.00 kB, 176.00 kB, 192.00 kB, 208.00 kB,
-          224.00 kB]
-      2:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [69.83 GB/s, 139.64 GB/s, 209.51 GB/s, 279.48 GB/s, 349.22 GB/s, 418.30
-              GB/s, 485.95 GB/s, 555.42 GB/s, 628.30 GB/s, 697.57 GB/s, 767.47 GB/s,
-            837.22 GB/s, 906.89 GB/s, 977.15 GB/s]
-          daxpy: [70.31 GB/s, 140.59 GB/s, 199.23 GB/s, 261.74 GB/s, 331.31 GB/s,
-            393.24 GB/s, 462.85 GB/s, 522.19 GB/s, 596.91 GB/s, 658.71 GB/s, 720.89
-              GB/s, 785.79 GB/s, 856.26 GB/s, 921.27 GB/s]
-          load: [55.26 GB/s, 110.55 GB/s, 165.83 GB/s, 221.08 GB/s, 276.31 GB/s, 331.51
-              GB/s, 386.69 GB/s, 429.76 GB/s, 480.74 GB/s, 552.24 GB/s, 595.48 GB/s,
-            662.57 GB/s, 712.00 GB/s, 773.00 GB/s]
-          triad: [69.75 GB/s, 139.50 GB/s, 207.69 GB/s, 273.37 GB/s, 344.53 GB/s,
-            403.84 GB/s, 466.52 GB/s, 557.39 GB/s, 601.48 GB/s, 694.86 GB/s, 752.65
-              GB/s, 836.35 GB/s, 874.76 GB/s, 958.67 GB/s]
-          update: [71.47 GB/s, 142.89 GB/s, 214.27 GB/s, 285.76 GB/s, 357.11 GB/s,
-            428.58 GB/s, 499.23 GB/s, 567.01 GB/s, 621.80 GB/s, 713.58 GB/s, 777.42
-              GB/s, 856.61 GB/s, 910.98 GB/s, 998.91 GB/s]
-        size per core: [16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB,
-          16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00 kB, 16.00
-            kB]
-        size per thread: [8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00
-            kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB, 8.00 kB]
-        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
-        threads per core: 2
-        total size: [16.00 kB, 32.00 kB, 48.00 kB, 64.00 kB, 80.00 kB, 96.00 kB, 112.00
-            kB, 128.00 kB, 144.00 kB, 160.00 kB, 176.00 kB, 192.00 kB, 208.00 kB,
-          224.00 kB]
-    L2:
-      1:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [35.20 GB/s, 68.74 GB/s, 103.29 GB/s, 138.28 GB/s, 168.58 GB/s, 196.79
-              GB/s, 238.14 GB/s, 282.75 GB/s, 309.34 GB/s, 355.90 GB/s, 375.01 GB/s,
-            423.45 GB/s, 458.42 GB/s, 481.46 GB/s]
-          daxpy: [48.86 GB/s, 93.50 GB/s, 144.63 GB/s, 187.63 GB/s, 236.79 GB/s, 257.57
-              GB/s, 336.88 GB/s, 371.05 GB/s, 419.60 GB/s, 472.79 GB/s, 508.12 GB/s,
-            540.18 GB/s, 626.93 GB/s, 659.17 GB/s]
-          load: [37.49 GB/s, 73.99 GB/s, 111.31 GB/s, 128.29 GB/s, 184.96 GB/s, 193.79
-              GB/s, 223.22 GB/s, 264.56 GB/s, 295.04 GB/s, 372.53 GB/s, 409.94 GB/s,
-            446.29 GB/s, 422.20 GB/s, 459.20 GB/s]
-          triad: [40.31 GB/s, 73.51 GB/s, 119.69 GB/s, 159.22 GB/s, 199.53 GB/s, 240.07
-              GB/s, 279.94 GB/s, 297.88 GB/s, 345.29 GB/s, 396.00 GB/s, 436.71 GB/s,
-            430.09 GB/s, 490.18 GB/s, 543.98 GB/s]
-          update: [43.87 GB/s, 88.20 GB/s, 131.64 GB/s, 175.45 GB/s, 218.57 GB/s,
-            262.51 GB/s, 305.75 GB/s, 351.77 GB/s, 396.79 GB/s, 438.12 GB/s, 449.24
-              GB/s, 515.36 GB/s, 550.92 GB/s, 609.10 GB/s]
-        size per core: [128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00
-            kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB,
-          128.00 kB, 128.00 kB]
-        size per thread: [128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00
-            kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB,
-          128.00 kB, 128.00 kB]
-        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        threads per core: 1
-        total size: [128.00 kB, 256.00 kB, 384.00 kB, 512.00 kB, 640.00 kB, 768.00
-            kB, 0.90 MB, 1.02 MB, 1.15 MB, 1.28 MB, 1.41 MB, 1.54 MB, 1.66 MB, 1.79
-            MB]
-      2:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [36.61 GB/s, 72.03 GB/s, 109.65 GB/s, 143.75 GB/s, 182.79 GB/s, 212.92
-              GB/s, 256.34 GB/s, 287.74 GB/s, 321.19 GB/s, 355.39 GB/s, 364.06 GB/s,
-            430.56 GB/s, 475.61 GB/s, 512.28 GB/s]
-          daxpy: [49.47 GB/s, 98.06 GB/s, 147.07 GB/s, 195.65 GB/s, 244.64 GB/s, 293.83
-              GB/s, 337.65 GB/s, 363.15 GB/s, 406.71 GB/s, 479.81 GB/s, 538.68 GB/s,
-            582.33 GB/s, 602.97 GB/s, 675.06 GB/s]
-          load: [40.40 GB/s, 80.38 GB/s, 120.81 GB/s, 159.64 GB/s, 200.80 GB/s, 220.80
-              GB/s, 280.29 GB/s, 303.14 GB/s, 340.33 GB/s, 375.39 GB/s, 412.59 GB/s,
-            443.05 GB/s, 469.19 GB/s, 509.94 GB/s]
-          triad: [43.03 GB/s, 85.91 GB/s, 129.64 GB/s, 163.05 GB/s, 196.66 GB/s, 219.83
-              GB/s, 285.71 GB/s, 345.04 GB/s, 360.67 GB/s, 406.72 GB/s, 438.79 GB/s,
-            515.72 GB/s, 515.17 GB/s, 567.45 GB/s]
-          update: [45.13 GB/s, 90.07 GB/s, 133.05 GB/s, 179.33 GB/s, 224.64 GB/s,
-            261.58 GB/s, 314.18 GB/s, 359.08 GB/s, 403.71 GB/s, 429.81 GB/s, 493.88
-              GB/s, 537.88 GB/s, 583.71 GB/s, 628.45 GB/s]
-        size per core: [128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00
-            kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB, 128.00 kB,
-          128.00 kB, 128.00 kB]
-        size per thread: [64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00
-            kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00 kB, 64.00
-            kB, 64.00 kB]
-        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
-        threads per core: 2
-        total size: [128.00 kB, 256.00 kB, 384.00 kB, 512.00 kB, 640.00 kB, 768.00
-            kB, 0.90 MB, 1.02 MB, 1.15 MB, 1.28 MB, 1.41 MB, 1.54 MB, 1.66 MB, 1.79
-            MB]
-    L3:
-      1:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [17.72 GB/s, 34.64 GB/s, 58.55 GB/s, 77.45 GB/s, 95.88 GB/s, 114.64
-              GB/s, 133.42 GB/s, 151.69 GB/s, 170.08 GB/s, 190.68 GB/s, 205.96 GB/s,
-            220.89 GB/s, 235.53 GB/s, 250.90 GB/s]
-          daxpy: [24.97 GB/s, 48.67 GB/s, 82.09 GB/s, 111.01 GB/s, 135.84 GB/s, 162.99
-              GB/s, 188.80 GB/s, 214.75 GB/s, 240.42 GB/s, 268.28 GB/s, 293.19 GB/s,
-            312.17 GB/s, 333.72 GB/s, 355.18 GB/s]
-          load: [21.37 GB/s, 41.60 GB/s, 71.47 GB/s, 95.22 GB/s, 120.53 GB/s, 142.55
-              GB/s, 164.10 GB/s, 187.66 GB/s, 211.04 GB/s, 233.78 GB/s, 253.40 GB/s,
-            276.75 GB/s, 295.24 GB/s, 312.06 GB/s]
-          triad: [20.92 GB/s, 40.87 GB/s, 68.85 GB/s, 91.78 GB/s, 114.88 GB/s, 136.18
-              GB/s, 157.94 GB/s, 179.87 GB/s, 201.27 GB/s, 222.99 GB/s, 242.77 GB/s,
-            264.25 GB/s, 278.31 GB/s, 296.30 GB/s]
-          update: [25.28 GB/s, 50.23 GB/s, 77.93 GB/s, 103.32 GB/s, 135.57 GB/s, 163.68
-              GB/s, 190.08 GB/s, 217.70 GB/s, 248.08 GB/s, 269.28 GB/s, 290.89 GB/s,
-            314.59 GB/s, 336.40 GB/s, 359.15 GB/s]
-        size per core: [1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25
-            MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB]
-        size per thread: [1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25
-            MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB]
-        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        threads per core: 1
-        total size: [1.25 MB, 2.50 MB, 3.75 MB, 5.00 MB, 6.25 MB, 7.50 MB, 8.75 MB,
-          10.00 MB, 11.25 MB, 12.50 MB, 13.75 MB, 15.00 MB, 16.25 MB, 17.50 MB]
-      2:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [18.78 GB/s, 36.73 GB/s, 61.68 GB/s, 82.10 GB/s, 102.26 GB/s, 122.12
-              GB/s, 142.21 GB/s, 161.90 GB/s, 180.79 GB/s, 200.35 GB/s, 217.85 GB/s,
-            235.70 GB/s, 251.10 GB/s, 267.83 GB/s]
-          daxpy: [27.01 GB/s, 52.79 GB/s, 89.30 GB/s, 118.83 GB/s, 148.07 GB/s, 177.04
-              GB/s, 205.93 GB/s, 234.43 GB/s, 261.59 GB/s, 290.39 GB/s, 314.25 GB/s,
-            339.93 GB/s, 362.55 GB/s, 386.14 GB/s]
-          load: [27.34 GB/s, 53.56 GB/s, 83.03 GB/s, 110.46 GB/s, 137.55 GB/s, 164.18
-              GB/s, 188.96 GB/s, 215.42 GB/s, 241.98 GB/s, 268.00 GB/s, 293.14 GB/s,
-            315.86 GB/s, 333.32 GB/s, 354.92 GB/s]
-          triad: [21.72 GB/s, 42.36 GB/s, 72.39 GB/s, 96.30 GB/s, 119.81 GB/s, 143.13
-              GB/s, 166.09 GB/s, 188.96 GB/s, 211.32 GB/s, 233.90 GB/s, 254.61 GB/s,
-            275.24 GB/s, 291.64 GB/s, 310.32 GB/s]
-          update: [27.56 GB/s, 54.03 GB/s, 85.12 GB/s, 117.75 GB/s, 149.94 GB/s, 179.27
-              GB/s, 208.55 GB/s, 237.57 GB/s, 266.34 GB/s, 294.73 GB/s, 318.52 GB/s,
-            344.60 GB/s, 368.35 GB/s, 393.48 GB/s]
-        size per core: [1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25
-            MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB, 1.25 MB]
-        size per thread: [625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00
-            kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB, 625.00 kB,
-          625.00 kB, 625.00 kB]
-        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
-        threads per core: 2
-        total size: [1.25 MB, 2.50 MB, 3.75 MB, 5.00 MB, 6.25 MB, 7.50 MB, 8.75 MB,
-          10.00 MB, 11.25 MB, 12.50 MB, 13.75 MB, 15.00 MB, 16.25 MB, 17.50 MB]
-    MEM:
-      1:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [9.08 GB/s, 18.48 GB/s, 25.67 GB/s, 29.63 GB/s, 31.76 GB/s, 31.99
-              GB/s, 33.10 GB/s, 32.24 GB/s, 33.40 GB/s, 33.07 GB/s, 33.77 GB/s, 33.13
-              GB/s, 33.87 GB/s, 34.08 GB/s]
-          daxpy: [13.63 GB/s, 27.91 GB/s, 38.54 GB/s, 44.73 GB/s, 46.99 GB/s, 50.14
-              GB/s, 49.69 GB/s, 51.30 GB/s, 49.61 GB/s, 51.68 GB/s, 48.65 GB/s, 52.08
-              GB/s, 50.04 GB/s, 52.29 GB/s]
-          load: [9.06 GB/s, 18.27 GB/s, 29.97 GB/s, 40.34 GB/s, 50.23 GB/s, 55.74
-              GB/s, 60.26 GB/s, 61.54 GB/s, 62.33 GB/s, 62.24 GB/s, 62.29 GB/s, 62.79
-              GB/s, 62.57 GB/s, 62.86 GB/s]
-          triad: [10.40 GB/s, 21.86 GB/s, 30.09 GB/s, 35.85 GB/s, 37.84 GB/s, 40.90
-              GB/s, 40.75 GB/s, 42.22 GB/s, 41.28 GB/s, 43.47 GB/s, 41.96 GB/s, 42.91
-              GB/s, 41.42 GB/s, 43.42 GB/s]
-          update: [13.96 GB/s, 28.05 GB/s, 38.27 GB/s, 44.37 GB/s, 46.32 GB/s, 46.40
-              GB/s, 46.26 GB/s, 45.36 GB/s, 45.62 GB/s, 46.00 GB/s, 45.85 GB/s, 46.23
-              GB/s, 45.87 GB/s, 46.21 GB/s]
-        size per core: [70.00 MB, 35.00 MB, 23.33 MB, 17.50 MB, 14.00 MB, 11.67 MB,
-          10.00 MB, 8.75 MB, 7.78 MB, 7.00 MB, 6.36 MB, 5.83 MB, 5.38 MB, 5.00 MB]
-        size per thread: [70.00 MB, 35.00 MB, 23.33 MB, 17.50 MB, 14.00 MB, 11.67
-            MB, 10.00 MB, 8.75 MB, 7.78 MB, 7.00 MB, 6.36 MB, 5.83 MB, 5.38 MB, 5.00
-            MB]
-        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        threads per core: 1
-        total size: [70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
-            MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
-            MB]
-      2:
-        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        results:
-          copy: [9.43 GB/s, 19.62 GB/s, 26.63 GB/s, 30.88 GB/s, 33.39 GB/s, 33.51
-              GB/s, 34.25 GB/s, 34.02 GB/s, 34.27 GB/s, 34.32 GB/s, 34.49 GB/s, 35.01
-              GB/s, 35.22 GB/s, 34.52 GB/s]
-          daxpy: [14.52 GB/s, 30.32 GB/s, 40.16 GB/s, 46.76 GB/s, 47.56 GB/s, 49.78
-              GB/s, 48.45 GB/s, 50.15 GB/s, 48.50 GB/s, 50.94 GB/s, 51.50 GB/s, 52.76
-              GB/s, 52.13 GB/s, 51.73 GB/s]
-          load: [11.03 GB/s, 23.44 GB/s, 35.46 GB/s, 46.57 GB/s, 55.60 GB/s, 60.08
-              GB/s, 60.34 GB/s, 62.01 GB/s, 62.67 GB/s, 62.85 GB/s, 62.45 GB/s, 62.80
-              GB/s, 62.39 GB/s, 62.71 GB/s]
-          triad: [10.98 GB/s, 23.05 GB/s, 32.02 GB/s, 37.33 GB/s, 40.59 GB/s, 41.22
-              GB/s, 42.66 GB/s, 42.78 GB/s, 43.54 GB/s, 43.53 GB/s, 44.25 GB/s, 44.34
-              GB/s, 44.17 GB/s, 44.49 GB/s]
-          update: [15.43 GB/s, 31.93 GB/s, 42.08 GB/s, 45.67 GB/s, 44.80 GB/s, 44.92
-              GB/s, 44.74 GB/s, 44.89 GB/s, 44.57 GB/s, 44.78 GB/s, 45.17 GB/s, 45.29
-              GB/s, 45.46 GB/s, 45.56 GB/s]
-        size per core: [70.00 MB, 35.00 MB, 23.33 MB, 17.50 MB, 14.00 MB, 11.67 MB,
-          10.00 MB, 8.75 MB, 7.78 MB, 7.00 MB, 6.36 MB, 5.83 MB, 5.38 MB, 5.00 MB]
-        size per thread: [35.00 MB, 17.50 MB, 11.67 MB, 8.75 MB, 7.00 MB, 5.83 MB,
-          5.00 MB, 4.38 MB, 3.89 MB, 3.50 MB, 3.18 MB, 2.92 MB, 2.69 MB, 2.50 MB]
-        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
-        threads per core: 2
-        total size: [70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
-            MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00 MB, 70.00
-            MB]
-cacheline size: 64 B
+
+model type: Intel Core Haswell EX processor
+model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
 clock: 2.3 GHz
+
+sockets: 2
+threads per core: 2
 cores per socket: 14
 cores per NUMA domain: 14
 NUMA domains per socket: 1
+
 compiler: !!omap
 - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
 - clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
 - gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+
+in-core model: !!omap
+  - IACA: HSW
+  - OSACA: HSW
+  - LLVM-MCA: -mcpu=haswell
+isa: x86
+
+overlapping model:
+  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+  performance counter metric: Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3], UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
+    UOPS_EXECUTED_PORT_PORT_4:PMC[0-3], UOPS_EXECUTED_PORT_PORT_5:PMC[0-3], UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
+    UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
+non-overlapping model:
+  ports: [2D, 3D]
+  performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
+
+FLOPs per cycle:
+  SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}
+  DP: {total: 16, FMA: 8, ADD: 4, MUL: 4}
+
 write-allocate: true
+cacheline size: 64 B
 memory hierarchy:
 - level: L1
   cache per group: {sets: 64, ways: 8, cl_size: 64, replacement_policy: LRU, write_allocate: true,
@@ -315,20 +84,1436 @@ memory hierarchy:
   penalty cycles per read stream: 0
   size per group:
   threads per group: 28
-in-core model: !!omap
-  - IACA: HSW
-  - OSACA: HSW
-  - LLVM-MCA: -mcpu=haswell
-model type: Intel Core Haswell EX processor
-model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
-overlapping model:
-  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
-  performance counter metric: Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3], UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
-    UOPS_EXECUTED_PORT_PORT_4:PMC[0-3], UOPS_EXECUTED_PORT_PORT_5:PMC[0-3], UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
-    UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
-non-overlapping model:
-  ports: [2D, 3D]
-  performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
-sockets: 2
-threads per core: 2
+
+benchmarks:
+  kernels:
+    copy:
+      FLOPs per iteration: 0
+      fastest bench kernel: copy_avx
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 8.00 B, streams: 1}
+    daxpy:
+      FLOPs per iteration: 2
+      fastest bench kernel: daxpy_avx_fma
+      read streams: {bytes: 16.00 B, streams: 2}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
+    load:
+      FLOPs per iteration: 0
+      fastest bench kernel: load_avx
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 0.00 B, streams: 0}
+    triad:
+      FLOPs per iteration: 2
+      fastest bench kernel: triad_avx_fma
+      read streams: {bytes: 24.00 B, streams: 3}
+      read+write streams: {bytes: 0.00 B, streams: 0}
+      write streams: {bytes: 8.00 B, streams: 1}
+    update:
+      FLOPs per iteration: 0
+      fastest bench kernel: update_avx
+      read streams: {bytes: 8.00 B, streams: 1}
+      read+write streams: {bytes: 8.00 B, streams: 1}
+      write streams: {bytes: 8.00 B, streams: 1}
+  measurements:
+    L1:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [138.00 GB/s, 275.99 GB/s, 409.64 GB/s, 541.37 GB/s, 689.75 GB/s,
+            808.77 GB/s, 943.58 GB/s, 1078.41 GB/s, 1213.14 GB/s, 1348.07 GB/s, 1482.73
+              GB/s, 1617.53 GB/s, 1752.36 GB/s, 1886.68 GB/s]
+          daxpy: [140.24 GB/s, 280.33 GB/s, 420.59 GB/s, 520.79 GB/s, 700.96 GB/s,
+            735.75 GB/s, 968.23 GB/s, 1106.54 GB/s, 1091.39 GB/s, 1386.75 GB/s, 1525.46
+              GB/s, 1575.39 GB/s, 1537.90 GB/s, 1676.92 GB/s]
+          load: [134.63 GB/s, 270.52 GB/s, 406.12 GB/s, 538.09 GB/s, 674.57 GB/s,
+            812.79 GB/s, 938.88 GB/s, 1073.61 GB/s, 1212.52 GB/s, 1342.79 GB/s, 1475.62
+              GB/s, 1612.04 GB/s, 1742.06 GB/s, 1857.01 GB/s]
+          triad: [136.94 GB/s, 259.29 GB/s, 404.21 GB/s, 523.79 GB/s, 666.04 GB/s,
+            798.28 GB/s, 908.80 GB/s, 1037.09 GB/s, 1168.17 GB/s, 1290.62 GB/s, 1435.94
+              GB/s, 1566.82 GB/s, 1675.89 GB/s, 1771.36 GB/s]
+          update: [142.23 GB/s, 273.07 GB/s, 420.58 GB/s, 565.84 GB/s, 696.95 GB/s,
+            820.10 GB/s, 985.02 GB/s, 1092.56 GB/s, 1260.05 GB/s, 1323.79 GB/s, 1540.10
+              GB/s, 1627.86 GB/s, 1820.31 GB/s, 1827.65 GB/s]
+        size per core: [21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB,
+          21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12
+            kB]
+        size per thread: [21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12
+            kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12
+            kB, 21.12 kB]
+        stats:
+          copy:
+          - [137.95 GB/s, 137.95 GB/s, 137.96 GB/s, 137.95 GB/s, 137.95 GB/s, 137.95
+              GB/s, 137.96 GB/s, 138.00 GB/s, 137.96 GB/s, 137.96 GB/s]
+          - [275.99 GB/s, 275.85 GB/s, 275.92 GB/s, 275.91 GB/s, 275.92 GB/s, 275.92
+              GB/s, 275.93 GB/s, 275.92 GB/s, 275.90 GB/s, 275.98 GB/s]
+          - [409.61 GB/s, 409.57 GB/s, 409.62 GB/s, 409.57 GB/s, 409.63 GB/s, 409.55
+              GB/s, 409.63 GB/s, 409.58 GB/s, 409.62 GB/s, 409.64 GB/s]
+          - [541.30 GB/s, 541.33 GB/s, 541.34 GB/s, 541.35 GB/s, 541.33 GB/s, 541.34
+              GB/s, 541.37 GB/s, 541.30 GB/s, 541.36 GB/s, 541.37 GB/s]
+          - [689.72 GB/s, 689.73 GB/s, 689.59 GB/s, 689.74 GB/s, 689.75 GB/s, 689.68
+              GB/s, 689.73 GB/s, 689.74 GB/s, 689.69 GB/s, 689.73 GB/s]
+          - [808.41 GB/s, 808.43 GB/s, 808.45 GB/s, 808.41 GB/s, 808.41 GB/s, 808.65
+              GB/s, 808.45 GB/s, 808.77 GB/s, 808.41 GB/s, 808.45 GB/s]
+          - [943.58 GB/s, 943.05 GB/s, 943.17 GB/s, 943.09 GB/s, 943.18 GB/s, 943.09
+              GB/s, 943.16 GB/s, 943.13 GB/s, 943.57 GB/s, 943.16 GB/s]
+          - [1078.34 GB/s, 1078.41 GB/s, 1078.35 GB/s, 1078.35 GB/s, 1078.36 GB/s,
+            1078.39 GB/s, 1078.37 GB/s, 1078.32 GB/s, 1078.34 GB/s, 1070.37 GB/s]
+          - [1212.58 GB/s, 1212.59 GB/s, 1213.14 GB/s, 1212.66 GB/s, 1212.59 GB/s,
+            1212.58 GB/s, 1212.55 GB/s, 1212.56 GB/s, 1212.59 GB/s, 1212.55 GB/s]
+          - [1347.75 GB/s, 1347.90 GB/s, 1347.86 GB/s, 1347.77 GB/s, 1348.03 GB/s,
+            1347.92 GB/s, 1347.90 GB/s, 1347.99 GB/s, 1348.07 GB/s, 1347.90 GB/s]
+          - [1482.20 GB/s, 1472.53 GB/s, 1482.72 GB/s, 1482.71 GB/s, 1482.69 GB/s,
+            1482.18 GB/s, 1482.68 GB/s, 1482.70 GB/s, 1482.70 GB/s, 1482.73 GB/s]
+          - [1617.21 GB/s, 1617.47 GB/s, 1617.53 GB/s, 1617.44 GB/s, 1617.49 GB/s,
+            1617.48 GB/s, 1617.50 GB/s, 1576.69 GB/s, 1617.43 GB/s, 1617.49 GB/s]
+          - [1752.36 GB/s, 1752.24 GB/s, 1752.26 GB/s, 1714.37 GB/s, 1746.05 GB/s,
+            1752.26 GB/s, 1752.20 GB/s, 1752.14 GB/s, 1752.36 GB/s, 1751.90 GB/s]
+          - [1886.56 GB/s, 1886.68 GB/s, 1886.55 GB/s, 1886.50 GB/s, 1886.59 GB/s,
+            1886.57 GB/s, 1886.64 GB/s, 1886.50 GB/s, 1886.59 GB/s, 1886.58 GB/s]
+          daxpy:
+          - [140.24 GB/s, 140.23 GB/s, 140.23 GB/s, 140.23 GB/s, 140.23 GB/s, 140.20
+              GB/s, 140.20 GB/s, 140.20 GB/s, 140.23 GB/s, 140.22 GB/s]
+          - [240.63 GB/s, 243.16 GB/s, 233.69 GB/s, 280.33 GB/s, 266.97 GB/s, 253.79
+              GB/s, 237.28 GB/s, 233.58 GB/s, 225.72 GB/s, 226.58 GB/s]
+          - [405.67 GB/s, 320.56 GB/s, 328.51 GB/s, 350.74 GB/s, 342.58 GB/s, 420.58
+              GB/s, 420.59 GB/s, 360.56 GB/s, 347.53 GB/s, 351.24 GB/s]
+          - [501.88 GB/s, 453.02 GB/s, 467.87 GB/s, 446.70 GB/s, 482.43 GB/s, 451.01
+              GB/s, 452.69 GB/s, 451.58 GB/s, 520.79 GB/s, 469.81 GB/s]
+          - [593.05 GB/s, 596.92 GB/s, 591.32 GB/s, 600.74 GB/s, 700.96 GB/s, 582.42
+              GB/s, 580.18 GB/s, 584.58 GB/s, 633.88 GB/s, 584.06 GB/s]
+          - [691.95 GB/s, 658.91 GB/s, 693.46 GB/s, 703.10 GB/s, 627.15 GB/s, 710.00
+              GB/s, 735.75 GB/s, 669.43 GB/s, 728.64 GB/s, 693.45 GB/s]
+          - [833.10 GB/s, 797.60 GB/s, 968.23 GB/s, 776.21 GB/s, 850.16 GB/s, 828.73
+              GB/s, 818.23 GB/s, 654.15 GB/s, 875.84 GB/s, 668.12 GB/s]
+          - [924.59 GB/s, 953.23 GB/s, 921.49 GB/s, 928.82 GB/s, 894.83 GB/s, 919.21
+              GB/s, 971.54 GB/s, 967.89 GB/s, 946.42 GB/s, 1106.54 GB/s]
+          - [1030.36 GB/s, 982.13 GB/s, 1091.39 GB/s, 1036.26 GB/s, 868.22 GB/s, 1091.36
+              GB/s, 874.28 GB/s, 1065.48 GB/s, 1068.83 GB/s, 1039.88 GB/s]
+          - [1386.75 GB/s, 1248.32 GB/s, 982.09 GB/s, 1198.57 GB/s, 1200.20 GB/s,
+            1199.75 GB/s, 1148.34 GB/s, 1193.13 GB/s, 1165.46 GB/s, 1184.89 GB/s]
+          - [1285.99 GB/s, 1303.46 GB/s, 1525.46 GB/s, 1292.18 GB/s, 1101.69 GB/s,
+            1286.92 GB/s, 1397.90 GB/s, 1313.92 GB/s, 1094.31 GB/s, 1278.12 GB/s]
+          - [1431.66 GB/s, 1377.84 GB/s, 1461.08 GB/s, 1147.13 GB/s, 1575.39 GB/s,
+            1243.95 GB/s, 1429.75 GB/s, 1441.86 GB/s, 1176.43 GB/s, 1409.63 GB/s]
+          - [1537.90 GB/s, 1220.82 GB/s, 1361.08 GB/s, 1408.22 GB/s, 1401.50 GB/s,
+            1309.26 GB/s, 1509.34 GB/s, 1449.36 GB/s, 1346.96 GB/s, 1426.01 GB/s]
+          - [1406.63 GB/s, 1446.36 GB/s, 1602.96 GB/s, 1497.00 GB/s, 1330.01 GB/s,
+            1532.03 GB/s, 1463.25 GB/s, 1418.28 GB/s, 1676.92 GB/s, 1637.12 GB/s]
+          load:
+          - [132.66 GB/s, 132.67 GB/s, 134.63 GB/s, 132.75 GB/s, 132.65 GB/s, 132.65
+              GB/s, 134.21 GB/s, 132.84 GB/s, 132.73 GB/s, 132.76 GB/s]
+          - [266.86 GB/s, 265.61 GB/s, 265.50 GB/s, 270.52 GB/s, 265.33 GB/s, 265.30
+              GB/s, 265.31 GB/s, 269.73 GB/s, 265.34 GB/s, 265.41 GB/s]
+          - [398.62 GB/s, 401.51 GB/s, 398.55 GB/s, 398.46 GB/s, 397.98 GB/s, 397.67
+              GB/s, 397.84 GB/s, 398.61 GB/s, 406.12 GB/s, 398.93 GB/s]
+          - [531.17 GB/s, 531.45 GB/s, 538.09 GB/s, 530.63 GB/s, 530.91 GB/s, 530.65
+              GB/s, 531.41 GB/s, 531.41 GB/s, 531.35 GB/s, 530.60 GB/s]
+          - [665.60 GB/s, 663.44 GB/s, 663.31 GB/s, 674.57 GB/s, 663.32 GB/s, 663.44
+              GB/s, 663.25 GB/s, 664.01 GB/s, 663.17 GB/s, 663.20 GB/s]
+          - [799.56 GB/s, 804.18 GB/s, 799.64 GB/s, 799.66 GB/s, 812.79 GB/s, 802.59
+              GB/s, 800.79 GB/s, 799.60 GB/s, 800.42 GB/s, 802.16 GB/s]
+          - [928.68 GB/s, 929.64 GB/s, 938.88 GB/s, 928.79 GB/s, 928.69 GB/s, 928.72
+              GB/s, 937.88 GB/s, 928.64 GB/s, 930.00 GB/s, 928.72 GB/s]
+          - [1062.73 GB/s, 1061.22 GB/s, 1061.32 GB/s, 1073.61 GB/s, 1062.60 GB/s,
+            1061.38 GB/s, 1061.79 GB/s, 1073.46 GB/s, 1061.10 GB/s, 1061.39 GB/s]
+          - [1193.99 GB/s, 1199.87 GB/s, 1193.86 GB/s, 1195.57 GB/s, 1212.52 GB/s,
+            1197.79 GB/s, 1193.85 GB/s, 1195.83 GB/s, 1211.01 GB/s, 1197.10 GB/s]
+          - [1326.35 GB/s, 1328.50 GB/s, 1337.98 GB/s, 1328.62 GB/s, 1326.77 GB/s,
+            1326.64 GB/s, 1335.38 GB/s, 1328.13 GB/s, 1326.61 GB/s, 1342.79 GB/s]
+          - [1460.65 GB/s, 1460.56 GB/s, 1459.33 GB/s, 1475.62 GB/s, 1461.08 GB/s,
+            1459.15 GB/s, 1459.21 GB/s, 1472.55 GB/s, 1460.24 GB/s, 1459.26 GB/s]
+          - [1612.04 GB/s, 1602.53 GB/s, 1591.97 GB/s, 1594.09 GB/s, 1600.56 GB/s,
+            1598.12 GB/s, 1591.87 GB/s, 1591.79 GB/s, 1605.71 GB/s, 1595.91 GB/s]
+          - [1724.11 GB/s, 1725.90 GB/s, 1742.06 GB/s, 1724.21 GB/s, 1726.40 GB/s,
+            1724.54 GB/s, 1724.38 GB/s, 1724.59 GB/s, 1725.99 GB/s, 1726.07 GB/s]
+          - [1840.81 GB/s, 1856.64 GB/s, 1856.51 GB/s, 1856.67 GB/s, 1856.56 GB/s,
+            1856.99 GB/s, 1856.37 GB/s, 1856.68 GB/s, 1857.01 GB/s, 1856.52 GB/s]
+          triad:
+          - [136.89 GB/s, 136.90 GB/s, 136.88 GB/s, 136.89 GB/s, 136.90 GB/s, 136.90
+              GB/s, 136.94 GB/s, 136.90 GB/s, 136.89 GB/s, 136.89 GB/s]
+          - [258.80 GB/s, 258.05 GB/s, 257.16 GB/s, 257.27 GB/s, 258.71 GB/s, 257.95
+              GB/s, 257.17 GB/s, 257.68 GB/s, 259.29 GB/s, 257.29 GB/s]
+          - [402.31 GB/s, 403.90 GB/s, 402.23 GB/s, 402.61 GB/s, 402.52 GB/s, 403.37
+              GB/s, 402.38 GB/s, 402.23 GB/s, 402.40 GB/s, 404.21 GB/s]
+          - [522.53 GB/s, 522.76 GB/s, 522.73 GB/s, 523.20 GB/s, 523.07 GB/s, 523.41
+              GB/s, 522.77 GB/s, 523.79 GB/s, 522.42 GB/s, 521.95 GB/s]
+          - [666.04 GB/s, 663.76 GB/s, 665.72 GB/s, 663.96 GB/s, 665.83 GB/s, 665.83
+              GB/s, 664.82 GB/s, 664.43 GB/s, 665.41 GB/s, 665.77 GB/s]
+          - [797.77 GB/s, 759.78 GB/s, 797.73 GB/s, 797.22 GB/s, 797.77 GB/s, 798.28
+              GB/s, 797.71 GB/s, 797.59 GB/s, 797.33 GB/s, 798.28 GB/s]
+          - [905.72 GB/s, 898.19 GB/s, 906.79 GB/s, 907.56 GB/s, 905.99 GB/s, 878.76
+              GB/s, 908.80 GB/s, 905.84 GB/s, 900.34 GB/s, 906.66 GB/s]
+          - [1036.06 GB/s, 1035.96 GB/s, 1035.32 GB/s, 1035.86 GB/s, 1033.86 GB/s,
+            1034.79 GB/s, 1034.32 GB/s, 1035.92 GB/s, 1037.09 GB/s, 1035.39 GB/s]
+          - [1157.16 GB/s, 1168.17 GB/s, 1163.78 GB/s, 1164.23 GB/s, 1166.19 GB/s,
+            1167.36 GB/s, 1164.70 GB/s, 1164.86 GB/s, 1164.94 GB/s, 1164.09 GB/s]
+          - [1290.28 GB/s, 1283.10 GB/s, 1290.62 GB/s, 1285.35 GB/s, 1284.28 GB/s,
+            1258.59 GB/s, 1282.70 GB/s, 1285.66 GB/s, 1228.45 GB/s, 1285.93 GB/s]
+          - [1429.01 GB/s, 1435.94 GB/s, 1431.75 GB/s, 1429.03 GB/s, 1429.08 GB/s,
+            1428.91 GB/s, 1432.89 GB/s, 1429.32 GB/s, 1429.21 GB/s, 1428.91 GB/s]
+          - [1566.82 GB/s, 1535.79 GB/s, 1464.46 GB/s, 1562.42 GB/s, 1540.45 GB/s,
+            1535.80 GB/s, 1558.92 GB/s, 1546.61 GB/s, 1546.35 GB/s, 1559.06 GB/s]
+          - [1671.72 GB/s, 1673.23 GB/s, 1673.74 GB/s, 1668.81 GB/s, 1673.93 GB/s,
+            1670.66 GB/s, 1671.58 GB/s, 1674.81 GB/s, 1673.14 GB/s, 1675.89 GB/s]
+          - [1763.50 GB/s, 1771.36 GB/s, 1756.50 GB/s, 1760.36 GB/s, 1763.10 GB/s,
+            1762.63 GB/s, 1758.85 GB/s, 1762.70 GB/s, 1695.09 GB/s, 1768.13 GB/s]
+          update:
+          - [142.23 GB/s, 142.22 GB/s, 142.23 GB/s, 142.23 GB/s, 142.23 GB/s, 142.23
+              GB/s, 142.22 GB/s, 142.23 GB/s, 142.23 GB/s, 142.23 GB/s]
+          - [245.84 GB/s, 238.52 GB/s, 248.46 GB/s, 273.07 GB/s, 254.51 GB/s, 258.91
+              GB/s, 258.68 GB/s, 247.23 GB/s, 253.56 GB/s, 258.43 GB/s]
+          - [391.55 GB/s, 398.90 GB/s, 378.49 GB/s, 360.06 GB/s, 371.98 GB/s, 393.93
+              GB/s, 388.27 GB/s, 373.95 GB/s, 366.81 GB/s, 420.58 GB/s]
+          - [496.52 GB/s, 516.63 GB/s, 527.56 GB/s, 557.96 GB/s, 503.91 GB/s, 485.10
+              GB/s, 509.13 GB/s, 565.84 GB/s, 485.67 GB/s, 515.87 GB/s]
+          - [619.60 GB/s, 674.48 GB/s, 638.48 GB/s, 613.87 GB/s, 629.87 GB/s, 604.91
+              GB/s, 631.65 GB/s, 631.85 GB/s, 625.28 GB/s, 696.95 GB/s]
+          - [729.71 GB/s, 780.25 GB/s, 742.83 GB/s, 820.10 GB/s, 695.52 GB/s, 751.33
+              GB/s, 731.49 GB/s, 810.66 GB/s, 727.30 GB/s, 756.92 GB/s]
+          - [985.02 GB/s, 874.37 GB/s, 873.25 GB/s, 892.08 GB/s, 837.13 GB/s, 861.29
+              GB/s, 859.06 GB/s, 858.31 GB/s, 828.79 GB/s, 843.76 GB/s]
+          - [1001.19 GB/s, 972.71 GB/s, 1092.56 GB/s, 942.74 GB/s, 955.07 GB/s, 990.09
+              GB/s, 1057.43 GB/s, 902.53 GB/s, 999.17 GB/s, 939.12 GB/s]
+          - [1108.24 GB/s, 1147.23 GB/s, 1090.59 GB/s, 1260.05 GB/s, 1087.47 GB/s,
+            1084.14 GB/s, 1125.56 GB/s, 1059.32 GB/s, 1108.06 GB/s, 1068.73 GB/s]
+          - [1226.71 GB/s, 1323.79 GB/s, 1022.73 GB/s, 1220.66 GB/s, 1225.71 GB/s,
+            1199.81 GB/s, 1285.15 GB/s, 1165.41 GB/s, 1295.94 GB/s, 1290.17 GB/s]
+          - [1369.26 GB/s, 1345.81 GB/s, 1540.10 GB/s, 1340.42 GB/s, 1406.79 GB/s,
+            1317.18 GB/s, 1399.10 GB/s, 1316.54 GB/s, 1342.75 GB/s, 1417.47 GB/s]
+          - [1627.86 GB/s, 1321.24 GB/s, 1527.07 GB/s, 1498.10 GB/s, 1622.13 GB/s,
+            1280.02 GB/s, 1416.58 GB/s, 1501.25 GB/s, 1472.06 GB/s, 1531.50 GB/s]
+          - [1657.71 GB/s, 1820.31 GB/s, 1605.43 GB/s, 1510.10 GB/s, 1587.78 GB/s,
+            1799.69 GB/s, 1610.70 GB/s, 1632.50 GB/s, 1615.76 GB/s, 1657.55 GB/s]
+          - [1660.85 GB/s, 1785.02 GB/s, 1701.00 GB/s, 1659.37 GB/s, 1622.92 GB/s,
+            1607.25 GB/s, 1661.85 GB/s, 1793.19 GB/s, 1601.49 GB/s, 1827.65 GB/s]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        threads per core: 1
+        total size: [21.12 kB, 42.24 kB, 63.36 kB, 84.48 kB, 105.60 kB, 126.72 kB,
+          147.84 kB, 168.96 kB, 190.08 kB, 211.20 kB, 232.32 kB, 253.44 kB, 274.56
+            kB, 295.68 kB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [134.92 GB/s, 267.47 GB/s, 400.77 GB/s, 535.23 GB/s, 669.42 GB/s,
+            803.01 GB/s, 911.61 GB/s, 1070.48 GB/s, 1204.50 GB/s, 1338.64 GB/s, 1463.69
+              GB/s, 1544.84 GB/s, 1729.87 GB/s, 1871.93 GB/s]
+          daxpy: [139.74 GB/s, 278.38 GB/s, 401.54 GB/s, 536.74 GB/s, 668.57 GB/s,
+            763.11 GB/s, 907.28 GB/s, 1021.40 GB/s, 1152.11 GB/s, 1290.83 GB/s, 1395.32
+              GB/s, 1538.00 GB/s, 1639.43 GB/s, 1784.24 GB/s]
+          load: [131.24 GB/s, 262.50 GB/s, 392.84 GB/s, 523.41 GB/s, 654.23 GB/s,
+            785.14 GB/s, 915.66 GB/s, 1042.56 GB/s, 1173.46 GB/s, 1303.70 GB/s, 1434.06
+              GB/s, 1564.39 GB/s, 1694.67 GB/s, 1825.13 GB/s]
+          triad: [140.77 GB/s, 279.17 GB/s, 413.84 GB/s, 544.08 GB/s, 680.04 GB/s,
+            799.13 GB/s, 949.53 GB/s, 1055.85 GB/s, 1187.82 GB/s, 1319.75 GB/s, 1451.64
+              GB/s, 1322.74 GB/s, 1705.13 GB/s, 1834.09 GB/s]
+          update: [141.38 GB/s, 282.34 GB/s, 418.39 GB/s, 555.09 GB/s, 704.97 GB/s,
+            845.94 GB/s, 984.02 GB/s, 1104.66 GB/s, 1242.71 GB/s, 1379.88 GB/s, 1514.97
+              GB/s, 1653.31 GB/s, 1793.26 GB/s, 1928.30 GB/s]
+        size per core: [21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB,
+          21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12 kB, 21.12
+            kB]
+        size per thread: [10.56 kB, 10.56 kB, 10.56 kB, 10.56 kB, 10.56 kB, 10.56
+            kB, 10.56 kB, 10.56 kB, 10.56 kB, 10.56 kB, 10.56 kB, 10.56 kB, 10.56
+            kB, 10.56 kB]
+        stats:
+          copy:
+          - [134.85 GB/s, 134.83 GB/s, 134.86 GB/s, 134.85 GB/s, 134.87 GB/s, 134.89
+              GB/s, 134.86 GB/s, 134.86 GB/s, 134.85 GB/s, 134.92 GB/s]
+          - [267.42 GB/s, 267.44 GB/s, 267.44 GB/s, 267.37 GB/s, 267.44 GB/s, 267.47
+              GB/s, 267.42 GB/s, 266.99 GB/s, 267.42 GB/s, 267.46 GB/s]
+          - [400.72 GB/s, 400.73 GB/s, 400.63 GB/s, 400.77 GB/s, 400.72 GB/s, 400.72
+              GB/s, 400.72 GB/s, 400.73 GB/s, 400.71 GB/s, 400.70 GB/s]
+          - [535.21 GB/s, 535.09 GB/s, 535.11 GB/s, 535.22 GB/s, 535.21 GB/s, 535.17
+              GB/s, 535.16 GB/s, 535.23 GB/s, 514.84 GB/s, 535.12 GB/s]
+          - [669.21 GB/s, 669.21 GB/s, 668.91 GB/s, 669.40 GB/s, 669.42 GB/s, 669.23
+              GB/s, 669.41 GB/s, 669.25 GB/s, 669.23 GB/s, 669.28 GB/s]
+          - [785.81 GB/s, 780.31 GB/s, 787.82 GB/s, 776.34 GB/s, 776.43 GB/s, 785.51
+              GB/s, 784.52 GB/s, 803.01 GB/s, 792.89 GB/s, 776.50 GB/s]
+          - [866.64 GB/s, 860.03 GB/s, 865.51 GB/s, 861.32 GB/s, 876.11 GB/s, 911.61
+              GB/s, 864.49 GB/s, 854.45 GB/s, 855.16 GB/s, 867.88 GB/s]
+          - [1066.85 GB/s, 1070.00 GB/s, 1067.01 GB/s, 1068.54 GB/s, 1067.98 GB/s,
+            1068.28 GB/s, 1070.22 GB/s, 1069.30 GB/s, 1069.15 GB/s, 1070.48 GB/s]
+          - [1204.31 GB/s, 1204.09 GB/s, 1188.12 GB/s, 1190.88 GB/s, 1204.50 GB/s,
+            1204.35 GB/s, 1204.35 GB/s, 1204.24 GB/s, 1203.91 GB/s, 1204.40 GB/s]
+          - [1298.99 GB/s, 1338.24 GB/s, 1338.41 GB/s, 1338.54 GB/s, 1338.54 GB/s,
+            1299.40 GB/s, 1338.64 GB/s, 1291.32 GB/s, 1338.48 GB/s, 1338.51 GB/s]
+          - [1463.33 GB/s, 1463.64 GB/s, 1463.68 GB/s, 1463.61 GB/s, 1463.69 GB/s,
+            1463.33 GB/s, 1463.60 GB/s, 1463.42 GB/s, 1463.51 GB/s, 1463.51 GB/s]
+          - [1543.60 GB/s, 1544.00 GB/s, 1544.15 GB/s, 1544.37 GB/s, 1544.25 GB/s,
+            1542.73 GB/s, 1544.43 GB/s, 1536.38 GB/s, 1544.84 GB/s, 1542.10 GB/s]
+          - [1665.83 GB/s, 1702.94 GB/s, 1729.45 GB/s, 1726.16 GB/s, 1663.46 GB/s,
+            1664.63 GB/s, 1729.65 GB/s, 1729.48 GB/s, 1729.50 GB/s, 1729.87 GB/s]
+          - [1820.67 GB/s, 1871.93 GB/s, 1740.34 GB/s, 1870.47 GB/s, 1871.37 GB/s,
+            1865.47 GB/s, 1868.85 GB/s, 1849.98 GB/s, 1870.54 GB/s, 1871.25 GB/s]
+          daxpy:
+          - [139.35 GB/s, 139.66 GB/s, 139.69 GB/s, 139.66 GB/s, 139.70 GB/s, 139.68
+              GB/s, 139.68 GB/s, 139.67 GB/s, 139.74 GB/s, 139.68 GB/s]
+          - [274.30 GB/s, 273.49 GB/s, 275.12 GB/s, 273.14 GB/s, 278.38 GB/s, 271.94
+              GB/s, 265.49 GB/s, 269.86 GB/s, 271.00 GB/s, 272.65 GB/s]
+          - [392.35 GB/s, 394.53 GB/s, 395.74 GB/s, 384.25 GB/s, 401.54 GB/s, 386.77
+              GB/s, 400.04 GB/s, 397.95 GB/s, 386.10 GB/s, 389.97 GB/s]
+          - [523.25 GB/s, 526.64 GB/s, 503.31 GB/s, 516.82 GB/s, 497.89 GB/s, 511.81
+              GB/s, 536.66 GB/s, 536.74 GB/s, 531.93 GB/s, 493.00 GB/s]
+          - [668.57 GB/s, 652.52 GB/s, 664.68 GB/s, 658.25 GB/s, 638.16 GB/s, 659.81
+              GB/s, 656.29 GB/s, 632.29 GB/s, 651.98 GB/s, 658.09 GB/s]
+          - [733.85 GB/s, 692.96 GB/s, 745.01 GB/s, 755.13 GB/s, 719.71 GB/s, 752.52
+              GB/s, 763.11 GB/s, 734.90 GB/s, 711.61 GB/s, 762.99 GB/s]
+          - [842.44 GB/s, 824.56 GB/s, 832.20 GB/s, 868.41 GB/s, 870.45 GB/s, 878.67
+              GB/s, 907.28 GB/s, 844.09 GB/s, 825.65 GB/s, 847.94 GB/s]
+          - [971.27 GB/s, 995.95 GB/s, 1001.39 GB/s, 1003.65 GB/s, 989.53 GB/s, 948.10
+              GB/s, 971.02 GB/s, 980.11 GB/s, 1021.40 GB/s, 1012.72 GB/s]
+          - [1115.71 GB/s, 1143.00 GB/s, 1080.66 GB/s, 1106.71 GB/s, 1030.70 GB/s,
+            1090.26 GB/s, 1114.13 GB/s, 1050.00 GB/s, 1152.11 GB/s, 1068.09 GB/s]
+          - [1252.27 GB/s, 1220.81 GB/s, 1290.83 GB/s, 1223.71 GB/s, 1198.21 GB/s,
+            1253.75 GB/s, 1192.91 GB/s, 1189.96 GB/s, 1224.16 GB/s, 1224.51 GB/s]
+          - [1351.99 GB/s, 1375.07 GB/s, 1356.85 GB/s, 1395.32 GB/s, 1332.72 GB/s,
+            1368.93 GB/s, 1368.80 GB/s, 1368.61 GB/s, 1266.83 GB/s, 1365.47 GB/s]
+          - [1519.72 GB/s, 1484.99 GB/s, 1538.00 GB/s, 1426.85 GB/s, 1502.55 GB/s,
+            1511.71 GB/s, 1489.34 GB/s, 1452.47 GB/s, 1415.14 GB/s, 1442.47 GB/s]
+          - [1535.98 GB/s, 1597.56 GB/s, 1591.87 GB/s, 1593.51 GB/s, 1541.79 GB/s,
+            1639.43 GB/s, 1618.27 GB/s, 1575.35 GB/s, 1540.88 GB/s, 1611.28 GB/s]
+          - [1632.74 GB/s, 1678.84 GB/s, 1731.74 GB/s, 1717.71 GB/s, 1707.98 GB/s,
+            1757.94 GB/s, 1673.56 GB/s, 1784.24 GB/s, 1723.89 GB/s, 1659.95 GB/s]
+          load:
+          - [131.20 GB/s, 131.21 GB/s, 131.18 GB/s, 131.24 GB/s, 131.21 GB/s, 131.20
+              GB/s, 131.22 GB/s, 131.20 GB/s, 131.19 GB/s, 131.22 GB/s]
+          - [262.44 GB/s, 262.50 GB/s, 262.41 GB/s, 262.12 GB/s, 262.43 GB/s, 262.43
+              GB/s, 262.45 GB/s, 262.43 GB/s, 262.42 GB/s, 262.39 GB/s]
+          - [392.78 GB/s, 392.84 GB/s, 392.79 GB/s, 392.76 GB/s, 392.75 GB/s, 392.76
+              GB/s, 374.33 GB/s, 392.82 GB/s, 376.16 GB/s, 392.79 GB/s]
+          - [496.41 GB/s, 522.62 GB/s, 497.94 GB/s, 523.29 GB/s, 523.29 GB/s, 523.39
+              GB/s, 496.52 GB/s, 523.35 GB/s, 523.41 GB/s, 523.32 GB/s]
+          - [654.13 GB/s, 654.22 GB/s, 654.19 GB/s, 654.20 GB/s, 654.23 GB/s, 654.10
+              GB/s, 654.22 GB/s, 654.18 GB/s, 654.23 GB/s, 654.13 GB/s]
+          - [784.93 GB/s, 785.05 GB/s, 785.14 GB/s, 785.04 GB/s, 784.97 GB/s, 785.02
+              GB/s, 784.83 GB/s, 784.98 GB/s, 785.04 GB/s, 784.99 GB/s]
+          - [881.74 GB/s, 915.45 GB/s, 915.40 GB/s, 915.66 GB/s, 915.56 GB/s, 915.35
+              GB/s, 871.90 GB/s, 915.50 GB/s, 872.07 GB/s, 915.51 GB/s]
+          - [995.56 GB/s, 989.33 GB/s, 1042.53 GB/s, 1042.52 GB/s, 1042.55 GB/s, 1042.56
+              GB/s, 1042.47 GB/s, 1042.38 GB/s, 995.28 GB/s, 1026.17 GB/s]
+          - [1173.09 GB/s, 1173.08 GB/s, 1170.75 GB/s, 1173.20 GB/s, 1173.20 GB/s,
+            1173.36 GB/s, 1173.46 GB/s, 1173.27 GB/s, 1173.37 GB/s, 1173.26 GB/s]
+          - [1303.55 GB/s, 1244.41 GB/s, 1253.32 GB/s, 1303.58 GB/s, 1250.15 GB/s,
+            1303.70 GB/s, 1303.47 GB/s, 1303.55 GB/s, 1259.84 GB/s, 1253.54 GB/s]
+          - [1434.06 GB/s, 1434.02 GB/s, 1360.46 GB/s, 1433.95 GB/s, 1433.80 GB/s,
+            1433.89 GB/s, 1433.96 GB/s, 1433.95 GB/s, 1433.53 GB/s, 1388.12 GB/s]
+          - [1563.85 GB/s, 1504.20 GB/s, 1564.30 GB/s, 1564.39 GB/s, 1564.18 GB/s,
+            1503.51 GB/s, 1564.29 GB/s, 1493.32 GB/s, 1564.23 GB/s, 1564.27 GB/s]
+          - [1694.67 GB/s, 1694.28 GB/s, 1606.96 GB/s, 1694.62 GB/s, 1694.64 GB/s,
+            1630.37 GB/s, 1630.72 GB/s, 1694.46 GB/s, 1615.95 GB/s, 1694.45 GB/s]
+          - [1824.78 GB/s, 1824.86 GB/s, 1824.54 GB/s, 1824.67 GB/s, 1824.96 GB/s,
+            1739.51 GB/s, 1824.87 GB/s, 1824.97 GB/s, 1825.13 GB/s, 1824.67 GB/s]
+          triad:
+          - [140.76 GB/s, 140.76 GB/s, 140.77 GB/s, 140.76 GB/s, 140.76 GB/s, 140.76
+              GB/s, 140.76 GB/s, 140.76 GB/s, 140.76 GB/s, 140.76 GB/s]
+          - [274.90 GB/s, 279.15 GB/s, 279.13 GB/s, 279.15 GB/s, 279.16 GB/s, 279.16
+              GB/s, 279.15 GB/s, 279.14 GB/s, 279.15 GB/s, 279.17 GB/s]
+          - [413.83 GB/s, 413.83 GB/s, 413.84 GB/s, 413.73 GB/s, 413.82 GB/s, 413.84
+              GB/s, 413.81 GB/s, 413.79 GB/s, 413.73 GB/s, 413.81 GB/s]
+          - [544.05 GB/s, 544.02 GB/s, 544.06 GB/s, 542.81 GB/s, 544.01 GB/s, 544.05
+              GB/s, 544.08 GB/s, 544.07 GB/s, 544.05 GB/s, 544.05 GB/s]
+          - [680.04 GB/s, 679.95 GB/s, 679.94 GB/s, 679.95 GB/s, 679.99 GB/s, 679.94
+              GB/s, 679.98 GB/s, 679.99 GB/s, 679.98 GB/s, 672.04 GB/s]
+          - [793.47 GB/s, 796.51 GB/s, 785.00 GB/s, 799.13 GB/s, 788.59 GB/s, 799.09
+              GB/s, 794.20 GB/s, 787.49 GB/s, 799.09 GB/s, 799.12 GB/s]
+          - [946.06 GB/s, 948.63 GB/s, 923.15 GB/s, 949.26 GB/s, 949.51 GB/s, 946.50
+              GB/s, 949.53 GB/s, 949.39 GB/s, 948.55 GB/s, 949.13 GB/s]
+          - [1054.69 GB/s, 1055.68 GB/s, 1055.75 GB/s, 1055.09 GB/s, 1054.79 GB/s,
+            1055.75 GB/s, 1055.85 GB/s, 1055.74 GB/s, 1055.10 GB/s, 1055.68 GB/s]
+          - [1187.43 GB/s, 1187.60 GB/s, 1187.72 GB/s, 1187.65 GB/s, 1187.82 GB/s,
+            1187.56 GB/s, 1187.58 GB/s, 1169.51 GB/s, 1187.70 GB/s, 1187.69 GB/s]
+          - [1319.64 GB/s, 1319.31 GB/s, 1318.82 GB/s, 1319.49 GB/s, 1319.65 GB/s,
+            1319.51 GB/s, 1319.61 GB/s, 1319.61 GB/s, 1319.57 GB/s, 1319.75 GB/s]
+          - [1451.26 GB/s, 1451.64 GB/s, 1447.91 GB/s, 1448.94 GB/s, 1450.87 GB/s,
+            1451.56 GB/s, 1451.25 GB/s, 1442.84 GB/s, 1451.53 GB/s, 1451.37 GB/s]
+          - [1322.73 GB/s, 1322.74 GB/s, 1299.26 GB/s, 1280.07 GB/s, 1321.08 GB/s,
+            1304.59 GB/s, 1315.94 GB/s, 1322.71 GB/s, 1321.66 GB/s, 1321.92 GB/s]
+          - [1705.13 GB/s, 1704.99 GB/s, 1704.76 GB/s, 1704.64 GB/s, 1651.99 GB/s,
+            1705.13 GB/s, 1705.11 GB/s, 1704.92 GB/s, 1705.09 GB/s, 1705.10 GB/s]
+          - [1833.56 GB/s, 1834.09 GB/s, 1816.05 GB/s, 1833.93 GB/s, 1833.93 GB/s,
+            1784.72 GB/s, 1792.24 GB/s, 1833.99 GB/s, 1833.97 GB/s, 1785.06 GB/s]
+          update:
+          - [141.31 GB/s, 141.32 GB/s, 141.32 GB/s, 141.37 GB/s, 141.37 GB/s, 141.37
+              GB/s, 141.38 GB/s, 141.37 GB/s, 141.37 GB/s, 141.38 GB/s]
+          - [282.12 GB/s, 282.10 GB/s, 282.34 GB/s, 280.06 GB/s, 282.04 GB/s, 281.75
+              GB/s, 282.19 GB/s, 281.76 GB/s, 282.19 GB/s, 282.12 GB/s]
+          - [414.99 GB/s, 415.63 GB/s, 416.17 GB/s, 417.29 GB/s, 417.15 GB/s, 414.93
+              GB/s, 418.39 GB/s, 416.84 GB/s, 416.63 GB/s, 414.22 GB/s]
+          - [553.18 GB/s, 551.16 GB/s, 543.80 GB/s, 554.07 GB/s, 549.39 GB/s, 545.06
+              GB/s, 544.37 GB/s, 555.09 GB/s, 549.09 GB/s, 552.66 GB/s]
+          - [704.36 GB/s, 704.82 GB/s, 704.97 GB/s, 704.50 GB/s, 704.85 GB/s, 704.13
+              GB/s, 704.48 GB/s, 704.91 GB/s, 704.77 GB/s, 704.69 GB/s]
+          - [845.08 GB/s, 844.33 GB/s, 845.01 GB/s, 845.59 GB/s, 845.10 GB/s, 844.92
+              GB/s, 844.50 GB/s, 844.44 GB/s, 845.94 GB/s, 845.37 GB/s]
+          - [968.51 GB/s, 984.02 GB/s, 968.24 GB/s, 912.52 GB/s, 980.53 GB/s, 979.76
+              GB/s, 965.34 GB/s, 963.86 GB/s, 981.53 GB/s, 967.69 GB/s]
+          - [1103.41 GB/s, 1096.65 GB/s, 1104.41 GB/s, 1096.67 GB/s, 1098.68 GB/s,
+            1104.11 GB/s, 1096.45 GB/s, 1104.61 GB/s, 1104.66 GB/s, 1092.80 GB/s]
+          - [1229.00 GB/s, 1239.16 GB/s, 1215.89 GB/s, 1233.99 GB/s, 1222.63 GB/s,
+            1242.71 GB/s, 1235.14 GB/s, 1239.90 GB/s, 1239.65 GB/s, 1235.48 GB/s]
+          - [1368.63 GB/s, 1379.17 GB/s, 1369.59 GB/s, 1375.66 GB/s, 1374.39 GB/s,
+            1352.82 GB/s, 1379.86 GB/s, 1379.88 GB/s, 1368.25 GB/s, 1376.73 GB/s]
+          - [1503.94 GB/s, 1488.16 GB/s, 1500.40 GB/s, 1502.54 GB/s, 1512.91 GB/s,
+            1459.60 GB/s, 1514.34 GB/s, 1514.97 GB/s, 1469.85 GB/s, 1492.12 GB/s]
+          - [1634.08 GB/s, 1582.78 GB/s, 1650.96 GB/s, 1653.31 GB/s, 1652.76 GB/s,
+            1601.45 GB/s, 1653.01 GB/s, 1625.07 GB/s, 1649.31 GB/s, 1587.88 GB/s]
+          - [1778.44 GB/s, 1790.85 GB/s, 1778.68 GB/s, 1793.26 GB/s, 1793.26 GB/s,
+            1781.79 GB/s, 1763.99 GB/s, 1778.39 GB/s, 1786.04 GB/s, 1789.72 GB/s]
+          - [1923.13 GB/s, 1898.48 GB/s, 1927.36 GB/s, 1913.21 GB/s, 1908.89 GB/s,
+            1924.27 GB/s, 1920.03 GB/s, 1928.30 GB/s, 1923.15 GB/s, 1846.07 GB/s]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+        threads per core: 2
+        total size: [21.12 kB, 42.24 kB, 63.36 kB, 84.48 kB, 105.60 kB, 126.72 kB,
+          147.84 kB, 168.96 kB, 190.08 kB, 211.20 kB, 232.32 kB, 253.44 kB, 274.56
+            kB, 295.68 kB]
+    L2:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [36.34 GB/s, 68.93 GB/s, 106.86 GB/s, 140.18 GB/s, 174.94 GB/s, 208.95
+              GB/s, 243.80 GB/s, 274.19 GB/s, 312.16 GB/s, 351.97 GB/s, 378.40 GB/s,
+            410.74 GB/s, 435.94 GB/s, 449.72 GB/s]
+          daxpy: [53.60 GB/s, 104.59 GB/s, 155.40 GB/s, 206.09 GB/s, 255.57 GB/s,
+            308.66 GB/s, 357.32 GB/s, 409.65 GB/s, 454.95 GB/s, 511.10 GB/s, 550.13
+              GB/s, 613.37 GB/s, 666.95 GB/s, 712.02 GB/s]
+          load: [57.94 GB/s, 115.12 GB/s, 170.96 GB/s, 188.47 GB/s, 234.22 GB/s, 285.09
+              GB/s, 332.69 GB/s, 378.44 GB/s, 446.88 GB/s, 460.46 GB/s, 525.48 GB/s,
+            539.59 GB/s, 590.07 GB/s, 644.49 GB/s]
+          triad: [48.46 GB/s, 95.71 GB/s, 135.96 GB/s, 183.50 GB/s, 234.34 GB/s, 265.96
+              GB/s, 315.31 GB/s, 342.00 GB/s, 395.41 GB/s, 437.41 GB/s, 464.22 GB/s,
+            508.61 GB/s, 557.06 GB/s, 597.01 GB/s]
+          update: [45.25 GB/s, 88.60 GB/s, 132.79 GB/s, 176.18 GB/s, 217.17 GB/s,
+            258.88 GB/s, 300.36 GB/s, 333.00 GB/s, 386.81 GB/s, 424.58 GB/s, 454.45
+              GB/s, 502.24 GB/s, 552.07 GB/s, 570.31 GB/s]
+        size per core: [168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96
+            kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB,
+          168.96 kB, 168.96 kB]
+        size per thread: [168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96
+            kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB,
+          168.96 kB, 168.96 kB]
+        stats:
+          copy:
+          - [36.02 GB/s, 36.24 GB/s, 36.24 GB/s, 35.65 GB/s, 35.34 GB/s, 35.65 GB/s,
+            35.93 GB/s, 35.32 GB/s, 35.67 GB/s, 36.34 GB/s]
+          - [64.56 GB/s, 68.48 GB/s, 65.96 GB/s, 63.30 GB/s, 67.74 GB/s, 64.65 GB/s,
+            65.25 GB/s, 64.40 GB/s, 68.93 GB/s, 67.89 GB/s]
+          - [105.05 GB/s, 105.20 GB/s, 93.45 GB/s, 102.21 GB/s, 95.13 GB/s, 106.09
+              GB/s, 93.86 GB/s, 103.61 GB/s, 106.86 GB/s, 106.61 GB/s]
+          - [128.40 GB/s, 125.05 GB/s, 117.44 GB/s, 137.88 GB/s, 121.39 GB/s, 135.78
+              GB/s, 121.87 GB/s, 125.35 GB/s, 123.77 GB/s, 140.18 GB/s]
+          - [155.96 GB/s, 169.34 GB/s, 156.16 GB/s, 174.94 GB/s, 169.41 GB/s, 166.97
+              GB/s, 171.56 GB/s, 156.96 GB/s, 159.49 GB/s, 170.59 GB/s]
+          - [208.95 GB/s, 203.56 GB/s, 183.83 GB/s, 200.07 GB/s, 199.05 GB/s, 202.70
+              GB/s, 197.92 GB/s, 193.39 GB/s, 201.84 GB/s, 183.72 GB/s]
+          - [223.08 GB/s, 223.60 GB/s, 231.74 GB/s, 243.80 GB/s, 234.03 GB/s, 237.36
+              GB/s, 212.85 GB/s, 215.68 GB/s, 228.67 GB/s, 218.51 GB/s]
+          - [236.35 GB/s, 274.19 GB/s, 260.66 GB/s, 260.23 GB/s, 250.37 GB/s, 270.57
+              GB/s, 268.28 GB/s, 252.95 GB/s, 253.28 GB/s, 249.67 GB/s]
+          - [262.22 GB/s, 282.48 GB/s, 262.95 GB/s, 294.00 GB/s, 312.16 GB/s, 272.42
+              GB/s, 256.65 GB/s, 253.87 GB/s, 301.88 GB/s, 274.17 GB/s]
+          - [294.75 GB/s, 329.29 GB/s, 351.97 GB/s, 337.91 GB/s, 334.16 GB/s, 315.57
+              GB/s, 309.96 GB/s, 306.75 GB/s, 295.12 GB/s, 299.38 GB/s]
+          - [324.30 GB/s, 325.81 GB/s, 347.85 GB/s, 333.86 GB/s, 348.49 GB/s, 339.13
+              GB/s, 308.96 GB/s, 328.22 GB/s, 378.40 GB/s, 319.05 GB/s]
+          - [400.67 GB/s, 391.32 GB/s, 363.84 GB/s, 410.74 GB/s, 377.57 GB/s, 371.87
+              GB/s, 327.66 GB/s, 402.76 GB/s, 361.85 GB/s, 381.70 GB/s]
+          - [423.96 GB/s, 401.14 GB/s, 410.96 GB/s, 413.44 GB/s, 397.29 GB/s, 392.49
+              GB/s, 413.93 GB/s, 388.82 GB/s, 435.94 GB/s, 390.51 GB/s]
+          - [435.45 GB/s, 435.20 GB/s, 361.39 GB/s, 444.99 GB/s, 419.76 GB/s, 421.28
+              GB/s, 421.36 GB/s, 449.72 GB/s, 443.70 GB/s, 427.15 GB/s]
+          daxpy:
+          - [53.02 GB/s, 52.29 GB/s, 53.54 GB/s, 53.60 GB/s, 53.48 GB/s, 53.52 GB/s,
+            53.55 GB/s, 53.47 GB/s, 53.25 GB/s, 53.50 GB/s]
+          - [102.32 GB/s, 103.85 GB/s, 102.76 GB/s, 102.81 GB/s, 103.75 GB/s, 93.72
+              GB/s, 97.41 GB/s, 104.32 GB/s, 97.02 GB/s, 104.59 GB/s]
+          - [152.02 GB/s, 155.40 GB/s, 151.91 GB/s, 154.91 GB/s, 152.78 GB/s, 139.26
+              GB/s, 153.62 GB/s, 154.79 GB/s, 141.42 GB/s, 135.65 GB/s]
+          - [186.66 GB/s, 198.39 GB/s, 197.46 GB/s, 206.09 GB/s, 196.85 GB/s, 202.65
+              GB/s, 180.08 GB/s, 198.98 GB/s, 204.00 GB/s, 200.28 GB/s]
+          - [229.18 GB/s, 251.07 GB/s, 243.43 GB/s, 238.83 GB/s, 242.86 GB/s, 248.32
+              GB/s, 239.98 GB/s, 238.44 GB/s, 255.57 GB/s, 234.45 GB/s]
+          - [278.49 GB/s, 289.88 GB/s, 302.54 GB/s, 280.01 GB/s, 305.06 GB/s, 308.66
+              GB/s, 297.30 GB/s, 266.60 GB/s, 297.20 GB/s, 299.60 GB/s]
+          - [324.45 GB/s, 321.30 GB/s, 356.93 GB/s, 324.20 GB/s, 342.44 GB/s, 352.16
+              GB/s, 350.08 GB/s, 350.57 GB/s, 327.75 GB/s, 357.32 GB/s]
+          - [366.72 GB/s, 386.86 GB/s, 403.70 GB/s, 376.01 GB/s, 404.47 GB/s, 409.65
+              GB/s, 380.34 GB/s, 390.71 GB/s, 369.45 GB/s, 397.68 GB/s]
+          - [437.75 GB/s, 454.95 GB/s, 447.03 GB/s, 444.48 GB/s, 419.14 GB/s, 409.31
+              GB/s, 403.11 GB/s, 437.65 GB/s, 381.65 GB/s, 435.72 GB/s]
+          - [425.90 GB/s, 466.16 GB/s, 508.94 GB/s, 490.52 GB/s, 472.23 GB/s, 493.45
+              GB/s, 511.10 GB/s, 475.28 GB/s, 457.88 GB/s, 492.07 GB/s]
+          - [546.98 GB/s, 542.96 GB/s, 544.00 GB/s, 531.70 GB/s, 548.01 GB/s, 534.99
+              GB/s, 550.13 GB/s, 545.37 GB/s, 509.07 GB/s, 483.45 GB/s]
+          - [599.25 GB/s, 535.15 GB/s, 575.48 GB/s, 593.92 GB/s, 600.38 GB/s, 613.37
+              GB/s, 542.93 GB/s, 536.89 GB/s, 555.93 GB/s, 565.31 GB/s]
+          - [590.58 GB/s, 580.80 GB/s, 666.95 GB/s, 624.83 GB/s, 626.11 GB/s, 629.74
+              GB/s, 611.57 GB/s, 598.77 GB/s, 615.69 GB/s, 646.84 GB/s]
+          - [652.41 GB/s, 637.57 GB/s, 682.10 GB/s, 690.40 GB/s, 662.81 GB/s, 649.62
+              GB/s, 653.07 GB/s, 712.02 GB/s, 667.59 GB/s, 690.83 GB/s]
+          load:
+          - [57.94 GB/s, 44.06 GB/s, 57.13 GB/s, 56.08 GB/s, 44.57 GB/s, 56.78 GB/s,
+            45.11 GB/s, 55.95 GB/s, 55.27 GB/s, 56.91 GB/s]
+          - [103.36 GB/s, 88.83 GB/s, 113.85 GB/s, 86.78 GB/s, 115.12 GB/s, 92.68
+              GB/s, 90.16 GB/s, 89.06 GB/s, 115.07 GB/s, 91.99 GB/s]
+          - [130.55 GB/s, 134.00 GB/s, 136.25 GB/s, 135.70 GB/s, 170.96 GB/s, 170.04
+              GB/s, 129.68 GB/s, 137.53 GB/s, 136.36 GB/s, 132.57 GB/s]
+          - [179.42 GB/s, 182.03 GB/s, 170.61 GB/s, 178.92 GB/s, 180.60 GB/s, 172.36
+              GB/s, 174.86 GB/s, 154.22 GB/s, 188.47 GB/s, 177.40 GB/s]
+          - [234.22 GB/s, 217.66 GB/s, 232.80 GB/s, 224.55 GB/s, 186.40 GB/s, 230.90
+              GB/s, 190.36 GB/s, 226.66 GB/s, 230.24 GB/s, 232.54 GB/s]
+          - [267.07 GB/s, 285.09 GB/s, 248.12 GB/s, 233.59 GB/s, 262.53 GB/s, 256.25
+              GB/s, 231.99 GB/s, 218.78 GB/s, 268.43 GB/s, 220.37 GB/s]
+          - [332.69 GB/s, 246.03 GB/s, 320.72 GB/s, 257.45 GB/s, 304.25 GB/s, 262.71
+              GB/s, 307.83 GB/s, 301.69 GB/s, 269.34 GB/s, 321.68 GB/s]
+          - [357.62 GB/s, 352.30 GB/s, 363.13 GB/s, 369.25 GB/s, 303.02 GB/s, 302.25
+              GB/s, 378.44 GB/s, 349.37 GB/s, 357.86 GB/s, 344.13 GB/s]
+          - [378.81 GB/s, 446.88 GB/s, 353.21 GB/s, 338.10 GB/s, 319.53 GB/s, 324.65
+              GB/s, 398.43 GB/s, 380.15 GB/s, 341.42 GB/s, 403.33 GB/s]
+          - [393.08 GB/s, 371.84 GB/s, 372.47 GB/s, 382.87 GB/s, 460.46 GB/s, 450.98
+              GB/s, 373.13 GB/s, 454.17 GB/s, 427.45 GB/s, 379.16 GB/s]
+          - [485.83 GB/s, 503.76 GB/s, 499.89 GB/s, 525.48 GB/s, 426.88 GB/s, 500.93
+              GB/s, 413.36 GB/s, 428.34 GB/s, 505.62 GB/s, 395.06 GB/s]
+          - [531.62 GB/s, 440.95 GB/s, 505.01 GB/s, 512.56 GB/s, 467.29 GB/s, 444.22
+              GB/s, 539.59 GB/s, 509.39 GB/s, 449.39 GB/s, 446.66 GB/s]
+          - [495.55 GB/s, 590.07 GB/s, 491.12 GB/s, 507.57 GB/s, 555.95 GB/s, 547.72
+              GB/s, 480.50 GB/s, 507.85 GB/s, 571.59 GB/s, 519.98 GB/s]
+          - [507.71 GB/s, 593.75 GB/s, 535.12 GB/s, 598.66 GB/s, 599.22 GB/s, 615.98
+              GB/s, 644.49 GB/s, 520.58 GB/s, 514.05 GB/s, 517.57 GB/s]
+          triad:
+          - [48.46 GB/s, 44.19 GB/s, 46.20 GB/s, 48.20 GB/s, 44.36 GB/s, 46.72 GB/s,
+            48.31 GB/s, 48.46 GB/s, 45.98 GB/s, 48.09 GB/s]
+          - [95.02 GB/s, 92.73 GB/s, 85.01 GB/s, 92.61 GB/s, 83.41 GB/s, 95.71 GB/s,
+            82.29 GB/s, 94.25 GB/s, 93.65 GB/s, 90.09 GB/s]
+          - [100.13 GB/s, 125.20 GB/s, 109.63 GB/s, 116.32 GB/s, 128.92 GB/s, 124.01
+              GB/s, 132.14 GB/s, 135.96 GB/s, 132.98 GB/s, 133.46 GB/s]
+          - [178.94 GB/s, 180.55 GB/s, 164.46 GB/s, 167.43 GB/s, 183.50 GB/s, 156.37
+              GB/s, 168.28 GB/s, 149.95 GB/s, 163.20 GB/s, 180.44 GB/s]
+          - [211.98 GB/s, 207.91 GB/s, 189.43 GB/s, 200.41 GB/s, 209.06 GB/s, 234.34
+              GB/s, 216.96 GB/s, 227.43 GB/s, 219.28 GB/s, 210.85 GB/s]
+          - [233.30 GB/s, 265.96 GB/s, 255.13 GB/s, 236.38 GB/s, 262.35 GB/s, 247.34
+              GB/s, 255.94 GB/s, 262.00 GB/s, 247.17 GB/s, 241.87 GB/s]
+          - [315.31 GB/s, 268.70 GB/s, 294.69 GB/s, 309.41 GB/s, 271.17 GB/s, 298.06
+              GB/s, 314.57 GB/s, 252.46 GB/s, 306.15 GB/s, 287.67 GB/s]
+          - [328.83 GB/s, 338.24 GB/s, 325.61 GB/s, 243.45 GB/s, 342.00 GB/s, 302.51
+              GB/s, 336.24 GB/s, 317.17 GB/s, 337.77 GB/s, 298.03 GB/s]
+          - [372.27 GB/s, 375.45 GB/s, 385.82 GB/s, 364.38 GB/s, 364.96 GB/s, 377.44
+              GB/s, 338.80 GB/s, 337.38 GB/s, 395.41 GB/s, 369.02 GB/s]
+          - [394.52 GB/s, 413.77 GB/s, 433.44 GB/s, 437.41 GB/s, 420.86 GB/s, 398.24
+              GB/s, 396.05 GB/s, 398.38 GB/s, 381.99 GB/s, 431.49 GB/s]
+          - [410.15 GB/s, 463.63 GB/s, 462.59 GB/s, 432.94 GB/s, 444.44 GB/s, 445.07
+              GB/s, 464.22 GB/s, 448.01 GB/s, 435.94 GB/s, 402.15 GB/s]
+          - [477.44 GB/s, 465.50 GB/s, 476.39 GB/s, 483.91 GB/s, 457.64 GB/s, 489.11
+              GB/s, 467.02 GB/s, 473.38 GB/s, 508.61 GB/s, 443.36 GB/s]
+          - [420.43 GB/s, 506.02 GB/s, 548.23 GB/s, 509.73 GB/s, 520.76 GB/s, 504.32
+              GB/s, 485.95 GB/s, 557.06 GB/s, 535.38 GB/s, 501.91 GB/s]
+          - [597.01 GB/s, 558.48 GB/s, 579.06 GB/s, 564.58 GB/s, 540.26 GB/s, 564.26
+              GB/s, 539.82 GB/s, 547.22 GB/s, 577.01 GB/s, 528.15 GB/s]
+          update:
+          - [41.55 GB/s, 43.34 GB/s, 41.14 GB/s, 43.81 GB/s, 40.94 GB/s, 43.21 GB/s,
+            45.20 GB/s, 45.25 GB/s, 45.08 GB/s, 43.53 GB/s]
+          - [86.15 GB/s, 86.33 GB/s, 85.18 GB/s, 85.43 GB/s, 82.71 GB/s, 85.61 GB/s,
+            87.22 GB/s, 88.17 GB/s, 87.27 GB/s, 88.60 GB/s]
+          - [122.61 GB/s, 116.35 GB/s, 131.97 GB/s, 120.58 GB/s, 131.00 GB/s, 121.20
+              GB/s, 128.05 GB/s, 126.90 GB/s, 132.79 GB/s, 127.75 GB/s]
+          - [176.18 GB/s, 160.04 GB/s, 172.36 GB/s, 167.03 GB/s, 152.77 GB/s, 171.69
+              GB/s, 162.35 GB/s, 170.50 GB/s, 172.04 GB/s, 155.88 GB/s]
+          - [211.87 GB/s, 214.46 GB/s, 206.32 GB/s, 214.18 GB/s, 196.00 GB/s, 204.18
+              GB/s, 213.33 GB/s, 217.17 GB/s, 213.03 GB/s, 204.40 GB/s]
+          - [251.56 GB/s, 256.34 GB/s, 249.04 GB/s, 252.03 GB/s, 258.88 GB/s, 231.96
+              GB/s, 258.43 GB/s, 257.73 GB/s, 257.91 GB/s, 258.42 GB/s]
+          - [300.36 GB/s, 291.45 GB/s, 290.04 GB/s, 297.83 GB/s, 284.99 GB/s, 280.80
+              GB/s, 260.79 GB/s, 296.18 GB/s, 276.93 GB/s, 289.38 GB/s]
+          - [328.22 GB/s, 311.89 GB/s, 333.00 GB/s, 315.71 GB/s, 308.58 GB/s, 313.27
+              GB/s, 313.14 GB/s, 321.89 GB/s, 321.49 GB/s, 319.23 GB/s]
+          - [374.44 GB/s, 372.03 GB/s, 367.06 GB/s, 376.98 GB/s, 374.75 GB/s, 386.81
+              GB/s, 382.90 GB/s, 358.67 GB/s, 370.84 GB/s, 372.43 GB/s]
+          - [424.58 GB/s, 391.65 GB/s, 408.75 GB/s, 399.58 GB/s, 382.41 GB/s, 389.52
+              GB/s, 405.24 GB/s, 388.09 GB/s, 379.30 GB/s, 414.26 GB/s]
+          - [422.36 GB/s, 454.45 GB/s, 438.93 GB/s, 451.41 GB/s, 453.32 GB/s, 451.20
+              GB/s, 428.24 GB/s, 452.65 GB/s, 447.67 GB/s, 404.74 GB/s]
+          - [447.41 GB/s, 467.80 GB/s, 502.24 GB/s, 486.34 GB/s, 489.03 GB/s, 481.18
+              GB/s, 477.38 GB/s, 451.72 GB/s, 500.70 GB/s, 487.79 GB/s]
+          - [522.67 GB/s, 501.42 GB/s, 518.33 GB/s, 500.42 GB/s, 522.23 GB/s, 514.55
+              GB/s, 535.51 GB/s, 534.61 GB/s, 545.61 GB/s, 552.07 GB/s]
+          - [551.68 GB/s, 544.14 GB/s, 535.58 GB/s, 472.47 GB/s, 541.04 GB/s, 562.85
+              GB/s, 570.31 GB/s, 544.86 GB/s, 565.20 GB/s, 566.90 GB/s]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        threads per core: 1
+        total size: [168.96 kB, 337.92 kB, 506.88 kB, 675.84 kB, 844.80 kB, 1.01 MB,
+          1.18 MB, 1.35 MB, 1.52 MB, 1.69 MB, 1.86 MB, 2.03 MB, 2.20 MB, 2.37 MB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [36.74 GB/s, 72.43 GB/s, 108.90 GB/s, 145.36 GB/s, 180.88 GB/s, 214.98
+              GB/s, 252.43 GB/s, 283.36 GB/s, 319.25 GB/s, 339.02 GB/s, 392.34 GB/s,
+            424.98 GB/s, 460.46 GB/s, 488.71 GB/s]
+          daxpy: [53.73 GB/s, 106.39 GB/s, 159.95 GB/s, 210.94 GB/s, 255.80 GB/s,
+            317.10 GB/s, 368.27 GB/s, 400.07 GB/s, 473.60 GB/s, 531.06 GB/s, 567.63
+              GB/s, 632.18 GB/s, 666.97 GB/s, 725.39 GB/s]
+          load: [57.73 GB/s, 96.83 GB/s, 172.86 GB/s, 224.04 GB/s, 248.98 GB/s, 318.92
+              GB/s, 363.60 GB/s, 396.45 GB/s, 447.24 GB/s, 474.06 GB/s, 524.83 GB/s,
+            570.27 GB/s, 618.62 GB/s, 667.61 GB/s]
+          triad: [50.60 GB/s, 100.23 GB/s, 149.40 GB/s, 193.61 GB/s, 247.75 GB/s,
+            292.84 GB/s, 334.83 GB/s, 359.60 GB/s, 437.13 GB/s, 466.63 GB/s, 522.78
+              GB/s, 549.69 GB/s, 590.38 GB/s, 639.78 GB/s]
+          update: [45.11 GB/s, 90.19 GB/s, 134.96 GB/s, 179.14 GB/s, 223.97 GB/s,
+            265.72 GB/s, 306.54 GB/s, 354.37 GB/s, 396.80 GB/s, 447.51 GB/s, 490.59
+              GB/s, 531.84 GB/s, 558.46 GB/s, 594.08 GB/s]
+        size per core: [168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96
+            kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB, 168.96 kB,
+          168.96 kB, 168.96 kB]
+        size per thread: [84.48 kB, 84.48 kB, 84.48 kB, 84.48 kB, 84.48 kB, 84.48
+            kB, 84.48 kB, 84.48 kB, 84.48 kB, 84.48 kB, 84.48 kB, 84.48 kB, 84.48
+            kB, 84.48 kB]
+        stats:
+          copy:
+          - [36.64 GB/s, 36.00 GB/s, 36.57 GB/s, 36.66 GB/s, 36.70 GB/s, 32.97 GB/s,
+            34.60 GB/s, 33.91 GB/s, 36.74 GB/s, 36.19 GB/s]
+          - [67.24 GB/s, 69.30 GB/s, 72.10 GB/s, 69.99 GB/s, 71.46 GB/s, 71.23 GB/s,
+            72.43 GB/s, 72.31 GB/s, 68.60 GB/s, 68.31 GB/s]
+          - [100.20 GB/s, 104.24 GB/s, 104.11 GB/s, 99.35 GB/s, 107.74 GB/s, 101.56
+              GB/s, 107.49 GB/s, 108.90 GB/s, 106.42 GB/s, 108.37 GB/s]
+          - [143.90 GB/s, 145.12 GB/s, 144.91 GB/s, 134.52 GB/s, 143.05 GB/s, 144.21
+              GB/s, 138.80 GB/s, 141.27 GB/s, 138.97 GB/s, 145.36 GB/s]
+          - [171.85 GB/s, 174.01 GB/s, 180.88 GB/s, 169.13 GB/s, 165.02 GB/s, 177.05
+              GB/s, 175.73 GB/s, 173.07 GB/s, 175.21 GB/s, 174.22 GB/s]
+          - [204.90 GB/s, 198.82 GB/s, 214.92 GB/s, 214.40 GB/s, 214.17 GB/s, 214.54
+              GB/s, 214.98 GB/s, 206.19 GB/s, 202.85 GB/s, 209.47 GB/s]
+          - [227.71 GB/s, 234.07 GB/s, 243.67 GB/s, 241.19 GB/s, 249.55 GB/s, 242.83
+              GB/s, 251.23 GB/s, 237.55 GB/s, 237.34 GB/s, 252.43 GB/s]
+          - [262.71 GB/s, 277.93 GB/s, 252.45 GB/s, 267.69 GB/s, 272.17 GB/s, 274.17
+              GB/s, 244.58 GB/s, 283.36 GB/s, 263.72 GB/s, 283.32 GB/s]
+          - [313.21 GB/s, 310.39 GB/s, 307.57 GB/s, 315.53 GB/s, 318.49 GB/s, 306.59
+              GB/s, 289.52 GB/s, 295.70 GB/s, 319.25 GB/s, 294.24 GB/s]
+          - [328.82 GB/s, 327.87 GB/s, 338.99 GB/s, 334.93 GB/s, 334.07 GB/s, 331.01
+              GB/s, 329.62 GB/s, 328.87 GB/s, 333.08 GB/s, 339.02 GB/s]
+          - [363.10 GB/s, 345.22 GB/s, 386.01 GB/s, 349.76 GB/s, 374.29 GB/s, 378.95
+              GB/s, 387.40 GB/s, 368.71 GB/s, 347.40 GB/s, 392.34 GB/s]
+          - [416.54 GB/s, 414.03 GB/s, 424.98 GB/s, 387.18 GB/s, 406.21 GB/s, 402.53
+              GB/s, 422.93 GB/s, 408.03 GB/s, 421.64 GB/s, 417.55 GB/s]
+          - [407.34 GB/s, 460.46 GB/s, 424.81 GB/s, 440.66 GB/s, 435.37 GB/s, 445.90
+              GB/s, 450.91 GB/s, 441.51 GB/s, 450.35 GB/s, 453.28 GB/s]
+          - [458.94 GB/s, 488.71 GB/s, 477.86 GB/s, 437.37 GB/s, 472.55 GB/s, 486.73
+              GB/s, 475.72 GB/s, 419.29 GB/s, 470.71 GB/s, 480.29 GB/s]
+          daxpy:
+          - [53.62 GB/s, 53.64 GB/s, 52.00 GB/s, 52.38 GB/s, 51.39 GB/s, 53.67 GB/s,
+            51.99 GB/s, 53.62 GB/s, 53.20 GB/s, 53.73 GB/s]
+          - [102.32 GB/s, 104.83 GB/s, 96.38 GB/s, 100.93 GB/s, 102.57 GB/s, 106.06
+              GB/s, 103.89 GB/s, 106.39 GB/s, 106.06 GB/s, 94.60 GB/s]
+          - [159.95 GB/s, 156.36 GB/s, 157.28 GB/s, 157.65 GB/s, 153.49 GB/s, 157.20
+              GB/s, 157.04 GB/s, 143.65 GB/s, 159.21 GB/s, 149.57 GB/s]
+          - [208.85 GB/s, 204.27 GB/s, 203.80 GB/s, 187.91 GB/s, 210.11 GB/s, 208.41
+              GB/s, 208.36 GB/s, 210.94 GB/s, 196.85 GB/s, 205.32 GB/s]
+          - [254.14 GB/s, 247.85 GB/s, 249.64 GB/s, 252.62 GB/s, 251.48 GB/s, 255.43
+              GB/s, 250.80 GB/s, 252.81 GB/s, 255.80 GB/s, 237.06 GB/s]
+          - [303.03 GB/s, 286.18 GB/s, 307.30 GB/s, 307.69 GB/s, 314.99 GB/s, 313.09
+              GB/s, 310.79 GB/s, 316.22 GB/s, 305.19 GB/s, 317.10 GB/s]
+          - [348.11 GB/s, 345.86 GB/s, 359.22 GB/s, 354.80 GB/s, 349.11 GB/s, 360.03
+              GB/s, 352.38 GB/s, 368.27 GB/s, 362.63 GB/s, 352.15 GB/s]
+          - [392.15 GB/s, 394.42 GB/s, 395.20 GB/s, 385.78 GB/s, 390.01 GB/s, 367.31
+              GB/s, 392.92 GB/s, 384.63 GB/s, 400.07 GB/s, 398.47 GB/s]
+          - [458.88 GB/s, 459.75 GB/s, 463.67 GB/s, 473.60 GB/s, 433.95 GB/s, 413.51
+              GB/s, 413.01 GB/s, 459.10 GB/s, 465.13 GB/s, 447.64 GB/s]
+          - [494.08 GB/s, 501.99 GB/s, 503.69 GB/s, 531.06 GB/s, 499.63 GB/s, 489.81
+              GB/s, 501.44 GB/s, 490.05 GB/s, 479.80 GB/s, 491.61 GB/s]
+          - [553.36 GB/s, 552.91 GB/s, 549.04 GB/s, 541.07 GB/s, 555.93 GB/s, 549.06
+              GB/s, 543.66 GB/s, 567.63 GB/s, 528.42 GB/s, 558.67 GB/s]
+          - [592.14 GB/s, 590.31 GB/s, 613.15 GB/s, 615.06 GB/s, 581.96 GB/s, 608.19
+              GB/s, 608.11 GB/s, 604.74 GB/s, 630.38 GB/s, 632.18 GB/s]
+          - [658.54 GB/s, 645.39 GB/s, 656.94 GB/s, 628.39 GB/s, 645.48 GB/s, 666.97
+              GB/s, 643.58 GB/s, 657.36 GB/s, 645.79 GB/s, 656.34 GB/s]
+          - [699.12 GB/s, 709.35 GB/s, 658.59 GB/s, 681.39 GB/s, 688.08 GB/s, 707.22
+              GB/s, 703.96 GB/s, 625.28 GB/s, 725.39 GB/s, 703.77 GB/s]
+          load:
+          - [57.73 GB/s, 48.70 GB/s, 57.05 GB/s, 49.11 GB/s, 57.39 GB/s, 49.20 GB/s,
+            49.34 GB/s, 46.11 GB/s, 40.75 GB/s, 48.85 GB/s]
+          - [93.02 GB/s, 94.46 GB/s, 96.01 GB/s, 96.83 GB/s, 95.40 GB/s, 83.76 GB/s,
+            92.66 GB/s, 92.83 GB/s, 96.52 GB/s, 79.33 GB/s]
+          - [172.46 GB/s, 122.28 GB/s, 145.66 GB/s, 141.65 GB/s, 153.04 GB/s, 172.86
+              GB/s, 143.08 GB/s, 148.46 GB/s, 134.44 GB/s, 147.62 GB/s]
+          - [192.64 GB/s, 224.04 GB/s, 195.38 GB/s, 195.21 GB/s, 189.30 GB/s, 189.37
+              GB/s, 193.30 GB/s, 179.62 GB/s, 183.27 GB/s, 188.57 GB/s]
+          - [216.67 GB/s, 188.95 GB/s, 235.66 GB/s, 236.73 GB/s, 248.98 GB/s, 238.32
+              GB/s, 210.17 GB/s, 227.75 GB/s, 235.98 GB/s, 227.01 GB/s]
+          - [282.41 GB/s, 290.18 GB/s, 280.09 GB/s, 273.97 GB/s, 292.17 GB/s, 248.36
+              GB/s, 257.32 GB/s, 292.98 GB/s, 318.92 GB/s, 278.32 GB/s]
+          - [353.35 GB/s, 280.80 GB/s, 318.66 GB/s, 326.56 GB/s, 323.33 GB/s, 324.29
+              GB/s, 363.60 GB/s, 334.52 GB/s, 290.34 GB/s, 348.14 GB/s]
+          - [364.80 GB/s, 374.86 GB/s, 340.63 GB/s, 306.94 GB/s, 396.45 GB/s, 330.48
+              GB/s, 392.98 GB/s, 390.66 GB/s, 308.52 GB/s, 320.90 GB/s]
+          - [350.48 GB/s, 416.86 GB/s, 416.83 GB/s, 447.24 GB/s, 424.65 GB/s, 358.46
+              GB/s, 358.39 GB/s, 368.28 GB/s, 354.27 GB/s, 423.80 GB/s]
+          - [283.02 GB/s, 373.28 GB/s, 467.14 GB/s, 405.51 GB/s, 448.27 GB/s, 430.67
+              GB/s, 417.51 GB/s, 428.25 GB/s, 467.15 GB/s, 474.06 GB/s]
+          - [478.58 GB/s, 512.02 GB/s, 519.77 GB/s, 455.09 GB/s, 464.85 GB/s, 438.80
+              GB/s, 501.31 GB/s, 470.36 GB/s, 437.26 GB/s, 524.83 GB/s]
+          - [554.20 GB/s, 472.39 GB/s, 481.81 GB/s, 530.81 GB/s, 570.27 GB/s, 558.11
+              GB/s, 556.42 GB/s, 549.29 GB/s, 522.95 GB/s, 544.64 GB/s]
+          - [591.50 GB/s, 608.69 GB/s, 557.04 GB/s, 610.81 GB/s, 606.87 GB/s, 525.29
+              GB/s, 602.90 GB/s, 618.62 GB/s, 571.92 GB/s, 563.67 GB/s]
+          - [653.94 GB/s, 548.47 GB/s, 569.21 GB/s, 634.56 GB/s, 639.80 GB/s, 533.90
+              GB/s, 608.09 GB/s, 452.55 GB/s, 667.61 GB/s, 577.93 GB/s]
+          triad:
+          - [49.24 GB/s, 50.56 GB/s, 42.42 GB/s, 48.36 GB/s, 50.60 GB/s, 49.10 GB/s,
+            47.44 GB/s, 50.37 GB/s, 44.14 GB/s, 44.25 GB/s]
+          - [90.86 GB/s, 90.71 GB/s, 99.47 GB/s, 100.23 GB/s, 92.28 GB/s, 85.30 GB/s,
+            84.37 GB/s, 82.55 GB/s, 88.71 GB/s, 93.25 GB/s]
+          - [137.92 GB/s, 132.58 GB/s, 128.57 GB/s, 138.64 GB/s, 144.66 GB/s, 131.71
+              GB/s, 132.58 GB/s, 149.40 GB/s, 138.91 GB/s, 134.68 GB/s]
+          - [184.11 GB/s, 179.06 GB/s, 181.51 GB/s, 190.01 GB/s, 174.29 GB/s, 182.82
+              GB/s, 176.20 GB/s, 175.44 GB/s, 193.61 GB/s, 189.14 GB/s]
+          - [228.08 GB/s, 235.63 GB/s, 207.66 GB/s, 229.23 GB/s, 230.07 GB/s, 247.75
+              GB/s, 214.04 GB/s, 215.81 GB/s, 238.38 GB/s, 207.60 GB/s]
+          - [264.89 GB/s, 267.69 GB/s, 261.38 GB/s, 267.45 GB/s, 264.62 GB/s, 258.74
+              GB/s, 264.55 GB/s, 281.99 GB/s, 274.21 GB/s, 292.84 GB/s]
+          - [334.83 GB/s, 324.34 GB/s, 301.23 GB/s, 325.89 GB/s, 293.06 GB/s, 326.23
+              GB/s, 312.99 GB/s, 315.68 GB/s, 317.63 GB/s, 273.68 GB/s]
+          - [324.87 GB/s, 318.88 GB/s, 346.50 GB/s, 355.72 GB/s, 351.39 GB/s, 348.37
+              GB/s, 355.40 GB/s, 353.93 GB/s, 359.60 GB/s, 344.42 GB/s]
+          - [400.15 GB/s, 366.35 GB/s, 380.77 GB/s, 437.13 GB/s, 377.56 GB/s, 425.18
+              GB/s, 425.88 GB/s, 405.85 GB/s, 406.86 GB/s, 379.25 GB/s]
+          - [418.43 GB/s, 438.81 GB/s, 450.79 GB/s, 418.81 GB/s, 401.11 GB/s, 387.67
+              GB/s, 460.66 GB/s, 442.49 GB/s, 466.63 GB/s, 424.36 GB/s]
+          - [485.16 GB/s, 486.75 GB/s, 459.99 GB/s, 500.91 GB/s, 480.11 GB/s, 461.76
+              GB/s, 469.28 GB/s, 479.48 GB/s, 522.78 GB/s, 487.54 GB/s]
+          - [485.04 GB/s, 509.85 GB/s, 534.60 GB/s, 494.27 GB/s, 528.21 GB/s, 530.36
+              GB/s, 509.91 GB/s, 549.69 GB/s, 492.40 GB/s, 531.94 GB/s]
+          - [497.39 GB/s, 548.01 GB/s, 553.26 GB/s, 520.72 GB/s, 582.18 GB/s, 541.66
+              GB/s, 590.38 GB/s, 561.12 GB/s, 583.46 GB/s, 564.92 GB/s]
+          - [566.67 GB/s, 624.03 GB/s, 549.58 GB/s, 605.75 GB/s, 585.89 GB/s, 626.82
+              GB/s, 594.51 GB/s, 515.42 GB/s, 639.78 GB/s, 607.07 GB/s]
+          update:
+          - [42.44 GB/s, 43.65 GB/s, 45.07 GB/s, 43.70 GB/s, 45.11 GB/s, 45.10 GB/s,
+            43.34 GB/s, 45.08 GB/s, 43.24 GB/s, 44.47 GB/s]
+          - [89.09 GB/s, 90.17 GB/s, 82.30 GB/s, 83.28 GB/s, 90.09 GB/s, 90.16 GB/s,
+            88.76 GB/s, 90.19 GB/s, 88.53 GB/s, 90.02 GB/s]
+          - [125.54 GB/s, 134.96 GB/s, 134.83 GB/s, 134.90 GB/s, 132.27 GB/s, 129.89
+              GB/s, 124.94 GB/s, 128.03 GB/s, 130.05 GB/s, 130.43 GB/s]
+          - [165.66 GB/s, 177.42 GB/s, 173.99 GB/s, 162.71 GB/s, 171.95 GB/s, 170.08
+              GB/s, 176.85 GB/s, 179.14 GB/s, 176.60 GB/s, 168.21 GB/s]
+          - [220.45 GB/s, 217.39 GB/s, 216.57 GB/s, 199.69 GB/s, 223.97 GB/s, 214.89
+              GB/s, 219.41 GB/s, 216.24 GB/s, 215.50 GB/s, 209.97 GB/s]
+          - [231.42 GB/s, 265.72 GB/s, 264.41 GB/s, 260.07 GB/s, 260.12 GB/s, 254.82
+              GB/s, 249.48 GB/s, 256.25 GB/s, 264.90 GB/s, 262.50 GB/s]
+          - [303.12 GB/s, 306.54 GB/s, 285.17 GB/s, 304.50 GB/s, 306.32 GB/s, 303.69
+              GB/s, 306.00 GB/s, 291.91 GB/s, 289.17 GB/s, 295.42 GB/s]
+          - [339.76 GB/s, 346.72 GB/s, 344.50 GB/s, 334.67 GB/s, 345.03 GB/s, 354.37
+              GB/s, 351.80 GB/s, 339.81 GB/s, 344.40 GB/s, 344.86 GB/s]
+          - [384.18 GB/s, 389.49 GB/s, 384.36 GB/s, 395.70 GB/s, 380.85 GB/s, 396.80
+              GB/s, 367.53 GB/s, 355.84 GB/s, 371.41 GB/s, 391.19 GB/s]
+          - [405.21 GB/s, 447.51 GB/s, 409.56 GB/s, 421.04 GB/s, 409.68 GB/s, 427.79
+              GB/s, 429.60 GB/s, 428.75 GB/s, 421.47 GB/s, 422.52 GB/s]
+          - [490.59 GB/s, 454.23 GB/s, 474.99 GB/s, 485.44 GB/s, 457.46 GB/s, 467.11
+              GB/s, 471.22 GB/s, 462.37 GB/s, 486.81 GB/s, 474.85 GB/s]
+          - [504.26 GB/s, 506.28 GB/s, 497.73 GB/s, 484.74 GB/s, 492.96 GB/s, 458.33
+              GB/s, 499.62 GB/s, 531.84 GB/s, 519.83 GB/s, 492.83 GB/s]
+          - [549.41 GB/s, 545.86 GB/s, 546.54 GB/s, 536.47 GB/s, 558.39 GB/s, 546.53
+              GB/s, 558.46 GB/s, 504.81 GB/s, 547.62 GB/s, 549.47 GB/s]
+          - [555.39 GB/s, 582.19 GB/s, 588.11 GB/s, 580.43 GB/s, 573.39 GB/s, 559.31
+              GB/s, 591.19 GB/s, 567.41 GB/s, 594.08 GB/s, 584.00 GB/s]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+        threads per core: 2
+        total size: [168.96 kB, 337.92 kB, 506.88 kB, 675.84 kB, 844.80 kB, 1.01 MB,
+          1.18 MB, 1.35 MB, 1.52 MB, 1.69 MB, 1.86 MB, 2.03 MB, 2.20 MB, 2.37 MB]
+    L3:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [18.72 GB/s, 36.65 GB/s, 54.08 GB/s, 72.49 GB/s, 91.00 GB/s, 107.81
+              GB/s, 125.18 GB/s, 141.63 GB/s, 156.85 GB/s, 175.12 GB/s, 188.55 GB/s,
+            201.84 GB/s, 212.71 GB/s, 222.39 GB/s]
+          daxpy: [28.81 GB/s, 56.50 GB/s, 84.06 GB/s, 111.28 GB/s, 139.27 GB/s, 165.34
+              GB/s, 192.49 GB/s, 217.54 GB/s, 240.31 GB/s, 265.92 GB/s, 288.55 GB/s,
+            308.51 GB/s, 321.69 GB/s, 336.13 GB/s]
+          load: [23.09 GB/s, 44.82 GB/s, 66.19 GB/s, 87.48 GB/s, 109.52 GB/s, 131.48
+              GB/s, 151.36 GB/s, 171.21 GB/s, 191.76 GB/s, 212.83 GB/s, 233.37 GB/s,
+            252.88 GB/s, 267.35 GB/s, 284.01 GB/s]
+          triad: [22.07 GB/s, 43.32 GB/s, 63.54 GB/s, 84.02 GB/s, 105.38 GB/s, 125.39
+              GB/s, 144.45 GB/s, 162.70 GB/s, 180.17 GB/s, 199.70 GB/s, 217.67 GB/s,
+            233.21 GB/s, 242.41 GB/s, 254.62 GB/s]
+          update: [29.21 GB/s, 56.60 GB/s, 85.36 GB/s, 110.35 GB/s, 142.33 GB/s, 171.63
+              GB/s, 195.62 GB/s, 224.15 GB/s, 249.65 GB/s, 276.82 GB/s, 298.64 GB/s,
+            322.40 GB/s, 340.86 GB/s, 353.52 GB/s]
+        size per core: [23.10 MB, 11.55 MB, 7.70 MB, 5.78 MB, 4.62 MB, 3.85 MB, 3.30
+            MB, 2.89 MB, 2.57 MB, 2.31 MB, 2.10 MB, 1.93 MB, 1.78 MB, 1.65 MB]
+        size per thread: [23.10 MB, 11.55 MB, 7.70 MB, 5.78 MB, 4.62 MB, 3.85 MB,
+          3.30 MB, 2.89 MB, 2.57 MB, 2.31 MB, 2.10 MB, 1.93 MB, 1.78 MB, 1.65 MB]
+        stats:
+          copy:
+          - [18.37 GB/s, 18.71 GB/s, 18.31 GB/s, 18.46 GB/s, 18.47 GB/s, 18.29 GB/s,
+            18.72 GB/s, 18.38 GB/s, 18.68 GB/s, 18.62 GB/s]
+          - [35.72 GB/s, 35.67 GB/s, 36.33 GB/s, 36.11 GB/s, 35.50 GB/s, 35.86 GB/s,
+            35.42 GB/s, 36.65 GB/s, 35.95 GB/s, 36.04 GB/s]
+          - [51.89 GB/s, 53.42 GB/s, 53.55 GB/s, 52.95 GB/s, 53.56 GB/s, 53.08 GB/s,
+            53.97 GB/s, 53.23 GB/s, 52.69 GB/s, 54.08 GB/s]
+          - [71.67 GB/s, 70.74 GB/s, 70.89 GB/s, 71.95 GB/s, 72.29 GB/s, 71.24 GB/s,
+            70.49 GB/s, 70.71 GB/s, 72.49 GB/s, 71.63 GB/s]
+          - [88.88 GB/s, 89.01 GB/s, 88.23 GB/s, 90.91 GB/s, 88.20 GB/s, 91.00 GB/s,
+            88.75 GB/s, 89.50 GB/s, 87.54 GB/s, 89.44 GB/s]
+          - [106.19 GB/s, 107.11 GB/s, 105.33 GB/s, 105.00 GB/s, 106.62 GB/s, 107.81
+              GB/s, 105.34 GB/s, 105.28 GB/s, 107.22 GB/s, 105.28 GB/s]
+          - [122.33 GB/s, 122.56 GB/s, 122.31 GB/s, 125.18 GB/s, 122.29 GB/s, 122.19
+              GB/s, 122.27 GB/s, 121.83 GB/s, 120.99 GB/s, 122.46 GB/s]
+          - [137.52 GB/s, 137.38 GB/s, 141.63 GB/s, 138.34 GB/s, 138.77 GB/s, 138.89
+              GB/s, 138.58 GB/s, 139.94 GB/s, 140.58 GB/s, 138.58 GB/s]
+          - [153.89 GB/s, 155.62 GB/s, 153.71 GB/s, 153.92 GB/s, 156.85 GB/s, 154.50
+              GB/s, 154.65 GB/s, 155.11 GB/s, 156.03 GB/s, 154.64 GB/s]
+          - [173.33 GB/s, 171.21 GB/s, 171.88 GB/s, 171.75 GB/s, 174.71 GB/s, 168.37
+              GB/s, 174.46 GB/s, 169.31 GB/s, 175.12 GB/s, 173.42 GB/s]
+          - [186.22 GB/s, 187.82 GB/s, 187.47 GB/s, 186.69 GB/s, 187.93 GB/s, 184.61
+              GB/s, 184.31 GB/s, 188.55 GB/s, 186.60 GB/s, 187.61 GB/s]
+          - [200.28 GB/s, 200.58 GB/s, 201.84 GB/s, 199.84 GB/s, 199.27 GB/s, 198.81
+              GB/s, 200.03 GB/s, 199.65 GB/s, 197.89 GB/s, 197.58 GB/s]
+          - [210.34 GB/s, 209.55 GB/s, 207.32 GB/s, 211.33 GB/s, 212.71 GB/s, 209.08
+              GB/s, 211.55 GB/s, 209.01 GB/s, 211.81 GB/s, 209.90 GB/s]
+          - [218.20 GB/s, 221.18 GB/s, 219.88 GB/s, 221.32 GB/s, 219.81 GB/s, 220.93
+              GB/s, 222.39 GB/s, 217.02 GB/s, 218.70 GB/s, 220.66 GB/s]
+          daxpy:
+          - [28.80 GB/s, 28.77 GB/s, 28.80 GB/s, 28.80 GB/s, 28.58 GB/s, 28.79 GB/s,
+            28.81 GB/s, 28.76 GB/s, 28.79 GB/s, 28.80 GB/s]
+          - [54.85 GB/s, 56.50 GB/s, 55.71 GB/s, 54.96 GB/s, 54.92 GB/s, 56.40 GB/s,
+            55.70 GB/s, 55.01 GB/s, 54.88 GB/s, 56.32 GB/s]
+          - [81.47 GB/s, 82.40 GB/s, 84.01 GB/s, 81.70 GB/s, 81.67 GB/s, 82.49 GB/s,
+            84.06 GB/s, 81.70 GB/s, 81.79 GB/s, 82.77 GB/s]
+          - [111.28 GB/s, 108.68 GB/s, 110.89 GB/s, 109.73 GB/s, 111.25 GB/s, 108.56
+              GB/s, 110.39 GB/s, 109.24 GB/s, 110.88 GB/s, 108.36 GB/s]
+          - [135.96 GB/s, 135.51 GB/s, 135.53 GB/s, 139.27 GB/s, 135.64 GB/s, 138.39
+              GB/s, 135.42 GB/s, 137.53 GB/s, 135.09 GB/s, 137.17 GB/s]
+          - [162.04 GB/s, 161.96 GB/s, 162.14 GB/s, 163.82 GB/s, 161.58 GB/s, 161.81
+              GB/s, 161.76 GB/s, 165.34 GB/s, 162.40 GB/s, 161.30 GB/s]
+          - [187.85 GB/s, 192.49 GB/s, 191.97 GB/s, 190.52 GB/s, 190.63 GB/s, 189.83
+              GB/s, 190.86 GB/s, 188.63 GB/s, 188.71 GB/s, 188.65 GB/s]
+          - [212.72 GB/s, 217.54 GB/s, 215.66 GB/s, 213.40 GB/s, 212.80 GB/s, 217.09
+              GB/s, 213.74 GB/s, 212.78 GB/s, 211.69 GB/s, 215.67 GB/s]
+          - [237.02 GB/s, 235.85 GB/s, 237.78 GB/s, 236.46 GB/s, 240.31 GB/s, 236.27
+              GB/s, 236.57 GB/s, 236.82 GB/s, 235.80 GB/s, 238.62 GB/s]
+          - [258.75 GB/s, 263.61 GB/s, 259.97 GB/s, 262.15 GB/s, 261.16 GB/s, 262.44
+              GB/s, 260.67 GB/s, 261.38 GB/s, 265.92 GB/s, 260.37 GB/s]
+          - [286.30 GB/s, 283.57 GB/s, 283.01 GB/s, 288.00 GB/s, 283.83 GB/s, 283.95
+              GB/s, 288.55 GB/s, 283.53 GB/s, 286.20 GB/s, 283.21 GB/s]
+          - [303.30 GB/s, 305.28 GB/s, 308.51 GB/s, 302.83 GB/s, 303.61 GB/s, 305.19
+              GB/s, 301.85 GB/s, 306.91 GB/s, 302.29 GB/s, 306.93 GB/s]
+          - [320.13 GB/s, 320.82 GB/s, 321.30 GB/s, 315.42 GB/s, 316.28 GB/s, 317.34
+              GB/s, 318.51 GB/s, 319.19 GB/s, 321.69 GB/s, 321.68 GB/s]
+          - [336.13 GB/s, 335.33 GB/s, 331.67 GB/s, 330.68 GB/s, 331.45 GB/s, 329.97
+              GB/s, 330.56 GB/s, 331.57 GB/s, 332.65 GB/s, 330.52 GB/s]
+          load:
+          - [22.95 GB/s, 23.09 GB/s, 22.80 GB/s, 22.87 GB/s, 22.94 GB/s, 22.96 GB/s,
+            22.91 GB/s, 23.03 GB/s, 22.60 GB/s, 22.47 GB/s]
+          - [44.05 GB/s, 44.19 GB/s, 44.78 GB/s, 44.69 GB/s, 44.82 GB/s, 44.72 GB/s,
+            44.27 GB/s, 44.42 GB/s, 44.52 GB/s, 43.83 GB/s]
+          - [64.84 GB/s, 64.91 GB/s, 65.48 GB/s, 66.19 GB/s, 65.67 GB/s, 64.30 GB/s,
+            64.99 GB/s, 65.29 GB/s, 64.77 GB/s, 65.71 GB/s]
+          - [86.41 GB/s, 86.18 GB/s, 86.36 GB/s, 85.77 GB/s, 86.92 GB/s, 86.83 GB/s,
+            87.22 GB/s, 84.94 GB/s, 87.48 GB/s, 86.61 GB/s]
+          - [109.46 GB/s, 108.28 GB/s, 108.25 GB/s, 107.05 GB/s, 107.02 GB/s, 106.99
+              GB/s, 106.53 GB/s, 107.07 GB/s, 109.52 GB/s, 108.69 GB/s]
+          - [129.07 GB/s, 130.81 GB/s, 129.21 GB/s, 129.13 GB/s, 129.76 GB/s, 129.22
+              GB/s, 130.45 GB/s, 131.48 GB/s, 131.00 GB/s, 130.00 GB/s]
+          - [150.42 GB/s, 148.38 GB/s, 150.41 GB/s, 148.15 GB/s, 150.43 GB/s, 151.19
+              GB/s, 151.36 GB/s, 148.42 GB/s, 148.54 GB/s, 150.07 GB/s]
+          - [169.12 GB/s, 171.21 GB/s, 170.90 GB/s, 170.72 GB/s, 169.35 GB/s, 168.27
+              GB/s, 169.39 GB/s, 171.15 GB/s, 168.99 GB/s, 168.89 GB/s]
+          - [190.17 GB/s, 191.76 GB/s, 190.17 GB/s, 189.83 GB/s, 190.52 GB/s, 189.33
+              GB/s, 190.65 GB/s, 183.69 GB/s, 190.08 GB/s, 191.68 GB/s]
+          - [210.98 GB/s, 212.43 GB/s, 210.86 GB/s, 205.76 GB/s, 210.27 GB/s, 212.83
+              GB/s, 208.97 GB/s, 210.67 GB/s, 211.55 GB/s, 210.18 GB/s]
+          - [227.72 GB/s, 231.87 GB/s, 233.11 GB/s, 233.37 GB/s, 229.10 GB/s, 232.56
+              GB/s, 232.65 GB/s, 229.85 GB/s, 232.55 GB/s, 231.03 GB/s]
+          - [249.62 GB/s, 247.94 GB/s, 251.21 GB/s, 250.91 GB/s, 247.83 GB/s, 247.99
+              GB/s, 248.20 GB/s, 252.37 GB/s, 252.88 GB/s, 249.83 GB/s]
+          - [266.00 GB/s, 263.59 GB/s, 263.05 GB/s, 261.52 GB/s, 267.35 GB/s, 264.90
+              GB/s, 258.11 GB/s, 260.29 GB/s, 260.11 GB/s, 264.06 GB/s]
+          - [284.01 GB/s, 280.70 GB/s, 281.80 GB/s, 276.41 GB/s, 278.50 GB/s, 281.29
+              GB/s, 276.46 GB/s, 277.84 GB/s, 278.79 GB/s, 282.29 GB/s]
+          triad:
+          - [22.07 GB/s, 22.00 GB/s, 22.07 GB/s, 21.83 GB/s, 21.91 GB/s, 21.97 GB/s,
+            21.90 GB/s, 21.78 GB/s, 21.93 GB/s, 21.91 GB/s]
+          - [42.64 GB/s, 42.79 GB/s, 42.89 GB/s, 42.00 GB/s, 42.88 GB/s, 42.72 GB/s,
+            42.09 GB/s, 42.37 GB/s, 43.32 GB/s, 42.33 GB/s]
+          - [63.27 GB/s, 62.89 GB/s, 62.61 GB/s, 63.54 GB/s, 63.28 GB/s, 63.25 GB/s,
+            62.62 GB/s, 62.23 GB/s, 63.18 GB/s, 62.72 GB/s]
+          - [84.02 GB/s, 82.70 GB/s, 83.81 GB/s, 83.96 GB/s, 83.30 GB/s, 83.83 GB/s,
+            83.69 GB/s, 82.90 GB/s, 82.63 GB/s, 83.26 GB/s]
+          - [103.83 GB/s, 102.75 GB/s, 102.11 GB/s, 104.00 GB/s, 105.38 GB/s, 101.61
+              GB/s, 103.09 GB/s, 104.03 GB/s, 103.51 GB/s, 104.07 GB/s]
+          - [122.96 GB/s, 123.55 GB/s, 123.30 GB/s, 124.27 GB/s, 123.33 GB/s, 123.74
+              GB/s, 125.09 GB/s, 124.94 GB/s, 125.39 GB/s, 123.71 GB/s]
+          - [144.45 GB/s, 142.98 GB/s, 143.85 GB/s, 143.39 GB/s, 143.66 GB/s, 144.33
+              GB/s, 143.36 GB/s, 142.64 GB/s, 144.30 GB/s, 141.82 GB/s]
+          - [160.27 GB/s, 161.04 GB/s, 162.15 GB/s, 161.33 GB/s, 161.64 GB/s, 162.37
+              GB/s, 161.66 GB/s, 159.31 GB/s, 161.87 GB/s, 162.70 GB/s]
+          - [179.81 GB/s, 179.50 GB/s, 178.41 GB/s, 180.03 GB/s, 177.72 GB/s, 180.17
+              GB/s, 178.41 GB/s, 178.33 GB/s, 180.03 GB/s, 179.63 GB/s]
+          - [199.09 GB/s, 198.51 GB/s, 199.70 GB/s, 195.91 GB/s, 195.90 GB/s, 198.62
+              GB/s, 197.13 GB/s, 196.34 GB/s, 197.72 GB/s, 198.09 GB/s]
+          - [215.72 GB/s, 217.67 GB/s, 215.32 GB/s, 215.96 GB/s, 215.27 GB/s, 211.05
+              GB/s, 216.22 GB/s, 214.04 GB/s, 213.85 GB/s, 216.17 GB/s]
+          - [231.92 GB/s, 231.54 GB/s, 230.83 GB/s, 233.21 GB/s, 231.10 GB/s, 232.80
+              GB/s, 231.13 GB/s, 229.75 GB/s, 232.72 GB/s, 229.90 GB/s]
+          - [239.21 GB/s, 239.39 GB/s, 241.42 GB/s, 240.65 GB/s, 241.41 GB/s, 239.86
+              GB/s, 240.56 GB/s, 242.41 GB/s, 241.07 GB/s, 240.42 GB/s]
+          - [250.14 GB/s, 252.95 GB/s, 254.15 GB/s, 254.62 GB/s, 253.79 GB/s, 254.52
+              GB/s, 250.51 GB/s, 253.54 GB/s, 254.46 GB/s, 250.97 GB/s]
+          update:
+          - [29.02 GB/s, 29.08 GB/s, 29.09 GB/s, 29.21 GB/s, 28.88 GB/s, 28.77 GB/s,
+            28.99 GB/s, 28.76 GB/s, 28.69 GB/s, 29.07 GB/s]
+          - [56.28 GB/s, 53.10 GB/s, 56.60 GB/s, 53.30 GB/s, 53.79 GB/s, 53.03 GB/s,
+            53.30 GB/s, 53.73 GB/s, 53.57 GB/s, 54.49 GB/s]
+          - [80.29 GB/s, 80.63 GB/s, 81.79 GB/s, 80.64 GB/s, 81.05 GB/s, 80.48 GB/s,
+            79.94 GB/s, 82.86 GB/s, 85.36 GB/s, 79.62 GB/s]
+          - [107.38 GB/s, 107.14 GB/s, 107.75 GB/s, 109.13 GB/s, 109.20 GB/s, 106.92
+              GB/s, 109.67 GB/s, 107.45 GB/s, 110.35 GB/s, 107.73 GB/s]
+          - [134.96 GB/s, 134.73 GB/s, 135.02 GB/s, 139.27 GB/s, 138.94 GB/s, 131.07
+              GB/s, 133.78 GB/s, 135.17 GB/s, 142.33 GB/s, 132.60 GB/s]
+          - [160.22 GB/s, 163.71 GB/s, 165.08 GB/s, 167.77 GB/s, 171.63 GB/s, 163.65
+              GB/s, 164.23 GB/s, 163.39 GB/s, 162.86 GB/s, 163.92 GB/s]
+          - [192.17 GB/s, 194.44 GB/s, 188.42 GB/s, 190.31 GB/s, 195.62 GB/s, 189.90
+              GB/s, 189.78 GB/s, 195.18 GB/s, 188.79 GB/s, 189.33 GB/s]
+          - [223.75 GB/s, 213.57 GB/s, 223.37 GB/s, 221.48 GB/s, 223.85 GB/s, 217.37
+              GB/s, 224.15 GB/s, 215.67 GB/s, 224.12 GB/s, 217.00 GB/s]
+          - [249.65 GB/s, 239.23 GB/s, 239.87 GB/s, 241.63 GB/s, 240.74 GB/s, 246.57
+              GB/s, 240.47 GB/s, 241.53 GB/s, 245.39 GB/s, 240.23 GB/s]
+          - [269.43 GB/s, 267.55 GB/s, 263.20 GB/s, 269.12 GB/s, 273.37 GB/s, 265.57
+              GB/s, 267.41 GB/s, 268.38 GB/s, 276.82 GB/s, 268.13 GB/s]
+          - [289.99 GB/s, 287.50 GB/s, 298.64 GB/s, 290.10 GB/s, 294.66 GB/s, 291.15
+              GB/s, 291.18 GB/s, 292.11 GB/s, 287.63 GB/s, 289.16 GB/s]
+          - [309.23 GB/s, 306.96 GB/s, 309.19 GB/s, 314.08 GB/s, 322.40 GB/s, 309.29
+              GB/s, 307.68 GB/s, 311.33 GB/s, 309.26 GB/s, 307.28 GB/s]
+          - [323.21 GB/s, 328.84 GB/s, 333.47 GB/s, 336.67 GB/s, 338.49 GB/s, 327.90
+              GB/s, 332.01 GB/s, 335.84 GB/s, 340.86 GB/s, 335.41 GB/s]
+          - [344.09 GB/s, 344.24 GB/s, 353.49 GB/s, 353.52 GB/s, 344.53 GB/s, 345.81
+              GB/s, 349.42 GB/s, 352.25 GB/s, 348.37 GB/s, 350.30 GB/s]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        threads per core: 1
+        total size: [23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10
+            MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10
+            MB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [19.26 GB/s, 37.89 GB/s, 56.18 GB/s, 74.88 GB/s, 92.94 GB/s, 110.85
+              GB/s, 128.03 GB/s, 144.59 GB/s, 160.01 GB/s, 177.19 GB/s, 193.04 GB/s,
+            206.94 GB/s, 215.25 GB/s, 225.11 GB/s]
+          daxpy: [29.25 GB/s, 57.49 GB/s, 85.20 GB/s, 113.41 GB/s, 141.09 GB/s, 168.08
+              GB/s, 194.68 GB/s, 219.66 GB/s, 243.50 GB/s, 268.50 GB/s, 291.44 GB/s,
+            311.13 GB/s, 324.25 GB/s, 338.01 GB/s]
+          load: [25.56 GB/s, 50.06 GB/s, 73.12 GB/s, 97.06 GB/s, 119.95 GB/s, 142.53
+              GB/s, 158.55 GB/s, 179.88 GB/s, 202.62 GB/s, 224.75 GB/s, 246.02 GB/s,
+            268.37 GB/s, 278.93 GB/s, 295.23 GB/s]
+          triad: [22.34 GB/s, 43.98 GB/s, 64.42 GB/s, 85.53 GB/s, 106.03 GB/s, 126.77
+              GB/s, 145.97 GB/s, 163.70 GB/s, 182.11 GB/s, 201.92 GB/s, 219.15 GB/s,
+            235.06 GB/s, 245.59 GB/s, 255.61 GB/s]
+          update: [30.00 GB/s, 58.85 GB/s, 87.60 GB/s, 117.24 GB/s, 145.36 GB/s, 173.49
+              GB/s, 202.60 GB/s, 229.53 GB/s, 255.20 GB/s, 283.04 GB/s, 304.01 GB/s,
+            325.65 GB/s, 341.43 GB/s, 356.72 GB/s]
+        size per core: [23.10 MB, 11.55 MB, 7.70 MB, 5.78 MB, 4.62 MB, 3.85 MB, 3.30
+            MB, 2.89 MB, 2.57 MB, 2.31 MB, 2.10 MB, 1.93 MB, 1.78 MB, 1.65 MB]
+        size per thread: [11.55 MB, 5.78 MB, 3.85 MB, 2.89 MB, 2.31 MB, 1.93 MB, 1.65
+            MB, 1.44 MB, 1.28 MB, 1.16 MB, 1.05 MB, 0.96 MB, 888.46 kB, 825.00 kB]
+        stats:
+          copy:
+          - [19.12 GB/s, 19.21 GB/s, 19.06 GB/s, 19.26 GB/s, 19.11 GB/s, 19.05 GB/s,
+            19.26 GB/s, 18.93 GB/s, 19.05 GB/s, 19.18 GB/s]
+          - [37.44 GB/s, 37.47 GB/s, 37.68 GB/s, 37.87 GB/s, 37.45 GB/s, 37.89 GB/s,
+            37.68 GB/s, 37.38 GB/s, 37.56 GB/s, 37.29 GB/s]
+          - [55.99 GB/s, 55.79 GB/s, 55.43 GB/s, 55.63 GB/s, 55.80 GB/s, 56.06 GB/s,
+            55.86 GB/s, 55.61 GB/s, 56.18 GB/s, 55.94 GB/s]
+          - [74.61 GB/s, 73.63 GB/s, 74.88 GB/s, 74.71 GB/s, 73.76 GB/s, 74.48 GB/s,
+            74.78 GB/s, 74.78 GB/s, 74.28 GB/s, 74.49 GB/s]
+          - [92.94 GB/s, 91.51 GB/s, 92.48 GB/s, 92.63 GB/s, 92.84 GB/s, 92.60 GB/s,
+            91.73 GB/s, 92.63 GB/s, 92.50 GB/s, 90.79 GB/s]
+          - [109.59 GB/s, 110.44 GB/s, 110.85 GB/s, 110.26 GB/s, 110.69 GB/s, 109.99
+              GB/s, 110.19 GB/s, 110.41 GB/s, 108.61 GB/s, 109.85 GB/s]
+          - [127.72 GB/s, 127.66 GB/s, 127.37 GB/s, 128.03 GB/s, 127.49 GB/s, 126.89
+              GB/s, 127.00 GB/s, 127.87 GB/s, 126.46 GB/s, 127.46 GB/s]
+          - [144.55 GB/s, 143.39 GB/s, 144.04 GB/s, 143.75 GB/s, 144.29 GB/s, 144.59
+              GB/s, 143.19 GB/s, 143.61 GB/s, 141.41 GB/s, 143.73 GB/s]
+          - [160.01 GB/s, 159.43 GB/s, 159.16 GB/s, 159.46 GB/s, 158.31 GB/s, 158.44
+              GB/s, 157.32 GB/s, 157.91 GB/s, 158.33 GB/s, 158.22 GB/s]
+          - [175.41 GB/s, 175.12 GB/s, 176.12 GB/s, 176.42 GB/s, 177.19 GB/s, 175.85
+              GB/s, 175.83 GB/s, 176.14 GB/s, 174.98 GB/s, 175.30 GB/s]
+          - [191.06 GB/s, 191.68 GB/s, 190.64 GB/s, 190.49 GB/s, 191.26 GB/s, 192.58
+              GB/s, 192.04 GB/s, 191.80 GB/s, 191.15 GB/s, 193.04 GB/s]
+          - [204.91 GB/s, 204.71 GB/s, 203.60 GB/s, 205.88 GB/s, 205.07 GB/s, 205.83
+              GB/s, 204.25 GB/s, 206.94 GB/s, 206.18 GB/s, 205.84 GB/s]
+          - [213.88 GB/s, 212.37 GB/s, 213.81 GB/s, 214.93 GB/s, 214.20 GB/s, 215.25
+              GB/s, 213.08 GB/s, 215.12 GB/s, 213.72 GB/s, 214.29 GB/s]
+          - [224.21 GB/s, 224.30 GB/s, 223.58 GB/s, 224.86 GB/s, 224.70 GB/s, 224.35
+              GB/s, 225.11 GB/s, 223.73 GB/s, 224.22 GB/s, 224.37 GB/s]
+          daxpy:
+          - [29.05 GB/s, 29.08 GB/s, 29.12 GB/s, 29.16 GB/s, 29.21 GB/s, 29.22 GB/s,
+            29.25 GB/s, 29.23 GB/s, 29.22 GB/s, 29.21 GB/s]
+          - [57.27 GB/s, 57.10 GB/s, 57.34 GB/s, 57.19 GB/s, 57.06 GB/s, 57.35 GB/s,
+            57.39 GB/s, 57.49 GB/s, 57.38 GB/s, 57.48 GB/s]
+          - [85.13 GB/s, 85.20 GB/s, 85.10 GB/s, 85.09 GB/s, 85.18 GB/s, 85.06 GB/s,
+            85.18 GB/s, 85.06 GB/s, 84.94 GB/s, 84.90 GB/s]
+          - [113.05 GB/s, 112.96 GB/s, 113.08 GB/s, 113.15 GB/s, 113.39 GB/s, 113.41
+              GB/s, 113.11 GB/s, 113.34 GB/s, 113.17 GB/s, 113.06 GB/s]
+          - [140.77 GB/s, 140.41 GB/s, 140.17 GB/s, 140.80 GB/s, 140.15 GB/s, 140.71
+              GB/s, 140.85 GB/s, 140.87 GB/s, 141.09 GB/s, 140.45 GB/s]
+          - [167.53 GB/s, 167.20 GB/s, 167.31 GB/s, 166.64 GB/s, 167.30 GB/s, 166.75
+              GB/s, 167.81 GB/s, 168.08 GB/s, 167.54 GB/s, 167.63 GB/s]
+          - [193.46 GB/s, 193.60 GB/s, 194.17 GB/s, 194.04 GB/s, 194.68 GB/s, 194.63
+              GB/s, 194.20 GB/s, 194.27 GB/s, 194.33 GB/s, 194.09 GB/s]
+          - [219.31 GB/s, 219.34 GB/s, 218.76 GB/s, 218.66 GB/s, 219.05 GB/s, 219.33
+              GB/s, 219.03 GB/s, 219.66 GB/s, 218.81 GB/s, 219.34 GB/s]
+          - [241.93 GB/s, 242.76 GB/s, 242.90 GB/s, 242.76 GB/s, 243.50 GB/s, 242.09
+              GB/s, 242.71 GB/s, 242.35 GB/s, 242.49 GB/s, 241.64 GB/s]
+          - [268.30 GB/s, 267.68 GB/s, 267.18 GB/s, 266.43 GB/s, 268.10 GB/s, 266.96
+              GB/s, 268.12 GB/s, 267.97 GB/s, 268.30 GB/s, 268.50 GB/s]
+          - [291.18 GB/s, 289.92 GB/s, 291.03 GB/s, 290.44 GB/s, 290.34 GB/s, 291.44
+              GB/s, 290.69 GB/s, 290.62 GB/s, 290.06 GB/s, 291.03 GB/s]
+          - [308.65 GB/s, 308.57 GB/s, 308.86 GB/s, 309.63 GB/s, 309.26 GB/s, 311.13
+              GB/s, 309.59 GB/s, 308.47 GB/s, 309.73 GB/s, 310.24 GB/s]
+          - [322.26 GB/s, 321.60 GB/s, 323.51 GB/s, 322.96 GB/s, 323.18 GB/s, 322.82
+              GB/s, 323.35 GB/s, 323.01 GB/s, 323.43 GB/s, 324.25 GB/s]
+          - [337.76 GB/s, 338.01 GB/s, 337.74 GB/s, 337.46 GB/s, 337.25 GB/s, 337.81
+              GB/s, 337.36 GB/s, 337.12 GB/s, 337.27 GB/s, 337.72 GB/s]
+          load:
+          - [25.26 GB/s, 25.30 GB/s, 25.38 GB/s, 25.38 GB/s, 25.23 GB/s, 25.13 GB/s,
+            25.11 GB/s, 25.38 GB/s, 25.45 GB/s, 25.56 GB/s]
+          - [49.82 GB/s, 49.25 GB/s, 49.54 GB/s, 49.84 GB/s, 50.06 GB/s, 49.82 GB/s,
+            49.25 GB/s, 49.90 GB/s, 49.82 GB/s, 48.84 GB/s]
+          - [72.71 GB/s, 73.12 GB/s, 72.27 GB/s, 71.91 GB/s, 70.83 GB/s, 71.48 GB/s,
+            72.21 GB/s, 71.82 GB/s, 72.10 GB/s, 72.21 GB/s]
+          - [96.10 GB/s, 95.92 GB/s, 94.94 GB/s, 96.62 GB/s, 96.18 GB/s, 95.56 GB/s,
+            96.14 GB/s, 96.22 GB/s, 96.94 GB/s, 97.06 GB/s]
+          - [119.95 GB/s, 118.88 GB/s, 119.13 GB/s, 117.22 GB/s, 118.37 GB/s, 118.80
+              GB/s, 118.59 GB/s, 117.86 GB/s, 117.34 GB/s, 116.28 GB/s]
+          - [139.67 GB/s, 136.03 GB/s, 141.29 GB/s, 139.93 GB/s, 139.99 GB/s, 142.53
+              GB/s, 141.95 GB/s, 139.33 GB/s, 141.01 GB/s, 141.35 GB/s]
+          - [158.25 GB/s, 154.68 GB/s, 158.55 GB/s, 158.36 GB/s, 157.30 GB/s, 157.83
+              GB/s, 157.42 GB/s, 155.22 GB/s, 157.44 GB/s, 157.19 GB/s]
+          - [179.67 GB/s, 179.88 GB/s, 176.75 GB/s, 179.55 GB/s, 178.43 GB/s, 178.41
+              GB/s, 175.54 GB/s, 178.97 GB/s, 179.34 GB/s, 179.57 GB/s]
+          - [199.79 GB/s, 201.08 GB/s, 201.96 GB/s, 201.04 GB/s, 200.84 GB/s, 200.61
+              GB/s, 202.62 GB/s, 202.31 GB/s, 199.81 GB/s, 200.43 GB/s]
+          - [223.23 GB/s, 223.92 GB/s, 224.10 GB/s, 223.78 GB/s, 223.96 GB/s, 224.75
+              GB/s, 221.87 GB/s, 220.82 GB/s, 222.37 GB/s, 224.58 GB/s]
+          - [243.67 GB/s, 241.84 GB/s, 243.05 GB/s, 245.49 GB/s, 243.72 GB/s, 243.81
+              GB/s, 241.98 GB/s, 244.44 GB/s, 246.02 GB/s, 241.72 GB/s]
+          - [264.49 GB/s, 262.20 GB/s, 261.37 GB/s, 263.64 GB/s, 264.64 GB/s, 265.18
+              GB/s, 268.37 GB/s, 263.54 GB/s, 260.73 GB/s, 264.13 GB/s]
+          - [277.88 GB/s, 275.86 GB/s, 275.67 GB/s, 278.16 GB/s, 276.01 GB/s, 275.11
+              GB/s, 278.93 GB/s, 278.49 GB/s, 274.91 GB/s, 278.20 GB/s]
+          - [292.81 GB/s, 293.35 GB/s, 289.02 GB/s, 291.32 GB/s, 292.16 GB/s, 292.60
+              GB/s, 289.59 GB/s, 292.96 GB/s, 295.23 GB/s, 292.47 GB/s]
+          triad:
+          - [22.25 GB/s, 22.23 GB/s, 22.23 GB/s, 22.20 GB/s, 22.23 GB/s, 22.11 GB/s,
+            22.10 GB/s, 22.34 GB/s, 22.25 GB/s, 22.07 GB/s]
+          - [43.75 GB/s, 43.45 GB/s, 43.98 GB/s, 43.21 GB/s, 43.28 GB/s, 43.22 GB/s,
+            43.62 GB/s, 43.68 GB/s, 43.63 GB/s, 43.54 GB/s]
+          - [63.79 GB/s, 63.33 GB/s, 63.91 GB/s, 64.42 GB/s, 63.83 GB/s, 64.05 GB/s,
+            64.17 GB/s, 64.01 GB/s, 64.30 GB/s, 63.86 GB/s]
+          - [85.49 GB/s, 85.05 GB/s, 85.53 GB/s, 85.38 GB/s, 84.92 GB/s, 85.09 GB/s,
+            85.36 GB/s, 84.92 GB/s, 85.00 GB/s, 84.97 GB/s]
+          - [105.39 GB/s, 105.22 GB/s, 105.72 GB/s, 104.67 GB/s, 105.90 GB/s, 104.78
+              GB/s, 106.03 GB/s, 104.43 GB/s, 105.29 GB/s, 104.33 GB/s]
+          - [122.72 GB/s, 124.92 GB/s, 125.49 GB/s, 126.16 GB/s, 125.82 GB/s, 126.77
+              GB/s, 125.70 GB/s, 125.62 GB/s, 126.36 GB/s, 125.13 GB/s]
+          - [145.97 GB/s, 145.66 GB/s, 144.26 GB/s, 145.92 GB/s, 142.55 GB/s, 144.07
+              GB/s, 145.08 GB/s, 142.56 GB/s, 142.63 GB/s, 145.23 GB/s]
+          - [161.38 GB/s, 163.70 GB/s, 163.60 GB/s, 159.86 GB/s, 160.65 GB/s, 162.11
+              GB/s, 161.97 GB/s, 162.30 GB/s, 161.18 GB/s, 162.05 GB/s]
+          - [182.11 GB/s, 180.72 GB/s, 180.98 GB/s, 180.37 GB/s, 180.14 GB/s, 180.20
+              GB/s, 181.87 GB/s, 178.50 GB/s, 180.93 GB/s, 181.32 GB/s]
+          - [200.33 GB/s, 196.91 GB/s, 200.18 GB/s, 198.57 GB/s, 198.64 GB/s, 201.92
+              GB/s, 201.00 GB/s, 200.98 GB/s, 200.08 GB/s, 200.67 GB/s]
+          - [216.07 GB/s, 219.15 GB/s, 217.18 GB/s, 218.11 GB/s, 214.20 GB/s, 216.94
+              GB/s, 215.62 GB/s, 217.45 GB/s, 215.94 GB/s, 217.20 GB/s]
+          - [233.96 GB/s, 233.07 GB/s, 232.63 GB/s, 231.96 GB/s, 234.24 GB/s, 233.87
+              GB/s, 235.06 GB/s, 234.59 GB/s, 234.34 GB/s, 232.22 GB/s]
+          - [242.47 GB/s, 243.37 GB/s, 244.44 GB/s, 242.75 GB/s, 244.87 GB/s, 243.49
+              GB/s, 245.59 GB/s, 245.03 GB/s, 242.86 GB/s, 243.99 GB/s]
+          - [255.61 GB/s, 254.12 GB/s, 254.84 GB/s, 251.98 GB/s, 251.97 GB/s, 253.48
+              GB/s, 254.48 GB/s, 253.45 GB/s, 249.98 GB/s, 250.89 GB/s]
+          update:
+          - [29.85 GB/s, 29.92 GB/s, 30.00 GB/s, 29.56 GB/s, 29.74 GB/s, 29.76 GB/s,
+            29.79 GB/s, 29.69 GB/s, 29.48 GB/s, 29.53 GB/s]
+          - [57.82 GB/s, 58.53 GB/s, 58.44 GB/s, 58.85 GB/s, 58.55 GB/s, 58.60 GB/s,
+            58.80 GB/s, 58.46 GB/s, 58.74 GB/s, 58.70 GB/s]
+          - [86.96 GB/s, 86.73 GB/s, 87.42 GB/s, 87.10 GB/s, 87.39 GB/s, 87.37 GB/s,
+            87.40 GB/s, 87.60 GB/s, 87.04 GB/s, 86.72 GB/s]
+          - [117.24 GB/s, 115.75 GB/s, 116.74 GB/s, 116.65 GB/s, 117.03 GB/s, 115.85
+              GB/s, 116.01 GB/s, 116.79 GB/s, 116.30 GB/s, 116.11 GB/s]
+          - [145.36 GB/s, 144.68 GB/s, 144.80 GB/s, 144.34 GB/s, 143.61 GB/s, 143.49
+              GB/s, 143.68 GB/s, 144.42 GB/s, 144.02 GB/s, 144.69 GB/s]
+          - [171.63 GB/s, 173.19 GB/s, 172.51 GB/s, 171.60 GB/s, 172.86 GB/s, 172.47
+              GB/s, 173.49 GB/s, 173.22 GB/s, 173.27 GB/s, 172.67 GB/s]
+          - [200.43 GB/s, 201.00 GB/s, 201.87 GB/s, 200.58 GB/s, 200.94 GB/s, 202.60
+              GB/s, 202.33 GB/s, 201.98 GB/s, 202.00 GB/s, 199.88 GB/s]
+          - [225.47 GB/s, 228.19 GB/s, 228.25 GB/s, 227.82 GB/s, 224.51 GB/s, 226.21
+              GB/s, 228.64 GB/s, 229.53 GB/s, 227.37 GB/s, 227.33 GB/s]
+          - [253.68 GB/s, 255.18 GB/s, 255.13 GB/s, 254.06 GB/s, 255.07 GB/s, 253.18
+              GB/s, 254.41 GB/s, 250.92 GB/s, 255.20 GB/s, 254.19 GB/s]
+          - [279.04 GB/s, 283.04 GB/s, 282.54 GB/s, 279.50 GB/s, 281.56 GB/s, 282.12
+              GB/s, 280.18 GB/s, 280.14 GB/s, 281.54 GB/s, 278.88 GB/s]
+          - [298.32 GB/s, 303.46 GB/s, 302.43 GB/s, 301.17 GB/s, 302.85 GB/s, 301.83
+              GB/s, 304.01 GB/s, 302.34 GB/s, 300.39 GB/s, 302.35 GB/s]
+          - [324.88 GB/s, 325.65 GB/s, 320.19 GB/s, 323.30 GB/s, 322.19 GB/s, 321.57
+              GB/s, 324.71 GB/s, 324.07 GB/s, 324.01 GB/s, 324.09 GB/s]
+          - [339.43 GB/s, 333.69 GB/s, 340.25 GB/s, 341.21 GB/s, 341.10 GB/s, 338.51
+              GB/s, 340.96 GB/s, 341.43 GB/s, 340.14 GB/s, 340.81 GB/s]
+          - [351.71 GB/s, 356.58 GB/s, 354.38 GB/s, 355.90 GB/s, 355.16 GB/s, 356.72
+              GB/s, 353.23 GB/s, 355.62 GB/s, 354.81 GB/s, 355.22 GB/s]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+        threads per core: 2
+        total size: [23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10
+            MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10 MB, 23.10
+            MB]
+    MEM:
+      1:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [8.35 GB/s, 17.30 GB/s, 22.97 GB/s, 27.71 GB/s, 30.99 GB/s, 32.56
+              GB/s, 33.87 GB/s, 34.49 GB/s, 34.85 GB/s, 35.10 GB/s, 35.30 GB/s, 35.42
+              GB/s, 35.47 GB/s, 35.57 GB/s]
+          daxpy: [12.49 GB/s, 25.70 GB/s, 35.17 GB/s, 42.43 GB/s, 47.08 GB/s, 49.51
+              GB/s, 51.39 GB/s, 51.75 GB/s, 52.10 GB/s, 52.51 GB/s, 52.62 GB/s, 52.75
+              GB/s, 52.73 GB/s, 52.74 GB/s]
+          load: [8.93 GB/s, 17.89 GB/s, 26.48 GB/s, 34.57 GB/s, 42.12 GB/s, 48.79
+              GB/s, 54.25 GB/s, 57.96 GB/s, 59.89 GB/s, 60.79 GB/s, 61.25 GB/s, 61.53
+              GB/s, 61.67 GB/s, 61.82 GB/s]
+          triad: [9.70 GB/s, 20.13 GB/s, 27.73 GB/s, 33.99 GB/s, 38.19 GB/s, 41.18
+              GB/s, 42.83 GB/s, 43.59 GB/s, 43.99 GB/s, 44.12 GB/s, 44.20 GB/s, 44.22
+              GB/s, 44.21 GB/s, 44.19 GB/s]
+          update: [13.89 GB/s, 26.57 GB/s, 36.00 GB/s, 42.76 GB/s, 46.52 GB/s, 47.10
+              GB/s, 47.30 GB/s, 47.16 GB/s, 47.07 GB/s, 47.02 GB/s, 46.93 GB/s, 46.85
+              GB/s, 46.78 GB/s, 46.74 GB/s]
+        size per core: [525.00 MB, 262.50 MB, 175.00 MB, 131.25 MB, 105.00 MB, 87.50
+            MB, 75.00 MB, 65.62 MB, 58.33 MB, 52.50 MB, 47.73 MB, 43.75 MB, 40.38
+            MB, 37.50 MB]
+        size per thread: [525.00 MB, 262.50 MB, 175.00 MB, 131.25 MB, 105.00 MB, 87.50
+            MB, 75.00 MB, 65.62 MB, 58.33 MB, 52.50 MB, 47.73 MB, 43.75 MB, 40.38
+            MB, 37.50 MB]
+        stats:
+          copy:
+          - [8.34 GB/s, 8.04 GB/s, 8.04 GB/s, 8.04 GB/s, 8.33 GB/s, 8.34 GB/s, 8.04
+              GB/s, 8.35 GB/s, 8.04 GB/s, 8.03 GB/s]
+          - [16.57 GB/s, 17.29 GB/s, 17.29 GB/s, 17.30 GB/s, 16.61 GB/s, 17.30 GB/s,
+            17.28 GB/s, 17.29 GB/s, 17.30 GB/s, 17.27 GB/s]
+          - [22.54 GB/s, 22.96 GB/s, 22.92 GB/s, 22.95 GB/s, 22.56 GB/s, 22.93 GB/s,
+            22.91 GB/s, 22.97 GB/s, 22.91 GB/s, 22.95 GB/s]
+          - [27.12 GB/s, 27.68 GB/s, 27.67 GB/s, 27.11 GB/s, 27.66 GB/s, 27.69 GB/s,
+            27.69 GB/s, 27.69 GB/s, 27.71 GB/s, 27.69 GB/s]
+          - [30.60 GB/s, 30.91 GB/s, 30.60 GB/s, 30.96 GB/s, 30.94 GB/s, 30.92 GB/s,
+            30.96 GB/s, 30.99 GB/s, 30.95 GB/s, 30.53 GB/s]
+          - [32.56 GB/s, 32.54 GB/s, 32.51 GB/s, 32.50 GB/s, 32.54 GB/s, 32.55 GB/s,
+            32.52 GB/s, 32.54 GB/s, 32.51 GB/s, 32.53 GB/s]
+          - [33.81 GB/s, 33.73 GB/s, 33.86 GB/s, 33.87 GB/s, 33.78 GB/s, 33.74 GB/s,
+            33.73 GB/s, 33.78 GB/s, 33.70 GB/s, 33.75 GB/s]
+          - [34.44 GB/s, 34.47 GB/s, 34.49 GB/s, 34.46 GB/s, 34.48 GB/s, 34.43 GB/s,
+            34.43 GB/s, 34.44 GB/s, 34.47 GB/s, 34.43 GB/s]
+          - [34.85 GB/s, 34.81 GB/s, 34.77 GB/s, 34.81 GB/s, 34.82 GB/s, 34.77 GB/s,
+            34.84 GB/s, 34.81 GB/s, 34.82 GB/s, 34.81 GB/s]
+          - [35.09 GB/s, 35.03 GB/s, 35.06 GB/s, 35.02 GB/s, 34.99 GB/s, 35.09 GB/s,
+            35.10 GB/s, 35.02 GB/s, 35.04 GB/s, 35.01 GB/s]
+          - [35.29 GB/s, 35.24 GB/s, 35.23 GB/s, 35.25 GB/s, 35.25 GB/s, 35.26 GB/s,
+            35.26 GB/s, 35.26 GB/s, 35.26 GB/s, 35.30 GB/s]
+          - [35.38 GB/s, 35.42 GB/s, 35.37 GB/s, 35.37 GB/s, 35.36 GB/s, 35.38 GB/s,
+            35.37 GB/s, 35.36 GB/s, 35.38 GB/s, 35.40 GB/s]
+          - [35.42 GB/s, 35.45 GB/s, 35.46 GB/s, 35.46 GB/s, 35.47 GB/s, 35.45 GB/s,
+            35.46 GB/s, 35.44 GB/s, 35.44 GB/s, 35.47 GB/s]
+          - [35.51 GB/s, 35.52 GB/s, 35.51 GB/s, 35.51 GB/s, 35.54 GB/s, 35.53 GB/s,
+            35.50 GB/s, 35.53 GB/s, 35.57 GB/s, 35.53 GB/s]
+          daxpy:
+          - [12.46 GB/s, 12.45 GB/s, 11.98 GB/s, 12.02 GB/s, 12.48 GB/s, 11.99 GB/s,
+            12.02 GB/s, 11.97 GB/s, 12.49 GB/s, 12.45 GB/s]
+          - [24.63 GB/s, 25.64 GB/s, 24.66 GB/s, 25.65 GB/s, 25.67 GB/s, 25.61 GB/s,
+            25.60 GB/s, 25.65 GB/s, 25.70 GB/s, 25.69 GB/s]
+          - [33.98 GB/s, 35.13 GB/s, 33.87 GB/s, 35.15 GB/s, 35.16 GB/s, 35.15 GB/s,
+            35.15 GB/s, 35.17 GB/s, 35.05 GB/s, 35.08 GB/s]
+          - [41.68 GB/s, 42.17 GB/s, 42.34 GB/s, 42.23 GB/s, 42.37 GB/s, 42.21 GB/s,
+            42.43 GB/s, 42.15 GB/s, 42.39 GB/s, 42.28 GB/s]
+          - [46.47 GB/s, 47.02 GB/s, 47.07 GB/s, 46.88 GB/s, 46.97 GB/s, 47.08 GB/s,
+            46.85 GB/s, 46.68 GB/s, 46.95 GB/s, 46.66 GB/s]
+          - [49.21 GB/s, 49.24 GB/s, 49.41 GB/s, 49.51 GB/s, 49.27 GB/s, 49.36 GB/s,
+            49.30 GB/s, 49.44 GB/s, 49.43 GB/s, 49.31 GB/s]
+          - [51.14 GB/s, 51.05 GB/s, 51.07 GB/s, 51.39 GB/s, 51.13 GB/s, 51.10 GB/s,
+            50.91 GB/s, 50.86 GB/s, 50.80 GB/s, 50.97 GB/s]
+          - [51.73 GB/s, 51.75 GB/s, 51.72 GB/s, 51.60 GB/s, 51.56 GB/s, 51.67 GB/s,
+            51.49 GB/s, 51.42 GB/s, 51.52 GB/s, 51.55 GB/s]
+          - [51.78 GB/s, 51.73 GB/s, 51.73 GB/s, 51.93 GB/s, 51.96 GB/s, 51.82 GB/s,
+            52.10 GB/s, 51.99 GB/s, 51.93 GB/s, 52.02 GB/s]
+          - [52.37 GB/s, 52.43 GB/s, 52.33 GB/s, 52.20 GB/s, 52.39 GB/s, 52.41 GB/s,
+            52.24 GB/s, 52.41 GB/s, 52.51 GB/s, 52.42 GB/s]
+          - [52.54 GB/s, 52.60 GB/s, 52.45 GB/s, 52.43 GB/s, 52.56 GB/s, 52.43 GB/s,
+            52.46 GB/s, 52.42 GB/s, 52.62 GB/s, 52.44 GB/s]
+          - [52.66 GB/s, 52.44 GB/s, 52.45 GB/s, 52.61 GB/s, 52.35 GB/s, 52.62 GB/s,
+            52.70 GB/s, 52.75 GB/s, 52.40 GB/s, 52.61 GB/s]
+          - [52.69 GB/s, 52.65 GB/s, 52.60 GB/s, 52.62 GB/s, 52.16 GB/s, 52.63 GB/s,
+            52.49 GB/s, 52.73 GB/s, 52.48 GB/s, 52.65 GB/s]
+          - [52.74 GB/s, 52.71 GB/s, 52.63 GB/s, 52.54 GB/s, 52.67 GB/s, 52.57 GB/s,
+            52.59 GB/s, 52.56 GB/s, 52.48 GB/s, 52.58 GB/s]
+          load:
+          - [8.93 GB/s, 8.93 GB/s, 8.92 GB/s, 8.93 GB/s, 8.93 GB/s, 8.92 GB/s, 8.93
+              GB/s, 8.93 GB/s, 8.93 GB/s, 8.92 GB/s]
+          - [17.81 GB/s, 17.88 GB/s, 17.89 GB/s, 17.88 GB/s, 17.87 GB/s, 17.87 GB/s,
+            17.88 GB/s, 17.87 GB/s, 17.88 GB/s, 17.88 GB/s]
+          - [26.43 GB/s, 26.42 GB/s, 26.44 GB/s, 26.44 GB/s, 26.44 GB/s, 26.48 GB/s,
+            26.47 GB/s, 26.46 GB/s, 26.45 GB/s, 26.45 GB/s]
+          - [34.54 GB/s, 34.48 GB/s, 34.53 GB/s, 34.48 GB/s, 34.54 GB/s, 34.57 GB/s,
+            34.55 GB/s, 34.48 GB/s, 34.57 GB/s, 34.54 GB/s]
+          - [42.11 GB/s, 42.06 GB/s, 42.09 GB/s, 42.12 GB/s, 42.05 GB/s, 42.11 GB/s,
+            42.11 GB/s, 42.06 GB/s, 42.07 GB/s, 42.09 GB/s]
+          - [48.70 GB/s, 48.69 GB/s, 48.78 GB/s, 48.75 GB/s, 48.77 GB/s, 48.73 GB/s,
+            48.71 GB/s, 48.63 GB/s, 48.79 GB/s, 48.71 GB/s]
+          - [54.18 GB/s, 54.19 GB/s, 54.14 GB/s, 54.17 GB/s, 54.20 GB/s, 54.25 GB/s,
+            54.21 GB/s, 54.18 GB/s, 54.17 GB/s, 54.20 GB/s]
+          - [57.92 GB/s, 57.94 GB/s, 57.96 GB/s, 57.95 GB/s, 57.90 GB/s, 57.87 GB/s,
+            57.93 GB/s, 57.90 GB/s, 57.90 GB/s, 57.89 GB/s]
+          - [59.78 GB/s, 59.80 GB/s, 59.88 GB/s, 59.76 GB/s, 59.71 GB/s, 59.89 GB/s,
+            59.77 GB/s, 59.80 GB/s, 59.88 GB/s, 59.75 GB/s]
+          - [60.76 GB/s, 60.79 GB/s, 60.79 GB/s, 60.78 GB/s, 60.77 GB/s, 60.73 GB/s,
+            60.77 GB/s, 60.77 GB/s, 60.76 GB/s, 60.77 GB/s]
+          - [61.25 GB/s, 61.19 GB/s, 61.23 GB/s, 61.23 GB/s, 61.24 GB/s, 61.24 GB/s,
+            61.25 GB/s, 61.24 GB/s, 61.25 GB/s, 61.23 GB/s]
+          - [61.53 GB/s, 61.52 GB/s, 61.52 GB/s, 61.53 GB/s, 61.52 GB/s, 61.52 GB/s,
+            61.52 GB/s, 61.52 GB/s, 61.51 GB/s, 61.51 GB/s]
+          - [61.66 GB/s, 61.66 GB/s, 61.66 GB/s, 61.65 GB/s, 61.67 GB/s, 61.67 GB/s,
+            61.67 GB/s, 61.66 GB/s, 61.66 GB/s, 61.67 GB/s]
+          - [61.81 GB/s, 61.82 GB/s, 61.82 GB/s, 61.82 GB/s, 61.82 GB/s, 61.82 GB/s,
+            61.81 GB/s, 61.81 GB/s, 61.80 GB/s, 61.82 GB/s]
+          triad:
+          - [9.61 GB/s, 9.60 GB/s, 9.61 GB/s, 9.60 GB/s, 9.70 GB/s, 9.70 GB/s, 9.70
+              GB/s, 9.66 GB/s, 9.56 GB/s, 9.60 GB/s]
+          - [19.16 GB/s, 19.93 GB/s, 19.83 GB/s, 20.13 GB/s, 20.04 GB/s, 19.95 GB/s,
+            19.87 GB/s, 20.02 GB/s, 20.07 GB/s, 19.98 GB/s]
+          - [27.72 GB/s, 27.72 GB/s, 27.48 GB/s, 27.56 GB/s, 27.59 GB/s, 27.66 GB/s,
+            27.46 GB/s, 27.73 GB/s, 27.64 GB/s, 27.69 GB/s]
+          - [33.40 GB/s, 33.93 GB/s, 33.96 GB/s, 33.99 GB/s, 33.75 GB/s, 33.72 GB/s,
+            33.88 GB/s, 33.91 GB/s, 33.85 GB/s, 33.97 GB/s]
+          - [38.05 GB/s, 38.05 GB/s, 38.04 GB/s, 38.11 GB/s, 38.01 GB/s, 37.92 GB/s,
+            38.09 GB/s, 37.99 GB/s, 38.19 GB/s, 38.12 GB/s]
+          - [41.18 GB/s, 41.15 GB/s, 41.08 GB/s, 40.92 GB/s, 41.11 GB/s, 41.15 GB/s,
+            41.00 GB/s, 41.15 GB/s, 41.11 GB/s, 41.09 GB/s]
+          - [42.73 GB/s, 42.80 GB/s, 42.74 GB/s, 42.83 GB/s, 42.72 GB/s, 42.74 GB/s,
+            42.77 GB/s, 42.69 GB/s, 42.76 GB/s, 42.75 GB/s]
+          - [43.50 GB/s, 43.56 GB/s, 43.53 GB/s, 43.49 GB/s, 43.59 GB/s, 43.49 GB/s,
+            43.57 GB/s, 43.53 GB/s, 43.54 GB/s, 43.55 GB/s]
+          - [43.88 GB/s, 43.99 GB/s, 43.93 GB/s, 43.91 GB/s, 43.96 GB/s, 43.88 GB/s,
+            43.94 GB/s, 43.95 GB/s, 43.85 GB/s, 43.88 GB/s]
+          - [44.12 GB/s, 44.08 GB/s, 44.03 GB/s, 44.01 GB/s, 44.05 GB/s, 44.12 GB/s,
+            44.03 GB/s, 44.06 GB/s, 44.06 GB/s, 44.10 GB/s]
+          - [44.20 GB/s, 44.18 GB/s, 44.17 GB/s, 44.19 GB/s, 44.17 GB/s, 44.17 GB/s,
+            44.17 GB/s, 44.17 GB/s, 44.17 GB/s, 44.15 GB/s]
+          - [44.16 GB/s, 44.21 GB/s, 44.20 GB/s, 44.16 GB/s, 44.21 GB/s, 44.18 GB/s,
+            44.19 GB/s, 44.22 GB/s, 44.21 GB/s, 44.15 GB/s]
+          - [44.16 GB/s, 44.21 GB/s, 44.15 GB/s, 44.12 GB/s, 44.15 GB/s, 44.12 GB/s,
+            44.16 GB/s, 44.15 GB/s, 44.14 GB/s, 44.13 GB/s]
+          - [44.13 GB/s, 44.14 GB/s, 44.16 GB/s, 44.19 GB/s, 44.14 GB/s, 44.14 GB/s,
+            44.13 GB/s, 44.14 GB/s, 44.14 GB/s, 44.09 GB/s]
+          update:
+          - [13.88 GB/s, 13.85 GB/s, 13.86 GB/s, 13.85 GB/s, 13.89 GB/s, 13.85 GB/s,
+            13.86 GB/s, 13.88 GB/s, 13.89 GB/s, 13.85 GB/s]
+          - [26.55 GB/s, 26.50 GB/s, 26.49 GB/s, 26.54 GB/s, 26.54 GB/s, 26.51 GB/s,
+            26.50 GB/s, 26.50 GB/s, 24.99 GB/s, 26.57 GB/s]
+          - [35.79 GB/s, 35.74 GB/s, 35.84 GB/s, 35.79 GB/s, 35.93 GB/s, 35.93 GB/s,
+            36.00 GB/s, 35.77 GB/s, 35.74 GB/s, 35.86 GB/s]
+          - [42.36 GB/s, 42.36 GB/s, 42.55 GB/s, 42.41 GB/s, 42.34 GB/s, 42.39 GB/s,
+            42.76 GB/s, 42.36 GB/s, 42.38 GB/s, 42.63 GB/s]
+          - [45.85 GB/s, 46.47 GB/s, 46.50 GB/s, 46.38 GB/s, 46.38 GB/s, 46.43 GB/s,
+            46.52 GB/s, 45.59 GB/s, 45.73 GB/s, 46.38 GB/s]
+          - [46.63 GB/s, 46.78 GB/s, 46.86 GB/s, 46.97 GB/s, 46.90 GB/s, 46.90 GB/s,
+            46.81 GB/s, 46.92 GB/s, 47.07 GB/s, 47.10 GB/s]
+          - [47.30 GB/s, 47.21 GB/s, 47.24 GB/s, 47.12 GB/s, 47.11 GB/s, 47.15 GB/s,
+            47.03 GB/s, 47.13 GB/s, 47.11 GB/s, 47.20 GB/s]
+          - [47.15 GB/s, 47.00 GB/s, 47.06 GB/s, 47.06 GB/s, 47.16 GB/s, 47.03 GB/s,
+            47.11 GB/s, 47.02 GB/s, 47.07 GB/s, 47.02 GB/s]
+          - [46.97 GB/s, 46.95 GB/s, 47.00 GB/s, 46.91 GB/s, 46.89 GB/s, 47.06 GB/s,
+            47.07 GB/s, 47.04 GB/s, 47.04 GB/s, 47.06 GB/s]
+          - [46.99 GB/s, 47.01 GB/s, 46.96 GB/s, 47.02 GB/s, 46.90 GB/s, 46.84 GB/s,
+            46.89 GB/s, 46.90 GB/s, 46.94 GB/s, 46.99 GB/s]
+          - [46.84 GB/s, 46.93 GB/s, 46.87 GB/s, 46.86 GB/s, 46.84 GB/s, 46.83 GB/s,
+            46.84 GB/s, 46.92 GB/s, 46.82 GB/s, 46.85 GB/s]
+          - [46.84 GB/s, 46.83 GB/s, 46.80 GB/s, 46.85 GB/s, 46.83 GB/s, 46.75 GB/s,
+            46.70 GB/s, 46.76 GB/s, 46.77 GB/s, 46.73 GB/s]
+          - [46.65 GB/s, 46.74 GB/s, 46.70 GB/s, 46.78 GB/s, 46.75 GB/s, 46.73 GB/s,
+            46.69 GB/s, 46.70 GB/s, 46.74 GB/s, 46.77 GB/s]
+          - [46.66 GB/s, 46.72 GB/s, 46.69 GB/s, 46.67 GB/s, 46.66 GB/s, 46.74 GB/s,
+            46.69 GB/s, 46.65 GB/s, 46.73 GB/s, 46.68 GB/s]
+        threads: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        threads per core: 1
+        total size: [525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00
+            MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB,
+          525.00 MB, 525.00 MB]
+      2:
+        cores: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        results:
+          copy: [9.40 GB/s, 18.18 GB/s, 24.53 GB/s, 29.60 GB/s, 32.58 GB/s, 34.08
+              GB/s, 34.75 GB/s, 35.06 GB/s, 35.25 GB/s, 35.29 GB/s, 35.34 GB/s, 35.32
+              GB/s, 35.31 GB/s, 35.28 GB/s]
+          daxpy: [14.41 GB/s, 27.42 GB/s, 36.88 GB/s, 44.75 GB/s, 49.34 GB/s, 51.21
+              GB/s, 51.84 GB/s, 52.03 GB/s, 52.27 GB/s, 52.25 GB/s, 52.33 GB/s, 52.32
+              GB/s, 52.25 GB/s, 52.25 GB/s]
+          load: [11.19 GB/s, 21.81 GB/s, 31.78 GB/s, 40.72 GB/s, 48.53 GB/s, 54.51
+              GB/s, 58.01 GB/s, 59.48 GB/s, 60.02 GB/s, 60.19 GB/s, 60.32 GB/s, 60.41
+              GB/s, 60.38 GB/s, 60.31 GB/s]
+          triad: [10.91 GB/s, 21.17 GB/s, 29.46 GB/s, 35.82 GB/s, 40.12 GB/s, 42.17
+              GB/s, 42.96 GB/s, 43.26 GB/s, 43.38 GB/s, 43.39 GB/s, 43.44 GB/s, 43.47
+              GB/s, 43.46 GB/s, 43.47 GB/s]
+          update: [15.54 GB/s, 29.33 GB/s, 38.69 GB/s, 45.82 GB/s, 46.61 GB/s, 46.55
+              GB/s, 46.54 GB/s, 46.43 GB/s, 46.35 GB/s, 46.28 GB/s, 46.19 GB/s, 46.11
+              GB/s, 46.01 GB/s, 45.99 GB/s]
+        size per core: [525.00 MB, 262.50 MB, 175.00 MB, 131.25 MB, 105.00 MB, 87.50
+            MB, 75.00 MB, 65.62 MB, 58.33 MB, 52.50 MB, 47.73 MB, 43.75 MB, 40.38
+            MB, 37.50 MB]
+        size per thread: [262.50 MB, 131.25 MB, 87.50 MB, 65.62 MB, 52.50 MB, 43.75
+            MB, 37.50 MB, 32.81 MB, 29.17 MB, 26.25 MB, 23.86 MB, 21.88 MB, 20.19
+            MB, 18.75 MB]
+        stats:
+          copy:
+          - [9.17 GB/s, 9.39 GB/s, 9.39 GB/s, 9.39 GB/s, 9.39 GB/s, 9.40 GB/s, 9.39
+              GB/s, 9.39 GB/s, 9.40 GB/s, 9.18 GB/s]
+          - [17.96 GB/s, 18.18 GB/s, 18.17 GB/s, 18.16 GB/s, 18.17 GB/s, 18.18 GB/s,
+            18.17 GB/s, 18.13 GB/s, 17.93 GB/s, 18.16 GB/s]
+          - [24.46 GB/s, 24.44 GB/s, 24.44 GB/s, 24.53 GB/s, 24.45 GB/s, 24.44 GB/s,
+            24.50 GB/s, 24.46 GB/s, 24.50 GB/s, 24.52 GB/s]
+          - [29.48 GB/s, 29.47 GB/s, 29.59 GB/s, 29.56 GB/s, 29.56 GB/s, 29.59 GB/s,
+            29.47 GB/s, 29.56 GB/s, 29.52 GB/s, 29.60 GB/s]
+          - [32.56 GB/s, 32.51 GB/s, 32.50 GB/s, 32.56 GB/s, 32.58 GB/s, 32.54 GB/s,
+            32.52 GB/s, 32.50 GB/s, 32.55 GB/s, 32.55 GB/s]
+          - [34.05 GB/s, 34.08 GB/s, 34.05 GB/s, 34.06 GB/s, 34.07 GB/s, 34.03 GB/s,
+            34.04 GB/s, 34.06 GB/s, 34.05 GB/s, 34.08 GB/s]
+          - [34.75 GB/s, 34.73 GB/s, 34.73 GB/s, 34.73 GB/s, 34.73 GB/s, 34.70 GB/s,
+            34.70 GB/s, 34.70 GB/s, 34.74 GB/s, 34.71 GB/s]
+          - [35.03 GB/s, 35.01 GB/s, 35.01 GB/s, 35.04 GB/s, 35.06 GB/s, 35.05 GB/s,
+            35.04 GB/s, 35.02 GB/s, 35.04 GB/s, 35.04 GB/s]
+          - [35.24 GB/s, 35.22 GB/s, 35.20 GB/s, 35.22 GB/s, 35.25 GB/s, 35.21 GB/s,
+            35.21 GB/s, 35.24 GB/s, 35.23 GB/s, 35.19 GB/s]
+          - [35.26 GB/s, 35.28 GB/s, 35.29 GB/s, 35.27 GB/s, 35.25 GB/s, 35.28 GB/s,
+            35.25 GB/s, 35.25 GB/s, 35.28 GB/s, 35.27 GB/s]
+          - [35.34 GB/s, 35.30 GB/s, 35.30 GB/s, 35.30 GB/s, 35.32 GB/s, 35.32 GB/s,
+            35.32 GB/s, 35.30 GB/s, 35.32 GB/s, 35.31 GB/s]
+          - [35.29 GB/s, 35.29 GB/s, 35.31 GB/s, 35.32 GB/s, 35.32 GB/s, 35.32 GB/s,
+            35.29 GB/s, 35.30 GB/s, 35.31 GB/s, 35.32 GB/s]
+          - [35.28 GB/s, 35.31 GB/s, 35.25 GB/s, 35.25 GB/s, 35.26 GB/s, 35.27 GB/s,
+            35.26 GB/s, 35.26 GB/s, 35.31 GB/s, 35.28 GB/s]
+          - [35.28 GB/s, 35.27 GB/s, 35.28 GB/s, 35.25 GB/s, 35.28 GB/s, 35.25 GB/s,
+            35.28 GB/s, 35.27 GB/s, 35.26 GB/s, 35.26 GB/s]
+          daxpy:
+          - [13.74 GB/s, 14.40 GB/s, 14.40 GB/s, 14.41 GB/s, 14.40 GB/s, 14.40 GB/s,
+            14.40 GB/s, 14.40 GB/s, 14.40 GB/s, 14.40 GB/s]
+          - [27.40 GB/s, 27.42 GB/s, 27.41 GB/s, 27.41 GB/s, 27.37 GB/s, 27.41 GB/s,
+            27.39 GB/s, 27.40 GB/s, 27.38 GB/s, 27.41 GB/s]
+          - [36.75 GB/s, 36.77 GB/s, 36.75 GB/s, 36.87 GB/s, 36.87 GB/s, 36.85 GB/s,
+            36.88 GB/s, 36.84 GB/s, 36.82 GB/s, 36.80 GB/s]
+          - [44.74 GB/s, 44.71 GB/s, 44.63 GB/s, 44.73 GB/s, 44.70 GB/s, 44.69 GB/s,
+            44.70 GB/s, 44.65 GB/s, 44.75 GB/s, 44.74 GB/s]
+          - [49.23 GB/s, 49.29 GB/s, 49.17 GB/s, 49.34 GB/s, 49.24 GB/s, 49.20 GB/s,
+            49.29 GB/s, 49.20 GB/s, 49.19 GB/s, 49.15 GB/s]
+          - [51.06 GB/s, 51.14 GB/s, 51.07 GB/s, 51.10 GB/s, 51.05 GB/s, 51.09 GB/s,
+            51.16 GB/s, 51.17 GB/s, 51.21 GB/s, 51.16 GB/s]
+          - [51.80 GB/s, 51.84 GB/s, 51.82 GB/s, 51.63 GB/s, 51.76 GB/s, 51.77 GB/s,
+            51.73 GB/s, 51.74 GB/s, 51.74 GB/s, 51.77 GB/s]
+          - [51.97 GB/s, 51.91 GB/s, 51.97 GB/s, 52.03 GB/s, 52.01 GB/s, 52.03 GB/s,
+            51.92 GB/s, 51.85 GB/s, 52.01 GB/s, 52.03 GB/s]
+          - [52.18 GB/s, 52.08 GB/s, 52.05 GB/s, 52.06 GB/s, 52.15 GB/s, 52.12 GB/s,
+            52.11 GB/s, 52.27 GB/s, 52.22 GB/s, 52.18 GB/s]
+          - [52.17 GB/s, 52.13 GB/s, 52.10 GB/s, 52.09 GB/s, 52.23 GB/s, 52.25 GB/s,
+            52.06 GB/s, 52.15 GB/s, 52.23 GB/s, 52.18 GB/s]
+          - [52.08 GB/s, 52.25 GB/s, 52.14 GB/s, 52.20 GB/s, 52.24 GB/s, 52.29 GB/s,
+            52.17 GB/s, 52.33 GB/s, 52.31 GB/s, 52.23 GB/s]
+          - [52.30 GB/s, 52.19 GB/s, 52.23 GB/s, 52.22 GB/s, 52.25 GB/s, 52.20 GB/s,
+            52.23 GB/s, 52.23 GB/s, 52.26 GB/s, 52.32 GB/s]
+          - [52.23 GB/s, 52.25 GB/s, 52.25 GB/s, 52.13 GB/s, 52.25 GB/s, 52.15 GB/s,
+            52.24 GB/s, 52.16 GB/s, 52.22 GB/s, 52.22 GB/s]
+          - [52.14 GB/s, 52.00 GB/s, 52.23 GB/s, 52.10 GB/s, 52.21 GB/s, 52.21 GB/s,
+            52.25 GB/s, 52.11 GB/s, 52.21 GB/s, 52.10 GB/s]
+          load:
+          - [11.18 GB/s, 11.19 GB/s, 11.18 GB/s, 11.18 GB/s, 11.18 GB/s, 11.18 GB/s,
+            11.18 GB/s, 11.18 GB/s, 11.18 GB/s, 11.18 GB/s]
+          - [21.80 GB/s, 21.80 GB/s, 21.80 GB/s, 21.79 GB/s, 21.80 GB/s, 21.80 GB/s,
+            21.79 GB/s, 21.79 GB/s, 21.80 GB/s, 21.81 GB/s]
+          - [31.76 GB/s, 31.72 GB/s, 31.75 GB/s, 31.75 GB/s, 31.73 GB/s, 31.73 GB/s,
+            31.73 GB/s, 31.76 GB/s, 31.78 GB/s, 31.76 GB/s]
+          - [40.66 GB/s, 40.68 GB/s, 40.69 GB/s, 40.68 GB/s, 40.69 GB/s, 40.64 GB/s,
+            40.67 GB/s, 40.70 GB/s, 40.72 GB/s, 40.70 GB/s]
+          - [48.50 GB/s, 48.45 GB/s, 48.50 GB/s, 48.47 GB/s, 48.51 GB/s, 48.47 GB/s,
+            48.53 GB/s, 48.48 GB/s, 48.47 GB/s, 48.50 GB/s]
+          - [54.49 GB/s, 54.50 GB/s, 54.50 GB/s, 54.50 GB/s, 54.51 GB/s, 54.49 GB/s,
+            54.48 GB/s, 54.46 GB/s, 54.50 GB/s, 54.50 GB/s]
+          - [57.99 GB/s, 58.00 GB/s, 57.98 GB/s, 57.98 GB/s, 57.98 GB/s, 57.98 GB/s,
+            58.00 GB/s, 57.97 GB/s, 58.01 GB/s, 57.98 GB/s]
+          - [59.45 GB/s, 59.46 GB/s, 59.46 GB/s, 59.47 GB/s, 59.45 GB/s, 59.46 GB/s,
+            59.44 GB/s, 59.48 GB/s, 59.48 GB/s, 59.45 GB/s]
+          - [59.99 GB/s, 60.00 GB/s, 59.99 GB/s, 60.02 GB/s, 59.99 GB/s, 60.02 GB/s,
+            60.02 GB/s, 60.00 GB/s, 60.01 GB/s, 60.02 GB/s]
+          - [60.19 GB/s, 60.18 GB/s, 60.18 GB/s, 60.18 GB/s, 60.19 GB/s, 60.19 GB/s,
+            60.18 GB/s, 60.19 GB/s, 60.19 GB/s, 60.18 GB/s]
+          - [60.32 GB/s, 60.32 GB/s, 60.32 GB/s, 60.32 GB/s, 60.32 GB/s, 60.31 GB/s,
+            60.32 GB/s, 60.32 GB/s, 60.32 GB/s, 60.32 GB/s]
+          - [60.40 GB/s, 60.40 GB/s, 60.40 GB/s, 60.41 GB/s, 60.40 GB/s, 60.39 GB/s,
+            60.39 GB/s, 60.39 GB/s, 60.40 GB/s, 60.39 GB/s]
+          - [60.38 GB/s, 60.37 GB/s, 60.37 GB/s, 60.37 GB/s, 60.37 GB/s, 60.37 GB/s,
+            60.36 GB/s, 60.37 GB/s, 60.37 GB/s, 60.36 GB/s]
+          - [60.31 GB/s, 60.31 GB/s, 60.31 GB/s, 60.31 GB/s, 60.30 GB/s, 60.30 GB/s,
+            60.30 GB/s, 60.31 GB/s, 60.30 GB/s, 60.30 GB/s]
+          triad:
+          - [10.65 GB/s, 10.90 GB/s, 10.82 GB/s, 10.83 GB/s, 10.65 GB/s, 10.90 GB/s,
+            10.91 GB/s, 10.90 GB/s, 10.91 GB/s, 10.90 GB/s]
+          - [21.10 GB/s, 21.17 GB/s, 21.17 GB/s, 21.16 GB/s, 21.17 GB/s, 21.17 GB/s,
+            21.17 GB/s, 21.17 GB/s, 21.17 GB/s, 21.17 GB/s]
+          - [29.46 GB/s, 29.45 GB/s, 29.43 GB/s, 29.37 GB/s, 29.41 GB/s, 29.44 GB/s,
+            29.44 GB/s, 29.38 GB/s, 29.45 GB/s, 29.46 GB/s]
+          - [35.78 GB/s, 35.78 GB/s, 35.79 GB/s, 35.79 GB/s, 35.82 GB/s, 35.77 GB/s,
+            35.78 GB/s, 35.80 GB/s, 35.82 GB/s, 35.77 GB/s]
+          - [40.09 GB/s, 40.10 GB/s, 40.04 GB/s, 40.07 GB/s, 40.09 GB/s, 40.09 GB/s,
+            40.08 GB/s, 40.04 GB/s, 40.07 GB/s, 40.12 GB/s]
+          - [42.13 GB/s, 42.15 GB/s, 42.16 GB/s, 42.17 GB/s, 42.14 GB/s, 42.12 GB/s,
+            42.11 GB/s, 42.16 GB/s, 42.15 GB/s, 42.15 GB/s]
+          - [42.95 GB/s, 42.93 GB/s, 42.93 GB/s, 42.91 GB/s, 42.93 GB/s, 42.95 GB/s,
+            42.96 GB/s, 42.92 GB/s, 42.95 GB/s, 42.92 GB/s]
+          - [43.23 GB/s, 43.23 GB/s, 43.24 GB/s, 43.23 GB/s, 43.25 GB/s, 43.21 GB/s,
+            43.26 GB/s, 43.25 GB/s, 43.20 GB/s, 43.23 GB/s]
+          - [43.34 GB/s, 43.34 GB/s, 43.35 GB/s, 43.35 GB/s, 43.35 GB/s, 43.38 GB/s,
+            43.36 GB/s, 43.37 GB/s, 43.37 GB/s, 43.35 GB/s]
+          - [43.39 GB/s, 43.38 GB/s, 43.37 GB/s, 43.36 GB/s, 43.37 GB/s, 43.35 GB/s,
+            43.39 GB/s, 43.37 GB/s, 43.36 GB/s, 43.37 GB/s]
+          - [43.43 GB/s, 43.41 GB/s, 43.38 GB/s, 43.41 GB/s, 43.41 GB/s, 43.41 GB/s,
+            43.43 GB/s, 43.44 GB/s, 43.41 GB/s, 43.40 GB/s]
+          - [43.42 GB/s, 43.43 GB/s, 43.46 GB/s, 43.44 GB/s, 43.44 GB/s, 43.47 GB/s,
+            43.43 GB/s, 43.42 GB/s, 43.44 GB/s, 43.45 GB/s]
+          - [43.45 GB/s, 43.44 GB/s, 43.44 GB/s, 43.44 GB/s, 43.42 GB/s, 43.46 GB/s,
+            43.40 GB/s, 43.41 GB/s, 43.42 GB/s, 43.43 GB/s]
+          - [43.47 GB/s, 43.45 GB/s, 43.45 GB/s, 43.45 GB/s, 43.42 GB/s, 43.46 GB/s,
+            43.40 GB/s, 43.45 GB/s, 43.44 GB/s, 43.47 GB/s]
+          update:
+          - [15.27 GB/s, 15.54 GB/s, 15.53 GB/s, 15.53 GB/s, 15.53 GB/s, 15.52 GB/s,
+            15.53 GB/s, 15.53 GB/s, 15.53 GB/s, 15.52 GB/s]
+          - [28.82 GB/s, 29.32 GB/s, 29.32 GB/s, 29.31 GB/s, 29.32 GB/s, 29.32 GB/s,
+            29.32 GB/s, 29.33 GB/s, 29.32 GB/s, 29.32 GB/s]
+          - [38.65 GB/s, 38.68 GB/s, 38.69 GB/s, 38.65 GB/s, 38.66 GB/s, 38.60 GB/s,
+            38.66 GB/s, 38.65 GB/s, 38.66 GB/s, 38.68 GB/s]
+          - [45.69 GB/s, 45.82 GB/s, 45.76 GB/s, 45.78 GB/s, 45.75 GB/s, 45.68 GB/s,
+            45.73 GB/s, 45.72 GB/s, 45.75 GB/s, 45.76 GB/s]
+          - [46.52 GB/s, 46.58 GB/s, 46.51 GB/s, 46.51 GB/s, 46.52 GB/s, 46.60 GB/s,
+            46.57 GB/s, 46.59 GB/s, 46.61 GB/s, 46.59 GB/s]
+          - [46.54 GB/s, 46.55 GB/s, 46.52 GB/s, 46.53 GB/s, 46.49 GB/s, 46.54 GB/s,
+            46.53 GB/s, 46.54 GB/s, 46.52 GB/s, 46.44 GB/s]
+          - [46.46 GB/s, 46.54 GB/s, 46.44 GB/s, 46.45 GB/s, 46.39 GB/s, 46.40 GB/s,
+            46.45 GB/s, 46.41 GB/s, 46.42 GB/s, 46.44 GB/s]
+          - [46.34 GB/s, 46.36 GB/s, 46.36 GB/s, 46.43 GB/s, 46.36 GB/s, 46.37 GB/s,
+            46.42 GB/s, 46.37 GB/s, 46.37 GB/s, 46.36 GB/s]
+          - [46.35 GB/s, 46.32 GB/s, 46.32 GB/s, 46.29 GB/s, 46.33 GB/s, 46.31 GB/s,
+            46.29 GB/s, 46.29 GB/s, 46.30 GB/s, 46.33 GB/s]
+          - [46.21 GB/s, 46.27 GB/s, 46.22 GB/s, 46.25 GB/s, 46.24 GB/s, 46.27 GB/s,
+            46.27 GB/s, 46.28 GB/s, 46.25 GB/s, 46.23 GB/s]
+          - [46.17 GB/s, 46.19 GB/s, 46.17 GB/s, 46.18 GB/s, 46.15 GB/s, 46.17 GB/s,
+            46.12 GB/s, 46.12 GB/s, 46.14 GB/s, 46.15 GB/s]
+          - [46.08 GB/s, 46.07 GB/s, 46.08 GB/s, 46.06 GB/s, 46.05 GB/s, 46.09 GB/s,
+            46.07 GB/s, 46.11 GB/s, 46.06 GB/s, 46.09 GB/s]
+          - [46.00 GB/s, 46.00 GB/s, 46.00 GB/s, 45.94 GB/s, 45.99 GB/s, 46.01 GB/s,
+            45.99 GB/s, 46.01 GB/s, 46.00 GB/s, 45.97 GB/s]
+          - [45.96 GB/s, 45.95 GB/s, 45.96 GB/s, 45.95 GB/s, 45.97 GB/s, 45.91 GB/s,
+            45.99 GB/s, 45.97 GB/s, 45.95 GB/s, 45.96 GB/s]
+        threads: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+        threads per core: 2
+        total size: [525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00
+            MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB, 525.00 MB,
+          525.00 MB, 525.00 MB]
 

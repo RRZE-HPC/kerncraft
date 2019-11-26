@@ -1,11 +1,12 @@
 #ifndef _KERNCRAFT_H
 #define _KERNCRAFT_H
-#include <stdlib.h>
+//#include <stdlib.h>
+#define size_t int
 
 #define swap(a, b) {void* t = a; a = b; b = t;}
 
 
-inline void* aligned_malloc(size_t size, size_t align) {
+inline void* aligned_malloc(size_t size, size_t align) /* {
     // Based on http://stackoverflow.com/q/16376942
     void *result;
     #if defined(_MSC_VER)
@@ -16,6 +17,6 @@ inline void* aligned_malloc(size_t size, size_t align) {
          if(posix_memalign(&result, align, size)) result = 0;
     #endif
     return result;
-}
+} */;
 
 #endif

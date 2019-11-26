@@ -170,25 +170,25 @@ class TestKerncraft(unittest.TestCase):
         self.assertCountEqual(result, ['Roofline'])
 
         roofline = result['Roofline']
-        assert_relativly_equal(roofline['min performance']['FLOP/s'], 5115000000.0, 0.01)
+        assert_relativly_equal(roofline['min performance']['FLOP/s'], 4720000000.0, 0.01)
         self.assertEqual(roofline['bottleneck level'], 1)
 
         expected_btlncks = [{'arithmetic intensity': 0.11764705882352941,
-                             'bandwidth': PrefixedUnit(81.61, u'G', u'B/s'),
+                             'bandwidth': PrefixedUnit(100.24, u'G', u'B/s'),
                              'bw kernel': 'triad',
                              'level': u'L1',
-                             'performance': PrefixedUnit(9601176470.588236, u'', u'FLOP/s')
+                             'performance': PrefixedUnit(11.79, u'G', u'FLOP/s')
                              },
                             {'arithmetic intensity': 0.1,
-                             'bandwidth': PrefixedUnit(51.15, u'G', u'B/s'),
+                             'bandwidth': PrefixedUnit(47.24, u'G', u'B/s'),
                              'bw kernel': 'triad',
                              'level': u'L2',
-                             'performance': PrefixedUnit(5115000000.0, u'', u'FLOP/s')},
+                             'performance': PrefixedUnit(4.72, u'G', u'FLOP/s')},
                             {'arithmetic intensity': 1.0 / 6.0,
-                             'bandwidth': PrefixedUnit(34815.0, 'M', 'B/s'),
+                             'bandwidth': PrefixedUnit(32.9, 'G', 'B/s'),
                              'bw kernel': 'copy',
                              'level': u'L3',
-                             'performance': PrefixedUnit(5802500000.0, u'', u'FLOP/s')},
+                             'performance': PrefixedUnit(5.33, u'G', u'FLOP/s')},
                             {'arithmetic intensity': float('inf'),
                              'bandwidth': PrefixedUnit(12.01, u'G', u'B/s'),
                              'bw kernel': 'load',
