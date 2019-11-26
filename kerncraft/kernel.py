@@ -233,6 +233,8 @@ class Kernel(object):
             self.constants[name] = value
         else:
             self.constants[symbol_pos_int(name)] = value
+        # Ensure constants will always be sorted by keys
+        self.constants = collections.OrderedDict(sorted(self.constants.items()))
 
     def set_variable(self, name, type_, size):
         """
