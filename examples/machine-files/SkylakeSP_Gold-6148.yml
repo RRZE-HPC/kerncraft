@@ -7,7 +7,7 @@
 kerncraft version: 0.8.3.dev0
 model name: Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz
 model type: Intel Skylake SP processor
-clock: 1.76 GHz
+clock: 2.4 GHz
 
 sockets: 2
 cores per socket: 20
