@@ -155,7 +155,7 @@ def transform_array_decl_to_malloc(decl, with_init=True):
 
 
 def find_node_type(ast, node_type):
-    """Return list of array references in AST."""
+    """Return list of nodes with *node_type* in *ast*."""
     if type(ast) is node_type:
         return [ast]
     elif type(ast) is list:
@@ -281,7 +281,7 @@ class Kernel(object):
         for var_name, var_info in self.variables.items():
             var_type, var_size = var_info
 
-            # Skiping sclars
+            # Skiping scalars
             if var_size is None:
                 continue
 
@@ -1222,19 +1222,23 @@ class KernelCode(Kernel):
     def _build_kernel_function_declaration(self, name='kernel'):
         """Build and return kernel function declaration"""
         array_declarations, array_dimensions = self._build_array_declarations(with_init=False)
-        scalar_declarations = self._build_scalar_declarations(with_init=False)
+        scalar_declarations = self._build_scalar_declarations(with_init=False, as_ptr=True)
         const_declarations = self._build_const_declartions(with_init=False)
         return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations + scalar_declarations +
                                                           const_declarations),
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
                                                   type=c_ast.IdentifierType(names=['void'])))
+    
+    def get_scalar_declarations(self):
+        """Get all scalar declarations."""
+        return [d for d in self.kernel_ast.block_items
+                if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
 
-    def _build_scalar_declarations(self, with_init=True):
+    def _build_scalar_declarations(self, with_init=True, as_ptr=False):
         """Build and return scalar variable declarations"""
         # copy scalar declarations from from kernel ast
-        scalar_declarations = [deepcopy(d) for d in self.kernel_ast.block_items
-                               if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+        scalar_declarations = deepcopy(self.get_scalar_declarations())
         # add init values to declarations
         if with_init:
             random.seed(2342)  # we want reproducible random numbers
@@ -1244,6 +1248,10 @@ class KernelCode(Kernel):
                 elif d.type.type.names[0] in ['int', 'long', 'long long',
                                               'unsigned int', 'unsigned long', 'unsigned long long']:
                     d.init = c_ast.Constant('int', 2)
+        # make declaration pointer types
+        if as_ptr:
+            for d in scalar_declarations:
+                d.type = c_ast.PtrDecl([], d.type)
 
         return scalar_declarations
 
@@ -1294,6 +1302,14 @@ class KernelCode(Kernel):
                 for aref in find_node_type(kernel, c_ast.ArrayRef):
                     # transform to 1d references
                     transform_multidim_to_1d_ref(aref, array_dimensions)
+            
+            # Replace scalar variables in code with pointer references
+            scalar_names = [sclar.name for sclar in self.get_scalar_declarations()]
+            for scalar in find_node_type(kernel, c_ast.ID):
+                if scalar.name in scalar_names:
+                    # FIXME dirty work-around to not have to replace scalar 
+                    # (at original location) with c_ast.UnaryOp(op='*', expr=scalar)
+                    scalar.name = "*"+scalar.name
 
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
@@ -1321,7 +1337,7 @@ class KernelCode(Kernel):
         return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=[
             c_ast.ID(name=d.name) for d in (
                     self._build_array_declarations()[0] +
-                    self._build_scalar_declarations() +
+                    self._build_scalar_declarations(as_ptr=True) +
                     self._build_const_declartions())]))
 
     CODE_TEMPLATE = textwrap.dedent("""
