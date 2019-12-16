@@ -14,20 +14,12 @@ from io import StringIO
 
 from distutils.spawn import find_executable
 from osaca.api import KerncraftAPI
+from osaca.parser import get_parser
+from osaca.semantics import MachineModel, ISASemantics
+from osaca.semantics.marker_utils import find_basic_loop_bodies, get_marker
 
 from kerncraft import iaca_get
 from . import __version__
-
-# Within loop
-START_MARKER = ['        movl      $111, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
-                '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
-                '        .byte     103        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
-                '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
-# After loop
-END_MARKER = ['        movl      $222, %ebx # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
-              '        .byte     100        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
-              '        .byte     103        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n'
-              '        .byte     144        # INSERTED BY KERNCRAFT IACA MARKER UTILITY\n']
 
 
 def itemsEqual(lst):
@@ -60,455 +52,172 @@ class ISA:
             return AArch64
 
     @staticmethod
-    def strip_and_uncomment(asm_lines):
-        """Strip whitespaces and comments from asm lines."""
-        raise NotImplementedError
+    def compute_block_metric(block):
+        """Compute sortable metric to rank blocks."""
+        return NotImplementedError
+
+    @classmethod
+    def select_best_block(cls, blocks):
+        """
+        Return best block label selected based on simple heuristic.
+
+        :param blocks: OrderedDict map of label to list of instructions
+        """
+        # TODO make this cleverer with more stats
+        if not blocks:
+            raise ValueError("No suitable blocks were found in assembly.")
+
+        best_block_label = next(iter(blocks))
+        best_metric = cls.compute_block_metric(blocks[best_block_label])
+
+        for label, block in list(blocks.items())[1:]:
+            metric = cls.compute_block_metric(block)
+            if best_metric < metric:
+                best_block_label = label
+                best_metric = metric
+
+        return best_block_label
 
     @staticmethod
-    def strip_unreferenced_labels(asm_lines):
-        """Strip all labels, which are never referenced."""
-        raise NotImplementedError
-
-    @staticmethod
-    def find_asm_blocks(asm_lines):
-        """Find blocks probably corresponding to loops in assembly."""
-        raise NotImplementedError
-
-    @staticmethod
-    def select_best_block(blocks):
-        """Return best block selected based on simple heuristic."""
-        raise NotImplementedError
-
-    @staticmethod
-    def insert_markers(asm_lines, start_line, end_line):
-        """Insert marker into list of ASM instructions at given indices."""
+    def get_pointer_increment(block):
+        """Return pointer increment."""
         raise NotImplementedError
 
 
 class x86(ISA):
     @staticmethod
-    def strip_and_uncomment(asm_lines):
-        """Strip whitespaces and comments from asm lines."""
-        asm_stripped = []
-        for line in asm_lines:
-            # Strip comments and whitespaces
-            asm_stripped.append(line.split('#')[0].strip())
-        return asm_stripped
+    def compute_block_metric(block):
+        """Return comparable metric on block information."""
+        register_class_usage = {'zmm': [], 'ymm': [], 'xmm': []}
+        packed_instruction_ctr, avx_instruction_ctr, instruction_ctr = 0, 0, 0
+        # Analyze code to determine metric
+        for line in block:
+            # Skip non-instruction lines (e.g., comments)
+            if line.instruction is None:
+                continue
+            # Count all instructions
+            instruction_ctr += 1
+
+            # Count registers used
+            for prefix in register_class_usage:
+                for op in line.operands:
+                    if 'register' in op:
+                        if op.register.name.startswith(prefix):
+                            register_class_usage[prefix].append(op.register.name)
+
+            # Identify and count packed and avx instructions
+            if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]", line.instruction):
+                if line.instruction.startswith('v'):
+                    avx_instruction_ctr += 1
+                packed_instruction_ctr += 1
+
+        # Build metric
+        return (instruction_ctr + packed_instruction_ctr + avx_instruction_ctr,
+                len(set(register_class_usage['zmm'])),
+                len(set(register_class_usage['ymm'])),
+                len(set(register_class_usage['xmm'])))
 
     @staticmethod
-    def strip_unreferenced_labels(asm_lines):
-        """Strip all labels, which are never referenced."""
-        asm_stripped = []
-        for line in asm_lines:
-            if re.match(r'^\S+:', line):
-                # Found label
-                label = line[0:line.find(':')]
-                # Search for references to current label
-                if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l)
-                            for l in asm_lines]):
-                    # Skip labels without seen reference
-                    line = ''
-            asm_stripped.append(line)
-        return asm_stripped
-
-    @staticmethod
-    def find_asm_blocks(asm_lines):
-        """Find blocks probably corresponding to loops in assembly."""
-        blocks = []
-
-        last_labels = OrderedDict()
-        packed_ctr = 0
-        avx_ctr = 0
-        xmm_references = []
-        ymm_references = []
-        zmm_references = []
-        gp_references = []
-        mem_references = []
-        increments = {}
-        for i, line in enumerate(asm_lines):
-            # Register access counts
-            zmm_references += re.findall('%zmm[0-9]+', line)
-            ymm_references += re.findall('%ymm[0-9]+', line)
-            xmm_references += re.findall('%xmm[0-9]+', line)
-            gp_references += re.findall('%r[a-z0-9]+', line)
-            if re.search(r'\d*\(%\w+(,%\w+)?(,\d)?\)', line):
-                m = re.search(r'(?P<off>[-]?\d*)\(%(?P<basep>\w+)(,%(?P<idx>\w+))?(?:,(?P<scale>\d))?\)'
-                              r'(?P<eol>$)?',
-                              line)
-                mem_references.append((
-                    int(m.group('off')) if m.group('off') else 0,
-                    m.group('basep'),
-                    m.group('idx'),
-                    int(m.group('scale')) if m.group('scale') else 1,
-                    'load' if m.group('eol') is None else 'store'))
-
-            if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]", line):
-                if line.startswith('v'):
-                    avx_ctr += 1
-                packed_ctr += 1
-            elif re.match(r'^\S+:', line):
-                # last_labels[label_name] = line_number
-                last_labels[line[0:line.find(':')]] =i
-
-                # Reset counters
-                packed_ctr = 0
-                avx_ctr = 0
-                xmm_references = []
-                ymm_references = []
-                zmm_references = []
-                gp_references = []
-                mem_references = []
-                increments = {}
-            elif re.match(r'^inc[bwlq]?\s+%[a-z0-9]+', line):
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = 1
-            elif re.match(r'^add[bwlq]?\s+\$[0-9]+,\s*%[a-z0-9]+', line):
-                const_start = line.find('$') + 1
-                const_end = line[const_start + 1:].find(',') + const_start + 1
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = int(line[const_start:const_end])
-            elif re.match(r'^dec[bwlq]?', line):
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = -1
-            elif re.match(r'^sub[bwlq]?\s+\$[0-9]+,', line):
-                const_start = line.find('$') + 1
-                const_end = line[const_start + 1:].find(',') + const_start + 1
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = -int(line[const_start:const_end])
-            elif last_labels and re.match(r'^j[a-z]+\s+\S+\s*', line):
-                # End of block(s) due to jump
-
-                # Check if jump target matches any previously recoded label
-                last_label = None
-                last_label_line = -1
-                for label_name, label_line in last_labels.items():
-                    if re.match(r'^j[a-z]+\s+' + re.escape(label_name) + r'\s*', line):
-                        # matched
-                        last_label = label_name
-                        last_label_line = label_line
-
-                labels = list(last_labels.keys())
-
-                if last_label:
-                    # deduce loop increment from memory index register
-                    pointer_increment = None  # default -> can not decide, let user choose
-                    possible_idx_regs = None
-                    if mem_references:
-                        # we found memory references to work with
-
-                        # If store accesses exist, consider only those
-                        store_references = [mref for mref in mem_references
-                                            if mref[4] == 'store']
-                        refs = store_references or mem_references
-
-                        possible_idx_regs = list(set(increments.keys()).intersection(
-                            set([r[1] for r in refs if r[1] is not None] +
-                                [r[2] for r in refs if r[2] is not None])))
-                        for mref in refs:
-                            for reg in list(possible_idx_regs):
-                                # Only consider references with two registers, where one could be an
-                                # index
-                                if None not in mref[1:3]:
-                                    # One needs to mach, other registers will be excluded
-                                    if not (reg == mref[1] or reg == mref[2]):
-                                        # reg can not be it
-                                        possible_idx_regs.remove(reg)
-
-                        idx_reg = None
-                        if len(possible_idx_regs) == 1:
-                            # good, exactly one register was found
-                            idx_reg = possible_idx_regs[0]
-                        elif possible_idx_regs and itemsEqual([increments[pidxreg]
-                                                               for pidxreg in possible_idx_regs]):
-                            # multiple were option found, but all have the same increment
-                            # use first match:
-                            idx_reg = possible_idx_regs[0]
-
-                        if idx_reg:
-                            mem_scales = [mref[3] for mref in refs
-                                          if idx_reg == mref[2] or idx_reg == mref[1]]
-
-                            if itemsEqual(mem_scales):
-                                # good, all scales are equal
-                                try:
-                                    pointer_increment = mem_scales[0] * increments[idx_reg]
-                                except:
-                                    print("labels", pformat(labels[labels.index(last_label):]))
-                                    print("lines", pformat(asm_lines[last_label_line:i + 1]))
-                                    print("increments", increments)
-                                    print("mem_references", pformat(mem_references))
-                                    print("idx_reg", idx_reg)
-                                    print("mem_scales", mem_scales)
-                                    raise
-
-                    blocks.append({'first_line': last_label_line,
-                                   'last_line': i,
-                                   'ops': i - last_label_line,
-                                   'labels': labels[labels.index(last_label):],
-                                   'packed_instr': packed_ctr,
-                                   'avx_instr': avx_ctr,
-                                   'XMM': (len(xmm_references), len(set(xmm_references))),
-                                   'YMM': (len(ymm_references), len(set(ymm_references))),
-                                   'ZMM': (len(zmm_references), len(set(zmm_references))),
-                                   'GP': (len(gp_references), len(set(gp_references))),
-                                   'regs': (len(xmm_references) + len(ymm_references) +
-                                            len(zmm_references) + len(gp_references),
-                                            len(set(xmm_references)) + len(set(ymm_references)) +
-                                            len(set(zmm_references)) +
-                                            len(set(gp_references))),
-                                   'pointer_increment': pointer_increment,
-                                   'lines': asm_lines[last_label_line:i + 1],
-                                   'possible_idx_regs': possible_idx_regs,
-                                   'mem_references': mem_references,
-                                   'increments': increments, })
-                # Reset counters
-                packed_ctr = 0
-                avx_ctr = 0
-                xmm_references = []
-                ymm_references = []
-                zmm_references = []
-                gp_references = []
-                mem_references = []
-                increments = {}
-                last_labels = OrderedDict()
-        return list(enumerate(blocks))
-
-    @staticmethod
-    def select_best_block(blocks):
-        """Return best block selected based on simple heuristic."""
-        # TODO make this cleverer with more stats
-        if not blocks:
-            raise ValueError("No suitable blocks were found in assembly.")
-        best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
-        if best_block[1]['packed_instr'] == 0:
-            best_block = max(blocks,
-                             key=lambda b: (b[1]['ops'] + b[1]['packed_instr'] + b[1]['avx_instr'],
-                                            b[1]['ZMM'], b[1]['YMM'], b[1]['XMM']))
-        return best_block[0]
-
-    @staticmethod
-    def insert_markers(asm_lines, start_line, end_line):
-        """Insert marker into list of ASM instructions at given indices."""
-        asm_lines = (asm_lines[:start_line] + START_MARKER +
-                     asm_lines[start_line:end_line + 1] + END_MARKER +
-                     asm_lines[end_line + 1:])
-        return asm_lines
+    def get_pointer_increment(block):
+        """Return pointer increment."""
+        return None
 
 
 class AArch64(ISA):
     @staticmethod
-    def strip_and_uncomment(asm_lines):
-        """Strip whitespaces and comments from asm lines."""
-        asm_stripped = []
-        for line in asm_lines:
-            # Strip comments and whitespaces
-            asm_stripped.append(line.split('#')[0].strip())
-        return asm_stripped
+    def compute_block_metric(block):
+        """Return comparable metric on block information."""
+        instruction_ctr = 0
+        # Analyze code to determine metric
+        for line in block:
+            # Skip non-instruction lines (e.g., comments)
+            if line.instruction is None:
+                continue
+            # Count all instructions
+            instruction_ctr += 1
+
+        # Build metric
+        return (instruction_ctr)
 
     @staticmethod
-    def strip_unreferenced_labels(asm_lines):
-        """Strip all labels, which are never referenced."""
-        asm_stripped = []
-        for line in asm_lines:
-            if re.match(r'^\S+:', line):
-                # Found label
-                label = line[0:line.find(':')]
-                # Search for references to current label
-                if not any([re.match(r'^[^#]*\s' + re.escape(label) + '[\s,]?.*$', l)
-                            for l in asm_lines]):
-                    # Skip labels without seen reference
-                    line = ''
-            asm_stripped.append(line)
-        return asm_stripped
-
-    @staticmethod
-    def find_asm_blocks(asm_lines):
-        """Find blocks probably corresponding to loops in assembly."""
-        blocks = []
-
-        last_labels = OrderedDict()
-        packed_ctr = 0
-        avx_ctr = 0
-        xmm_references = []
-        ymm_references = []
-        zmm_references = []
-        gp_references = []
-        mem_references = []
+    def get_pointer_increment(block):
+        """Return pointer increment."""
         increments = {}
-        for i, line in enumerate(asm_lines):
-            # Register access counts
-            zmm_references += re.findall('%zmm[0-9]+', line)
-            ymm_references += re.findall('%ymm[0-9]+', line)
-            xmm_references += re.findall('%xmm[0-9]+', line)
-            gp_references += re.findall('%r[a-z0-9]+', line)
-            if re.search(r'\d*\(%\w+(,%\w+)?(,\d)?\)', line):
-                m = re.search(r'(?P<off>[-]?\d*)\(%(?P<basep>\w+)(,%(?P<idx>\w+))?(?:,(?P<scale>\d))?\)'
-                              r'(?P<eol>$)?',
-                              line)
-                mem_references.append((
-                    int(m.group('off')) if m.group('off') else 0,
-                    m.group('basep'),
-                    m.group('idx'),
-                    int(m.group('scale')) if m.group('scale') else 1,
-                    'load' if m.group('eol') is None else 'store'))
+        mem_references = []
+        stores_only = False
+        for line in block:
+            # Skip non-instruction lines (e.g., comments)
+            if line.instruction is None:
+                continue
 
-            if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]", line):
-                if line.startswith('v'):
-                    avx_ctr += 1
-                packed_ctr += 1
-            elif re.match(r'^\S+:', line):
-                # last_labels[label_name] = line_number
-                last_labels[line[0:line.find(':')]] =i
+            # Extract destination references
+            dst_mem_references = [op.memory for op in line.semantic_operands.destination
+                                  if 'memory' in op]
+            if dst_mem_references:
+                if not stores_only:
+                    stores_only = True
+                    mem_references = []
+                mem_references += dst_mem_references
 
-                # Reset counters
-                packed_ctr = 0
-                avx_ctr = 0
-                xmm_references = []
-                ymm_references = []
-                zmm_references = []
-                gp_references = []
-                mem_references = []
-                increments = {}
-            elif re.match(r'^inc[bwlq]?\s+%[a-z0-9]+', line):
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = 1
-            elif re.match(r'^add[bwlq]?\s+\$[0-9]+,\s*%[a-z0-9]+', line):
-                const_start = line.find('$') + 1
-                const_end = line[const_start + 1:].find(',') + const_start + 1
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = int(line[const_start:const_end])
-            elif re.match(r'^dec[bwlq]?', line):
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = -1
-            elif re.match(r'^sub[bwlq]?\s+\$[0-9]+,', line):
-                const_start = line.find('$') + 1
-                const_end = line[const_start + 1:].find(',') + const_start + 1
-                reg_start = line.find('%') + 1
-                increments[line[reg_start:]] = -int(line[const_start:const_end])
-            elif last_labels and re.match(r'^j[a-z]+\s+\S+\s*', line):
-                # End of block(s) due to jump
+            # If no destination references were found sofar, include source references
+            if not stores_only:
+                mem_references += [op.memory for op in line.semantic_operands.source
+                                  if 'memory' in op]
 
-                # Check if jump target matches any previously recoded label
-                last_label = None
-                last_label_line = -1
-                for label_name, label_line in last_labels.items():
-                    if re.match(r'^j[a-z]+\s+' + re.escape(label_name) + r'\s*', line):
-                        # matched
-                        last_label = label_name
-                        last_label_line = label_line
+            if re.match(r'^inc[bwlq]?$', line.instruction):
+                increments[line.operands[0].register.name] = 1
+            elif re.match(r'^add[bwlq]?$', line.instruction) and 'immediate' in line.operands[0]:
+                increments[line.operands[1].register.name] = int(line.operands[0].immediate.value)
+            elif re.match(r'^dec[bwlq]?$', line.instruction):
+                increments[[line.operands[0].register.name]] = -1
+            elif re.match(r'^sub[bwlq]?$', line.instruction) and 'immediate' in line.operands[0]:
+                increments[line.operands[1].register.name] = -int(line.operands[0].immediate.value)
 
-                labels = list(last_labels.keys())
+        # deduce loop increment from memory index register
+        pointer_increment = None  # default -> can not decide, let user choose
+        possible_idx_regs = None
+        if mem_references:
+            # we found memory references to work with
+            possible_idx_regs = list(set(increments.keys()).intersection(
+                set([mref.base.name for mref in mem_references if mref.base is not None] +
+                    [mref.index.name for mref in mem_references if mref.index is not None])))
+            for mref in mem_references:
+                for reg in list(possible_idx_regs):
+                    # Only consider references with two registers, where one could be an
+                    # index
+                    if None not in [mref.base, mref.index]:
+                        # One needs to mach, other registers will be excluded
+                        if not ((mref.base is not None and reg == mref.base.name) or
+                                (mref.index is not None and reg == mref.index.name)):
+                            # reg can not be it
+                            possible_idx_regs.remove(reg)
 
-                if last_label:
-                    # deduce loop increment from memory index register
-                    pointer_increment = None  # default -> can not decide, let user choose
-                    possible_idx_regs = None
-                    if mem_references:
-                        # we found memory references to work with
+            idx_reg = None
+            if len(possible_idx_regs) == 1:
+                # good, exactly one register was found
+                idx_reg = possible_idx_regs[0]
+            elif possible_idx_regs and itemsEqual(
+                    [increments[pidxreg] for pidxreg in possible_idx_regs]):
+                # multiple were option found, but all have the same increment
+                # use first match:
+                idx_reg = possible_idx_regs[0]
 
-                        # If store accesses exist, consider only those
-                        store_references = [mref for mref in mem_references
-                                            if mref[4] == 'store']
-                        refs = store_references or mem_references
+            if idx_reg:
+                mem_scales = [mref.scale for mref in mem_references
+                              if (mref.index is not None and idx_reg == mref.index.name) or
+                                 (mref.base is not None and idx_reg == mref.base.name)]
 
-                        possible_idx_regs = list(set(increments.keys()).intersection(
-                            set([r[1] for r in refs if r[1] is not None] +
-                                [r[2] for r in refs if r[2] is not None])))
-                        for mref in refs:
-                            for reg in list(possible_idx_regs):
-                                # Only consider references with two registers, where one could be an
-                                # index
-                                if None not in mref[1:3]:
-                                    # One needs to mach, other registers will be excluded
-                                    if not (reg == mref[1] or reg == mref[2]):
-                                        # reg can not be it
-                                        possible_idx_regs.remove(reg)
+                if itemsEqual(mem_scales):
+                    # good, all scales are equal
+                    pointer_increment = mem_scales[0] * increments[idx_reg]
 
-                        idx_reg = None
-                        if len(possible_idx_regs) == 1:
-                            # good, exactly one register was found
-                            idx_reg = possible_idx_regs[0]
-                        elif possible_idx_regs and itemsEqual([increments[pidxreg]
-                                                               for pidxreg in possible_idx_regs]):
-                            # multiple were option found, but all have the same increment
-                            # use first match:
-                            idx_reg = possible_idx_regs[0]
-
-                        if idx_reg:
-                            mem_scales = [mref[3] for mref in refs
-                                          if idx_reg == mref[2] or idx_reg == mref[1]]
-
-                            if itemsEqual(mem_scales):
-                                # good, all scales are equal
-                                try:
-                                    pointer_increment = mem_scales[0] * increments[idx_reg]
-                                except:
-                                    print("labels", pformat(labels[labels.index(last_label):]))
-                                    print("lines", pformat(asm_lines[last_label_line:i + 1]))
-                                    print("increments", increments)
-                                    print("mem_references", pformat(mem_references))
-                                    print("idx_reg", idx_reg)
-                                    print("mem_scales", mem_scales)
-                                    raise
-
-                    blocks.append({'first_line': last_label_line,
-                                   'last_line': i,
-                                   'ops': i - last_label_line,
-                                   'labels': labels[labels.index(last_label):],
-                                   'packed_instr': packed_ctr,
-                                   'avx_instr': avx_ctr,
-                                   'XMM': (len(xmm_references), len(set(xmm_references))),
-                                   'YMM': (len(ymm_references), len(set(ymm_references))),
-                                   'ZMM': (len(zmm_references), len(set(zmm_references))),
-                                   'GP': (len(gp_references), len(set(gp_references))),
-                                   'regs': (len(xmm_references) + len(ymm_references) +
-                                            len(zmm_references) + len(gp_references),
-                                            len(set(xmm_references)) + len(set(ymm_references)) +
-                                            len(set(zmm_references)) +
-                                            len(set(gp_references))),
-                                   'pointer_increment': pointer_increment,
-                                   'lines': asm_lines[last_label_line:i + 1],
-                                   'possible_idx_regs': possible_idx_regs,
-                                   'mem_references': mem_references,
-                                   'increments': increments, })
-                # Reset counters
-                packed_ctr = 0
-                avx_ctr = 0
-                xmm_references = []
-                ymm_references = []
-                zmm_references = []
-                gp_references = []
-                mem_references = []
-                increments = {}
-                last_labels = OrderedDict()
-        return list(enumerate(blocks))
-
-    @staticmethod
-    def select_best_block(blocks):
-        """Return best block selected based on simple heuristic."""
-        # TODO make this cleverer with more stats
-        if not blocks:
-            raise ValueError("No suitable blocks were found in assembly.")
-        best_block = max(blocks, key=lambda b: b[1]['packed_instr'])
-        if best_block[1]['packed_instr'] == 0:
-            best_block = max(blocks,
-                             key=lambda b: (b[1]['ops'] + b[1]['packed_instr'] + b[1]['avx_instr'],
-                                            b[1]['ZMM'], b[1]['YMM'], b[1]['XMM']))
-        return best_block[0]
-
-    @staticmethod
-    def insert_markers(asm_lines, start_line, end_line):
-        """Insert marker into list of ASM instructions at given indices."""
-        asm_lines = (asm_lines[:start_line] + START_MARKER +
-                     asm_lines[start_line:end_line + 1] + END_MARKER +
-                     asm_lines[end_line + 1:])
-        return asm_lines
+        return pointer_increment
 
 
 def userselect_increment(block):
     """Let user interactively select byte increment."""
     print("Selected block:")
-    print('\n    ' + ('\n    '.join(block['lines'])))
+    print('\n    ' + ('\n    '.join([b.line for b in block])))
     print()
 
     increment = None
@@ -518,53 +227,28 @@ def userselect_increment(block):
             increment = int(increment)
         except ValueError:
             increment = None
-
-    block['pointer_increment'] = increment
     return increment
 
 
 def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
-    print("      block     | OPs | pck. | AVX || Registers |    ZMM   |    YMM   |    XMM   |"
-          "GP   ||ptr.inc|\n"
-          "----------------+-----+------+-----++-----------+----------+----------+----------+"
-          "---------++-------|")
-    for idx, b in blocks:
-        print('{:>2} {b[labels]!r:>12} | {b[ops]:>3} | {b[packed_instr]:>4} | {b[avx_instr]:>3} |'
-              '| {b[regs][0]:>3} ({b[regs][1]:>3}) | {b[ZMM][0]:>3} ({b[ZMM][1]:>2}) | '
-              '{b[YMM][0]:>3} ({b[YMM][1]:>2}) | '
-              '{b[XMM][0]:>3} ({b[XMM][1]:>2}) | {b[GP][0]:>2} ({b[GP][1]:>2}) || '
-              '{b[pointer_increment]!s:>5} |'.format(idx, b=b))
-
-        if debug:
-            ln = b['first_line']
-            print(' '*4 + 'Code:')
-            for l in b['lines']:
-                print(' '*8 + '{:>5} | {}'.format(ln, l))
-                ln += 1
-            print(' '*4 + 'Metadata:')
-            print(textwrap.indent(
-                pformat({k: v for k,v in b.items() if k not in ['lines']}),
-                ' '*8))
+    for label, block in blocks.items():
+        print('{}:\n{}\n'.format(label, '\n'.join([b['line'] for b in block])))
 
     # Let user select block:
-    block_idx = -1
-    while not (0 <= block_idx < len(blocks)):
-        block_idx = input("Choose block to be marked [" + str(default) + "]: ") or default
-        try:
-            block_idx = int(block_idx)
-        except ValueError:
-            block_idx = -1
-    # block = blocks[block_idx][1]
+    block_label = None
+    while block_label not in blocks:
+        block_label = input("Choose block to be marked [" + str(default) + "]: ") or default
 
-    return block_idx
+    return block_label
 
 
 def asm_instrumentation(input_file, output_file,
                         block_selection='auto',
                         pointer_increment='auto_with_manual_fallback',
-                        debug=False):
+                        debug=False,
+                        isa='x86'):
     """
     Add markers to an assembly file.
 
@@ -573,7 +257,7 @@ def asm_instrumentation(input_file, output_file,
 
     :param input_file: file-like object to read from
     :param output_file: file-like object to write to
-    :param block_selection: index of the assembly block to instrument, or 'auto' for automatically
+    :param block_selection: label of the assembly block to instrument, or 'auto' for automatically
                             using block with the
                             most vector instructions, or 'manual' to read index to prompt user
     :param pointer_increment: number of bytes the pointer is incremented after the loop or
@@ -581,9 +265,11 @@ def asm_instrumentation(input_file, output_file,
                               - 'auto_with_manual_fallback': like auto with fallback to manual input
                               - 'manual': prompt user
     :param debug: output additional internal analysis information. Only works with manual selection.
-    :return: the instrumented assembly block
+    :return: selected assembly block, pointer increment
     """
-    assembly_orig = input_file.readlines()
+    asm_parser = get_parser(isa)
+    asm_lines = asm_parser.parse_file(input_file.read())
+    ISASemantics(isa).process(asm_lines)
 
     # If input and output files are the same, overwrite with output
     if input_file is output_file:
@@ -593,40 +279,49 @@ def asm_instrumentation(input_file, output_file,
     if debug:
         block_selection = 'manual'
 
-    assembly = x86.strip_and_uncomment(copy(assembly_orig))
-    assembly = x86.strip_unreferenced_labels(assembly)
-    blocks = x86.find_asm_blocks(assembly)
+    loop_blocks = find_basic_loop_bodies(asm_lines)
     if block_selection == 'auto':
-        block_idx = x86.select_best_block(blocks)
+        block_label = ISA.get_isa(isa).select_best_block(loop_blocks)
     elif block_selection == 'manual':
-        block_idx = userselect_block(blocks, default=x86.select_best_block(blocks), debug=debug)
+        block_label = userselect_block(
+            loop_blocks, default=ISA.get_isa(isa).select_best_block(loop_blocks), debug=debug)
     elif isinstance(block_selection, int):
-        block_idx = block_selection
+        block_label = block_selection
     else:
         raise ValueError("block_selection has to be an integer, 'auto' or 'manual' ")
 
-    block = blocks[block_idx][1]
+    block_lines = loop_blocks[block_label]
 
-    if pointer_increment == 'auto':
-        if block['pointer_increment'] is None:
-            raise RuntimeError("pointer_increment could not be detected automatically. Use "
-                               "--pointer-increment to set manually to byte offset of store "
-                               "pointer address between consecutive assembly block iterations.")
-    elif pointer_increment == 'auto_with_manual_fallback':
-        if block['pointer_increment'] is None:
-            block['pointer_increment'] = userselect_increment(block)
-    elif pointer_increment == 'manual':
-        block['pointer_increment'] = userselect_increment(block)
-    elif isinstance(pointer_increment, int):
-        block['pointer_increment'] = pointer_increment
-    else:
-        raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
-                         "'auto_with_manual_fallback' ")
+    block_start = asm_lines.index(block_lines[0])
+    block_end = asm_lines.index(block_lines[-1])
 
-    instrumented_asm = x86.insert_markers(assembly_orig, block['first_line'], block['last_line'])
-    output_file.writelines(instrumented_asm)
+    # Extract store pointer increment
+    if not isinstance(pointer_increment, int):
+        if pointer_increment == 'auto':
+            pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
+            if pointer_increment is None:
+                raise RuntimeError("pointer_increment could not be detected automatically. Use "
+                                   "--pointer-increment to set manually to byte offset of store "
+                                   "pointer address between consecutive assembly block iterations.")
+        elif pointer_increment == 'auto_with_manual_fallback':
+            pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
+            if pointer_increment is None:
+                pointer_increment = userselect_increment(block_lines)
+        elif pointer_increment == 'manual':
+            pointer_increment = userselect_increment(block_lines)
+        else:
+            raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
+                             "'auto_with_manual_fallback' ")
 
-    return block
+    marker_start, marker_end = get_marker(
+        isa, comment="pointer_increment={}".format(pointer_increment))
+
+    marked_asm = asm_lines[:block_start] + marker_start + asm_lines[block_start:block_end] + \
+                 marker_end + asm_lines[block_end:]
+
+    output_file.writelines([l['line']+'\n' for l in marked_asm])
+
+    return block_lines, pointer_increment
 
 
 def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_architecture):
@@ -803,13 +498,15 @@ def main():
     parser.add_argument('--outfile', '-o', type=argparse.FileType('w'), nargs='?',
                         default=sys.stdout, help='output file location (default: stdout)')
     parser.add_argument('--debug', action='store_true',
-                        help='Output nternal analysis information for debugging.')
+                        help='Output internal analysis information for debugging.')
+    parser.add_argument('--isa', default='x86', choices=['x86', 'AArch64'])
     args = parser.parse_args()
 
     # pointer_increment is given, since it makes no difference on the command lien and requires
     # less user input
     asm_instrumentation(input_file=args.source, output_file=args.outfile,
-                        block_selection='manual', pointer_increment=1, debug=args.debug)
+                        block_selection='manual', pointer_increment='auto_with_manual_fallback',
+                        debug=args.debug, isa=args.isa)
 
 
 if __name__ == '__main__':

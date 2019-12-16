@@ -103,7 +103,7 @@ setup(
         'numpy',
         'requests',
         'pycparser>=2.19',
-        'osaca>=0.3.1.dev0',
+        'osaca>=0.3.2.dev1',
         'psutil',
     ],
     python_requires='>=3.5',

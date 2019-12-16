@@ -59,6 +59,11 @@ CHANGES_SINCE = OrderedDict([
      Also added stats to benchmark measurements for (manual) validation of model
      parameters.
      """),
+    ("0.8.3.dev1",
+     """
+     Added ISA attribute, which may either be x86 or aarch64 (or any ISA name
+     supported by OSACA)
+     """),
 ])
 
 
@@ -102,6 +107,7 @@ class MachineModel(object):
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'ADD': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED'}}),
+            ('ISA', 'INFORMATION_REQUIRED (e.g., x86, aarch64)'),
             ('in-core model', OrderedDict([
                 ('IACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
                 ('OSACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
