@@ -120,28 +120,6 @@ class x86(ISA):
     @staticmethod
     def get_pointer_increment(block):
         """Return pointer increment."""
-        return None
-
-
-class AArch64(ISA):
-    @staticmethod
-    def compute_block_metric(block):
-        """Return comparable metric on block information."""
-        instruction_ctr = 0
-        # Analyze code to determine metric
-        for line in block:
-            # Skip non-instruction lines (e.g., comments)
-            if line.instruction is None:
-                continue
-            # Count all instructions
-            instruction_ctr += 1
-
-        # Build metric
-        return (instruction_ctr)
-
-    @staticmethod
-    def get_pointer_increment(block):
-        """Return pointer increment."""
         increments = {}
         mem_references = []
         stores_only = False
@@ -214,6 +192,28 @@ class AArch64(ISA):
         return pointer_increment
 
 
+class AArch64(ISA):
+    @staticmethod
+    def compute_block_metric(block):
+        """Return comparable metric on block information."""
+        instruction_ctr = 0
+        # Analyze code to determine metric
+        for line in block:
+            # Skip non-instruction lines (e.g., comments)
+            if line.instruction is None:
+                continue
+            # Count all instructions
+            instruction_ctr += 1
+
+        # Build metric
+        return (instruction_ctr)
+
+    @staticmethod
+    def get_pointer_increment(block):
+        """Return pointer increment."""
+        return None
+
+
 def userselect_increment(block):
     """Let user interactively select byte increment."""
     print("Selected block:")
@@ -244,6 +244,14 @@ def userselect_block(blocks, default=None, debug=False):
     return block_label
 
 
+def parse_asm(code, isa):
+    """Prase and process asm code."""
+    asm_parser = get_parser(isa)
+    asm_lines = asm_parser.parse_file(code)
+    ISASemantics(isa).process(asm_lines)
+    return asm_lines
+
+
 def asm_instrumentation(input_file, output_file,
                         block_selection='auto',
                         pointer_increment='auto_with_manual_fallback',
@@ -267,9 +275,7 @@ def asm_instrumentation(input_file, output_file,
     :param debug: output additional internal analysis information. Only works with manual selection.
     :return: selected assembly block, pointer increment
     """
-    asm_parser = get_parser(isa)
-    asm_lines = asm_parser.parse_file(input_file.read())
-    ISASemantics(isa).process(asm_lines)
+    asm_lines = parse_asm(input_file.read(), isa)
 
     # If input and output files are the same, overwrite with output
     if input_file is output_file:
