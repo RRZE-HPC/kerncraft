@@ -62,7 +62,7 @@ class TestIACAMarker(unittest.TestCase):
         best_block_label = isa.select_best_block(blocks)
         best_block_lines = blocks[best_block_label]
 
-        self.assertEqual(best_block_label, '.LBB0_30')
+        self.assertEqual(best_block_label, 'LBB0_30')
         self.assertEqual(isa.get_pointer_increment(best_block_lines), 64)
 
 
