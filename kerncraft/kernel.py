@@ -19,6 +19,8 @@ from itertools import chain
 import random
 import atexit
 
+from math import floor
+
 import sympy
 from sympy.utilities.lambdify import implemented_function
 from sympy.parsing.sympy_parser import parse_expr
@@ -194,7 +196,7 @@ def reduce_path(path):
 
 
 class Kernel(object):
-    """Kernel information with functons to analyze and report access patterns."""
+    """Kernel information with functions to analyze and report access patterns."""
 
     # Datatype sizes in bytes
     datatypes_size = {('double', '_Complex'): 16, ('double',): 8, ('float',): 4}
@@ -1552,6 +1554,7 @@ class KernelCode(Kernel):
         # Let's return the out_file name
         return out_filename
 
+
     def incore_analysis(self, asm_block='auto', pointer_increment='auto_with_manual_fallback',
                         model=None, verbose=False):
         """
@@ -1702,3 +1705,161 @@ class KernelDescription(Kernel):
         self.check()
 
 
+class BinaryDescription(Kernel):
+    """
+    Binary information gathered from command line.
+
+    This class does NOT allow compilation, required for IACA analysis (ECMCPU and RooflineIACA)
+    and LIKWID benchmarking (benchmark).
+
+    To be used only for stand-alone benchmarking.
+    """
+
+    def incore_analysis(self, *args, **kwargs):
+        raise NotImplementedError("IACA analysis is not possible based on a Kernel Description")
+
+    def build_executable(self, *args, **kwargs):
+        raise NotImplementedError("Building and compilation is not possible based on a Kernel "
+                                  "Description")
+
+    def __init__(self, args=None, machine=None):
+        """
+        Create kernel representation from a description dictionary.
+
+        :param args: read in arguments from command line.
+        """
+
+        if args is None:
+            raise ValueError("Command Line Arguments must be provided in BinaryDescription.")
+
+        super(BinaryDescription, self).__init__(machine=machine)
+
+        self.args = args
+
+        self.binary = args.binary
+
+        self.define = args.define
+
+        self.loops = args.loop
+
+        self.regions = set(args.marker['region'])
+
+        for region in args.loop.keys():
+            for i in range(len(self.loops[region])):
+                name = self.loops[region][i]['variable']
+                if name:
+                    self.loops[region][i]['offset'] = self.define[name]['value'] - self.loops[region][i]['end']
+
+
+        # specified regions for repetitions
+        repetition_regions = args.repetitions.keys()
+        self.repetitions = {r: {'marker': None, 'variable': None, 'value': 1} for r in repetition_regions}
+
+        for region in repetition_regions:
+            if args.repetitions[region] == 'marker':
+                # obtain repetitions from likwid-marker
+                if not args.marker['use_marker']:
+                    print('Please enable --marker in order to obtain the number of repetitions from likwid markers.')
+                    sys.exit(-1)
+                self.repetitions[region]['marker'] = True
+                self.repetitions[region]['value'] = None
+            else:
+                try:
+                    # number of repetitions is specified as number
+                    self.repetitions[region]['value'] = int(args.repetitions[region])
+                except:
+                    # number of repetitions is given in terms of a variable
+                    self.repetitions[region]['variable'] = args.repetitions[region]
+                    self.repetitions[region]['value'] = None
+
+        # Datatype
+        self.datatype = (args.datatype,)
+
+        # Number of Flops
+        for region in args.flops.keys():
+            self._flops[region] = args.flops[region]
+
+        if len(self.regions) > 1:
+            self.regions.discard('')
+
+        self.check()
+
+    def check(self):
+        """Check that information about kernel makes sens and is valid."""
+        datatypes = [v[0] for v in self.variables.values()]
+        assert len(set(datatypes)) <= 1, 'mixing of datatypes within a kernel is not supported.'
+
+        # check if all values are specified for all regions
+        for region in self.regions:
+            # use ''-values as default for not specified regions
+            try:
+                if not region in self.loops:
+                    self.loops[region] = self.loops['']
+                    if self.args.verbose > 1:
+                        print('WARNING: used default value for loop information in region {}.'.format(region))
+                if not region in self.repetitions:
+                    self.repetitions[region] = self.repetitions['']
+                    if self.args.verbose > 1:
+                        print('WARNING: used default value for repetition information in region {}.'.format(region))
+                if not region in self._flops:
+                    self._flops[region] = self._flops['']
+                    if self.args.verbose > 1:
+                        print('WARNING: used default value for flop information in region {}.'.format(region))
+
+            except KeyError:
+                print('WARNING: could not find default values for missing region information. Please check your command line arguments.')
+                sys.exit(-1)
+
+        for name, variable in self.define.items():
+            # if variable is marked adjustable but does not specify a region, assume it holds for all regions
+            if variable['adjustable'] and variable['region'] == ['']:
+                variable['region'] +=  list(self.regions)
+
+
+    def print_kernel_info(self, output_file=sys.stdout):
+        """Print kernel information in human readable format."""
+        table = ('  region |        min        max       step\n' +
+                 '---------+---------------------------------\n')
+        for region in self.regions:
+            table += '{:>8} |                                 \n'.format(region)
+
+            for l in self.loops[region]:
+                table += '         | {!r:>10} {!r:>10} {!r:>10}\n'.format(l['start'], l['end'], l['step'])
+
+        print(prefix_indent('loop stack:        ', table), file=output_file)
+
+
+    def region__bytes_per_iteration(self, region):
+        """
+        Consecutive bytes written out per high-level iterations (as counted by loop stack).
+
+        Is used to compute number of iterations per cacheline.
+        """
+
+        # Multiplying datatype size with step increment of inner-most loop
+        return self.datatypes_size[self.datatype] * self.loops[region][-1]['step']
+
+
+    def region__iterations_per_repetition(self, region):
+        iterations_per_repetition = 1
+
+        for loop in self.loops[region]:
+            iterations_per_repetition = \
+                iterations_per_repetition * floor((loop['end'] - loop['start']) / loop['step'])
+
+        return iterations_per_repetition
+
+    def set_constant(self, name, value):
+        """
+        Set constant of name to value.
+
+        :param name: may be a str or a sympy.Symbol
+        :param value: must be an int or float
+        """
+        assert isinstance(name, str) or isinstance(name, sympy.Symbol), \
+            "constant name needs to be of type str, unicode or a sympy.Symbol"
+        assert type(value) is int or type(value) is float, "constant value needs to be of type int or float"
+        if isinstance(name, sympy.Symbol):
+            self.constants[name] = value
+        else:
+            self.constants[symbol_pos_int(name)] = value
