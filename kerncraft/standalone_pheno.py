@@ -302,7 +302,7 @@ def create_parser():
     parser.add_argument('--flops', metavar='FLOPS', required=True, action=AppendFlops, default={},
                         help='Number of floating-point operations per inner-most iteration of the '
                              'kernel.')
-    parser.add_argument('--loop', '-L', metavar='LOOP RANGE', required=True, action=AppendLoopRange,
+    parser.add_argument('--loop', '-L', metavar='LOOP_RANGE', required=True, action=AppendLoopRange,
                         default={},
                         help="Define ranges of nested loops. The definition must match "
                              "'start:[step:]end'. 'step' defaults to 1.")
