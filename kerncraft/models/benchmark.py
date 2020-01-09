@@ -542,7 +542,7 @@ class Benchmark(PerformanceModel):
                   '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
                 **{k: float(v) for k, v in self.results['ECM'].items()}),
                 file=output_file)
-            print('T_OL assumes that two loads per cycle may be retiered, which is true for '
+            print('T_OL assumes that two loads per cycle may be retired, which is true for '
                   '128bit SSE/half-AVX loads on SNB and IVY, and 256bit full-AVX loads on HSW, '
                   'BDW, SKL and SKX, but it also depends on AGU availability.',
                   file=output_file)
