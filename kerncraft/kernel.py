@@ -1247,8 +1247,8 @@ class KernelCode(Kernel):
             for d in scalar_declarations:
                 if d.type.type.names[0] in ['double', 'float']:
                     d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
-                elif d.type.type.names[0] in ['int', 'long', 'long long',
-                                              'unsigned int', 'unsigned long', 'unsigned long long']:
+                elif d.type.type.names[0] in ['int', 'long', 'long long', 'unsigned int',
+                                              'unsigned long', 'unsigned long long']:
                     d.init = c_ast.Constant('int', 2)
         # make declaration pointer types
         if as_ptr:
@@ -1565,7 +1565,8 @@ class KernelCode(Kernel):
                           according block.
         :param pointer_increment: number of bytes the pointer is incremented after the loop or
                                    - 'auto': automatic detection, RuntimeError raised if failed
-                                   - 'auto_with_manual_fallback': like auto, fallsback to manual input
+                                   - 'auto_with_manual_fallback': like auto, fallsback to manual
+                                     input
                                    - 'manual': prompt user
         :param model: which model to use, "IACA", "OSACA" or "LLVM-MCA"
         """
@@ -1748,18 +1749,21 @@ class BinaryDescription(Kernel):
             for i in range(len(self.loops[region])):
                 name = self.loops[region][i]['variable']
                 if name:
-                    self.loops[region][i]['offset'] = self.define[name]['value'] - self.loops[region][i]['end']
+                    self.loops[region][i]['offset'] = \
+                        self.define[name]['value'] - self.loops[region][i]['end']
 
 
         # specified regions for repetitions
         repetition_regions = args.repetitions.keys()
-        self.repetitions = {r: {'marker': None, 'variable': None, 'value': 1} for r in repetition_regions}
+        self.repetitions = {r: {'marker': None, 'variable': None, 'value': 1}
+                               for r in repetition_regions}
 
         for region in repetition_regions:
             if args.repetitions[region] == 'marker':
                 # obtain repetitions from likwid-marker
                 if not args.marker['use_marker']:
-                    print('Please enable --marker in order to obtain the number of repetitions from likwid markers.')
+                    print('Please enable --marker in order to obtain the number of repetitions '
+                          'from likwid markers.')
                     sys.exit(-1)
                 self.repetitions[region]['marker'] = True
                 self.repetitions[region]['value'] = None
@@ -1796,18 +1800,22 @@ class BinaryDescription(Kernel):
                 if not region in self.loops:
                     self.loops[region] = self.loops['']
                     if self.args.verbose > 1:
-                        print('WARNING: used default value for loop information in region {}.'.format(region))
+                        print('WARNING: used default value for loop information in region '
+                              '{}.'.format(region))
                 if not region in self.repetitions:
                     self.repetitions[region] = self.repetitions['']
                     if self.args.verbose > 1:
-                        print('WARNING: used default value for repetition information in region {}.'.format(region))
+                        print('WARNING: used default value for repetition information in region '
+                              '{}.'.format(region))
                 if not region in self._flops:
                     self._flops[region] = self._flops['']
                     if self.args.verbose > 1:
-                        print('WARNING: used default value for flop information in region {}.'.format(region))
+                        print('WARNING: used default value for flop information in region '
+                              '{}.'.format(region))
 
             except KeyError:
-                print('WARNING: could not find default values for missing region information. Please check your command line arguments.')
+                print('WARNING: could not find default values for missing region information. '
+                      'Please check your command line arguments.')
                 sys.exit(-1)
 
         for name, variable in self.define.items():
@@ -1824,7 +1832,8 @@ class BinaryDescription(Kernel):
             table += '{:>8} |                                 \n'.format(region)
 
             for l in self.loops[region]:
-                table += '         | {!r:>10} {!r:>10} {!r:>10}\n'.format(l['start'], l['end'], l['step'])
+                table += '         | {!r:>10} {!r:>10} {!r:>10}\n'.format(
+                    l['start'], l['end'], l['step'])
 
         print(prefix_indent('loop stack:        ', table), file=output_file)
 
@@ -1858,7 +1867,8 @@ class BinaryDescription(Kernel):
         """
         assert isinstance(name, str) or isinstance(name, sympy.Symbol), \
             "constant name needs to be of type str, unicode or a sympy.Symbol"
-        assert type(value) is int or type(value) is float, "constant value needs to be of type int or float"
+        assert type(value) is int or type(value) is float, \
+            "constant value needs to be of type int or float"
         if isinstance(name, sympy.Symbol):
             self.constants[name] = value
         else:

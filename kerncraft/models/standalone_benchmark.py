@@ -17,8 +17,8 @@ from math import ceil
 from kerncraft.prefixedunit import PrefixedUnit
 from .base import PerformanceModel
 
-from .benchmark import sympy_safe_key, pprint_nosort, fix_env_variable, group_iterator, register_options, eventstr, \
-    build_minimal_runs, get_supported_likwid_groups
+from .benchmark import sympy_safe_key, pprint_nosort, fix_env_variable, group_iterator, \
+    register_options, eventstr, build_minimal_runs, get_supported_likwid_groups
 
 
 class StandaloneBenchmark(PerformanceModel):
@@ -178,12 +178,16 @@ class StandaloneBenchmark(PerformanceModel):
 
 
     def adjust_variables(self, runtimes):
-        """Adjusts variables in order to extrapolate to a 1.5s run. The first variables defined will be adjusted first."""
+        """
+        Adjusts variables in order to extrapolate to a 1.5s run. 
+        The first variables defined will be adjusted first.
+        """
 
         def adjust_loop(varname, region):
             for i in range(len(self.kernel.loops[region])):
                 if self.kernel.loops[region][i]['variable'] == varname:
-                    self.kernel.loops[region][i]['end'] = self.kernel.define[varname]['value'] - self.kernel.loops[region][i]['offset']
+                    self.kernel.loops[region][i]['end'] = self.kernel.define[varname]['value'] - \
+                        self.kernel.loops[region][i]['offset']
 
         adjustable = False
 
@@ -199,13 +203,15 @@ class StandaloneBenchmark(PerformanceModel):
                 if variable['adjustable'] and region in variable['region']:
                     factor = ceil(2.0 / runtimes[region])
                     if variable['scale'] == 'lin' and variable['value'] < variable['stop']:
-                        self.kernel.define[name]['value'] = min(variable['value'] * factor, variable['stop'])
+                        self.kernel.define[name]['value'] = min(variable['value'] * factor,
+                                                                variable['stop'])
                         self.kernel.set_constant(name, self.kernel.define[name]['value'])
                         adjust_loop(name, region)
                         adjustable = True
                         break
                     elif variable['scale'] == 'log' and variable['value'] > variable['stop']:
-                        self.kernel.define[name]['value'] = max(variable['value'] * (10 ** (-factor)), variable['stop'])
+                        self.kernel.define[name]['value'] = max(
+                            variable['value'] * (10 ** (-factor)),variable['stop'])
                         self.kernel.set_constant(name, self.kernel.define[name]['value'])
                         adjust_loop(name, region)
                         adjustable = True
@@ -247,7 +253,8 @@ class StandaloneBenchmark(PerformanceModel):
                 adjustable = self.adjust_variables(runtimes)
 
             if not adjustable:
-                print("WARNING: Could not extrapolate to a 1.5s run (for at least one region). Measurements might not be accurate.", file=output_file)
+                print("WARNING: Could not extrapolate to a 1.5s run (for at least one region). "
+                      "Measurements might not be accurate.", file=output_file)
                 break
 
             input_args = [str(variable['value']) for variable in self.kernel.define.values()]
@@ -266,20 +273,24 @@ class StandaloneBenchmark(PerformanceModel):
                 # check if specified region(s) are found in results
                 for region in self.kernel.regions:
                     if not region in results.keys():
-                        print('Region \'{}\' was not found in the likwid output.'.format(region), file=output_file)
+                        print("Region '{}' was not found in the likwid output.".format(region),
+                              file=output_file)
                         sys.exit(-1)
 
-            runtimes = dict(zip(self.kernel.regions, [results[r]['Runtime (RDTSC) [s]'] for r in self.kernel.regions]))
+            runtimes = dict(zip(self.kernel.regions,
+                                [results[r]['Runtime (RDTSC) [s]'] for r in self.kernel.regions]))
 
             for region in self.kernel.regions:
                 if self.kernel.repetitions[region]['marker']:
                     repetitions[region]['value'] = results[region]['call count']
                 elif self.kernel.repetitions[region]['variable']:
-                    repetitions[region]['value'] = self.kernel.define[self.kernel.repetitions[region]['variable']]['value']
+                    repetitions[region]['value'] = \
+                        self.kernel.define[self.kernel.repetitions[region]['variable']]['value']
                 elif self.kernel.repetitions[region]['value']:
                     repetitions[region]['value'] = self.kernel.repetitions[region]['value']
 
-            time_per_repetition = {r: runtimes[r] / float(repetitions[r]['value']) for r in self.kernel.regions}
+            time_per_repetition = {r: runtimes[r] / float(repetitions[r]['value'])
+                                   for r in self.kernel.regions}
         raw_results_collection = [results]
 
         # repetitions were obtained from likwid marker and time per repetition is too small
@@ -289,11 +300,14 @@ class StandaloneBenchmark(PerformanceModel):
                 # repetitions were obtained from likwid markers
                 if time_per_repetition[region] < 1.0:
                     # time per repetition is <1000 ms (overhead is not negligible)
-                    print("WARNING: Overhead introduced by likwid markers for region {} might not be negligible (usage of \'-R marker\').\n".format(region), file=output_file)
+                    print("WARNING: Overhead introduced by likwid markers for region {} might not "
+                          "be negligible (usage of '-R marker').\n".format(region),
+                          file=output_file)
 
 
         if self.benchmarked_regions - self.kernel.regions:
-            print('WARNING: following likwid regions were found but not specified to be analysed:\n{}'.format(self.benchmarked_regions - self.kernel.regions))
+            print('WARNING: following likwid regions were found but not specified to be analysed:\n'
+                  '{}'.format(self.benchmarked_regions - self.kernel.regions))
 
         # Base metrics for further metric computations:
 
@@ -412,14 +426,16 @@ class StandaloneBenchmark(PerformanceModel):
             self.results[region]['Runtime (per cacheline update) [cy/CL]'] = \
                 (cys_per_repetition / iterations_per_repetition) * iterations_per_cacheline
             if 'Memory data volume [GBytes]' in results[region]:
-                self.results[region]['MEM volume (per repetition) [B]'] = \
-                    results[region]['Memory data volume [GBytes]'] * 1e9 / repetitions[region]['value']
+                self.results[region]['MEM volume (per repetition) [B]'] = (
+                    results[region]['Memory data volume [GBytes]'] * 1e9 /
+                    repetitions[region]['value'])
             else:
                 self.results[region]['MEM volume (per repetition) [B]'] = float('nan')
-            self.results[region]['Performance [MFLOP/s]'] = \
-                self.kernel._flops[region] / (time_per_repetition[region] / iterations_per_repetition) / 1e6
+            self.results[region]['Performance [MFLOP/s]'] = ( self.kernel._flops[region] /
+                (time_per_repetition[region] / iterations_per_repetition) / 1e6)
             if 'Memory bandwidth [MBytes/s]' in results[region]:
-                self.results[region]['MEM BW [MByte/s]'] = results[region]['Memory bandwidth [MBytes/s]']
+                self.results[region]['MEM BW [MByte/s]'] = \
+                    results[region]['Memory bandwidth [MBytes/s]']
             elif 'Memory BW [MBytes/s]' in results[region]:
                 self.results[region]['MEM BW [MByte/s]'] = results[region]['Memory BW [MBytes/s]']
             else:
@@ -454,16 +470,18 @@ class StandaloneBenchmark(PerformanceModel):
             print('MEM volume (per repetition): {:.0f} Byte'.format(
                 self.results[region]['MEM volume (per repetition) [B]']),
                 file=output_file)
-            print('Performance: {:.2f} MFLOP/s'.format(self.results[region]['Performance [MFLOP/s]']),
-                  file=output_file)
+            print(
+                'Performance: {:.2f} MFLOP/s'.format(self.results[region]['Performance [MFLOP/s]']),
+                file=output_file)
             print('Performance: {:.2f} MLUP/s'.format(self.results[region]['Performance [MLUP/s]']),
                   file=output_file)
             print('Performance: {:.2f} It/s'.format(self.results[region]['Performance [MIt/s]']),
                   file=output_file)
             if self.verbose > 0:
-                print('MEM bandwidth: {:.2f} MByte/s'.format(self.results[region]['MEM BW [MByte/s]']),
+                print('MEM bandwidth: {:.2f} MByte/s'.format(
+                    self.results[region]['MEM BW [MByte/s]']),
                       file=output_file)
-            print('', file=output_file)
+            print(file=output_file)
 
             if not self.no_phenoecm:
                 print("Data Transfers:")

@@ -25,9 +25,9 @@ class AppendStringRange(argparse.Action):
     Argparse Action to append integer range from string.
 
     A range description must have the following format: [[...,]region:]start[:end[:scaling]]
-    \'region\' defaults to the empty string
-    if \'end\' is omitted, the variable is assumed fixed
-    if not given, \'scaling\' is assumed based on the choice of start and end value, i.e.
+    'region' defaults to the empty string
+    if 'end' is omitted, the variable is assumed fixed
+    if not given, 'scaling' is assumed based on the choice of start and end value, i.e.
                     linearly increasing, if start < end
                     logarithmically decreasing, if start > end
     """
@@ -40,8 +40,8 @@ class AppendStringRange(argparse.Action):
         if len(values) != 2:
             message = 'requires 2 arguments'
         else:
-
-            m = re.match(r'(?:(?P<region>(\D\w*,)*\D\w*):)?'                                    # optional: likwid region(s) for which this variable is specified
+            # optional: likwid region(s) for which this variable is specified
+            m = re.match(r'(?:(?P<region>(\D\w*,)*\D\w*):)?' 
                          r'(?:(?P<start_var>[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)?:?)'
                          r'(?:(?P<stop_var>[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)?\:?)?'
                          r'(?:(?P<scale_var>log|lin)?)?', values[1])
@@ -68,8 +68,9 @@ class AppendStringRange(argparse.Action):
 
                         if gd['scale_var'] is None:
                             variables['scale'] = 'lin' if stop > start else 'log'
-                            print("WARNING: You did not specify a scaling for your adjustable variable. "
-                                  "From the choice of your start and stop values, {} scaling is assumed.".format(variables['scale']))
+                            print("WARNING: You did not specify a scaling for your adjustable "
+                                  "variable. From the choice of your start and stop values, {} "
+                                  "scaling is assumed.".format(variables['scale']))
                         else:
                             variables['scale'] = gd['scale_var']
             else:
@@ -90,10 +91,10 @@ class AppendLoopRange(argparse.Action):
     """
     Argparse Action to append loop range from string.
 
-    A range description must have the following format: \'[[...,]region:]start:[step:]end[:variable]\'
-    \'region\' defaults to the empty string
-    \'step\' defaults to 1
-    \'variable\' defaults to None
+    A range description must have the following format: '[[...,]region:]start:[step:]end[:variable]'
+    'region' defaults to the empty string
+    'step' defaults to 1
+    'variable' defaults to None
     """
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -101,13 +102,17 @@ class AppendLoopRange(argparse.Action):
 
         message = ''
 
-        m = re.match(r'(?:(?P<region>(\D\w*,)*\D\w*):)?'    # optional: likwid region(s) for which this loop range is specified
-                     r'(?P<start>\d+\.?\d*):'               # lower bound of loop
-                     r'((?P<step>\d+\.?\d*):)?'             # optional: step size
-                     r'(?P<end>\d+\.?\d*)'                  # upper bound of loop
-                     r'(:(?P<variable>\D\S*))?',            # optional: variable that is responsible for the loop length
-                                                            #           this is needed, when an adjustable variable
-                                                            #           controls the upper bound of a loop
+        # optional: likwid region(s) for which this loop range is specified
+        m = re.match(r'(?:(?P<region>(\D\w*,)*\D\w*):)?'
+                     # lower bound of loop
+                     r'(?P<start>\d+\.?\d*):'
+                     # optional: step size
+                     r'((?P<step>\d+\.?\d*):)?'
+                     # upper bound of loop
+                     r'(?P<end>\d+\.?\d*)'
+                     # optional: variable that is responsible for the loop length this is needed,
+                     # when an adjustable variable controls the upper bound of a loop
+                     r'(:(?P<variable>\D\S*))?', 
                      values, flags=re.VERBOSE)
         if m:
             gd = m.groupdict()
@@ -122,11 +127,13 @@ class AppendLoopRange(argparse.Action):
                 end   = int(gd['end'])
                 step  = int(gd['step'])
 
-                values = {'start': start, 'end': end, 'step': step, 'variable': gd['variable'], 'offset': None}
+                values = {'start': start, 'end': end, 'step': step, 'variable': gd['variable'], 
+                          'offset': None}
             except ValueError:
-                print('Pattern of loop range must match \'[[...,]region:]start:[step:]end[:variable]\'')
+                print("Pattern of loop range must match "
+                      "'[[...,]region:]start:[step:]end[:variable]'")
         else:
-            message = 'argument must match: \'start:[step:]end|marker\''
+            message = "argument must match: 'start:[step:]end|marker'"
             raise argparse.ArgumentError(self, message)
 
         if hasattr(namespace, self.dest):
@@ -147,7 +154,7 @@ class AppendRepetitionDefines(argparse.Action):
     """
     Argparse Action to append loop range from string.
 
-    A range description must have the following format: \'[region:]qualifier\'
+    A range description must have the following format: '[region:]qualifier'
     If no region is specified, it is assumed that the qualifier is the number of repetitions for all regions.
     """
 
@@ -160,8 +167,11 @@ class AppendRepetitionDefines(argparse.Action):
         if len(values) == 0:
             message = 'requires 1 argument'
         else:
-            m = re.match(r'(?:(?P<region>(\D\w*,)*\D\w*):)?'    # optionally: likwid region(s) for which the number of repetitions is defined
-                         r'(?P<qualifier>\w+)$',                # qualifier for the repetitions. Can either be a fixed number, a variable name or the specifier \'marker\'
+            # optionally: likwid region(s) for which the number of repetitions is defined
+            m = re.match(r'(?:(?P<region>(\D\w*,)*\D\w*):)?'    
+                         # qualifier for the repetitions. Can either be a fixed number, a variable 
+                         # name or the specifier 'marker'
+                         r'(?P<qualifier>\w+)$',                
                          values)
             if m:
                 gd = m.groupdict()
@@ -170,9 +180,9 @@ class AppendRepetitionDefines(argparse.Action):
                     qualifier = gd['qualifier']
 
                 except ValueError:
-                    print('Pattern of loop range must match \'[[...,]region:]qualifier\'')
+                    print("Pattern of loop range must match '[[...,]region:]qualifier'")
             else:
-                message = 'argument must match: \'[[...,]region:]qualifier\''
+                message = "argument must match: '[[...,]region:]qualifier'"
 
         if message:
             raise argparse.ArgumentError(self, message)
@@ -191,7 +201,7 @@ class AppendFlops(argparse.Action):
     """
     Argparse Action to append flops for optionally a specific likwid region.
 
-    A flop description mist have the following format: \'[[...,]region:]flops\'.
+    A flop description mist have the following format: '[[...,]region:]flops'.
     If no region is defined, it is assumed that the number of flops holds for all regions (?!)
     """
     def __call__(self, parser, namespace, values, option_string=None):
@@ -215,9 +225,9 @@ class AppendFlops(argparse.Action):
                     flops = int(gd['flops'])
 
                 except ValueError:
-                    print('Pattern of flops must match \'[[...,]region:]flops\'')
+                    print("Pattern of flops must match '[[...,]region:]flops'")
             else:
-                message = 'argument must match: \'[[...,]region:]flops\''
+                message = "argument must match: '[[...,]region:]flops'"
 
         if message:
             raise argparse.ArgumentError(self, message)
@@ -253,48 +263,58 @@ class ParseMarkers(argparse.Action):
 def create_parser():
     """Return argparse parser."""
     parser = argparse.ArgumentParser(
-        description = 'Kerncraft\'s stand-alone benchmarking tool.',
-        epilog = 'For help, examples, documentation, and bug reports go to //TODO\nLicense: AGPLv3')
+        description="Kerncraft's stand-alone benchmarking tool.",
+        epilog='For help, examples, documentation, and bug reports go to '
+                  'https://github.com/RRZE-HPC/kerncraft\nLicense: AGPLv3')
 
-    parser.add_argument('--version', action = 'version', version='%(prog)s {}'.format(__version__))
+    parser.add_argument('--version', action='version', version='%(prog)s {}'.format(__version__))
     parser.add_argument('--machine', '-m', type=argparse.FileType('r'), required=True,
                         help='Path to machine description yaml file.')
-    parser.add_argument('--define', '-D', nargs=2, metavar=('KEY', 'VALUE'), default = OrderedDict(),
-                        action = AppendStringRange,
-                        help = 'Define constant to be used in C code. Values must be integer or match '
-                        'start-stop[:num[log[base]]]. If range is given, all permutations will '
-                        'be tested. Overwrites constants from testcase file.\n'
-                        'Constants with leading underscores are adaptable, i.e. they can be ')
-    parser.add_argument('--verbose', '-v', action = 'count', default = 0,
-                        help = 'Increase verbosity level.')
-    parser.add_argument('--store', metavar = 'PICKLE', type = argparse.FileType('a+b'),
-                        help = 'Adds results to PICKLE file for later processing.')
-    parser.add_argument('--unit', '-u', choices = ['cy/CL', 'cy/It', 'It/s', 'FLOP/s'],
-                        help = 'Select the output unit, defaults to model specific if not given.')
-    parser.add_argument('--cores', '-c', metavar = 'CORES', type = int, default = 1,
-                        help = 'Number of cores to be used in parallel. (default: 1) '
-                        'The benchmark model will run the code with OpenMP on as many physical cores.')
-    parser.add_argument('binary', metavar = 'FILE',
+    parser.add_argument('--define', '-D', nargs=2, metavar=('KEY', 'VALUE'), default=OrderedDict(),
+                        action=AppendStringRange,
+                        help='Define constant to be used in C code. Values must be integer or '
+                             'match start-stop[:num[log[base]]]. If range is given, all '
+                             'permutations will be tested. Overwrites constants from testcase '
+                             'file.\nConstants with leading underscores are adaptable, i.e., '
+                             'they can be change to enforce a minimum runtime.')
+    parser.add_argument('--verbose', '-v', action='count', default=0,
+                        help='Increase verbosity level.')
+    parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
+                        help='Adds results to PICKLE file for later processing.')
+    parser.add_argument('--unit', '-u', choices=['cy/CL', 'cy/It', 'It/s', 'FLOP/s'],
+                        help='Select the output unit, defaults to model specific if not given.')
+    parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
+                        help='Number of cores to be used in parallel. (default: 1) The benchmark '
+                             'model will run the code with OpenMP on as many physical cores.')
+    parser.add_argument('binary', metavar='FILE',
                         help='Binary to be benchmarked.')
-    parser.add_argument('--clean-intermediates', action = 'store_true',
-                        help = 'If set will delete all intermediate files after completion.')
-    parser.add_argument('--compiler', '-C', type = str, default = None,
-                        help = 'Compiler to use, default is first in machine description file.')
-    parser.add_argument('--compiler-flags', type = str, default = None,
-                        help = 'Compiler flags to use. If not set, flags are taken from machine '
-                        'description file (-std=c99 is always added).')
-    parser.add_argument('--datatype', metavar = 'DATATYPE', type = str, choices = ['float', 'double'], default='double',
-                        help='Datatype of sources and destinations of the kernel. Defaults to \'double\'.')
-    parser.add_argument('--flops', metavar = 'FLOPS', required=True, action=AppendFlops, default={},
-                        help='Number of floating-point operations per inner-most iteration of the kernel.')
-    parser.add_argument('--loop', '-L', metavar = 'LOOP RANGE', required=True, action=AppendLoopRange, default={},
-                        help='Define ranges of nested loops. The definition must match \'start:[step:]end\'. '
-                             '\'step\' defaults to 1.')
-    parser.add_argument('--repetitions', '-R', metavar='REPETITIONS', action=AppendRepetitionDefines, default={'': '1'},
-                        help='Number of kernel repetitions. Can be either a fixed number, a variable name, or the specifier \'marker\'.'
-                             'Specifying a variable name, the number of repetitions is automatically adjusted when the variable is changed.'
-                             'Specifying \'marker\', the number of repetitions is obtained from likwid-perfctr.')
-    parser.add_argument('--marker', action=ParseMarkers, nargs='?', default={'use_marker': False, 'region': ['']},
+    parser.add_argument('--clean-intermediates', action='store_true',
+                        help='If set will delete all intermediate files after completion.')
+    parser.add_argument('--compiler', '-C', type=str, default=None,
+                        help='Compiler to use, default is first in machine description file.')
+    parser.add_argument('--compiler-flags', type=str, default=None,
+                        help='Compiler flags to use. If not set, flags are taken from machine '
+                            'description file (-std=c99 is always added).')
+    parser.add_argument('--datatype', metavar='DATATYPE', type=str, choices=['float', 'double'], 
+                        default='double',
+                        help="Datatype of sources and destinations of the kernel. Defaults to "
+                             "'double'.")
+    parser.add_argument('--flops', metavar='FLOPS', required=True, action=AppendFlops, default={},
+                        help='Number of floating-point operations per inner-most iteration of the '
+                             'kernel.')
+    parser.add_argument('--loop', '-L', metavar='LOOP RANGE', required=True, action=AppendLoopRange,
+                        default={},
+                        help="Define ranges of nested loops. The definition must match "
+                             "'start:[step:]end'. 'step' defaults to 1.")
+    parser.add_argument('--repetitions', '-R', metavar='REPETITIONS',
+                        action=AppendRepetitionDefines, default={'': '1'},
+                        help='Number of kernel repetitions. Can be either a fixed number, a '
+                             "variable name, or the specifier 'marker'. Specifying a variable "
+                             "name, the number of repetitions is automatically adjusted when the "
+                             "variable is changed. Specifying 'marker', the number of repetitions "
+                             "is obtained from likwid-perfctr.")
+    parser.add_argument('--marker', action=ParseMarkers, nargs='?',
+                        default={'use_marker': False, 'region': ['']},
                         help='Benchmark using likwid markers.')
 
     ag = parser.add_argument_group('arguments for stand-alone benchmark model', 'benchmark')
@@ -345,7 +365,8 @@ def run(parser, args, output_file = sys.stdout):
     print('\n\n{:^80}'.format(' stand-alone kerncraft benchmark '), file=output_file)
     print('{:<40}{:>40}'.format(kernel.binary, ' -m ' + args.machine.name),
           file=output_file)
-    print(' '.join(['-D {} {}'.format(k, v['value']) for k, v in args.define.items()]), file=output_file)
+    print(' '.join(['-D {} {}'.format(k, v['value']) for k, v in args.define.items()]), 
+          file=output_file)
     print('{:-^80}'.format(' ' + args.binary + ' '), file=output_file)
 
     if args.verbose > 1:
