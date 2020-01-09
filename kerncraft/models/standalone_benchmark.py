@@ -475,7 +475,7 @@ class StandaloneBenchmark(PerformanceModel):
                 file=output_file)
             print('Performance: {:.2f} MLUP/s'.format(self.results[region]['Performance [MLUP/s]']),
                   file=output_file)
-            print('Performance: {:.2f} It/s'.format(self.results[region]['Performance [MIt/s]']),
+            print('Performance: {:.2f} MIt/s'.format(self.results[region]['Performance [MIt/s]']),
                   file=output_file)
             if self.verbose > 0:
                 print('MEM bandwidth: {:.2f} MByte/s'.format(
