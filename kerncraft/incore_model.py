@@ -13,7 +13,7 @@ from collections import OrderedDict
 from io import StringIO
 
 from distutils.spawn import find_executable
-from osaca.api import KerncraftAPI
+from osaca import osaca
 from osaca.parser import get_parser
 from osaca.semantics import MachineModel, ISASemantics
 from osaca.semantics.marker_utils import find_basic_loop_bodies, get_marker
@@ -252,7 +252,7 @@ def parse_asm(code, isa):
     return asm_lines
 
 
-def asm_instrumentation(input_file, output_file,
+def asm_instrumentation(input_file, output_file=None,
                         block_selection='auto',
                         pointer_increment='auto_with_manual_fallback',
                         debug=False,
@@ -325,7 +325,8 @@ def asm_instrumentation(input_file, output_file,
     marked_asm = asm_lines[:block_start] + marker_start + asm_lines[block_start:block_end] + \
                  marker_end + asm_lines[block_end:]
 
-    output_file.writelines([l['line']+'\n' for l in marked_asm])
+    if output_file is not None:
+        output_file.writelines([l['line']+'\n' for l in marked_asm])
 
     return block_lines, pointer_increment
 
@@ -343,17 +344,27 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
         - 'port cycles': dict, mapping port name to number of active cycles
         - 'uops': total number of Uops
     """
-    with open(instrumented_assembly_file) as f:
-        code = f.read()
-    osaca = KerncraftAPI(micro_architecture, code)
-
     result = {}
-    result['output'] = osaca.create_output()
-    result['port cycles'] = OrderedDict(osaca.get_port_occupation_cycles())
-    result['throughput'] = osaca.get_total_throughput()
+    isa = osaca.MachineModel.get_isa_for_arch(micro_architecture)
+    parser = osaca.get_asm_parser(micro_architecture)
+    with open(instrumented_assembly_file) as f:
+        parsed_code = parser.parse_file(f.read())
+    kernel = osaca.reduce_to_section(parsed_code, isa)
+    osaca_machine_model = osaca.MachineModel(arch=micro_architecture)
+    semantics = osaca.ArchSemantics(machine_model=osaca_machine_model)
+    semantics.add_semantics(kernel)
+    semantics.assign_optimal_throughput(kernel)
+
+    kernel_graph = osaca.KernelDG(kernel, parser, osaca_machine_model)
+    frontend = osaca.Frontend(instrumented_assembly_file, arch=micro_architecture)
+
+    result['output'] = frontend.full_analysis(kernel, kernel_graph, verbose=True)
+    throughput_values = semantics.get_throughput_sum(kernel)
+    result['port cycles'] = OrderedDict(list(zip(osaca_machine_model['ports'], throughput_values)))
+    result['throughput'] = max(semantics.get_throughput_sum(kernel))
     result['uops'] = None  # Not given by OSACA
 
-    unmatched_ratio = osaca.get_unmatched_instruction_ratio()
+    unmatched_ratio = osaca.get_unmatched_instruction_ratio(kernel)
     if unmatched_ratio > 0.1:
         print('WARNING: {:.0%} of the instruction could not be matched during incore analysis '
               'with OSACA. Fix this by extending OSACAs instruction form database with the '
