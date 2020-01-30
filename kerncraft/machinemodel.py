@@ -55,9 +55,14 @@ CHANGES_SINCE = OrderedDict([
      Replaced 'micro-architecture' and 'micro-architecture modeller' with
      'in-core model' ordered map, which allows multiple model tools to be
      supported by a single machine file. The first entry is used by default.
-     
+
      Also added stats to benchmark measurements for (manual) validation of model
      parameters.
+     """),
+    ("0.8.3.dev1",
+     """
+     Added ISA attribute, which may either be x86 or aarch64 (or any ISA name
+     supported by OSACA)
      """),
 ])
 
@@ -102,6 +107,7 @@ class MachineModel(object):
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'ADD': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED'}}),
+            ('ISA', 'INFORMATION_REQUIRED (e.g., x86, aarch64)'),
             ('in-core model', OrderedDict([
                 ('IACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
                 ('OSACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
@@ -175,7 +181,8 @@ class MachineModel(object):
             self._update_benchmarks()
 
     def _update_benchmarks(self, repetitions=10,
-                           usage_factor=0.66, mem_factor=15.0, overwrite=False):
+                           usage_factor=0.66, min_surpass_factor=0.2, mem_factor=15.0,
+                           overwrite=False):
         """Run benchmarks and update internal dataset"""
         if not isinstance(self._data['benchmarks'], dict):
             self._data['benchmarks'] = {}
@@ -219,18 +226,29 @@ class MachineModel(object):
             benchmarks['measurements'] = {}
 
         cores = list(range(1, self['cores per socket'] + 1))
-        for mem in self['memory hierarchy']:
+        for mem_index, mem in enumerate(self['memory hierarchy']):
             try:
                 measurement = benchmarks['measurements'][mem['level']]
             except (KeyError, TypeError):
                 measurement = benchmarks['measurements'][mem['level']] = {}
 
+            if mem_index > 0:
+                mem_previous = self['memory hierarchy'][mem_index - 1]
+            else:
+                mem_previous = {
+                    'size per group': 0,
+                    'cores per group': 1
+                }
+
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
                 if mem['size per group'] is not None:
                     total_sizes = [
-                        PrefixedUnit(max(int(mem['size per group']) * c / mem['cores per group'],
-                                         int(mem['size per group'])) * usage_factor, 'B')
+                        PrefixedUnit(max(
+                            max(int(mem['size per group']) * c / mem['cores per group'],
+                                int(mem['size per group'])) * usage_factor,
+                            max(int(mem_previous['size per group']) * c / mem_previous['cores per group'],
+                                int(mem_previous['size per group'])) * (1.0 + min_surpass_factor)), 'B')
                         for c in cores]
                 else:
                     last_mem = self['memory hierarchy'][-2]
@@ -289,7 +307,7 @@ class MachineModel(object):
                     benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
                 mem_level = 'L1'
                 fastest_kernel = find_fastest_bench_kernel(
-                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
+                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp', '_nt']),
                     total_size=int(float(
                         benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
                     threads_per_core=1,

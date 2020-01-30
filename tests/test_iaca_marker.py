@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-High-level tests for the IACA marker and loop detection in iaca.py
+High-level tests for the IACA marker and loop detection in incore_model.py
 """
 import os
 import unittest
 from copy import copy
 
-from kerncraft.iaca import find_asm_blocks, select_best_block, strip_and_uncomment
-from kerncraft.iaca import strip_unreferenced_labels
+from kerncraft.incore_model import parse_asm, ISA, find_basic_loop_bodies
 
 
 class TestIACAMarker(unittest.TestCase):
@@ -18,54 +17,53 @@ class TestIACAMarker(unittest.TestCase):
         assert os.path.exists(name)
         return name
 
-    def tests_2d5pt_constcoeffs(self):
+    def tests_x86_2d5pt_constcoeffs(self):
         with open(self._find_file('2d-5pt-constcoeffs.s')) as f:
-            assembly_orig = f.readlines()
-        assembly = strip_and_uncomment(copy(assembly_orig))
-        assembly = strip_unreferenced_labels(assembly)
-        blocks = find_asm_blocks(assembly)
-        block_idx = select_best_block(blocks)
-        best_block = blocks[block_idx][1]
+            assembly_orig = f.read()
+        assembly = parse_asm(assembly_orig, 'x86')
+        blocks = find_basic_loop_bodies(assembly)
+        isa = ISA.get_isa('x86')
+        best_block_label = isa.select_best_block(blocks)
+        best_block_lines = blocks[best_block_label]
 
-        self.assertEqual(best_block['labels'], ['.L36'])
-        self.assertEqual(best_block['pointer_increment'], 8)
+        self.assertEqual(best_block_label, '.L36')
+        self.assertEqual(isa.get_pointer_increment(best_block_lines), 8)
 
-    def tests_2d5pt_varcoeffs(self):
+    def tests_x86_2d5pt_varcoeffs(self):
         with open(self._find_file('2d-5pt-varcoeffs.s')) as f:
-            assembly_orig = f.readlines()
-        assembly = strip_and_uncomment(copy(assembly_orig))
-        assembly = strip_unreferenced_labels(assembly)
-        blocks = find_asm_blocks(assembly)
-        block_idx = select_best_block(blocks)
-        best_block = blocks[block_idx][1]
+            assembly_orig = f.read()
+        assembly = parse_asm(assembly_orig, 'x86')
+        blocks = find_basic_loop_bodies(assembly)
+        isa = ISA.get_isa('x86')
+        best_block_label = isa.select_best_block(blocks)
+        best_block_lines = blocks[best_block_label]
 
-        self.assertEqual(best_block['labels'], ['.L43'])
-        self.assertEqual(best_block['pointer_increment'], 16)
+        self.assertEqual(best_block_label, '.L43')
+        self.assertEqual(isa.get_pointer_increment(best_block_lines), 16)
 
-    def tests_3d25pt_semi(self):
+    def tests_x86_3d25pt_semi(self):
         with open(self._find_file('3d-25pt_semi.s')) as f:
-            assembly_orig = f.readlines()
-        assembly = strip_and_uncomment(copy(assembly_orig))
-        assembly = strip_unreferenced_labels(assembly)
-        blocks = find_asm_blocks(assembly)
-        block_idx = select_best_block(blocks)
-        best_block = blocks[block_idx][1]
+            assembly_orig = f.read()
+        assembly = parse_asm(assembly_orig, 'x86')
+        blocks = find_basic_loop_bodies(assembly)
+        isa = ISA.get_isa('x86')
+        best_block_label = isa.select_best_block(blocks)
+        best_block_lines = blocks[best_block_label]
 
-        self.assertEqual(best_block['labels'], ['LBB0_62'])
-        #self.assertEqual(best_block['pointer_increment'], 8)
+        self.assertEqual(best_block_label, 'LBB0_62')
+        #self.assertEqual(isa.get_pointer_increment(best_block_lines), 8)
 
-    def tests_matvec_trans(self):
+    def tests_x86_matvec_trans(self):
         with open(self._find_file('matvec_trans.s')) as f:
-            assembly_orig = f.readlines()
-        assembly = strip_and_uncomment(copy(assembly_orig))
-        assembly = strip_unreferenced_labels(assembly)
-        blocks = find_asm_blocks(assembly)
-        block_idx = select_best_block(blocks)
-        best_block = blocks[block_idx][1]
+            assembly_orig = f.read()
+        assembly = parse_asm(assembly_orig, 'x86')
+        blocks = find_basic_loop_bodies(assembly)
+        isa = ISA.get_isa('x86')
+        best_block_label = isa.select_best_block(blocks)
+        best_block_lines = blocks[best_block_label]
 
-        self.assertEqual(best_block['labels'], ['LBB0_30'])
-        self.assertEqual(best_block['pointer_increment'], 64)
-
+        self.assertEqual(best_block_label, 'LBB0_30')
+        self.assertEqual(isa.get_pointer_increment(best_block_lines), 64)
 
 
 if __name__ == '__main__':

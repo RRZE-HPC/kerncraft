@@ -13,6 +13,7 @@ in-core model: !!omap
   - IACA: HSW
   - OSACA: HSW
   - LLVM-MCA: -mcpu=haswell
+isa: x86
 
 FLOPs per cycle:
   SP: {total: 32, FMA: 16, ADD: 8, MUL: 8}

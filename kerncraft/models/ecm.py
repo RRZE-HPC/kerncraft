@@ -291,7 +291,7 @@ class ECMCPU(PerformanceModel):
         Run complete analysis and return results.
         """
         try:
-            incore_analysis, asm_block = self.kernel.incore_analysis(
+            incore_analysis, asm_block, pointer_increment = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 model=self._args.incore_model,
@@ -305,7 +305,7 @@ class ECMCPU(PerformanceModel):
         uops = incore_analysis['uops']
 
         # Normalize to cycles per cacheline
-        elements_per_block = abs(asm_block['pointer_increment']
+        elements_per_block = abs(pointer_increment
                                  // self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         try:
@@ -338,7 +338,7 @@ class ECMCPU(PerformanceModel):
             'T_RegL1': T_RegL1,
             'IACA output': incore_analysis['output'],
             'elements_per_block': elements_per_block,
-            'pointer_increment': asm_block['pointer_increment'],
+            'pointer_increment': pointer_increment,
             'flops per iteration': sum(self.kernel._flops.values())}
         return self.results
 

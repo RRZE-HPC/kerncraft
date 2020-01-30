@@ -19,6 +19,7 @@ in-core model: !!omap
   - IACA: SKX
   - OSACA: SKX
   - LLVM-MCA: -mcpu=skylake-avx512
+isa: x86
 
 FLOPs per cycle:
   SP:
