@@ -65,5 +65,5 @@ class TestIncoreModelX86(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestIACAMarker)
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestIncoreModelX86)
     unittest.TextTestRunner(verbosity=2).run(suite)
