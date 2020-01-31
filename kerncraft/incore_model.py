@@ -234,7 +234,9 @@ def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
     print("Blocks found in assembly file:")
     for label, block in blocks.items():
-        print('{}:\n{}\n'.format(label, '\n'.join([b['line'] for b in block])))
+        # Blocks first line is the label, the user will be able to spot it, so we don't need to
+        # print it
+        print('\n'.join([b['line'] for b in block]))
 
     # Let user select block:
     block_label = None
