@@ -1,3 +1,4 @@
+os: linux
 dist: xenial
 language: python
 python:
@@ -25,12 +26,13 @@ after_success:
 - codecov
 deploy:
   provider: pypi
-  user: travis.rrze-hpc
+  username: "__token__"
   password:
-    secure: aWSruT3vVdvezXERBqxZumdnQHO8d2moOyjSw1oYPohUCRTP+JBlRK2ZuZbkA0jXKD7iS/DvASxXkyHsn/4I64ukbRsjnxvCqWnm5ujpomCP5LNy4exMdokRCYlLIrBMl90KIwRF2MJFFHYh/j90R61ZWX1HWIh66KQdmZuyA2OJ+J+g41etzT4KudB4gyvzhkr6mKxIvnqQxpIZWh9ZNbsFOLWn/k87Ei5c5LEtB9FbJ+g1MxyC/7+74u+gn3EY6lCBZ3EsUhzuZDngc/H0UlyOuJuc5llh/MA0K79HaS9bIx/WoU3Q0jeGmxi8xScmyjeo6XcnBUdpfLSlmPeP4GUFR/MLtYCMQwKb0rwnNRaM+BNyxVGDcRyDUyM/UiTRIN/hfzfyKp12OWMMKhCZ9u+YklQetSLVDnykP688hZpHBLlGJ/OPGOptk9huRByzrb7P6pnfZG46w1pB2KMsD/eATbgSWRaj5BIqU5c1VNAkHsR4cKklvMbR+GaFMpBLRN5PqxADico5JG8WQoMZ2pZ+JiSAK6FZPXl0LAAk0SU/3mAt10hQveNOhq9NNbRHsZc4HFXf1ilkn3NnXd7yoEzMzzLkZzbEKKVRB2HSkitxdSL5FZkFu4IncDH5zCyAB+VINt8k2JVjbFez1zXCgnPvJbrbK5jGigAsNvyUivs=
+    secure: "c/vpXShJJYlGPCRRwgBwxo9I8WWSa754K6Nc5msLFr2RhlwUk+m+Gb5Yio9RSRQeM9638VrUDH2Pa7IGrHNi1+ZeCZjH8kT8fhtnuiyxAWcNqlxBHZj8ZDobGKvuu5V7zHiCR427jRaGJLEz2Mf2xKcw4by39uG9LJ4dmgoppSqc75nkzlLEgN7q8awNDOpBGMXw+v3Kqk0uAgBLTUjh8Cj5zwnumDnWB3vLZBkWAImmtf5PMAJxtu45Qjl78mxNsqW//JGqaaktc5XGC386CGS/NDk/OJFk/rkYhO/tjS4LOi2piV+g5gfvReo4v54bdnv2kc1Ayq+b++Y976iczp0CFYirkcz2JizO9Flr3W7OD1Ae7ISPUrzG0Kt+diZK9LiZHDMOU38gfy6VQSEwCrPbft4wHdporNhgswSHUEQn7MThNUAWC+PSJ29iEK2pB3Br05iyB+r1+4ouGs3bkDgP3GvKjCAwuYJUje+nZQbL0Y6nUgJSkkwajIwleoJqWj1GR7ACnM+s/dsi94nEOnE2ftjdrOV9ryfiL9Ewl5BqfNPx1n3EckLjX0pf/b8lbzGReUcN0pTuHuUilRWoRZgCZho/SnS290giRKjOjmfwxV5Hl6QLRYzFhkuvsWu2wAWowHw6Z0vHDnfZ3sx7KZdnaZyZllmF1bLkK3XJSx8="
   distributions: sdist
   skip_existing: true
-  skip_cleanup: true
+  cleanup: false
   on:
     repo: RRZE-HPC/kerncraft
-    tag: true
+    branch: master
+    tags: true
