@@ -137,6 +137,7 @@ class MachineModel(object):
             }),
             ('memory hierarchy', 'INFORMATION_REQUIRED'),
             ('benchmarks', 'INFORMATION_REQUIRED'),
+            ('machine state', 'INFORMATION_REQUIRED (output of machine-state.sh)'),
         ])
 
         if path_to_yaml and machine_yaml:
@@ -169,7 +170,7 @@ class MachineModel(object):
         self._path = path
 
     def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True,
-               cpuinfo_path: str='/proc/cpuinfo'):
+               machine_state=True, cpuinfo_path: str='/proc/cpuinfo'):
         """Update model from readouts and benchmarks on current machine."""
         if readouts:
             self._data.update(get_machine_readouts(cpuinfo_path=cpuinfo_path))
@@ -179,6 +180,9 @@ class MachineModel(object):
 
         if benchmarks:
             self._update_benchmarks()
+        
+        if machine_state:
+            self._update_machine_state()
 
     def _update_benchmarks(self, repetitions=10,
                            usage_factor=0.66, min_surpass_factor=0.2, mem_factor=15.0,
@@ -359,6 +363,10 @@ class MachineModel(object):
                         if not verbose:
                             print('.', end='', file=sys.stderr)
                         sys.stderr.flush()
+    
+    def _update_machine_state(self):
+        """Read and update machine state."""
+        self._data['machine state'] = get_machien_state()
 
     def __getitem__(self, key):
         """Return configuration entry."""
@@ -629,6 +637,18 @@ def get_cpu_frequency():
         return cpu_frequency.current*1e6
     else:
         return None
+
+
+def get_machien_state():
+    """
+    Build complete machine state information
+    
+    Using:
+    https://github.com/RRZE-HPC/Artifact-description/blob/master/machine-state.sh
+    """
+    return subprocess.check_output(
+        os.path.join(os.path.dirname(__file__), 'scripts', 'machine-state.sh'),
+        stderr=subprocess.STDOUT).decode("utf-8")
 
 
 @lru_cache(1)
