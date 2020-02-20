@@ -1230,7 +1230,7 @@ class KernelCode(Kernel):
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
                                                   type=c_ast.IdentifierType(names=['void'])))
-    
+
     def get_scalar_declarations(self):
         """Get all scalar declarations."""
         return [d for d in self.kernel_ast.block_items
@@ -1303,12 +1303,12 @@ class KernelCode(Kernel):
                 for aref in find_node_type(kernel, c_ast.ArrayRef):
                     # transform to 1d references
                     transform_multidim_to_1d_ref(aref, array_dimensions)
-            
+
             # Replace scalar variables in code with pointer references
             scalar_names = [sclar.name for sclar in self.get_scalar_declarations()]
             for scalar in find_node_type(kernel, c_ast.ID):
                 if scalar.name in scalar_names:
-                    # FIXME dirty work-around to not have to replace scalar 
+                    # FIXME dirty work-around to not have to replace scalar
                     # (at original location) with c_ast.UnaryOp(op='*', expr=scalar)
                     scalar.name = "*"+scalar.name
 
@@ -1335,11 +1335,11 @@ class KernelCode(Kernel):
 
     def _build_kernel_call(self, name='kernel'):
         """Generate and return kernel call ast."""
-        return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=[
-            c_ast.ID(name=d.name) for d in (
-                    self._build_array_declarations()[0] +
-                    self._build_scalar_declarations(as_ptr=True) +
-                    self._build_const_declartions())]))
+        return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=(
+            [c_ast.ID(name=d.name) for d in self._build_array_declarations()[0]] +
+            [c_ast.UnaryOp(op='&', expr=c_ast.ID(name=d.name)) for d in
+                self._build_scalar_declarations(as_ptr=True)] +
+            [c_ast.ID(name=d.name) for d in self._build_const_declartions()])))
 
     CODE_TEMPLATE = textwrap.dedent("""
         #include <likwid.h>
