@@ -232,11 +232,21 @@ def userselect_increment(block):
 
 def userselect_block(blocks, default=None, debug=False):
     """Let user interactively select block."""
+    label_list = []
     print("Blocks found in assembly file:")
     for label, block in blocks.items():
         # Blocks first line is the label, the user will be able to spot it, so we don't need to
         # print it
-        print('\n'.join([b['line'] for b in block]))
+        label_list.append(label)
+        print('\n\t'.join([b['line'] for b in block]))
+
+    # Show all possible block labels in the end
+    print(
+        '-----------------------------\n'
+        + 'Possible blocks to be marked:'
+    )
+    for label in label_list:
+        print(label)
 
     # Let user select block:
     block_label = None
@@ -297,11 +307,10 @@ def asm_instrumentation(input_file, output_file=None,
         block_label = block_selection
     else:
         raise ValueError("block_selection has to be an integer, 'auto' or 'manual' ")
-
     block_lines = loop_blocks[block_label]
 
     block_start = asm_lines.index(block_lines[0])
-    block_end = asm_lines.index(block_lines[-1])
+    block_end = asm_lines.index(block_lines[-1]) + 1
 
     # Extract store pointer increment
     if not isinstance(pointer_increment, int):
