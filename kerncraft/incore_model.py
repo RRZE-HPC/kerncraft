@@ -46,9 +46,9 @@ class LlvmMCA(IncoreModel):
 class ISA:
     @staticmethod
     def get_isa(isa='x86'):
-        if isa == 'x86':
+        if isa.lower() == 'x86':
             return x86
-        elif isa == 'AArch64':
+        elif isa.lower() == 'aarch64':
             return AArch64
 
     @staticmethod
@@ -527,7 +527,7 @@ def main():
                         default=sys.stdout, help='output file location (default: stdout)')
     parser.add_argument('--debug', action='store_true',
                         help='Output internal analysis information for debugging.')
-    parser.add_argument('--isa', default='x86', choices=['x86', 'AArch64'])
+    parser.add_argument('--isa', default='x86', choices=['x86', 'aarch64'])
     args = parser.parse_args()
 
     # pointer_increment is given, since it makes no difference on the command lien and requires
