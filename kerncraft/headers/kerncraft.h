@@ -1,7 +1,5 @@
 #ifndef _KERNCRAFT_H
 #define _KERNCRAFT_H
-//#include <stdlib.h>
-#define size_t int
 
 #define swap(a, b) {void* t = a; a = b; b = t;}
 
