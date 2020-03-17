@@ -263,9 +263,10 @@ def run(parser, args, output_file=sys.stdout):
         if '*' in [n for n,v in args.define]:
             default_const_values = dict(args.define)['*']
             for name in required_consts:
+                name = str(name)
                 define_dict[str(name)] = [[str(name), v] for v in default_const_values]
         for name, values in args.define:
-            if name not in required_consts:
+            if name not in [str(n) for n in required_consts]:
                 # ignore
                 continue
             if name not in define_dict:
@@ -275,7 +276,6 @@ def run(parser, args, output_file=sys.stdout):
                 if v not in define_dict[name]:
                     define_dict[name].append([name, v])
         define_product = list(itertools.product(*list(define_dict.values())))
-
         # Check that all consts have been defined
         if set(required_consts).difference(set([symbol_pos_int(k) for k in define_dict.keys()])):
             raise ValueError("Not all constants have been defined. Required are: {}".format(
