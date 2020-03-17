@@ -157,7 +157,7 @@ def create_parser():
                         help='Define constant to be used in C code. Values must be integer or '
                              'match start-stop[:num[log[base]]]. If range is given, all '
                              'permutation s will be tested. Overwrites constants from testcase '
-                             'file.')
+                             'file. Key can be * for default value for all used constants.')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity level.')
     parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(),
@@ -259,7 +259,15 @@ def run(parser, args, output_file=sys.stdout):
     if len(required_consts) > 0:
         # build defines permutations
         define_dict = {}
+        # Prefill with default value, if any is given
+        if '*' in [n for n,v in args.define]:
+            default_const_values = dict(args.define)['*']
+            for name in required_consts:
+                define_dict[str(name)] = [[str(name), v] for v in default_const_values]
         for name, values in args.define:
+            if name not in required_consts:
+                # ignore
+                continue
             if name not in define_dict:
                 define_dict[name] = [[name, v] for v in values]
                 continue
