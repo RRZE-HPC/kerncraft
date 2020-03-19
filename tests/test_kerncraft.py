@@ -468,6 +468,7 @@ class TestKerncraft(unittest.TestCase):
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1000',
                                   '-D', 'M', '1000',
+                                  '--no-phenoecm',
                                   '-vvv',
                                   '--compiler=gcc',
                                   '--store', store_file])

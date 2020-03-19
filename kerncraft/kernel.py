@@ -18,6 +18,7 @@ from collections import defaultdict
 from itertools import chain
 import random
 import atexit
+import re
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
@@ -1132,10 +1133,22 @@ class KernelCode(Kernel):
                 if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
 
     def get_kernel_loop_nest(self):
-        """Return kernel loop nest including any preceding pragmas and following swaps."""
+        """
+        Return kernel loop nest, with openmp pragmas insert unless already present.
+        """
         loop_nest = [s for s in self.kernel_ast.block_items
                      if type(s) in [c_ast.For, c_ast.Pragma, c_ast.FuncCall]]
         assert len(loop_nest) >= 1, "Found to few for statements in kernel"
+
+        omp_pragmas = [p for p in find_node_type(loop_nest, c_ast.Pragma)
+                        if 'omp' in p.string]
+        # if omp pragmas were found: replace "parallel for" -> "for"
+        for op in omp_pragmas:
+            op.string = op.string.replace(' parallel', '')
+        # if no omp for pragmas are present, insert suitable one at start of outer loop
+        if not omp_pragmas:
+            loop_nest.insert(0, c_ast.Pragma("omp for"))
+
         return loop_nest
 
     def _build_array_declarations(self, with_init=True):
@@ -1261,7 +1274,6 @@ class KernelCode(Kernel):
         """
         Generate and return compilable source code with kernel function from AST.
 
-        :param openmp: if true, OpenMP code will be generated
         :param as_filename: if true, will save to file and return filename
         :param name: name of kernel function
         """
@@ -1282,35 +1294,40 @@ class KernelCode(Kernel):
             array_declarations, array_dimensions = self._build_array_declarations()
 
             # Prepare actual kernel loop nest
-            if openmp:
-                # with OpenMP code
-                kernel = deepcopy(self.get_kernel_loop_nest())
-                # find all array references in kernel
-                for aref in find_node_type(kernel, c_ast.ArrayRef):
-                    # transform to 1d references
-                    transform_multidim_to_1d_ref(aref, array_dimensions)
-                omp_pragmas = [p for p in find_node_type(kernel, c_ast.Pragma)
-                               if 'omp' in p.string]
-                # TODO if omp parallel was found, remove it (also replace "parallel for" -> "for")
-                # if no omp for pragmas are present, insert suitable ones
-                if not omp_pragmas:
-                    kernel.insert(0, c_ast.Pragma("omp for"))
-                # otherwise do not change anything
-            else:
-                # with original code
-                kernel = deepcopy(self.get_kernel_loop_nest())
-                # find all array references in kernel
-                for aref in find_node_type(kernel, c_ast.ArrayRef):
-                    # transform to 1d references
-                    transform_multidim_to_1d_ref(aref, array_dimensions)
+            kernel = deepcopy(self.get_kernel_loop_nest())
+            # find all array references in kernel
+            for aref in find_node_type(kernel, c_ast.ArrayRef):
+                # transform to 1d references
+                transform_multidim_to_1d_ref(aref, array_dimensions)
+
+            # Copy variable from pointer onto heap (original_name_ = *original_name) and back
+            for scalar in self.get_scalar_declarations():
+                # Replace all scalar references (needs to happen before local declaration)
+                for id_reference in find_node_type(kernel, c_ast.ID):
+                    if id_reference.name == scalar.name:
+                        id_reference.name += '_'
+
+                # local declaration and copy
+                local_decl = deepcopy(scalar)
+                local_decl.init = c_ast.UnaryOp('*', c_ast.ID(name=scalar.name))
+                local_decl.name += '_'
+                local_decl.type.declname += '_'
+                kernel.insert(0, local_decl)
+                
+                # copy back local value to pointer
+                copy_back = c_ast.Assignment('=',
+                                             c_ast.UnaryOp('*', c_ast.ID(scalar.name)),
+                                             c_ast.ID(scalar.name+'_'))
+                kernel.append(copy_back)
 
             # Replace scalar variables in code with pointer references
-            scalar_names = [sclar.name for sclar in self.get_scalar_declarations()]
-            for scalar in find_node_type(kernel, c_ast.ID):
-                if scalar.name in scalar_names:
-                    # FIXME dirty work-around to not have to replace scalar
-                    # (at original location) with c_ast.UnaryOp(op='*', expr=scalar)
-                    scalar.name = "*"+scalar.name
+            # DONOTCOMMIT WIP
+            #scalar_names = [sclar.name for sclar in self.get_scalar_declarations()]
+            #for scalar in find_node_type(kernel, c_ast.ID):
+            #    if scalar.name in scalar_names:
+            #        # FIXME dirty work-around to not have to replace scalar
+            #        # (at original location) with c_ast.UnaryOp(op='*', expr=scalar)
+            #        scalar.name = "*"+scalar.name
 
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
@@ -1320,6 +1337,10 @@ class KernelCode(Kernel):
 
             # Generate code
             code = CGenerator().visit(function_ast)
+            
+            if not openmp:
+                # remove all omp pragmas
+                code = re.sub('#pragma omp[^\n]*\n', '', code)
 
             # Insert missing #includes from template to top of code
             code = '#include "kerncraft.h"\n\n' + code
@@ -1364,7 +1385,6 @@ class KernelCode(Kernel):
             #pragma omp barrier
 
             // Initializing arrays in same order as touched in kernel loop nest
-            #pragma omp for
             INIT_ARRAYS;
 
             // Dummy call
@@ -1497,7 +1517,7 @@ class KernelCode(Kernel):
 
         return out_filename
 
-    def compile_kernel(self, openmp=False, assembly=False, verbose=False):
+    def compile_kernel(self, assembly=False, openmp=False, verbose=False):
         """
         Compile source (from as_code(type_)) to assembly or object and return (fileptr, filename).
 
@@ -1705,3 +1725,4 @@ class KernelDescription(Kernel):
         self.check()
 
 
+            

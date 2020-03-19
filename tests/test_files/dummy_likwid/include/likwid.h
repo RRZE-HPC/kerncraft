@@ -6,6 +6,9 @@ void likwid_markerInit(void) {
 void likwid_markerThreadInit(void) {
   fprintf(stderr, "WARNING: dummy likwid_markerThreadInit() called\n");
 };
+int likwid_markerRegisterRegion(const char* regionTag) {
+  return 0;
+};
 int likwid_markerStartRegion(const char* regionTag) {
   fprintf(stderr, "WARNING: dummy likwid_markerStartRegion(...) called\n");
   return 0;
