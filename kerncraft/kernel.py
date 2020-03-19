@@ -1725,4 +1725,3 @@ class KernelDescription(Kernel):
         self.check()
 
 
-            
