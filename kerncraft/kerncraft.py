@@ -11,6 +11,7 @@ import re
 import itertools
 from datetime import datetime
 from functools import lru_cache
+import atexit
 
 from ruamel import yaml
 
@@ -209,7 +210,11 @@ def create_parser():
 
 
 def check_arguments(args, parser):
-    """Check arguments passed by user that are not checked by argparse itself."""
+    """
+    Check arguments passed by user that are not checked by argparse itself.
+    
+    Also register files for closing.
+    """
     if args.asm_block not in ['auto', 'manual']:
         try:
             args.asm_block = int(args.asm_block)
@@ -222,6 +227,15 @@ def check_arguments(args, parser):
             args.unit = 'FLOP/s'
         else:
             args.unit = 'cy/CL'
+
+    # Register all opened files for closing at exit.
+    if args.store:
+        atexit.register(args.store.close)
+    if args.code_file:
+        atexit.register(args.code_file.close)
+    if args.machine:
+        atexit.register(args.machine.close)
+    
 
 
 def run(parser, args, output_file=sys.stdout):
@@ -243,11 +257,13 @@ def run(parser, args, output_file=sys.stdout):
     # process kernel
     if not args.kernel_description:
         code = str(args.code_file.read())
+        args.code_file.close()
         code = clean_code(code)
         kernel = KernelCode(code, filename=args.code_file.name, machine=machine,
                             keep_intermediates=not args.clean_intermediates)
     else:
         description = str(args.code_file.read())
+        args.code_file.close()
         kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
 
     # define constants
