@@ -432,6 +432,10 @@ class LayerConditionPredictor(CachePredictor):
                     'misses': misses,
                     'evicts': len(destinations),
                     'tail': tail})
+                
+                # Making sure the the rhs is positive
+                if options[-1]['condition'].rhs < 0:
+                    options[-1]['condition'] = options[-1]['condition'].reversedsign
                 # If we encountered a True condition, break to not include multiple such.
                 if isinstance(condition, BooleanTrue):
                     break
