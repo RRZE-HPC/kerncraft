@@ -4,7 +4,7 @@ from itertools import chain
 from functools import cmp_to_key, reduce
 
 import sympy
-from sympy.logic.boolalg import BooleanTrue
+from sympy.logic.boolalg import BooleanTrue, BooleanFalse
 import numpy as np
 
 from kerncraft.kernel import symbol_pos_int
@@ -217,6 +217,39 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
     return tuple(offsets), tuple(dimension_factors)
 
 
+def canonical_relational(rel):
+    """
+    Make relational canonical.
+
+    Positive integer on rhs.
+    Minimum integer factors on lhs.
+    """
+    if isinstance(rel, (BooleanTrue, BooleanFalse)):
+        # Nothing to do
+        return rel
+
+    rel = rel.canonical.simplify().expand()
+    lhs = rel.lhs
+    rhs = rel.rhs
+    rel_op = rel.rel_op
+
+    # Move integer from lhs to rhs
+    remainder = lhs.as_coeff_add()[0]
+    lhs -= remainder
+    rhs -= remainder
+
+    # Find common divider and divide
+    gcd = (lhs - rhs).factor().as_coeff_mul()[0]
+    if gcd != 1:
+        lhs /= gcd
+        rhs /= gcd
+
+    rel = sympy.relational.Relational(lhs, rhs, rel_op)
+    if rhs < 0:
+        rel = rel.reversedsign
+    return rel
+
+
 class CachePredictor(object):
     """
     Predictor class used to interface LayerCondition and CacheSimulation with model classes.
@@ -394,7 +427,7 @@ class LayerConditionPredictor(CachePredictor):
             options = []
             # Full caching
             options.append({
-                'condition': (c.size() > sum_array_sizes).simplify().expand(),
+                'condition': canonical_relational(c.size() > sum_array_sizes),
                 'hits': len(distances),
                 'misses': 0,
                 'evicts': 0,
@@ -416,7 +449,7 @@ class LayerConditionPredictor(CachePredictor):
                     tail*len([d for d in distances_bytes
                               if sympy_expr_abs_distance_key(d) >
                                  sympy_expr_abs_distance_key(tail)]))
-                condition = (cache_requirement <= c.size()).simplify().expand()
+                condition = canonical_relational(cache_requirement <= c.size())
 
                 hits = len(
                     [d for d in distances_bytes
@@ -432,10 +465,7 @@ class LayerConditionPredictor(CachePredictor):
                     'misses': misses,
                     'evicts': len(destinations),
                     'tail': tail})
-                
-                # Making sure the the rhs is positive
-                if options[-1]['condition'].rhs < 0:
-                    options[-1]['condition'] = options[-1]['condition'].reversedsign
+
                 # If we encountered a True condition, break to not include multiple such.
                 if isinstance(condition, BooleanTrue):
                     break
