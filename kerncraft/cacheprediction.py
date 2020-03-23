@@ -227,7 +227,6 @@ def canonical_relational(rel):
     if isinstance(rel, (BooleanTrue, BooleanFalse)):
         # Nothing to do
         return rel
-
     rel = rel.canonical.simplify().expand()
     lhs = rel.lhs
     rhs = rel.rhs
@@ -241,8 +240,8 @@ def canonical_relational(rel):
     # Find common divider and divide
     gcd = (lhs - rhs).factor().as_coeff_mul()[0]
     if gcd != 1:
-        lhs /= gcd
-        rhs /= gcd
+        lhs /= max(gcd, -gcd)
+        rhs /= max(gcd, -gcd)
 
     rel = sympy.relational.Relational(lhs, rhs, rel_op)
     if rhs < 0:
