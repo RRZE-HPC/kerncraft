@@ -1236,9 +1236,8 @@ class KernelCode(Kernel):
     def _build_kernel_function_declaration(self, name='kernel'):
         """Build and return kernel function declaration"""
         array_declarations, array_dimensions = self._build_array_declarations(with_init=False)
-        scalar_declarations = self._build_scalar_declarations(with_init=False, as_ptr=True)
         const_declarations = self._build_const_declartions(with_init=False)
-        return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations + scalar_declarations +
+        return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations +
                                                           const_declarations),
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
@@ -1249,26 +1248,52 @@ class KernelCode(Kernel):
         return [d for d in self.kernel_ast.block_items
                 if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
 
-    def _build_scalar_declarations(self, with_init=True, as_ptr=False):
-        """Build and return scalar variable declarations"""
-        # copy scalar declarations from from kernel ast
+    def _build_scalar_extern_declarations(self):
+        """Build and return scalar variable declarations, with extern attribute."""
         scalar_declarations = deepcopy(self.get_scalar_declarations())
-        # add init values to declarations
-        if with_init:
-            random.seed(2342)  # we want reproducible random numbers
-            for d in scalar_declarations:
-                if d.type.type.names[0] in ['double', 'float']:
-                    d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
-                elif d.type.type.names[0] in ['int', 'long', 'long long',
-                                              'unsigned int', 'unsigned long', 'unsigned long long']:
-                    d.init = c_ast.Constant('int', 2)
-        # make declaration pointer types
-        if as_ptr:
-            for d in scalar_declarations:
-                d.type = c_ast.PtrDecl([], d.type)
-
+        for d in scalar_declarations:
+            d.storage = ['extern']
         return scalar_declarations
 
+    def _build_scalar_initializations(self):
+        """Build and return scalar variable initialization."""
+        random.seed(2342)  # we want reproducible random numbers
+        scalar_inits = []
+        for d in self.get_scalar_declarations():
+            if d.type.type.names[0] in ['double', 'float']:
+                init_const = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
+            elif d.type.type.names[0] in ['int', 'long', 'long long',
+                                          'unsigned int', 'unsigned long', 'unsigned long long']:
+                    init_const = c_ast.Constant('int', 2)
+
+            scalar_inits.append(c_ast.Assignment(
+                '=', c_ast.ID(d.name), init_const))
+
+        return scalar_inits
+
+    def _get_kernel_header(self, as_filename=False, name='kernel'):
+        """
+        Generate and store kernel.h
+        """
+        file_name = 'kernel.h'
+
+        fp, already_available = self._get_intermediate_file(
+            file_name, machine_and_compiler_dependent=False)
+        # Use already cached version
+        if already_available:
+            code = fp.read()
+        else:
+            func_decl = self._build_kernel_function_declaration(name=name)
+            scalar_decls = self.get_scalar_declarations()
+            code = CGenerator().visit(
+                c_ast.FileAST(ext=[func_decl]+scalar_decls))
+            fp.write(code)
+        fp.close()
+
+        if as_filename:
+            return fp.name
+        else:
+            return code
 
     def get_kernel_code(self, openmp=False, as_filename=False, name='kernel'):
         """
@@ -1300,35 +1325,6 @@ class KernelCode(Kernel):
                 # transform to 1d references
                 transform_multidim_to_1d_ref(aref, array_dimensions)
 
-            # Copy variable from pointer onto heap (original_name_ = *original_name) and back
-            for scalar in self.get_scalar_declarations():
-                # Replace all scalar references (needs to happen before local declaration)
-                for id_reference in find_node_type(kernel, c_ast.ID):
-                    if id_reference.name == scalar.name:
-                        id_reference.name += '_'
-
-                # local declaration and copy
-                local_decl = deepcopy(scalar)
-                local_decl.init = c_ast.UnaryOp('*', c_ast.ID(name=scalar.name))
-                local_decl.name += '_'
-                local_decl.type.declname += '_'
-                kernel.insert(0, local_decl)
-                
-                # copy back local value to pointer
-                copy_back = c_ast.Assignment('=',
-                                             c_ast.UnaryOp('*', c_ast.ID(scalar.name)),
-                                             c_ast.ID(scalar.name+'_'))
-                kernel.append(copy_back)
-
-            # Replace scalar variables in code with pointer references
-            # DONOTCOMMIT WIP
-            #scalar_names = [sclar.name for sclar in self.get_scalar_declarations()]
-            #for scalar in find_node_type(kernel, c_ast.ID):
-            #    if scalar.name in scalar_names:
-            #        # FIXME dirty work-around to not have to replace scalar
-            #        # (at original location) with c_ast.UnaryOp(op='*', expr=scalar)
-            #        scalar.name = "*"+scalar.name
-
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
                 storage=[], funcspec=[], init=None, bitsize=None),
@@ -1343,11 +1339,16 @@ class KernelCode(Kernel):
                 code = re.sub('#pragma omp[^\n]*\n', '', code)
 
             # Insert missing #includes from template to top of code
-            code = '#include "kerncraft.h"\n\n' + code
+            code = '#include "kerncraft.h"\n#include "kernel.h"\n\n' + code
 
             # Store to file
             fp.write(code)
+
+            # Build and write kernel.h
         fp.close()
+
+        # Build and store kernel header
+        self._get_kernel_header(name=name)
 
         if as_filename:
             return fp.name
@@ -1358,14 +1359,13 @@ class KernelCode(Kernel):
         """Generate and return kernel call ast."""
         return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=(
             [c_ast.ID(name=d.name) for d in self._build_array_declarations()[0]] +
-            [c_ast.UnaryOp(op='&', expr=c_ast.ID(name=d.name)) for d in
-                self._build_scalar_declarations(as_ptr=True)] +
             [c_ast.ID(name=d.name) for d in self._build_const_declartions()])))
 
     CODE_TEMPLATE = textwrap.dedent("""
         #include <likwid.h>
         #include <stdlib.h>
         #include "kerncraft.h"
+        #include "kernel.h"
 
         void dummy(void *);
         extern int var_false;
@@ -1375,8 +1375,8 @@ class KernelCode(Kernel):
           DECLARE_CONSTS;
           // Declaring arrays
           DECLARE_ARRAYS;
-          // Declaring and initializing scalars
-          DECLARE_INIT_SCALARS;
+          // Initializing scalars
+          INIT_SCALARS;
 
           likwid_markerInit();
           #pragma omp parallel
@@ -1438,14 +1438,15 @@ class KernelCode(Kernel):
             replace_id(ast, "DECLARE_ARRAYS", array_declarations)
 
             # Define and replace DECLARE_INIT_SCALARS
-            replace_id(ast, "DECLARE_INIT_SCALARS", self._build_scalar_declarations())
+            replace_id(ast, "INIT_SCALARS", self._build_scalar_initializations())
 
             # Define and replace DUMMY_CALLS
             replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
 
-            # Define and replace KERNEL_DECL
-            ast.ext.insert(0, self._build_kernel_function_declaration(
-                name=kernel_function_name))
+            # Define and insert kernel declaration at top
+            #ast.ext.insert(0, self._build_kernel_function_declaration(
+            #    name=kernel_function_name))
+            ast.ext[:0] = self._build_scalar_extern_declarations()
 
             # Define and replace KERNEL_CALL
             replace_id(ast, "KERNEL_CALL", self._build_kernel_call())
