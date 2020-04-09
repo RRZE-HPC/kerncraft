@@ -287,7 +287,7 @@ class RooflineIACA(Roofline):
         """Run complete analysis."""
         self.results = self.calculate_cache_access()
         try:
-            iaca_analysis, asm_block, pointer_increment = self.kernel.incore_analysis(
+            iaca_analysis, pointer_increment = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 model=self._args.incore_model,

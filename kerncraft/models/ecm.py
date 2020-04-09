@@ -291,7 +291,7 @@ class ECMCPU(PerformanceModel):
         Run complete analysis and return results.
         """
         try:
-            incore_analysis, asm_block, pointer_increment = self.kernel.incore_analysis(
+            incore_analysis, pointer_increment = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 model=self._args.incore_model,

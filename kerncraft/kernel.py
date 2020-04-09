@@ -1624,17 +1624,10 @@ class KernelCode(Kernel):
             else:
                 print("Could not find `pointer_increment=<byte increment>`. Plase place into file.")
                 sys.exit(1)
-            m = re.search(r'asm_block=([^s]+)', marked_asm)
-            if m:
-                self.asm_block = m.group(1)
-            else:
-                print("Could not find `asm_block=<block name>`. Plase place into file.")
-                sys.exit(1)
-        else:  # lock_mode == fcntl.LOCK_EX
             # needs update
             asm_filename, asm_lock_fp = self.compile_kernel(assembly=True, verbose=verbose)
             with open(asm_filename, 'r') as in_file, open(marked_filename, 'w') as out_file:
-                self.asm_block, self.pointer_increment = incore_model.asm_instrumentation(
+                asm_block, self.pointer_increment = incore_model.asm_instrumentation(
                     in_file, out_file,
                     block_selection=asm_block,
                     pointer_increment=pointer_increment,
@@ -1660,7 +1653,7 @@ class KernelCode(Kernel):
         else:
             raise ValueError("Unknown micro-architecture model: {!r}".format(model))
         marked_lock_fp.close()
-        return analysis, self.asm_block, self.pointer_increment
+        return analysis, self.pointer_increment
 
     def build_executable(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
