@@ -331,7 +331,7 @@ def asm_instrumentation(input_file, output_file=None,
                              "'auto_with_manual_fallback' ")
 
     marker_start, marker_end = get_marker(
-        isa, comment="pointer_increment={}".format(pointer_increment))
+        isa, comment="pointer_increment={} asm_block={}".format(pointer_increment, block_label))
 
     marked_asm = asm_lines[:block_start] + marker_start + asm_lines[block_start:block_end] + \
                  marker_end + asm_lines[block_end:]
@@ -339,7 +339,7 @@ def asm_instrumentation(input_file, output_file=None,
     if output_file is not None:
         output_file.writelines([l['line']+'\n' for l in marked_asm])
 
-    return block_lines, pointer_increment
+    return block_label, pointer_increment
 
 
 def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_architecture):
