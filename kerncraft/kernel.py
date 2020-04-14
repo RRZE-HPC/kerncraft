@@ -1613,7 +1613,6 @@ class KernelCode(Kernel):
         marked_filename = self._get_intermediate_location('kernel-marked.s',
             other_dependencies=[asm_block, pointer_increment])
         lock_mode, marked_lock_fp = self._lock_intermediate(marked_filename)
-
         if lock_mode == fcntl.LOCK_SH:
             # use cached version and extract asm_block and pointer_increment
             with open(marked_filename) as f:
@@ -1624,6 +1623,7 @@ class KernelCode(Kernel):
             else:
                 print("Could not find `pointer_increment=<byte increment>`. Plase place into file.")
                 sys.exit(1)
+        else:
             # needs update
             asm_filename, asm_lock_fp = self.compile_kernel(assembly=True, verbose=verbose)
             with open(asm_filename, 'r') as in_file, open(marked_filename, 'w') as out_file:
