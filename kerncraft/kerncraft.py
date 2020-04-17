@@ -235,7 +235,6 @@ def check_arguments(args, parser):
         atexit.register(args.code_file.close)
     if args.machine:
         atexit.register(args.machine.close)
-    
 
 
 def run(parser, args, output_file=sys.stdout):
@@ -346,6 +345,7 @@ def run(parser, args, output_file=sys.stdout):
             with open(temp_name, 'wb+') as f:
                 pickle.dump(result_storage, f)
             shutil.move(temp_name, args.store.name)
+    return result_storage
 
 
 def main():

@@ -10,7 +10,7 @@ import argparse
 from pprint import pformat, pprint
 import textwrap
 from collections import OrderedDict
-from io import StringIO
+import io
 
 from distutils.spawn import find_executable
 from osaca import osaca
@@ -18,8 +18,7 @@ from osaca.parser import get_parser
 from osaca.semantics import MachineModel, ISASemantics
 from osaca.semantics.marker_utils import find_basic_loop_bodies, get_marker
 
-from kerncraft import iaca_get
-from . import __version__
+from kerncraft import iaca_get, __version__
 
 
 def itemsEqual(lst):
@@ -385,7 +384,8 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
     return result
 
 
-def llvm_mca_analyse_instrumented_assembly(instrumented_assembly_file, micro_architecture):
+def llvm_mca_analyse_instrumented_assembly(
+        instrumented_assembly_file, micro_architecture, isa='x86'):
     """
     Run LLVM-MCA analysis on an instrumented assembly.
 
@@ -400,7 +400,9 @@ def llvm_mca_analyse_instrumented_assembly(instrumented_assembly_file, micro_arc
     """
     result = {}
     with open(instrumented_assembly_file) as f:
-        assembly_section = osaca.osaca.extract_marked_section(f.read())
+        parsed_code = parse_asm(f.read(), isa)
+    kernel = osaca.reduce_to_section(parsed_code, isa)
+    assembly_section = '\n'.join([l.line for l in kernel])
 
     output = subprocess.check_output(['llvm-mca']+micro_architecture.split(' '),
                                      input=assembly_section.encode('utf-8')).decode('utf-8')
@@ -409,7 +411,7 @@ def llvm_mca_analyse_instrumented_assembly(instrumented_assembly_file, micro_arc
     # Extract port names
     port_names = OrderedDict()
     m = re.search(r'Resources:\n(?:[^\n]+\n)+', output)
-    for m in re.finditer(r'(\[[0-9]+\])\s+-\s+([a-zA-Z0-9]+)', m.group()):
+    for m in re.finditer(r'(\[[0-9\.]+\])\s+-\s+([a-zA-Z0-9]+)', m.group()):
         port_names[m.group(1)] = m.group(2)
 
     # Extract cycles per port
@@ -426,7 +428,7 @@ def llvm_mca_analyse_instrumented_assembly(instrumented_assembly_file, micro_arc
 
     # Extract uops
     uops = 0
-    uops_raw = re.search(r'\n\[1\](\s+\[[0-9]+\]\s+)+Instructions:\n(:?\s*[0-9]+\s+[^\n]+\n)+',
+    uops_raw = re.search(r'\n\[1\](\s+\[[0-9\.]+\]\s+)+Instructions:\n(:?\s*[0-9\.]+\s+[^\n]+\n)+',
                          output).group()
     for l in uops_raw.strip().split('\n')[2:]:
         uops += int(l.strip().split(' ')[0])
