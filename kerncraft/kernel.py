@@ -1329,7 +1329,7 @@ class KernelCode(Kernel):
         """
         Generate and return compilable source code with kernel function from AST.
 
-        :param as_filename: if true, will save to file and return filename
+        :param openmp: include openmp paragmas (or strip them)
         :param name: name of kernel function
         """
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
