@@ -200,7 +200,10 @@ class Kernel(object):
     """Kernel information with functons to analyze and report access patterns."""
 
     # Datatype sizes in bytes
-    datatypes_size = {('double', '_Complex'): 16, ('double',): 8, ('float',): 4}
+    datatypes_size = {('double', '_Complex'): 16,
+                      ('float', '_Complex'): 8,
+                      ('double',): 8,
+                      ('float',): 4}
 
     def __init__(self, machine=None):
         """Create kernel representation."""
@@ -248,8 +251,8 @@ class Kernel(object):
         :param type_: may be any key from Kernel.datatypes_size (typically float or double)
         :param size: either None for scalars or an n-tuple of ints for an n-dimensional array
         """
-        assert type_ in self.datatypes_size, 'only float, double and double _Complex variables ' \
-                                             'are supported'
+        assert type_ in self.datatypes_size, 'only float, double, float _Complex and ' \
+                                             'double _Complex variables are supported'
         if self.datatype is None:
             self.datatype = type_
         else:
