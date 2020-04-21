@@ -515,9 +515,9 @@ class Benchmark(PerformanceModel):
         print('MEM volume (per repetition): {:.0f} Byte'.format(
             self.results['MEM volume (per repetition) [B]']),
             file=output_file)
-        print('Performance: {:.2f} MFLOP/s'.format(self.results['Performance [MFLOP/s]']),
+        print('Performance: {:.2f} MFLOP/s'.format(float(self.results['Performance [MFLOP/s]'])),
               file=output_file)
-        print('Performance: {:.2f} MLUP/s'.format(self.results['Performance [MLUP/s]']),
+        print('Performance: {:.2f} MLUP/s'.format(float(self.results['Performance [MLUP/s]'])),
               file=output_file)
         print('Performance: {:.2f} It/s'.format(self.results['Performance [MIt/s]']),
               file=output_file)
