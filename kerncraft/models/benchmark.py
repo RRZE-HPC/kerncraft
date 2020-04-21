@@ -336,7 +336,8 @@ class Benchmark(PerformanceModel):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build_executable(verbose=self.verbose > 1, openmp=self._args.cores > 1)
+        bench_filename, bench_lock_fp = self.kernel.build_executable(
+            verbose=self.verbose > 1, openmp=self._args.cores > 1)
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
@@ -364,7 +365,7 @@ class Benchmark(PerformanceModel):
             else:
                 repetitions = int(repetitions * 10)
 
-            results = self.perfctr([bench] + [str(repetitions)] + args, group=group)
+            results = self.perfctr([bench_filename] + [str(repetitions)] + args, group=group)
             runtime = results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime / float(repetitions)
         raw_results = [results]
@@ -381,7 +382,12 @@ class Benchmark(PerformanceModel):
         cys_per_repetition = time_per_repetition * float(self.machine['clock'])
 
         # Gather remaining counters
-        if not self.no_phenoecm:
+        if self.no_phenoecm:
+            bench_lock_fp.close()
+            event_counters = {}
+            ecm_model = None
+            cache_transfers_per_cl = None
+        else:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
@@ -401,9 +407,10 @@ class Benchmark(PerformanceModel):
             measured_ctrs = {}
             for run in minimal_runs:
                 ctrs = ','.join([eventstr(e) for e in run])
-                r = self.perfctr([bench] + [str(repetitions)] + args, group=ctrs)
+                r = self.perfctr([bench_filename] + [str(repetitions)] + args, group=ctrs)
                 raw_results.append(r)
                 measured_ctrs.update(r)
+            bench_lock_fp.close()
             # Match measured counters to symbols
             event_counter_results = {}
             for sym, ctr in event_counters.items():
@@ -458,10 +465,6 @@ class Benchmark(PerformanceModel):
             # Build phenomenological ECM model:
             ecm_model = {'T_OL': T_OL_result}
             ecm_model.update(data_transfers)
-        else:
-            event_counters = {}
-            ecm_model = None
-            cache_transfers_per_cl = None
 
         self.results = {'raw output': raw_results, 'ECM': ecm_model,
                         'data transfers': cache_transfers_per_cl,

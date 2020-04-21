@@ -1444,8 +1444,7 @@ class KernelCode(Kernel):
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
 
-        file_path = self._get_intermediate_file('main.c', machine_and_compiler_dependent=False)
-        fp, already_available = self._get_intermediate_file(file_path)
+        file_path = self._get_intermediate_location('main.c', machine_and_compiler_dependent=False)
         lock_mode, lock_fp = self._lock_intermediate(file_path)
 
         if lock_mode == fcntl.LOCK_SH:
@@ -1492,7 +1491,7 @@ class KernelCode(Kernel):
                    '\n\n' + code
 
             # Store to file
-            with open(file_path) as f:
+            with open(file_path, 'w') as f:
                 f.write(code)
             fcntl.flock(lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
 
@@ -1698,7 +1697,7 @@ class KernelCode(Kernel):
             lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
             compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
-            main_filename, main_lock_fp = self.get_main_code(as_filename=True)
+            main_filename, main_lock_fp = self.get_main_code()
             kernel_obj_filename, kernel_obj_lock_fp = self.compile_kernel(
                 openmp=openmp, verbose=verbose)
 
