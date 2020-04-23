@@ -78,6 +78,7 @@ def sanitize_symbolname(name):
 
 class MachineModel(object):
     """Representation of the hardware and machine architecture."""
+    _loaded_machine_yaml = {}
 
     def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
         """
@@ -145,9 +146,13 @@ class MachineModel(object):
         self._path = path_to_yaml
         self._args = args
         if path_to_yaml:
-            with open(path_to_yaml, 'r') as f:
-                # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                self._data = yaml.load(f, Loader=yaml.Loader)
+            # Load into cache and save to self._data
+            abspath_to_yaml = os.path.abspath(path_to_yaml)
+            if abspath_to_yaml not in self._loaded_machine_yaml:
+                with open(path_to_yaml, 'r') as f:
+                    # Ignore ruamel unsafe loading warning, by supplying Loader parameter
+                    self._loaded_machine_yaml[abspath_to_yaml] = yaml.load(f, Loader=yaml.Loader)
+            self._data = self._loaded_machine_yaml[abspath_to_yaml]
         elif machine_yaml:
             self._data = machine_yaml
 
@@ -410,6 +415,7 @@ class MachineModel(object):
             if 'cache per group' not in c:
                 continue
             cache_dict[c['level']] = deepcopy(c['cache per group'])
+            cache_dict[c['level']]['cl_size'] = int(c['cache per group']['cl_size'])
             # Scale size of last cache according to cores (typically shared within NUMA domain)
             if c['cores per group'] > 1:
                 cache_dict[c['level']]['sets'] //= min(cores, self['cores per NUMA domain'])
