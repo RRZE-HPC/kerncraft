@@ -252,6 +252,7 @@ def run(parser, args, output_file=sys.stdout):
     # machine information
     # Read machine description
     machine = MachineModel(args.machine.name, args=args)
+    args.machine.close()
 
     # process kernel
     if not args.kernel_description:
