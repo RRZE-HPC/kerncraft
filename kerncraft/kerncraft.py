@@ -12,6 +12,7 @@ import itertools
 from datetime import datetime
 from functools import lru_cache
 import atexit
+import io
 
 from ruamel import yaml
 
@@ -237,6 +238,34 @@ def check_arguments(args, parser):
         atexit.register(args.machine.close)
 
 
+def to_tuple(x):
+    '''Transform nested lists (and tuple) in purely nested tuples.'''
+    if isinstance(x, (list, tuple)):
+        if len(x) >= 2:
+            return tuple(to_tuple(x[:1]) + to_tuple(x[1:]))
+        elif len(x) == 1:
+            return (to_tuple(x[0]),)
+        else:
+            return ()
+    else:
+        return x
+
+
+def identifier_from_arguments(args):
+    identifier = []
+    for k in sorted(args.__dict__):
+        if k in ['verbose', 'store', 'unit', 'clean_intermediates']:
+            # Ignore these, as they do not change the outcome
+            continue
+        v = args.__dict__[k]
+        if isinstance(v, list):
+            v = to_tuple(v)
+        if isinstance(v, io.IOBase):
+            v = v.name
+        identifier.append((k, v))
+    return tuple(identifier)
+
+
 def run(parser, args, output_file=sys.stdout):
     """Run command line interface."""
     # Try loading results file (if requested)
@@ -330,13 +359,8 @@ def run(parser, args, output_file=sys.stdout):
             model.report(output_file=output_file)
 
             # Add results to storage
-            kernel_name = os.path.split(args.code_file.name)[1]
-            if kernel_name not in result_storage:
-                result_storage[kernel_name] = {}
-            if tuple(kernel.constants.items()) not in result_storage[kernel_name]:
-                result_storage[kernel_name][tuple(kernel.constants.items())] = {}
-            result_storage[kernel_name][tuple(kernel.constants.items())][model_name] = \
-                model.results
+            result_identifier = identifier_from_arguments(args)
+            result_storage[result_identifier] = model.results
 
             print('', file=output_file)
 
