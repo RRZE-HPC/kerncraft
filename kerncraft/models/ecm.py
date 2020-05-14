@@ -6,13 +6,6 @@ import math
 import pprint
 
 import sympy
-try:
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plot_support = True
-except ImportError:
-    plot_support = False
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
@@ -406,9 +399,7 @@ class ECM(PerformanceModel):
     def configure_arggroup(cls, parser):
         """Configure argument parser."""
         # others are being configured in ECMData and ECMCPU
-        parser.add_argument(
-            '--ecm-plot',
-            help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
+        pass
 
     def __init__(self, kernel, machine, args=None, parser=None, asm_block="auto",
                  pointer_increment="auto", cores=1, cache_predictor=CacheSimulationPredictor,
@@ -599,72 +590,8 @@ class ECM(PerformanceModel):
 
         print(report, file=output_file)
 
-        if self._args and self._args.ecm_plot:
-            assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
-            fig = plt.figure(frameon=False)
-            self.plot(fig)
-
         if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
                 self._args.unit == 'FLOP/s':
             print("WARNING: FLOP counts are probably wrong, because complex flops are counted\n"
                   "         as single flops. All other units should not be affected.\n",
                   file=sys.stderr)
-
-    def plot(self, fig=None):
-        """Plot visualization of model prediction."""
-        if not fig:
-            fig = plt.gcf()
-
-        fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-        ax = fig.add_subplot(1, 1, 1)
-
-        sorted_overlapping_ports = sorted(
-            [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
-            key=lambda x: x[1])
-
-        yticks_labels = []
-        yticks = []
-        xticks_labels = []
-        xticks = []
-
-        # Plot configuration
-        height = 0.9
-
-        i = 0
-        # T_comp
-        colors = ([(254. / 255, 177. / 255., 178. / 255.)] +
-                  [(255. / 255., 255. / 255., 255. / 255.)] * (len(sorted_overlapping_ports) - 1))
-        for p, c in sorted_overlapping_ports:
-            ax.barh(i, c, height, align='center', color=colors.pop(),
-                    edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
-            if i == len(sorted_overlapping_ports) - 1:
-                ax.text(c / 2.0, i, '$T_\mathrm{comp}$', ha='center', va='center')
-            yticks_labels.append(p)
-            yticks.append(i)
-            i += 1
-        xticks.append(sorted_overlapping_ports[-1][1])
-        xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
-
-        # T_RegL1 + memory transfers
-        y = 0
-        colors = [(187. / 255., 255 / 255., 188. / 255.)] * (len(self.results['cycles'])) + \
-                 [(119. / 255, 194. / 255., 255. / 255.)]
-        for k, v in [('RegL1', self.results['T_RegL1'])] + self.results['cycles']:
-            ax.barh(i, v, height, y, align='center', color=colors.pop())
-            ax.text(y + v / 2.0, i, '$T_\mathrm{' + k + '}$', ha='center', va='center')
-            xticks.append(y + v)
-            xticks_labels.append('{:.1f}'.format(y + v))
-            y += v
-        yticks_labels.append('LD')
-        yticks.append(i)
-
-        ax.tick_params(axis='y', which='both', left='off', right='off')
-        ax.tick_params(axis='x', which='both', top='off')
-        ax.set_xlabel('t [cy]')
-        ax.set_ylabel('execution port')
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(yticks_labels)
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticks_labels, rotation='vertical')
-        ax.xaxis.grid(alpha=0.7, linestyle='--')
-        fig.savefig(self._args.ecm_plot)
