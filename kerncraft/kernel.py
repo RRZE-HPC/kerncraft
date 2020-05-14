@@ -35,6 +35,16 @@ from .pycparser_utils import clean_code, replace_id
 import fcntl
 
 
+@contextmanager
+def set_recursionlimit(new_limit):
+    old_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(new_limit)
+    try:
+        yield new_limit
+    finally:
+        sys.setrecursionlimit(old_limit)
+
+
 @lru_cache()
 def symbol_pos_int(*args, **kwargs):
     """Create a sympy.Symbol with positive and integer assumptions."""
@@ -1216,7 +1226,8 @@ class KernelCode(Kernel):
 
         :return: list of nodes
         """
-        kernel = deepcopy(deepcopy(self.get_kernel_loop_nest()))
+        with set_recursionlimit(100000):
+            kernel = deepcopy(self.get_kernel_loop_nest())
         # traverse to the inner most for loop:
         inner_most = self._find_inner_most_loop(kernel)
         orig_inner_stmt = inner_most.stmt
@@ -1351,7 +1362,8 @@ class KernelCode(Kernel):
             array_declarations, array_dimensions = self._build_array_declarations()
 
             # Prepare actual kernel loop nest
-            kernel = deepcopy(self.get_kernel_loop_nest())
+            with set_recursionlimit(100000):
+                kernel = deepcopy(self.get_kernel_loop_nest())
             # find all array references in kernel
             for aref in find_node_type(kernel, c_ast.ArrayRef):
                 # transform to 1d references
@@ -1364,7 +1376,8 @@ class KernelCode(Kernel):
                 param_decls=None)
 
             # Generate code
-            code = CGenerator().visit(function_ast)
+            with set_recursionlimit(100000):
+                code = CGenerator().visit(function_ast)
             
             if not openmp:
                 # remove all omp pragmas
@@ -1584,8 +1597,8 @@ class KernelCode(Kernel):
                 sys.exit(1)
 
             # FIXME TODO FIXME TODO FIXME TODO
-            # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which are
-            # invalid and should be kmovb):
+            # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which 
+            # are invalid and should be kmovb):
             if compiler == 'icc' and assembly:
                 with open(out_filename, 'r+') as f:
                     assembly = f.read()
