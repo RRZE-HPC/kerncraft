@@ -938,7 +938,7 @@ class KernelCode(Kernel):
         Return a tuple of offsets of an ArrayRef object in all dimensions.
 
         The index order is right to left (c-code order).
-        e.g. c[i+1][j-2] -> (-2, +1)
+        e.g. c[i+1][j-2] -> (j-2, i+1)
 
         If aref is actually a c_ast.ID, None will be returned.
         """
