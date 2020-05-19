@@ -299,13 +299,14 @@ def run(parser, args, output_file=sys.stdout):
     # define constants
     required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
     required_consts += [[l['start'], l['stop']] for l in kernel.get_loop_stack()]
-    required_consts += [i for a in kernel.sources.values() for i in a]
-    required_consts += [i for a in kernel.destinations.values() for i in a]
+    required_consts += [i for a in kernel.sources.values() for i in a if i is not None]
+    required_consts += [i for a in kernel.destinations.values() for i in a if i is not None]
     # split into individual consts
     required_consts = [i for l in required_consts for i in l]
     required_consts = set([i for l in required_consts for i in l.free_symbols])
     # remove loop indices
     required_consts -= loop_indices
+    
     if len(required_consts) > 0:
         # build defines permutations
         define_dict = {}
