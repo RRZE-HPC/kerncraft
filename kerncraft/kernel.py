@@ -739,12 +739,12 @@ class KernelCode(Kernel):
 
         self.check()
     
-    def _get_intermediate_location(
+    def get_intermediate_location(
             self, name, machine_and_compiler_dependent=True, other_dependencies=[]):
         """
         Get a suitable and reproduceble file path string for intermediate files.
 
-
+        :param name: filename to use for caching
         :param machine_and_compiler_dependent: set to False if file content does not depend on
                                                machine file or compiler settings
         :param other_dependencies: list of strings to use in path. slashes are stripped
@@ -787,7 +787,7 @@ class KernelCode(Kernel):
                     return True
         return False
 
-    def _lock_intermediate(self, file_path):
+    def lock_intermediate(self, file_path):
         """
         Lock intermediate. Depending on state, readable or writable.
 
@@ -1317,9 +1317,9 @@ class KernelCode(Kernel):
         :return: tuple of filename of header and file pointer of lockfile
         """
         file_name = 'kernel.h'
-        file_path = self._get_intermediate_location(
+        file_path = self.get_intermediate_location(
             file_name, machine_and_compiler_dependent=False)
-        lock_mode, lock_fp = self._lock_intermediate(file_path)
+        lock_mode, lock_fp = self.lock_intermediate(file_path)
         if lock_mode == fcntl.LOCK_SH:
             # use cache
             with open(file_path) as f:
@@ -1349,9 +1349,9 @@ class KernelCode(Kernel):
         if openmp:
             filename += '-omp'
         filename += '.c'
-        file_path = self._get_intermediate_location(
+        file_path = self.get_intermediate_location(
             filename, machine_and_compiler_dependent=False)
-        lock_mode, lock_fp = self._lock_intermediate(file_path)
+        lock_mode, lock_fp = self.lock_intermediate(file_path)
 
         if lock_mode == fcntl.LOCK_SH:
             # use cache
@@ -1457,8 +1457,8 @@ class KernelCode(Kernel):
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
 
-        file_path = self._get_intermediate_location('main.c', machine_and_compiler_dependent=False)
-        lock_mode, lock_fp = self._lock_intermediate(file_path)
+        file_path = self.get_intermediate_location('main.c', machine_and_compiler_dependent=False)
+        lock_mode, lock_fp = self.lock_intermediate(file_path)
 
         if lock_mode == fcntl.LOCK_SH:
             # use cache
@@ -1519,8 +1519,8 @@ class KernelCode(Kernel):
         """
         # Build file name
         file_base_name = os.path.splitext(os.path.basename(in_filename))[0]
-        out_filename = self._get_intermediate_location(file_base_name + '.o')
-        lock_mode, lock_fp = self._lock_intermediate(out_filename)
+        out_filename = self.get_intermediate_location(file_base_name + '.o')
+        lock_mode, lock_fp = self.lock_intermediate(out_filename)
 
         if lock_mode == fcntl.LOCK_SH:
             # use cached version
@@ -1563,8 +1563,8 @@ class KernelCode(Kernel):
             filename += '.s'
         else:
             filename += '.o'
-        out_filename = self._get_intermediate_location(filename)
-        lock_mode, out_lock_fp = self._lock_intermediate(out_filename)
+        out_filename = self.get_intermediate_location(filename)
+        lock_mode, out_lock_fp = self.lock_intermediate(out_filename)
 
         if lock_mode == fcntl.LOCK_SH:
             # use cached version
@@ -1625,9 +1625,9 @@ class KernelCode(Kernel):
                                    - 'manual': prompt user
         :param model: which model to use, "IACA", "OSACA" or "LLVM-MCA"
         """
-        marked_filename = self._get_intermediate_location('kernel-marked.s',
+        marked_filename = self.get_intermediate_location('kernel-marked.s',
             other_dependencies=[asm_block, pointer_increment])
-        lock_mode, marked_lock_fp = self._lock_intermediate(marked_filename)
+        lock_mode, marked_lock_fp = self.lock_intermediate(marked_filename)
         if lock_mode == fcntl.LOCK_SH:
             # use cached version and extract asm_block and pointer_increment
             with open(marked_filename) as f:
@@ -1677,8 +1677,8 @@ class KernelCode(Kernel):
         filename = 'kernel'
         if openmp:
             filename += '-omp'
-        out_filename = self._get_intermediate_location(filename)
-        lock_mode, out_lock_fp = self._lock_intermediate(out_filename)
+        out_filename = self.get_intermediate_location(filename)
+        lock_mode, out_lock_fp = self.lock_intermediate(out_filename)
 
         if lock_mode == fcntl.LOCK_SH:
             # use cached version

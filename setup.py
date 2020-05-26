@@ -105,6 +105,7 @@ setup(
         'pycparser>=2.19',
         'osaca>=0.3.2.dev4',
         'psutil',
+        'compress_pickle',
     ],
     python_requires='>=3.5',
 
