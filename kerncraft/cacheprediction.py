@@ -303,7 +303,7 @@ class LayerConditionPredictor(CachePredictor):
             # Make use of caching for symbolic LC representation:
             file_name = 'LC_analysis.pickle.lzma'
             file_path = kernel.get_intermediate_location(
-                file_name, machine_and_compiler_dependent=False)
+                file_name, machine_and_compiler_dependent=False, other_dependencies=[str(cores)])
             lock_mode, lock_fp = kernel.lock_intermediate(file_path)
             if lock_mode == fcntl.LOCK_SH:
                 # use cache
@@ -555,7 +555,7 @@ class CacheSimulationPredictor(CachePredictor):
             file_name = 'CSIM_analysis.pickle.lzma'
             file_path = kernel.get_intermediate_location(
                 file_name, machine_and_compiler_dependent=False,
-                other_dependencies=[str(t) for t in self.kernel.constants.items()])
+                other_dependencies=[str(cores)]+[str(t) for t in self.kernel.constants.items()])
             lock_mode, lock_fp = kernel.lock_intermediate(file_path)
             if lock_mode == fcntl.LOCK_SH:
                 # use cache
