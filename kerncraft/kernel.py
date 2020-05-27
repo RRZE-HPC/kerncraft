@@ -20,11 +20,13 @@ import random
 import atexit
 import re
 from contextlib import contextmanager
+import fcntl
 
 import sympy
 from sympy.utilities.lambdify import implemented_function
 from sympy.parsing.sympy_parser import parse_expr
 import numpy
+import compress_pickle
 
 from pycparser import CParser, c_ast, plyparser
 from pycparser.c_generator import CGenerator
@@ -32,7 +34,6 @@ from pycparser.c_generator import CGenerator
 from . import kerncraft
 from . import incore_model
 from .pycparser_utils import clean_code, replace_id
-import fcntl
 
 
 @contextmanager
@@ -757,7 +758,7 @@ class KernelCode(Kernel):
 
         if not self._keep_intermediates:
             # Remove directory and all content up on program exit
-            atexit.register(shutil.rmtree, base_name)
+            atexit.register(shutil.rmtree, base_name, ignore_errors=True)
 
         if machine_and_compiler_dependent:
             compiler, compiler_args = self._machine.get_compiler()
@@ -810,7 +811,7 @@ class KernelCode(Kernel):
         if self._check_freshness(file_path):
             # -> READ MODE
             return (fcntl.LOCK_SH, lock_fp)
-        # 4. Release SH lock
+        # 4. Release SH lock (to allow other processes already awaiting an exclusive lock to enter)
         fcntl.flock(lock_fp, fcntl.LOCK_UN)
         # 5. Acquire EX lock (blocking)
         fcntl.flock(lock_fp, fcntl.LOCK_EX)
@@ -1625,11 +1626,25 @@ class KernelCode(Kernel):
                                    - 'manual': prompt user
         :param model: which model to use, "IACA", "OSACA" or "LLVM-MCA"
         """
+        # Get model and parameter
+        if model is None:
+            model = next(iter(self._machine['in-core model']))
+        model_parameter = self._machine['in-core model'][model]
+
+        analysis_filename = self.get_intermediate_location('incore_analysis.pickle.lzma',
+            other_dependencies=[model, str(model_parameter)])
+        analysis_lock_mode, analysis_lock_fp = self.lock_intermediate(analysis_filename)
+        if analysis_lock_mode == fcntl.LOCK_SH:
+            # use cached analysis
+            analysis, self.pointer_increment = compress_pickle.load(analysis_filename)
+            analysis_lock_fp.close()  # release lock
+            return analysis, self.pointer_increment
+        
         marked_filename = self.get_intermediate_location('kernel-marked.s',
             other_dependencies=[asm_block, pointer_increment])
         lock_mode, marked_lock_fp = self.lock_intermediate(marked_filename)
         if lock_mode == fcntl.LOCK_SH:
-            # use cached version and extract asm_block and pointer_increment
+            # use cached maked assembly and extract asm_block and pointer_increment
             with open(marked_filename) as f:
                 marked_asm = f.read()
             m = re.search(r'pointer_increment=([0-9]+)', marked_asm)
@@ -1639,7 +1654,7 @@ class KernelCode(Kernel):
                 print("Could not find `pointer_increment=<byte increment>`. Plase place into file.")
                 sys.exit(1)
         else:
-            # needs update
+            # marked assembly needs update
             asm_filename, asm_lock_fp = self.compile_kernel(assembly=True, verbose=verbose)
             with open(asm_filename, 'r') as in_file, open(marked_filename, 'w') as out_file:
                 asm_block, self.pointer_increment = incore_model.asm_instrumentation(
@@ -1650,11 +1665,7 @@ class KernelCode(Kernel):
             asm_lock_fp.close()
             fcntl.flock(marked_lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
 
-        # Get model and parameter
-        if model is None:
-            model = next(iter(self._machine['in-core model']))
-        model_parameter = self._machine['in-core model'][model]
-
+        # analysis_lock_mode == fcntl.LOCK_EX
         if model == 'OSACA':
             analysis = incore_model.osaca_analyse_instrumented_assembly(
                 marked_filename, model_parameter)
@@ -1667,6 +1678,8 @@ class KernelCode(Kernel):
             obj_lock_fp.close()
         else:
             raise ValueError("Unknown micro-architecture model: {!r}".format(model))
+        compress_pickle.dump((analysis, self.pointer_increment), analysis_filename)
+        analysis_lock_fp.close()
         marked_lock_fp.close()
         return analysis, self.pointer_increment
 
