@@ -287,19 +287,19 @@ class RooflineIACA(Roofline):
         """Run complete analysis."""
         self.results = self.calculate_cache_access()
         try:
-            iaca_analysis, pointer_increment = self.kernel.incore_analysis(
+            incore_analysis, pointer_increment = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 model=self._args.incore_model,
                 verbose=self.verbose > 2)
         except RuntimeError as e:
-            print("IACA analysis failed: " + str(e))
+            print("In-core analysis failed: " + str(e))
             sys.exit(1)
 
-        block_throughput = iaca_analysis['throughput']
-        uops = iaca_analysis['uops']
-        iaca_output = iaca_analysis['output']
-        port_cycles = iaca_analysis['port cycles']
+        block_throughput = incore_analysis['throughput']
+        uops = incore_analysis['uops']
+        incore_output = incore_analysis['output']
+        port_cycles = incore_analysis['port cycles']
 
         # Normalize to cycles per cacheline
         elements_per_block = abs(
@@ -317,7 +317,7 @@ class RooflineIACA(Roofline):
         cl_throughput = block_throughput*block_to_cl_ratio
         flops_per_element = sum(self.kernel._flops.values())
 
-        # Overwrite CPU-L1 stats, because they are covered by IACA
+        # Overwrite CPU-L1 stats, because they are covered by In-Core Model
         self.results['mem bottlenecks'][0] = None
 
         # Reevaluate mem bottleneck
@@ -340,7 +340,7 @@ class RooflineIACA(Roofline):
                 'performance throughput': self.conv_perf(PrefixedUnit(
                     self.machine['clock']/block_throughput*elements_per_block*flops_per_element
                     * self.cores, "FLOP/s")),
-                'IACA output': iaca_output}})
+                'in-core model output': incore_output}})
 
     def report(self, output_file=sys.stdout):
         """Print human readable report of model."""
@@ -367,11 +367,11 @@ class RooflineIACA(Roofline):
                           b['performance'][self._args.unit], **b),
                       file=output_file)
             print('', file=output_file)
-            print('IACA analisys:', file=output_file)
+            print('In-Core Model analisys:', file=output_file)
             print('{!s}'.format(
                 {k: v
                  for k, v in list(self.results['cpu bottleneck'].items())
-                 if k not in['IACA output']}),
+                 if k not in['in-core model output']}),
                 file=output_file)
 
         if self.results['min performance']['FLOP/s'] > cpu_perf['FLOP/s']:

@@ -318,7 +318,7 @@ class ECMCPU(PerformanceModel):
         T_RegL1 = float(max([v for k, v in list(port_cycles.items())
                              if k in self.machine['non-overlapping model']['ports']] + [0]))
 
-        # Use IACA throughput prediction if it is slower then T_RegL1
+        # Use In-Core Model throughput prediction if it is slower then T_RegL1
         if T_RegL1 < cl_throughput:
             T_comp = cl_throughput
 
@@ -329,7 +329,7 @@ class ECMCPU(PerformanceModel):
             'uops': uops,
             'T_comp': T_comp,
             'T_RegL1': T_RegL1,
-            'IACA output': incore_analysis['output'],
+            'in-core model output': incore_analysis['output'],
             'elements_per_block': elements_per_block,
             'pointer_increment': pointer_increment,
             'flops per iteration': sum(self.kernel._flops.values())}
@@ -361,8 +361,8 @@ class ECMCPU(PerformanceModel):
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
         if self.verbose > 2:
-            print("IACA Output:", file=output_file)
-            print(self.results['IACA output'], file=output_file)
+            print("In-Core Model Output:", file=output_file)
+            print(self.results['in-core model output'], file=output_file)
             print('', file=output_file)
 
         if self.verbose > 1:
