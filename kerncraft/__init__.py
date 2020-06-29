@@ -1,5 +1,5 @@
 """Kerncraft static analytical performance modeling framework and tool."""
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 from .kerncraft import main
 __main__ = main
 
