@@ -143,7 +143,7 @@ setup(
             'likwid_bench_auto=kerncraft.machinemodel:main',
             'picklemerge=kerncraft.picklemerge:main',
             'cachetile=kerncraft.cachetile:main',
-            'iaca_get=kerncraft.iaca_get:main',
+            'iaca_get=kerncraft.incore_model:main',
         ],
     },
     scripts=['kerncraft/scripts/machine-state.sh'],
