@@ -240,7 +240,14 @@ class Benchmark(PerformanceModel):
             self.iterations = 10
 
         if self._args.cores > 1 and not self.no_phenoecm:
-            print("Info: phenological ECM model can only be created with a single core benchmark.")
+            print("Info: phenological ECM model can only be created with a single core benchmark.",
+                  file=sys.stderr)
+            self.no_phenoecm = True
+        elif "INFORAMTION_REQUIRED" in ''.join(
+                [self.machine['overlapping model']['performance counter metric'],
+                 self.machine['non-overlapping model']['performance counter metric']]):
+            print("Info: disabled phenological ECM model, because definition is incomplete.",
+                  file=sys.stderr)
             self.no_phenoecm = True
         elif not self.no_phenoecm:
             print("Info: If this takes too long and a phenological ECM model is not required, run "
