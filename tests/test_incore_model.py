@@ -66,4 +66,4 @@ class TestIncoreModelX86(unittest.TestCase):
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestIncoreModelX86)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    unittest.TextTestRunner(verbosity=2, buffer=True).run(suite)

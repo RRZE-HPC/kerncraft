@@ -58,16 +58,14 @@ class TestLayerCondition(unittest.TestCase):
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'LC',
                                   self._find_file('3d-7pt.c'),
-                                  '-D', 'N', '0',
-                                  '-D', 'M', '0',
+                                  '-D', '.', '0',
                                   '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
-        result = next(iter(results['3d-7pt.c'].values()))['LC']
-
+        result = next(iter(results.values()))
         N, M, i, j, k = sympy.var('N, M, i, j, k')
         result_expected = {'accesses':
                      {'a': [(k - 1, j, i),
@@ -167,7 +165,7 @@ class TestLayerCondition(unittest.TestCase):
         kc.run(parser, args, output_file=output_stream)
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
-        result = next(iter(results['constantdim.c'].values()))['LC']
+        result = next(iter(results.values()))
 
         N, M, j, i = sympy.var('N'), sympy.var('M'), sympy.var('j'), sympy.var('i')
         result_expected = \
@@ -251,4 +249,4 @@ class TestLayerCondition(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(buffer=True)

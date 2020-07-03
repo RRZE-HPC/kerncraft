@@ -10,6 +10,7 @@ import pickle
 from io import StringIO
 from distutils.spawn import find_executable
 import platform
+import warnings
 
 import sympy
 
@@ -30,6 +31,13 @@ def assert_relativly_equal(actual, desired, rel_diff=0.0):
         raise AssertionError("relative difference was not met with {}. Expected {!r} with rel. "
                              "difference of {!r}.".format(actual, desired, rel_diff))
 
+
+def ignore_warnings(test_func):
+    def do_test(self, *args, **kwargs):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            test_func(self, *args, **kwargs)
+    return do_test
 
 class TestKerncraft(unittest.TestCase):
     def setUp(self):
@@ -66,29 +74,28 @@ class TestKerncraft(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
         # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [
-                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
-                                                                 (sympy.var('N'), 10000)),
-                ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+        self.assertEqual(len(results), 3)
+
+        # Check if results contains correct kernel and variations of constants
+        for key in results:
+            d = dict(key)
+            self.assertEqual(d['code_file'].split('/')[-1], '2d-5pt.c')
+            self.assertEqual(d['machine'].split('/')[-1], 'SandyBridgeEP_E5-2680.yml')
+            self.assertEqual(d['pmodel'], 'ECMData')
+        self.assertTrue(any([('define', (('N', 1000), ('M', 50))) in k for k in results]))
+        self.assertTrue(any([('define', (('N', 10000), ('M', 50))) in k for k in results]))
+        self.assertTrue(any([('define', (('N', 100000), ('M', 50))) in k for k in results]))
 
         # Output of first result:
-        result = results['2d-5pt.c'][[k for k in results['2d-5pt.c']
-                                      if (sympy.var('N'), 1000) in k][0]]
+        key = [k for k in results if ('define', (('N', 1000), ('M', 50))) in k][0]
+        result = results[key]
 
-        self.assertCountEqual(result, ['ECMData'])
-
-        ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        assert_relativly_equal(ecmd['L2'], 6, 0.05)
-        assert_relativly_equal(ecmd['L3'], 6, 0.05)
-        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=3)
+        assert_relativly_equal(result['L2'], 6, 0.05)
+        assert_relativly_equal(result['L3'], 6, 0.05)
+        self.assertAlmostEqual(result['MEM'], 0.0, places=3)
 
     def test_2d5pt_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
@@ -110,29 +117,25 @@ class TestKerncraft(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
         # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [
-                ((sympy.var('M'), 50), (sympy.var('N'), 1000)), ((sympy.var('M'), 50),
-                                                                 (sympy.var('N'), 10000)),
-                ((sympy.var('M'), 50), (sympy.var('N'), 100000))]])
+        self.assertEqual(len(results), 3)
+
+        # Check if results contains correct kernel and some other infoormation
+        key = [k for k in results if ('define', (('N', 1000), ('M', 50))) in k][0]
+        key_dict = dict(key)
+        self.assertEqual(key_dict['code_file'].split('/')[-1], '2d-5pt.c')
+        self.assertEqual(key_dict['machine'].split('/')[-1], 'SandyBridgeEP_E5-2680.yml')
+        self.assertEqual(key_dict['asm_block'], 'auto')
+        self.assertEqual(key_dict['pmodel'], 'ECMData')
 
         # Output of first result:
-        result = results['2d-5pt.c'][
-            [k for k in results['2d-5pt.c'] if (sympy.var('N'), 1000) in k][0]]
+        result = results[key]
 
-        self.assertCountEqual(result, ['ECMData'])
-
-        ecmd = result['ECMData']
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        assert_relativly_equal(ecmd['L2'], 6, 0.05)
-        assert_relativly_equal(ecmd['L3'], 6, 0.05)
-        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=2)
+        assert_relativly_equal(result['L2'], 6, 0.05)
+        assert_relativly_equal(result['L3'], 6, 0.05)
+        self.assertAlmostEqual(result['MEM'], 0.0, places=2)
 
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
@@ -152,26 +155,18 @@ class TestKerncraft(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
         # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [
-                ((sympy.var('M'), 50), (sympy.var('N'), 1024)),
-                ((sympy.var('M'), 50), (sympy.var('N'), 2048)),
-                ((sympy.var('M'), 50), (sympy.var('N'), 4096))]])
+        self.assertEqual(len(results), 3)
+
+        # Check if results contains correct kernel and some other infoormation
+        key = [k for k in results if ('define', (('N', 4096), ('M', 50))) in k][0]
+        key_dict = dict(key)
+        self.assertEqual(key_dict['pmodel'], 'Roofline')
 
         # Output of first result:
-        result = results['2d-5pt.c'][
-            [k for k in results['2d-5pt.c'] if (sympy.var('N'), 4096) in k][0]]
-
-        self.assertCountEqual(result, ['Roofline'])
-
-        roofline = result['Roofline']
-        assert_relativly_equal(roofline['min performance']['FLOP/s'], 4720000000.0, 0.01)
-        self.assertEqual(roofline['bottleneck level'], 1)
+        result = results[key]
+        assert_relativly_equal(result['min performance']['FLOP/s'], 4720000000.0, 0.01)
+        self.assertEqual(result['bottleneck level'], 1)
 
         expected_btlncks = [{'arithmetic intensity': 0.11764705882352941,
                              'bandwidth': PrefixedUnit(100.24, u'G', u'B/s'),
@@ -199,11 +194,11 @@ class TestKerncraft(unittest.TestCase):
             for k, v in btlnck.items():
                 if type(v) is not str:
                     if k == 'performance':
-                        assert_relativly_equal(roofline['mem bottlenecks'][i][k]['FLOP/s'], v, 0.05)
+                        assert_relativly_equal(result['mem bottlenecks'][i][k]['FLOP/s'], v, 0.05)
                     else:
-                        assert_relativly_equal(roofline['mem bottlenecks'][i][k], v, 0.05)
+                        assert_relativly_equal(result['mem bottlenecks'][i][k], v, 0.05)
                 else:
-                    self.assertEqual(roofline['mem bottlenecks'][i][k], v)
+                    self.assertEqual(result['mem bottlenecks'][i][k], v)
 
     def test_sclar_product_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData.pickle')
@@ -223,12 +218,12 @@ class TestKerncraft(unittest.TestCase):
             results = pickle.load(f)
 
         # Output of first result:
-        ecmd = results['scalar_product.c'][((sympy.var('N'), 10000),)]['ECMData']
+        result = next(iter(results.values()))
 
         # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        assert_relativly_equal(ecmd['L2'], 2, 0.05)
-        self.assertAlmostEqual(ecmd['L3'], 0.0, places=2)
-        self.assertAlmostEqual(ecmd['MEM'], 0.0, places=2)
+        assert_relativly_equal(result['L2'], 2, 0.05)
+        self.assertAlmostEqual(result['L3'], 0.0, places=2)
+        self.assertAlmostEqual(result['MEM'], 0.0, places=2)
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
@@ -249,13 +244,13 @@ class TestKerncraft(unittest.TestCase):
             results = pickle.load(f)
 
         # Output of first result:
-        ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
+        result = next(iter(results.values()))
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(ecmd['L2'], 3, 0.05)
-        assert_relativly_equal(ecmd['L3'], 6, 0.05)
-        self.assertAlmostEqual(ecmd['MEM'], 0, places=2)
+        assert_relativly_equal(result['L2'], 3, 0.05)
+        assert_relativly_equal(result['L3'], 6, 0.05)
+        self.assertAlmostEqual(result['MEM'], 0, places=2)
 
     def test_copy_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
@@ -277,13 +272,13 @@ class TestKerncraft(unittest.TestCase):
             results = pickle.load(f)
 
         # Output of first result:
-        ecmd = results['copy.c'][((sympy.var('N'), 1000000),)]['ECMData']
+        result = next(iter(results.values()))
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(ecmd['L2'], 3, 0.05)
-        assert_relativly_equal(ecmd['L3'], 6, 0.05)
-        self.assertAlmostEqual(ecmd['MEM'], 0, places=0)
+        assert_relativly_equal(result['L2'], 3, 0.05)
+        assert_relativly_equal(result['L3'], 6, 0.05)
+        self.assertAlmostEqual(result['MEM'], 0, places=0)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECMCPU(self):
@@ -306,22 +301,11 @@ class TestKerncraft(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
-        # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
-
         # Output of first result:
-        result = list(results['2d-5pt.c'].values())[0]
+        result = next(iter(results.values()))
 
-        self.assertCountEqual(result, ['ECMCPU'])
-
-        ecmd = result['ECMCPU']
-        assert_relativly_equal(ecmd['T_comp'], 11, 0.2)
-        assert_relativly_equal(ecmd['T_RegL1'], 8, 0.2)
+        assert_relativly_equal(result['T_comp'], 11, 0.2)
+        assert_relativly_equal(result['T_RegL1'], 8, 0.2)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECMCPU_OSACA(self):
@@ -346,28 +330,16 @@ class TestKerncraft(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
-        # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
-
         # Output of first result:
-        result = list(results['2d-5pt.c'].values())[0]
+        result = next(iter(results.values()))
 
-        self.assertCountEqual(result, ['ECMCPU'])
-
-        ecmd = result['ECMCPU']
-        assert_relativly_equal(ecmd['T_comp'], 10, 0.2)
-        assert_relativly_equal(ecmd['T_RegL1'], 10, 0.2)
+        assert_relativly_equal(result['T_comp'], 10, 0.2)
+        assert_relativly_equal(result['T_RegL1'], 10, 0.2)
 
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECM(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECM.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -380,40 +352,29 @@ class TestKerncraft(unittest.TestCase):
                                   '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
-        # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 2000))]])
-
         # Output of first result:
-        result = list(results['2d-5pt.c'].values())[0]
+        result = next(iter(results.values()))
 
-        self.assertCountEqual(result, ['ECM'])
-
-        ecmd = result['ECM']
+        
         # 2 * 2000*1000 * 8 = 31MB
         # -> no full caching
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        assert_relativly_equal(ecmd['T_comp'], 11, 0.2)
-        assert_relativly_equal(ecmd['T_RegL1'], 8, 0.2)
-        assert_relativly_equal(ecmd['L2'], 10, 0.05)
-        assert_relativly_equal(ecmd['L3'], 6, 0.05)
-        assert_relativly_equal(ecmd['MEM'], 13, 0.05)
+        assert_relativly_equal(result['T_comp'], 11, 0.2)
+        assert_relativly_equal(result['T_RegL1'], 8, 0.2)
+        assert_relativly_equal(result['L2'], 10, 0.05)
+        assert_relativly_equal(result['L3'], 6, 0.05)
+        assert_relativly_equal(result['MEM'], 13, 0.05)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_RooflineIACA(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineIACA.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -426,34 +387,22 @@ class TestKerncraft(unittest.TestCase):
                                   '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
-        # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 4000))]])
-
         # Output of first result:
-        result = list(results['2d-5pt.c'].values())[0]
-
-        self.assertCountEqual(result, ['RooflineIACA'])
-
-        roofline = result['RooflineIACA']
-        assert_relativly_equal(roofline['min performance']['FLOP/s'], 2900000000.0, 0.05)
-        self.assertEqual(roofline['bottleneck level'], 3)
+        result = next(iter(results.values()))
+        
+        assert_relativly_equal(result['min performance']['FLOP/s'], 2900000000.0, 0.05)
+        self.assertEqual(result['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     @unittest.skipUnless(find_executable('likwid-perfctr'), "LIKWID not available")
     @unittest.skipIf(platform.system() == "Darwin", "Won't build on OS X.")
     def test_2d5pt_Benchmark(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Benchmark.pickle')
-        output_stream = StringIO()
 
         # patch environment to include dummy likwid
         environ_orig = os.environ
@@ -473,7 +422,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args)
 
         # restore environment
         os.environ = environ_orig
@@ -481,20 +430,9 @@ class TestKerncraft(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
-        # Check if results contains correct kernel
-        self.assertEqual(list(results), ['2d-5pt.c'])
-
-        # Check for correct variations of constants
-        self.assertCountEqual(
-            [sorted(map(str, r)) for r in results['2d-5pt.c']],
-            [sorted(map(str, r)) for r in [((sympy.var('M'), 1000), (sympy.var('N'), 1000))]])
-
         # Output of first result:
-        result = list(results['2d-5pt.c'].values())[0]
+        result = next(iter(results.values()))
 
-        self.assertCountEqual(result, ['Benchmark'])
-
-        roofline = result['Benchmark']
         correct_results = {
             'Iterations per repetition': 996004,
             'MEM BW [MByte/s]': 272.7272,
@@ -506,7 +444,7 @@ class TestKerncraft(unittest.TestCase):
             'Runtime (per repetition) [s]': 0.123456}
 
         for k, v in correct_results.items():
-            self.assertAlmostEqual(roofline[k], v, places=1)
+            self.assertAlmostEqual(result[k], v, places=1)
 
     def test_2d5pt_pragma(self):
         output_stream = StringIO()
@@ -520,6 +458,7 @@ class TestKerncraft(unittest.TestCase):
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
 
+    @ignore_warnings
     def test_argument_parser_asm_block(self):
         # valid --asm-block
         parser = kc.create_parser()
@@ -553,8 +492,11 @@ class TestKerncraft(unittest.TestCase):
                                   '--asm-block', 'foobar'])
         with self.assertRaises(SystemExit) as cm:
             kc.check_arguments(args, parser)
+        args.code_file.close()
+        args.machine.close()
         self.assertEqual(cm.exception.code, 2)
 
+    @ignore_warnings
     def test_argument_parser_define(self):
         # invalid --define
         parser = kc.create_parser()
@@ -563,7 +505,6 @@ class TestKerncraft(unittest.TestCase):
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'M', '1000', '23'])
-            kc.check_arguments(args, parser)
         self.assertEqual(cm.exception.code, 2)
 
         # invalid --define
@@ -573,7 +514,6 @@ class TestKerncraft(unittest.TestCase):
                                       '-p', 'Benchmark',
                                       self._find_file('2d-5pt.c'),
                                       '--define', 'N'])
-            kc.check_arguments(args, parser)
         self.assertEqual(cm.exception.code, 2)
 
         # invalid --define
@@ -609,6 +549,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '23'])
+        kc.check_arguments(args, parser)
         self.assertEqual(cm.exception.code, 2)
 
         # valid --define
@@ -617,6 +558,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '23-42'])
+        kc.check_arguments(args, parser)
         self.assertEqual(args.define[0][0], 'M')
         self.assertEqual(list(args.define[0][1]), list(range(23, 43)))
 
@@ -626,6 +568,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '23-42:4'])
+        kc.check_arguments(args, parser)
         self.assertEqual(args.define[0][0], 'M')
         self.assertEqual(list(args.define[0][1]), [23, 29, 36, 42])
 
@@ -635,6 +578,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '1-8:4log2'])
+        kc.check_arguments(args, parser)
         self.assertEqual(args.define[0][0], 'M')
         self.assertEqual(list(args.define[0][1]), [1, 2, 4, 8])
 
@@ -644,6 +588,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-p', 'Benchmark',
                                   self._find_file('2d-5pt.c'),
                                   '--define', 'M', '10-1000:3log10'])
+        kc.check_arguments(args, parser)
         self.assertEqual(args.define[0][0], 'M')
         self.assertEqual(list(args.define[0][1]), [10, 100, 1000])
 
@@ -667,4 +612,4 @@ class TestKerncraft(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(buffer=True)
