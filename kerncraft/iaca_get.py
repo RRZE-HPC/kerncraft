@@ -47,7 +47,7 @@ def get_os():
     return os_map[system]
 
 
-def serach_path():
+def search_path():
     """Return potential locations of IACA installation."""
     operating_system = get_os()
     # 1st choice: in ~/.kerncraft/iaca-{}
@@ -60,7 +60,7 @@ def serach_path():
 def find_iaca():
     """Return (hopefully) valid installation of IACA."""
     requires = ['iaca2.2', 'iaca2.3', 'iaca3.0']
-    for path in serach_path():
+    for path in search_path():
         path += 'bin/'
         valid = True
         for r in requires:
@@ -70,7 +70,7 @@ def find_iaca():
         if valid:
             return path
     raise RuntimeError("No IACA installation found in {}. Run iaca_get command to fix this issue."
-                       "".format(serach_path()))
+                       "".format(search_path()))
 
 
 def main():
@@ -102,7 +102,7 @@ def main():
 
     # Locate and create IACA base directory, in reverse server order
     base_dir = None
-    for path in reversed(serach_path()):
+    for path in reversed(search_path()):
         print("Trying " + path + ": ", end='', file=sys.stderr)
         try:
             os.makedirs(path)
