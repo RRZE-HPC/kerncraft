@@ -11,6 +11,8 @@ from pprint import pformat, pprint
 import textwrap
 from collections import OrderedDict
 import io
+from hashlib import md5
+from os.path import expanduser
 
 from distutils.spawn import find_executable
 from osaca import osaca
@@ -188,6 +190,8 @@ class x86(ISA):
                     # good, all scales are equal
                     pointer_increment = mem_scales[0] * increments[idx_reg]
 
+        if pointer_increment is None:
+            pointer_increment = find_increment_in_cache(block)
         return pointer_increment
 
 
@@ -210,22 +214,30 @@ class AArch64(ISA):
     @staticmethod
     def get_pointer_increment(block):
         """Return pointer increment."""
-        return None
+        pointer_increment = None
+        if pointer_increment is None:
+            pointer_increment = find_increment_in_cache(block)
+        return pointer_increment
 
 
-def userselect_increment(block):
+def userselect_increment(block, default=None):
     """Let user interactively select byte increment."""
     print("Selected block:")
     print('\n    ' + ('\n    '.join([b.line for b in block])))
+    print('hash: ', hashblock(block))
     print()
 
     increment = None
     while increment is None:
-        increment = input("Choose store pointer increment (number of bytes): ")
+        prompt = "Choose store pointer increment (number of bytes)"
+        if default:
+            prompt += '[{}]'.format(default)
+        prompt += ': '
+        increment = input(prompt)
         try:
             increment = int(increment)
         except ValueError:
-            increment = None
+            increment = default
     return increment
 
 
@@ -255,6 +267,36 @@ def userselect_block(blocks, default=None, debug=False):
     return block_label
 
 
+def hashblock(block):
+    """Hashes block down to relevant info"""
+    # TODO normalize register names
+    # TODO normalize instruction order
+    # Remove target label and jump
+    h = md5('\n'.join([b['line'] for b in block]).encode())
+    return h.hexdigest()
+
+
+def find_increment_in_cache(block, cache_file='~/.kerncraft/increment_cache'):
+    search_hash = hashblock(block)
+    cache_file = expanduser(cache_file)
+    cache = ''
+    if os.path.exists(cache_file):
+        with open(cache_file) as f:
+            cache = f.readlines()
+    for c in cache:
+        c_split = c.split()
+        if len(c_split) != 2:
+            continue
+        hashstr, increment = c_split
+        try:
+            increment = int(increment)
+        except:
+            increment = None
+        if hashstr == search_hash:
+            return increment
+    return None
+
+
 def parse_asm(code, isa):
     """Prase and process asm code."""
     asm_parser = get_parser(isa)
@@ -282,6 +324,7 @@ def asm_instrumentation(input_file, output_file=None,
     :param pointer_increment: number of bytes the pointer is incremented after the loop or
                               - 'auto': automatic detection, otherwise RuntimeError is raised
                               - 'auto_with_manual_fallback': like auto with fallback to manual input
+                              - 'auto_with_cache_fallback': like auto with fallback to cache file
                               - 'manual': prompt user
     :param debug: output additional internal analysis information. Only works with manual selection.
     :return: selected assembly block lines, pointer increment
@@ -316,15 +359,19 @@ def asm_instrumentation(input_file, output_file=None,
         if pointer_increment == 'auto':
             pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
             if pointer_increment is None:
+                block_hashstr = hashblock(block_lines)
                 raise RuntimeError("pointer_increment could not be detected automatically. Use "
                                    "--pointer-increment to set manually to byte offset of store "
-                                   "pointer address between consecutive assembly block iterations.")
+                                   "pointer address between consecutive assembly block iterations. "
+                                   "Alternativley add the following line to ~/.kerncraft/"
+                                   "increment_cache: {} <pointer_increment>".format(block_hashstr))
         elif pointer_increment == 'auto_with_manual_fallback':
             pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
             if pointer_increment is None:
                 pointer_increment = userselect_increment(block_lines)
         elif pointer_increment == 'manual':
-            pointer_increment = userselect_increment(block_lines)
+            pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
+            pointer_increment = userselect_increment(block_lines, default=pointer_increment)
         else:
             raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
                              "'auto_with_manual_fallback' ")
