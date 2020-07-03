@@ -111,8 +111,8 @@ class AppendStringRange(argparse.Action):
                 else:
                     log = gd['log'] is not None
                     base = int(gd['base']) if gd['base'] is not None else 10
-                    values[1] = space(
-                        int(gd['start']), int(gd['stop']), int(gd['num']), log=log, base=base)
+                    values[1] = list(space(
+                        int(gd['start']), int(gd['stop']), int(gd['num']), log=log, base=base))
             else:
                 message = 'second argument must match: start[-stop[:num[log[base]]]]'
 
@@ -251,14 +251,19 @@ def to_tuple(x):
         return x
 
 
-def identifier_from_arguments(args):
+def identifier_from_arguments(args, **kwargs):
     identifier = []
     for k in sorted(args.__dict__):
+        if k in kwargs:
+            identifier.append((k, kwargs[k]))
+            continue
         if k in ['verbose', 'store', 'unit', 'clean_intermediates']:
             # Ignore these, as they do not change the outcome
             continue
         v = args.__dict__[k]
         if isinstance(v, list):
+            v = to_tuple(v)
+        if isinstance(v, tuple):
             v = to_tuple(v)
         if isinstance(v, io.IOBase):
             v = v.name
@@ -365,7 +370,8 @@ def run(parser, args, output_file=sys.stdout):
             model.report(output_file=output_file)
 
             # Add results to storage
-            result_identifier = identifier_from_arguments(args)
+            result_identifier = identifier_from_arguments(
+                args, define=to_tuple(define), pmodel=model_name)
             result_storage[result_identifier] = model.results
 
             print('', file=output_file)
