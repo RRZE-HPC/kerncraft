@@ -7,10 +7,10 @@ import unittest
 import tempfile
 import shutil
 import pickle
-from io import StringIO
 from distutils.spawn import find_executable
 import platform
 import warnings
+import sys
 
 import sympy
 
@@ -18,7 +18,7 @@ from kerncraft import kerncraft as kc
 from kerncraft.prefixedunit import PrefixedUnit
 
 
-def assert_relativly_equal(actual, desired, rel_diff=0.0):
+def assertRelativlyEqual(actual, desired, rel_diff=0.0):
     """
     Test for relative difference between actual and desired
 
@@ -57,7 +57,6 @@ class TestKerncraft(unittest.TestCase):
 
     def test_2d5pt_ECMData_SIM(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -69,7 +68,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -93,13 +92,12 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        assert_relativly_equal(result['L2'], 6, 0.05)
-        assert_relativly_equal(result['L3'], 6, 0.05)
+        assertRelativlyEqual(result['L2'], 6, 0.05)
+        assertRelativlyEqual(result['L3'], 6, 0.05)
         self.assertAlmostEqual(result['MEM'], 0.0, places=3)
 
     def test_2d5pt_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMData.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -112,7 +110,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--cache-predictor=LC',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -133,13 +131,12 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
         # -> fully cached in L3
-        assert_relativly_equal(result['L2'], 6, 0.05)
-        assert_relativly_equal(result['L3'], 6, 0.05)
+        assertRelativlyEqual(result['L2'], 6, 0.05)
+        assertRelativlyEqual(result['L3'], 6, 0.05)
         self.assertAlmostEqual(result['MEM'], 0.0, places=2)
 
     def test_2d5pt_Roofline(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -150,7 +147,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -165,7 +162,7 @@ class TestKerncraft(unittest.TestCase):
 
         # Output of first result:
         result = results[key]
-        assert_relativly_equal(result['min performance']['FLOP/s'], 4720000000.0, 0.01)
+        assertRelativlyEqual(result['min performance']['FLOP/s'], 4720000000.0, 0.01)
         self.assertEqual(result['bottleneck level'], 1)
 
         expected_btlncks = [{'arithmetic intensity': 0.11764705882352941,
@@ -194,15 +191,14 @@ class TestKerncraft(unittest.TestCase):
             for k, v in btlnck.items():
                 if type(v) is not str:
                     if k == 'performance':
-                        assert_relativly_equal(result['mem bottlenecks'][i][k]['FLOP/s'], v, 0.05)
+                        assertRelativlyEqual(result['mem bottlenecks'][i][k]['FLOP/s'], v, 0.05)
                     else:
-                        assert_relativly_equal(result['mem bottlenecks'][i][k], v, 0.05)
+                        assertRelativlyEqual(result['mem bottlenecks'][i][k], v, 0.05)
                 else:
                     self.assertEqual(result['mem bottlenecks'][i][k], v)
 
     def test_sclar_product_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_scalar_product_ECMData.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
@@ -212,7 +208,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -221,13 +217,12 @@ class TestKerncraft(unittest.TestCase):
         result = next(iter(results.values()))
 
         # 2 Misses in L1, since sizeof(a)+sizeof(b) = 156kB > L1
-        assert_relativly_equal(result['L2'], 2, 0.05)
+        assertRelativlyEqual(result['L2'], 2, 0.05)
         self.assertAlmostEqual(result['L3'], 0.0, places=2)
         self.assertAlmostEqual(result['MEM'], 0.0, places=2)
 
     def test_copy_ECMData(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
@@ -238,7 +233,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -248,13 +243,12 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(result['L2'], 3, 0.05)
-        assert_relativly_equal(result['L3'], 6, 0.05)
+        assertRelativlyEqual(result['L2'], 3, 0.05)
+        assertRelativlyEqual(result['L3'], 6, 0.05)
         self.assertAlmostEqual(result['MEM'], 0, places=2)
 
     def test_copy_ECMData_LC(self):
         store_file = os.path.join(self.temp_dir, 'test_copy_ECMData_LC.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('HaswellEP_E5-2695v3.yml'),
@@ -266,7 +260,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--cache-predictor=LC',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -276,14 +270,13 @@ class TestKerncraft(unittest.TestCase):
 
         # 2 arrays * 1000000 doubles/array * 8 Bytes/double ~ 15MB
         # -> L3
-        assert_relativly_equal(result['L2'], 3, 0.05)
-        assert_relativly_equal(result['L3'], 6, 0.05)
+        assertRelativlyEqual(result['L2'], 3, 0.05)
+        assertRelativlyEqual(result['L3'], 6, 0.05)
         self.assertAlmostEqual(result['MEM'], 0, places=0)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECMCPU(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMCPU.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -296,7 +289,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -304,13 +297,12 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         result = next(iter(results.values()))
 
-        assert_relativly_equal(result['T_comp'], 11, 0.2)
-        assert_relativly_equal(result['T_RegL1'], 8, 0.2)
+        assertRelativlyEqual(result['T_comp'], 11, 0.2)
+        assertRelativlyEqual(result['T_RegL1'], 8, 0.2)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_ECMCPU_OSACA(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_ECMCPU.pickle')
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -324,8 +316,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-i', 'OSACA',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
-        print(output_stream.read())
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -333,8 +324,8 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         result = next(iter(results.values()))
 
-        assert_relativly_equal(result['T_comp'], 10, 0.2)
-        assert_relativly_equal(result['T_RegL1'], 10, 0.2)
+        assertRelativlyEqual(result['T_comp'], 10, 0.2)
+        assertRelativlyEqual(result['T_RegL1'], 10, 0.2)
 
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -352,25 +343,24 @@ class TestKerncraft(unittest.TestCase):
                                   '--unit=cy/CL',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
 
         # Output of first result:
         result = next(iter(results.values()))
-
         
         # 2 * 2000*1000 * 8 = 31MB
         # -> no full caching
         # applying layer-conditions:
         # 3 * 2000 * 8 ~ 47kB
         # -> layer-condition in L2
-        assert_relativly_equal(result['T_comp'], 11, 0.2)
-        assert_relativly_equal(result['T_RegL1'], 8, 0.2)
-        assert_relativly_equal(result['L2'], 10, 0.05)
-        assert_relativly_equal(result['L3'], 6, 0.05)
-        assert_relativly_equal(result['MEM'], 13, 0.05)
+        assertRelativlyEqual(result['T_comp'], 11, 0.2)
+        assertRelativlyEqual(result['T_RegL1'], 8, 0.2)
+        assertRelativlyEqual(result['L2'], 10, 0.05)
+        assertRelativlyEqual(result['L3'], 6, 0.05)
+        assertRelativlyEqual(result['MEM'], 13, 0.05)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
     def test_2d5pt_RooflineIACA(self):
@@ -387,7 +377,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args)
+        kc.run(parser, args, output_file=sys.stdout)
 
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
@@ -395,7 +385,7 @@ class TestKerncraft(unittest.TestCase):
         # Output of first result:
         result = next(iter(results.values()))
         
-        assert_relativly_equal(result['min performance']['FLOP/s'], 2900000000.0, 0.05)
+        assertRelativlyEqual(result['min performance']['FLOP/s'], 2900000000.0, 0.05)
         self.assertEqual(result['bottleneck level'], 3)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
@@ -422,7 +412,7 @@ class TestKerncraft(unittest.TestCase):
                                   '--compiler=gcc',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
-        kc.run(parser, args)
+        kc.run(parser, args, output_file=sys.stdout)
 
         # restore environment
         os.environ = environ_orig
@@ -447,7 +437,6 @@ class TestKerncraft(unittest.TestCase):
             self.assertAlmostEqual(result[k], v, places=1)
 
     def test_2d5pt_pragma(self):
-        output_stream = StringIO()
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
@@ -456,7 +445,7 @@ class TestKerncraft(unittest.TestCase):
                                   '-D', 'N', '1000',
                                   '-D', 'M', '50'])
         kc.check_arguments(args, parser)
-        kc.run(parser, args, output_file=output_stream)
+        kc.run(parser, args, output_file=sys.stdout)
 
     @ignore_warnings
     def test_argument_parser_asm_block(self):
