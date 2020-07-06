@@ -340,6 +340,7 @@ def run(parser, args, output_file=sys.stdout):
         define_product = [{}]
 
     for define in define_product:
+        define.sort()  # normalizing define for future checks
         # Reset state of kernel
         kernel.clear_state()
 
