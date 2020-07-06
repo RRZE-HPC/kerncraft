@@ -13,6 +13,7 @@ from datetime import datetime
 from functools import lru_cache
 import atexit
 import io
+from collections import OrderedDict
 
 from ruamel import yaml
 
@@ -314,7 +315,8 @@ def run(parser, args, output_file=sys.stdout):
     
     if len(required_consts) > 0:
         # build defines permutations
-        define_dict = {}
+        define_dict = OrderedDict()
+        args.define.sort()
         # Prefill with default value, if any is given
         if '.' in [n for n,v in args.define]:
             default_const_values = dict(args.define)['.']
@@ -340,7 +342,6 @@ def run(parser, args, output_file=sys.stdout):
         define_product = [{}]
 
     for define in define_product:
-        define.sort()  # normalizing define for future checks
         # Reset state of kernel
         kernel.clear_state()
 

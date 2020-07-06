@@ -82,12 +82,12 @@ class TestKerncraft(unittest.TestCase):
             self.assertEqual(d['code_file'].split('/')[-1], '2d-5pt.c')
             self.assertEqual(d['machine'].split('/')[-1], 'SandyBridgeEP_E5-2680.yml')
             self.assertEqual(d['pmodel'], 'ECMData')
-        self.assertTrue(any([('define', (('N', 1000), ('M', 50))) in k for k in results]))
-        self.assertTrue(any([('define', (('N', 10000), ('M', 50))) in k for k in results]))
-        self.assertTrue(any([('define', (('N', 100000), ('M', 50))) in k for k in results]))
+        self.assertTrue(any([('define', (('M', 50), ('N', 1000))) in k for k in results]))
+        self.assertTrue(any([('define', (('M', 50), ('N', 10000))) in k for k in results]))
+        self.assertTrue(any([('define', (('M', 50), ('N', 100000))) in k for k in results]))
 
         # Output of first result:
-        key = [k for k in results if ('define', (('N', 1000), ('M', 50))) in k][0]
+        key = [k for k in results if ('define', (('M', 50), ('N', 1000))) in k][0]
         result = results[key]
 
         # 2 arrays * 1000*50 doubles/array * 8 Bytes/double = 781kB
@@ -119,7 +119,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(len(results), 3)
 
         # Check if results contains correct kernel and some other infoormation
-        key = [k for k in results if ('define', (('N', 1000), ('M', 50))) in k][0]
+        key = [k for k in results if ('define', (('M', 50), ('N', 1000))) in k][0]
         key_dict = dict(key)
         self.assertEqual(key_dict['code_file'].split('/')[-1], '2d-5pt.c')
         self.assertEqual(key_dict['machine'].split('/')[-1], 'SandyBridgeEP_E5-2680.yml')
@@ -156,7 +156,7 @@ class TestKerncraft(unittest.TestCase):
         self.assertEqual(len(results), 3)
 
         # Check if results contains correct kernel and some other infoormation
-        key = [k for k in results if ('define', (('N', 4096), ('M', 50))) in k][0]
+        key = [k for k in results if ('define', (('M', 50), ('N', 4096))) in k][0]
         key_dict = dict(key)
         self.assertEqual(key_dict['pmodel'], 'Roofline')
 
