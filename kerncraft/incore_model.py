@@ -113,7 +113,7 @@ class x86(ISA):
                 packed_instruction_ctr += 1
 
         # Build metric
-        return (instruction_ctr + packed_instruction_ctr + avx_instruction_ctr,
+        return (packed_instruction_ctr, avx_instruction_ctr, instruction_ctr,
                 len(set(register_class_usage['zmm'])),
                 len(set(register_class_usage['ymm'])),
                 len(set(register_class_usage['xmm'])))
@@ -415,10 +415,19 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
     kernel_graph = osaca.KernelDG(kernel, parser, osaca_machine_model)
     frontend = osaca.Frontend(instrumented_assembly_file, arch=micro_architecture)
 
-    result['output'] = frontend.full_analysis(kernel, kernel_graph, verbose=True)
+    # Throughput Analysis
     throughput_values = semantics.get_throughput_sum(kernel)
+    # LCD Latency Analysis
+    lcd_dict = kernel_graph.get_loopcarried_dependencies()
+    max_lcd = 0
+    for dep in lcd_dict:
+        max_lcd = max(
+            max_lcd,
+            sum([instr_form['latency_lcd'] for instr_form in lcd_dict[dep]['dependencies']]))
+
+    result['output'] = frontend.full_analysis(kernel, kernel_graph, verbose=True)
     result['port cycles'] = OrderedDict(list(zip(osaca_machine_model['ports'], throughput_values)))
-    result['throughput'] = max(semantics.get_throughput_sum(kernel))
+    result['throughput'] = max(throughput_values + [max_lcd])
     result['uops'] = None  # Not given by OSACA
 
     unmatched_ratio = osaca.get_unmatched_instruction_ratio(kernel)
