@@ -1651,7 +1651,8 @@ class KernelCode(Kernel):
             if m:
                 self.pointer_increment = int(m.group(1))
             else:
-                print("Could not find `pointer_increment=<byte increment>`. Plase place into file.")
+                print("Could not find `pointer_increment=<byte increment>`. Plase place into file.",
+                      file=sys.stderr)
                 sys.exit(1)
         else:
             # marked assembly needs update
