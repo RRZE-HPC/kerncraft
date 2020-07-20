@@ -1654,7 +1654,7 @@ class KernelCode(Kernel):
                 print("Could not find `pointer_increment=<byte increment>`. Plase place into file.",
                       file=sys.stderr)
                 sys.exit(1)
-        else:
+        else:  # analysis_lock_mode == fcntl.LOCK_EX
             # marked assembly needs update
             asm_filename, asm_lock_fp = self.compile_kernel(assembly=True, verbose=verbose)
             with open(asm_filename, 'r') as in_file, open(marked_filename, 'w') as out_file:
@@ -1666,7 +1666,6 @@ class KernelCode(Kernel):
             asm_lock_fp.close()
             fcntl.flock(marked_lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
 
-        # analysis_lock_mode == fcntl.LOCK_EX
         if model == 'OSACA':
             analysis = incore_model.osaca_analyse_instrumented_assembly(
                 marked_filename, model_parameter)
