@@ -767,7 +767,7 @@ class KernelCode(Kernel):
                 self._machine.get_identifier(), compiler, compiler_args)
         
         for i in other_dependencies:
-            base_name = os.path.join(base_name, i.replace('/', ''))
+            base_name = os.path.join(base_name, str(i).replace('/', ''))
 
         # Create dirs recursively
         os.makedirs(base_name, exist_ok=True)
