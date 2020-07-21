@@ -56,14 +56,10 @@ class Roofline(PerformanceModel):
             self.predictor = cache_predictor(self.kernel, self.machine, self.cores)
             self.verbose = verbose
 
-        #if sum(self.kernel._flops.values()) == 0:
-        #    raise ValueError("The Roofline model requires that the sum of FLOPs is non-zero.")
-
     def calculate_cache_access(self):
         """Apply cache prediction to generate cache access behaviour."""
-        self.results = {'misses': self.predictor.get_misses(),
-                        'hits': self.predictor.get_hits(),
-                        'evicts': self.predictor.get_evicts(),
+        self.results = {'loads': self.predictor.get_loads(),
+                        'stores': self.predictor.get_stores(),
                         'verbose infos': self.predictor.get_infos(),  # only for verbose outputs
                         'bottleneck level': 0,
                         'mem bottlenecks': []}
@@ -100,14 +96,14 @@ class Roofline(PerformanceModel):
             cores=self.cores)
 
         # Calculate performance (arithmetic intensity * bandwidth with
-        # arithmetic intensity = flops / bytes loaded )
+        # arithmetic intensity = Iterations / bytes loaded
         if total_loads == 0:
             # This happens in case of full-caching
             arith_intens = None
             it_s = None
         else:
-            arith_intens = float(total_flops)/total_loads
-            it_s = PrefixedUnit(float(bw)/total_loads, 'It/s')
+            arith_intens = 1.0/total_loads
+            it_s = PrefixedUnit(float(bw)/(total_loads + total_evicts), 'It/s')
 
         self.results['mem bottlenecks'].append({
             'performance': self.conv_perf(it_s),
@@ -122,14 +118,14 @@ class Roofline(PerformanceModel):
         # for other cache and memory levels:
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             # Compiling stats (in bytes!)
-            total_misses = self.results['misses'][cache_level]*cacheline_size
-            total_evicts = self.results['evicts'][cache_level]*cacheline_size
+            total_loads = self.results['loads'][cache_level+1]*cacheline_size
+            total_stores = self.results['stores'][cache_level+1]*cacheline_size
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
-            read_streams = self.results['misses'][cache_level]
-            write_streams = self.results['evicts'][cache_level]
+            read_streams = self.results['loads'][cache_level+1]
+            write_streams = self.results['stores'][cache_level+1]
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
@@ -137,15 +133,16 @@ class Roofline(PerformanceModel):
 
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
-            bytes_transfered = total_misses + total_evicts
+            bytes_transfered = total_loads + total_stores
 
             if bytes_transfered == 0:
                 # This happens in case of full-caching
                 arith_intens = float('inf')
                 it_s = PrefixedUnit(float('inf'), 'It/s')
             else:
-                arith_intens = float(total_flops)/bytes_transfered
-                it_s = PrefixedUnit(float(bw)/bytes_transfered, 'It/s')
+                arith_intens = 1/(bytes_transfered/elements_per_cacheline)
+                it_s = PrefixedUnit(float(bw)*arith_intens, 'It/s')
+                print(cache_level, bytes_transfered)
 
             self.results['mem bottlenecks'].append({
                 'performance': self.conv_perf(it_s),
@@ -204,7 +201,7 @@ class Roofline(PerformanceModel):
                 max_perf[self._args.unit]),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
+                print('{level:>7} | {arithmetic intensity:>7.2} It/B | {0!s:>15} |'
                       ' {bandwidth!s:>17} | {bw kernel:<8}'.format(
                           b['performance'][self._args.unit], **b),
                       file=output_file)
@@ -223,7 +220,7 @@ class Roofline(PerformanceModel):
                     bottleneck['level'],
                     bottleneck['bw kernel']),
                   file=output_file)
-            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
+            print('Arithmetic Intensity: {:.2f} It/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
 
         if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]):
@@ -362,7 +359,7 @@ class RooflineIACA(Roofline):
                 # Skip CPU-L1 from Roofline model
                 if b is None:
                     continue
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
+                print('{level:>7} | {arithmetic intensity:>7.2} It/B | {0!s:>15} |'
                       ' {bandwidth!s:>17} | {bw kernel:<8}'.format(
                           b['performance'][self._args.unit], **b),
                       file=output_file)
@@ -388,7 +385,7 @@ class RooflineIACA(Roofline):
                       bottleneck['level'],
                       bottleneck['bw kernel']),
                   file=output_file)
-            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
+            print('Arithmetic Intensity: {:.2f} It/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
 
         if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
