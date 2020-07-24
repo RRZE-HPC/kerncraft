@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3.dev0
+kerncraft version: 0.8.6.dev0
 model name: AMD EPYC 7451 24-Core Processor
 model type: AMD K17 (Zen) architecture
 clock: 2.3 GHz
@@ -10,7 +10,7 @@ NUMA domains per socket: 4
 cores per NUMA domain: 6
 
 in-core model: !!omap
-  - OSACA: ZEN
+  - OSACA: ZEN1
   - LLVM-MCA: -mcpu=znver1
 isa: x86
 
@@ -25,11 +25,15 @@ compiler: !!omap
 
 non-overlapping model:
   performance counter metric: INFORAMTION_REQUIRED T_L3 + T_MEM, TODO
-  ports: ['8', '9']    # Not actually overlapping, but this is described in the memory hierarchy description. https://hpc.fau.de/files/2018/09/SC18-Poster-ECM_DRAFT.pdf
+  ports:
+    OSACA: ['8', '9']    # Not actually overlapping, but this is described in the memory hierarchy description. https://hpc.fau.de/files/2018/09/SC18-Poster-ECM_DRAFT.pdf
+    LLVM-MCA: [ZnAGU0, ZnAGU1]
 overlapping model:
   performance counter metric: INFORAMTION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
     UOPS_DISPATCHED_PORT_PORT_1__PMC3, UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)
-  ports: ['0', '1', '2', '3', 3DV, '4', '5', '6', '7']      # https://arxiv.org/pdf/1809.00912.pdf
+  ports:
+    OSACA: ['0', '1', '2', '3', 3DV, '4', '5', '6', '7']      # https://arxiv.org/pdf/1809.00912.pdf
+    LLVM-MCA: [ZnAGU0, ZnAGU1, ZnALU0, ZnALU1, ZnALU2, ZnALU3, ZnDivider, ZnFPU0, ZnFPU1, ZnFPU2, ZnFPU3, ZnMultiplier]
 
 cacheline size: 64 B
 memory hierarchy:

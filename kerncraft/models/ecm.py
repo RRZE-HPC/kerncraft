@@ -313,10 +313,13 @@ class ECMCPU(PerformanceModel):
         cl_throughput = block_throughput*block_to_cl_ratio
 
         # Compile most relevant information
+        incore_model = self.machine.get_incore_model(self._args.incore_model)
         T_comp = float(max([v for k, v in list(port_cycles.items())
-                            if k in self.machine['overlapping model']['ports']] + [0]))
+                            if k in self.machine['overlapping model']['ports'][incore_model]] +
+                           [0]))
         T_RegL1 = float(max([v for k, v in list(port_cycles.items())
-                             if k in self.machine['non-overlapping model']['ports']] + [0]))
+                             if k in self.machine['non-overlapping model']['ports'][incore_model]] +
+                            [0]))
 
         # Use In-Core Model throughput prediction if it is slower then T_RegL1
         if T_RegL1 < cl_throughput:

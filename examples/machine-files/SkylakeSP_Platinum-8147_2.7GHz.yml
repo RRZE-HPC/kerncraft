@@ -5,7 +5,7 @@
 # FIXME performance counters might be wrong. This will only affect the Benchmark model
 # FIXME bandwidth measurements need validataion
 # FIXME
-kerncraft version: 0.8.3.dev0
+kerncraft version: 0.8.6.dev0
 model name: Intel(R) Xeon(R) Platinum 8174 CPU @ 3.10GHz
 model type: Intel Skylake SP processor
 sockets: 2
@@ -37,12 +37,18 @@ compiler: !!omap
 - gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
 cacheline size: 64 B
 overlapping model:
-  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+  ports: 
+    IACA: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+    OSACA: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+    LLVM-MCA: [SKXDivider, SKXFPDivider, SKXPort0, SKXPort1, SKXPort2, SKXPort3, SKXPort4, SKXPort5, SKXPort6, SKXPort7]
   performance counter metric: Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
     UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_6:PMC[0-3],
     UOPS_DISPATCHED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
-  ports: [2D, 3D]
+  ports:
+    IACA: [2D, 3D]
+    OSACA: [2D, 3D]
+    LLVM-MCA: [SKXPort2, SKXPort3]
   performance counter metric: T_nOL + T_L2 + T_L3 + T_MEM
 memory hierarchy:
 - level: L1

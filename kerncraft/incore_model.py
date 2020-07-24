@@ -141,16 +141,23 @@ class x86(ISA):
             # If no destination references were found sofar, include source references
             if not stores_only:
                 mem_references += [op.memory for op in line.semantic_operands.source
-                                  if 'memory' in op]
+                                   if 'memory' in op]
 
             if re.match(r'^inc[bwlq]?$', line.instruction):
                 increments[line.operands[0].register.name] = 1
             elif re.match(r'^add[bwlq]?$', line.instruction) and 'immediate' in line.operands[0]:
                 increments[line.operands[1].register.name] = int(line.operands[0].immediate.value)
             elif re.match(r'^dec[bwlq]?$', line.instruction):
-                increments[[line.operands[0].register.name]] = -1
+                increments[line.operands[0].register.name] = -1
             elif re.match(r'^sub[bwlq]?$', line.instruction) and 'immediate' in line.operands[0]:
                 increments[line.operands[1].register.name] = -int(line.operands[0].immediate.value)
+            elif re.match(r'^lea[bwlq]?$', line.instruction):
+                # `lea 1(%r11), %r11` is the same as `add $1, %r11`
+                if line.operands[0].memory.base.name  == line.operands[1].register.name and \
+                        line.operands[0].memory.index is None:
+                    increments[line.operands[1].register.name] = int(
+                        line.operands[0].memory.offset.value)
+
 
         # deduce loop increment from memory index register
         pointer_increment = None  # default -> can not decide, let user choose
@@ -350,6 +357,7 @@ def asm_instrumentation(input_file, output_file=None,
     else:
         raise ValueError("block_selection has to be an integer, 'auto' or 'manual' ")
     block_lines = loop_blocks[block_label]
+    block_hashstr = hashblock(block_lines)
 
     block_start = asm_lines.index(block_lines[0])
     block_end = asm_lines.index(block_lines[-1]) + 1
@@ -359,7 +367,7 @@ def asm_instrumentation(input_file, output_file=None,
         if pointer_increment == 'auto':
             pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
             if pointer_increment is None:
-                block_hashstr = hashblock(block_lines)
+                os.unlink(output_file.name)
                 raise RuntimeError("pointer_increment could not be detected automatically. Use "
                                    "--pointer-increment to set manually to byte offset of store "
                                    "pointer address between consecutive assembly block iterations. "
@@ -377,7 +385,7 @@ def asm_instrumentation(input_file, output_file=None,
                              "'auto_with_manual_fallback' ")
 
     marker_start, marker_end = get_marker(
-        isa, comment="pointer_increment={}".format(pointer_increment))
+        isa, comment="pointer_increment={} {}".format(pointer_increment, block_hashstr))
 
     marked_asm = asm_lines[:block_start] + marker_start + asm_lines[block_start:block_end] + \
                  marker_end + asm_lines[block_end:]
@@ -477,7 +485,13 @@ def llvm_mca_analyse_instrumented_assembly(
     for port, cycles in zip(port_cycle_lines[0].split(), port_cycle_lines[1].split()):
         if cycles == '-':
             cycles = 0.0
-        port_cycles[port_names[port]] = float(cycles)
+        if port_names[port] in port_cycles:
+            # Some architecures have multiple "ports" per resource in LLVM-MCA
+            # e.g., Sandybridge as a Port23 resource which is found at [6.0] and [6.1]
+            # we will consider the maximum of both
+            port_cycles[port_names[port]] = max(float(cycles), port_cycles[port_names[port]])
+        else:
+            port_cycles[port_names[port]] = float(cycles)
 
     result['port cycles'] = port_cycles
     result['throughput'] = max(port_cycles.values())

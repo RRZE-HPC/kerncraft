@@ -165,18 +165,18 @@ class TestKerncraft(unittest.TestCase):
         assertRelativlyEqual(result['min performance']['FLOP/s'], 4720000000.0, 0.01)
         self.assertEqual(result['bottleneck level'], 1)
 
-        expected_btlncks = [{'arithmetic intensity': 0.11764705882352941,
-                             'bandwidth': PrefixedUnit(100.24, u'G', u'B/s'),
-                             'bw kernel': 'triad',
+        expected_btlncks = [{'arithmetic intensity': 0.029411764705882353,
+                             'bandwidth': PrefixedUnit(84.07, u'G', u'B/s'),
+                             'bw kernel': 'load',
                              'level': u'L1',
-                             'performance': PrefixedUnit(11.79, u'G', u'FLOP/s')
+                             'performance': PrefixedUnit(9.89, u'G', u'FLOP/s')
                              },
-                            {'arithmetic intensity': 0.1,
+                            {'arithmetic intensity': 0.025,
                              'bandwidth': PrefixedUnit(47.24, u'G', u'B/s'),
                              'bw kernel': 'triad',
                              'level': u'L2',
                              'performance': PrefixedUnit(4.72, u'G', u'FLOP/s')},
-                            {'arithmetic intensity': 1.0 / 6.0,
+                            {'arithmetic intensity': 0.041,
                              'bandwidth': PrefixedUnit(32.9, 'G', 'B/s'),
                              'bw kernel': 'copy',
                              'level': u'L3',

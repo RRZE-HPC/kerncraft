@@ -64,6 +64,11 @@ CHANGES_SINCE = OrderedDict([
      Added ISA attribute, which may either be x86 or aarch64 (or any ISA name
      supported by OSACA)
      """),
+    ("0.8.6.dev0",
+    """
+    Per in-core model 'port' attribute for 'overlapping model' and 
+    'non-overlapping model' introduced to support LLVM-MCAs naming scheme.
+    """)
 ])
 
 
@@ -516,6 +521,14 @@ class MachineModel(object):
             flags = self['compiler'].get(compiler, '')
 
         return compiler, flags.split(' ')
+    
+    def get_incore_model(self, model=None):
+        """
+        Return incore model name to use.
+        """
+        if model is None:
+            model = next(iter(self['in-core model']))
+        return model
 
     def current_system(self, print_diff=False):
         """

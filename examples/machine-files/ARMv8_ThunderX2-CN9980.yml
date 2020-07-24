@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3.dev0
+kerncraft version: 0.8.6.dev0
 
 # Details from
 # [1] https://en.wikichip.org/wiki/cavium/thunderx2/cn9980
@@ -31,12 +31,16 @@ compiler: !!omap
   - clang: -O3 -target aarch64-unknown-linux-gnu -D_POSIX_C_SOURCE=200112L
   - gcc: -O3 -armv8.1-a+crypto+nordma
 
-non-overlapping model: {performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
-    UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)',
-  ports: ['0', 0DV, '1', 1DV, '2', '3', '4', '5']}        # [3] [4]
-overlapping model: {performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
-    UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)',
-  ports: ['3', '4', '5']}    # [3] [4] TODO change when data pipelines are implemented in OSACA
+non-overlapping model: 
+  performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
+    UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+  ports: 
+    OSACA: ['0', 0DV, '1', 1DV, '2', '3', '4', '5']        # [3] [4]
+overlapping model:
+  performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
+    UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
+  ports: 
+    OSACA: ['3', '4', '5']    # [3] [4] TODO change when data pipelines are implemented in OSACA
 
 memory hierarchy:
 - !!omap [level: L1, performance counter metrics: {accesses: 'INFORMATION_REQUIRED

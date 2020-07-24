@@ -1627,8 +1627,7 @@ class KernelCode(Kernel):
         :param model: which model to use, "IACA", "OSACA" or "LLVM-MCA"
         """
         # Get model and parameter
-        if model is None:
-            model = next(iter(self._machine['in-core model']))
+        model = self._machine.get_incore_model(model)
         model_parameter = self._machine['in-core model'][model]
 
         analysis_filename = self.get_intermediate_location('incore_analysis.pickle.lzma',
@@ -1651,6 +1650,7 @@ class KernelCode(Kernel):
             if m:
                 self.pointer_increment = int(m.group(1))
             else:
+                os.unlink(marked_filename)
                 print("Could not find `pointer_increment=<byte increment>`. Plase place into file.",
                       file=sys.stderr)
                 sys.exit(1)

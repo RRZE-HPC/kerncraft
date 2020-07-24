@@ -90,8 +90,8 @@ class Roofline(PerformanceModel):
         total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
             0,
-            read_streams - write_streams,  # no write-allocate in L1
-            write_streams,
+            read_streams,
+            0,  # we do not consider stores to L1 
             threads_per_core,
             cores=self.cores)
 
@@ -102,8 +102,8 @@ class Roofline(PerformanceModel):
             arith_intens = None
             it_s = None
         else:
-            arith_intens = 1.0/total_loads
-            it_s = PrefixedUnit(float(bw)/(total_loads + total_evicts), 'It/s')
+            arith_intens = 1.0/(total_loads/elements_per_cacheline)
+            it_s = PrefixedUnit(float(bw)*arith_intens, 'It/s')
 
         self.results['mem bottlenecks'].append({
             'performance': self.conv_perf(it_s),
@@ -142,7 +142,6 @@ class Roofline(PerformanceModel):
             else:
                 arith_intens = 1/(bytes_transfered/elements_per_cacheline)
                 it_s = PrefixedUnit(float(bw)*arith_intens, 'It/s')
-                print(cache_level, bytes_transfered)
 
             self.results['mem bottlenecks'].append({
                 'performance': self.conv_perf(it_s),

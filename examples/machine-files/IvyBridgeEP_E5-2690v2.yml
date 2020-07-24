@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3.dev0
+kerncraft version: 0.8.6.dev0
 model name: Intel(R) Xeon(R) CPU E5-2690 v2 @ 3.00GHz
 model type: Intel Xeon IvyBridge EN/EP/EX processor
 clock: 3.00 GHz
@@ -25,10 +25,16 @@ compiler: !!omap
 - gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp -lm
 
 non-overlapping model:
-  ports: [2D, 3D]
+  ports:
+    IACA: [2D, 3D]
+    OSACA: [2D, 3D]
+    LLVM-MCA: [SBPort23]
   performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
 overlapping model:
-  ports: ['0', 0DV, '1', '2', '3', '4', '5']
+  ports:
+    IACA: ['0', 0DV, '1', '2', '3', '4', '5']
+    OSACA: ['0', 0DV, '1', '2', '3', '4', '5']
+    LLVM-MCA: [SBDivider, SBFPDivider, SBPort0, SBPort1, SBPort23, SBPort4, SBPort5]
   performance counter metric: Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
     UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])
 
