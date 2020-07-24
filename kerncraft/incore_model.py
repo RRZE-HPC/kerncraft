@@ -468,8 +468,10 @@ def llvm_mca_analyse_instrumented_assembly(
     kernel = osaca.reduce_to_section(parsed_code, isa)
     assembly_section = '\n'.join([l.line for l in kernel])
 
-    output = subprocess.check_output(['llvm-mca']+micro_architecture.split(' '),
-                                     input=assembly_section.encode('utf-8')).decode('utf-8')
+    output = subprocess.check_output(
+        ['llvm-mca'] + micro_architecture.split(' ') + 
+        ['--timeline', '--timeline-max-cycles=1000', '--timeline-max-iterations=4'],
+        input=assembly_section.encode('utf-8')).decode('utf-8')
     result['output'] = output
 
     # Extract port names
@@ -492,9 +494,19 @@ def llvm_mca_analyse_instrumented_assembly(
             port_cycles[port_names[port]] = max(float(cycles), port_cycles[port_names[port]])
         else:
             port_cycles[port_names[port]] = float(cycles)
-
     result['port cycles'] = port_cycles
-    result['throughput'] = max(port_cycles.values())
+    
+    # Extract throughput including loop-carried-dependecy latency
+    timeline_lines = [l for l in output.split('\n') if re.match(r'\[[0-9]+,[0-9]+\]', l)]
+    lcd = 0
+    for l in timeline_lines:
+        if l.startswith('[0,'):
+            last_instr_index = re.match(r'\[0,([0-9]+)\]', l).group(1)
+            lcd_start = l.index('R')
+        elif l.startswith('[1,'+last_instr_index+']'):
+            lcd = l.index('R') - lcd_start
+            break
+    result['throughput'] = max(max(port_cycles.values()), lcd)
 
     # Extract uops
     uops = 0
