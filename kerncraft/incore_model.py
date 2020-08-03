@@ -73,6 +73,7 @@ class ISA:
 
         for label, block in list(blocks.items())[1:]:
             metric = cls.compute_block_metric(block)
+            print(label, metric)  # DONOTCOMMIT
             if best_metric < metric:
                 best_block_label = label
                 best_metric = metric
@@ -206,17 +207,26 @@ class AArch64(ISA):
     @staticmethod
     def compute_block_metric(block):
         """Return comparable metric on block information."""
+        arithmetic_ctr = 0
+        vector_ctr = 0
         instruction_ctr = 0
         # Analyze code to determine metric
         for line in block:
             # Skip non-instruction lines (e.g., comments)
             if line.instruction is None:
                 continue
+            # Counting basic arithmetic insstructions
+            if line.instruction in ['add', 'sub', 'mul', 'fmul', 'fdiv', 'fadd', 'fsub']:
+                arithmetic_ctr += 1
+            # Counting use of vector registers
+            for op in line.operands:
+                if 'register' in op and op.register.prefix in 'zv':
+                    vector_ctr += 1
             # Count all instructions
             instruction_ctr += 1
 
         # Build metric
-        return (instruction_ctr)
+        return (vector_ctr, arithmetic_ctr, instruction_ctr)
 
     @staticmethod
     def get_pointer_increment(block):
