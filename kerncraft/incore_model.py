@@ -231,7 +231,62 @@ class AArch64(ISA):
     @staticmethod
     def get_pointer_increment(block):
         """Return pointer increment."""
-        pointer_increment = None
+        increments = {}
+        mem_references = []
+        stores_only = False
+        for line in block:
+            # Skip non-instruction lines (such as comments and labels)
+            if line.instruction is None:
+                continue
+
+            # Extract destination references
+            dst_mem_references = [op.memory for op in line.semantic_operands.destination
+                                  if 'memory' in op]
+            # if any store was found, only stores are considered
+            if dst_mem_references:
+                if not stores_only:
+                    stores_only = True
+                    mem_references = []
+                mem_references += dst_mem_references
+
+            # If no destination references were found sofar, include source references (loads)
+            if not stores_only:
+                mem_references += [op.memory for op in line.semantic_operands.source
+                                   if 'memory' in op]
+
+            # ADD dest_reg, src_reg, immd
+            if re.match(r'^add[s]?$', line.instruction) and \
+                    line.operands[0] == line.operands[1] and \
+                    'immediate' in line.operands[2]:
+                increments[line.operands[0].register.prefix + line.operands[0].register.name] = \
+                    int(line.operands[2].immediate.value)
+            # SUB dest_reg, src_reg, immd
+            elif re.match(r'^sub[s]?$', line.instruction) and \
+                    line.operandsp[0] == line.operands[1] and \
+                    'immediate' in line.operands[2]:
+                increments[line.operands[0].register.prefix + line.operands[0].register.name] = \
+                    -int(line.operands[2].immediate.value)
+
+        # deduce loop increment from memory index register
+        address_registers = []
+        if mem_references:
+            for mref in mem_references:
+                base_reg = mref.base.prefix + mref.base.name
+                address_registers.append(base_reg)
+                increment = None
+                # self incrementing load/store references
+                if 'pre_indexed' in mref:
+                    increments[base_reg] = int(mref.offset.value)
+                elif 'post_indexed' in mref:
+                    increments[base_reg] = int(mref.post_indexed.value)
+
+        pointer_increment = None  # default -> can not decide, let user choose
+        if address_registers and all([reg in increments for reg in address_registers]):
+            if itemsEqual([increments[reg] for reg in address_registers]):
+                # good, all relevant increments are equal
+                pointer_increment = increments[address_registers[0]]
+
+        # Check cache as last resort
         if pointer_increment is None:
             pointer_increment = find_increment_in_cache(block)
         return pointer_increment
