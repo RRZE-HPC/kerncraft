@@ -9,7 +9,7 @@ from copy import copy
 import argparse
 from pprint import pformat, pprint
 import textwrap
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import io
 from hashlib import md5
 from os.path import expanduser
@@ -262,29 +262,44 @@ class AArch64(ISA):
                     int(line.operands[2].immediate.value)
             # SUB dest_reg, src_reg, immd
             elif re.match(r'^sub[s]?$', line.instruction) and \
-                    line.operandsp[0] == line.operands[1] and \
+                    line.operands[0] == line.operands[1] and \
                     'immediate' in line.operands[2]:
                 increments[line.operands[0].register.prefix + line.operands[0].register.name] = \
                     -int(line.operands[2].immediate.value)
 
         # deduce loop increment from memory index register
         address_registers = []
+        scales = defaultdict(lambda: 1)
         if mem_references:
             for mref in mem_references:
+                # Assume base to be scaled
                 base_reg = mref.base.prefix + mref.base.name
-                address_registers.append(base_reg)
+                if mref.index is not None:
+                    # If index register is used, check which is incremented
+                    index_reg = mref.index.prefix + mref.index.name
+                    if index_reg in increments:
+                        reg = index_reg
+                        # If index is used, a scale other than 1 needs to be considered
+                        if 'shift' in mref.index:
+                            scales[reg] = 2**int(mref.index.shift.value)
+                    elif base_reg in increments:
+                        reg = base_reg
+                else:
+                    reg = base_reg
+                address_registers.append(reg)
                 increment = None
-                # self incrementing load/store references
-                if 'pre_indexed' in mref:
-                    increments[base_reg] = int(mref.offset.value)
-                elif 'post_indexed' in mref:
-                    increments[base_reg] = int(mref.post_indexed.value)
+                # self incrementing load/store references, only considering this with constants
+                # this could also be registers and scaled registers
+                if 'pre_indexed' in mref and 'value' in mref.offset:
+                    increments[reg] = int(mref.offset.value)
+                elif 'post_indexed' in mref and 'value' in mref.post_indexed:
+                    increments[reg] = int(mref.post_indexed.value)
 
         pointer_increment = None  # default -> can not decide, let user choose
         if address_registers and all([reg in increments for reg in address_registers]):
             if itemsEqual([increments[reg] for reg in address_registers]):
                 # good, all relevant increments are equal
-                pointer_increment = increments[address_registers[0]]
+                pointer_increment = increments[address_registers[0]] * scales[address_registers[0]]
 
         # Check cache as last resort
         if pointer_increment is None:

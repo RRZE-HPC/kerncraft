@@ -406,7 +406,6 @@ class Benchmark(PerformanceModel):
             print('Disabled Phenomenological ECM, due to syntax error in machine file '
                     'metrics:', e, file=sys.stderr)
             self.no_phenoecm = True
-        
 
         # Gather remaining counters
         if self.no_phenoecm:
