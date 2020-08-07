@@ -388,13 +388,7 @@ class Benchmark(PerformanceModel):
                                     self.kernel.bytes_per_iteration)
         cys_per_repetition = time_per_repetition * float(self.machine['clock'])
 
-        # Gather remaining counters
-        if self.no_phenoecm:
-            bench_lock_fp.close()
-            event_counters = {}
-            ecm_model = None
-            cache_transfers_per_cl = None
-        else:
+        try:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
@@ -408,7 +402,19 @@ class Benchmark(PerformanceModel):
                 for k, v in cache_info['performance counter metrics'].items():
                     cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
                     event_counters.update(event_dict)
+        except SyntaxError as e:
+            print('Disabled Phenomenological ECM, due to syntax error in machine file '
+                    'metrics:', e, file=sys.stderr)
+            self.no_phenoecm = True
+        
 
+        # Gather remaining counters
+        if self.no_phenoecm:
+            bench_lock_fp.close()
+            event_counters = {}
+            ecm_model = None
+            cache_transfers_per_cl = None
+        else:
             # Compile minimal runs to gather all required events
             minimal_runs = build_minimal_runs(list(event_counters.values()))
             measured_ctrs = {}
@@ -439,8 +445,8 @@ class Benchmark(PerformanceModel):
 
             # Inter-cache transfers per CL
             cache_transfers_per_cl = {cache: {k: PrefixedUnit(v / total_cachelines, 'CL/CL')
-                                              for k, v in d.items()}
-                                      for cache, d in cache_metric_results.items()}
+                                            for k, v in d.items()}
+                                    for cache, d in cache_metric_results.items()}
             cache_transfers_per_cl['L1']['accesses'].unit = 'LOAD/CL'
 
             # Select appropriate bandwidth
@@ -456,14 +462,14 @@ class Benchmark(PerformanceModel):
                 'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
-                           total_cachelines * cl_size /
-                           self.machine['memory hierarchy'][1]['upstream throughput'][0]),
+                        total_cachelines * cl_size /
+                        self.machine['memory hierarchy'][1]['upstream throughput'][0]),
                 'T_L2L3': ((cache_metric_results['L2']['misses'] +
                             cache_metric_results['L2']['evicts']) /
-                           total_cachelines * cl_size /
-                           self.machine['memory hierarchy'][2]['upstream throughput'][0]),
+                        total_cachelines * cl_size /
+                        self.machine['memory hierarchy'][2]['upstream throughput'][0]),
                 'T_L3MEM': ((cache_metric_results['L3']['misses'] +
-                             cache_metric_results['L3']['evicts']) *
+                            cache_metric_results['L3']['evicts']) *
                             float(self.machine['cacheline size']) /
                             total_cachelines / mem_bw *
                             float(self.machine['clock']))
