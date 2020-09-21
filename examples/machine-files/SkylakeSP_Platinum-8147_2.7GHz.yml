@@ -119,7 +119,6 @@ memory hierarchy:
   transfers overlap: false
   cores per group: 24
   threads per group: 48
-  penalty cycles per read stream: 0
 benchmarks:
   kernels:
     copy:

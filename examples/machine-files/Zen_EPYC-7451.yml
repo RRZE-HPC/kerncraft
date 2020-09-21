@@ -101,7 +101,6 @@ memory hierarchy:
   level: MEM
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
-  penalty cycles per read stream: 0
   size per group:
   threads per group: 48
 

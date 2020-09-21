@@ -87,7 +87,6 @@ memory hierarchy:
   cores per group: 14
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
-  penalty cycles per read stream: 0
   size per group:
   threads per group: 28
 
