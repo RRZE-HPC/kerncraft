@@ -13,6 +13,7 @@ from collections import OrderedDict, defaultdict
 import io
 from hashlib import md5
 from os.path import expanduser
+from itertools import chain
 
 from distutils.spawn import find_executable
 from osaca import osaca
@@ -227,6 +228,15 @@ class AArch64(ISA):
 
         # Build metric
         return (vector_ctr, arithmetic_ctr, instruction_ctr)
+    
+    @staticmethod
+    def normalize_to_register_str(register):
+        if register is None:
+            return None
+        prefix = register.prefix
+        if prefix in 'wx':
+            prefix = 'x'
+        return prefix + register.name
 
     @staticmethod
     def get_pointer_increment(block):
@@ -234,16 +244,40 @@ class AArch64(ISA):
         increments = {}
         mem_references = []
         stores_only = False
+
+        # build list of modified registers in block
+        modified_registers = []
+        for dests in [l.semantic_operands.destination for l in block if 'semantic_operands' in l]:
+            for d in dests:
+                if 'register' in d:
+                    modified_registers.append(AArch64.normalize_to_register_str(d.register))
+        for src_dst in [l.semantic_operands.src_dst for l in block if 'semantic_operands' in l]:
+            for d in src_dst:
+                if 'memory' in d:
+                    if 'post_indexed' in d.memory or 'pre_indexed' in d.memory:
+                        modified_registers.append(AArch64.normalize_to_register_str(d.memory.base))
+                        inc = 1
+                        if 'post_indexed' in d.memory and 'value' in d.memory.post_indexed:
+                            inc = int(d.memory.post_indexed.value)
+                        if 'pre_indexed' in d.memory:
+                            inc = int(d.memory.offset.value)
+                        increments[AArch64.normalize_to_register_str(d.memory.base)] = inc
+        
         for line in block:
             # Skip non-instruction lines (such as comments and labels)
             if line.instruction is None:
                 continue
 
-            # Extract destination references
-            dst_mem_references = [op.memory for op in line.semantic_operands.destination
+            # Extract destination references (stores)
+            dst_mem_references = [op.memory for op in chain(line.semantic_operands.destination,
+                                                            line.semantic_operands.src_dst)
                                   if 'memory' in op]
-            # if any store was found, only stores are considered
-            if dst_mem_references:
+            # if any store was found, with register listed in modified_registers,
+            # consider only stores from here on
+            if dst_mem_references and any(
+                    [AArch64.normalize_to_register_str(dst.base) in modified_registers or
+                     AArch64.normalize_to_register_str(dst.index) in modified_registers
+                     for dst in dst_mem_references]):
                 if not stores_only:
                     stores_only = True
                     mem_references = []
@@ -258,13 +292,13 @@ class AArch64(ISA):
             if re.match(r'^add[s]?$', line.instruction) and \
                     line.operands[0] == line.operands[1] and \
                     'immediate' in line.operands[2]:
-                increments[line.operands[0].register.prefix + line.operands[0].register.name] = \
+                increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
                     int(line.operands[2].immediate.value)
             # SUB dest_reg, src_reg, immd
             elif re.match(r'^sub[s]?$', line.instruction) and \
                     line.operands[0] == line.operands[1] and \
                     'immediate' in line.operands[2]:
-                increments[line.operands[0].register.prefix + line.operands[0].register.name] = \
+                increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
                     -int(line.operands[2].immediate.value)
 
         # deduce loop increment from memory index register
@@ -273,10 +307,10 @@ class AArch64(ISA):
         if mem_references:
             for mref in mem_references:
                 # Assume base to be scaled
-                base_reg = mref.base.prefix + mref.base.name
+                base_reg = AArch64.normalize_to_register_str(mref.base)
                 if mref.index is not None:
                     # If index register is used, check which is incremented
-                    index_reg = mref.index.prefix + mref.index.name
+                    index_reg = AArch64.normalize_to_register_str(mref.index)
                     if index_reg in increments:
                         reg = index_reg
                         # If index is used, a scale other than 1 needs to be considered
@@ -286,14 +320,10 @@ class AArch64(ISA):
                         reg = base_reg
                 else:
                     reg = base_reg
-                address_registers.append(reg)
+                # ignore all unmodiefed registers
+                if reg in modified_registers:
+                    address_registers.append(reg)
                 increment = None
-                # self incrementing load/store references, only considering this with constants
-                # this could also be registers and scaled registers
-                if 'pre_indexed' in mref and 'value' in mref.offset:
-                    increments[reg] = int(mref.offset.value)
-                elif 'post_indexed' in mref and 'value' in mref.post_indexed:
-                    increments[reg] = int(mref.post_indexed.value)
 
         pointer_increment = None  # default -> can not decide, let user choose
         if address_registers and all([reg in increments for reg in address_registers]):

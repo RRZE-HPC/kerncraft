@@ -129,10 +129,13 @@ class ECMData(PerformanceModel):
                 else:  # full-duplex
                     raise NotImplementedError(
                         "full-duplex mode is not (yet) supported for memory transfers.")
-                # add penalty cycles for each read stream
-                if 'penalty cycles per read stream' in cache_info:
+                # add penalty cycles
+                if 'penalty cycles per cacheline load' in cache_info:
+                    cycles += loads[cache_level] * \
+                              cache_info['penalty cycles per cacheline load']
+                if 'penalty cycles per cacheline store' in cache_info:
                     cycles += stores[cache_level] * \
-                              cache_info['penalty cycles per read stream']
+                              cache_info['penalty cycles per cacheline store']
 
                 self.results.update({
                     'memory bandwidth kernel': measurement_kernel,

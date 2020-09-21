@@ -762,7 +762,8 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
         memory_hierarchy[-1]['upstream throughput'] = [
             'full socket memory bandwidth',
             'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
-    memory_hierarchy[-1]['penalty cycles per read stream'] = 0
+    memory_hierarchy[-1]['penalty cycles per cacheline load'] = 0
+    memory_hierarchy[-1]['penalty cycles per cacheline store'] = 0
     memory_hierarchy[-1]['size per group'] = None
 
     return {'memory hierarchy': memory_hierarchy}
