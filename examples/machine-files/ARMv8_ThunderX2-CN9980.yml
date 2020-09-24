@@ -27,9 +27,9 @@ FLOPs per cycle:
     total: INFORMATION_REQUIRED}
 cacheline size: 64 B
 compiler: !!omap
-  - armclang: -O3 -march=armv8-a+simd -mcpu=thunderx2t99 -D_POSIX_C_SOURCE=200112L
-  - clang: -O3 -target aarch64-unknown-linux-gnu -D_POSIX_C_SOURCE=200112L
-  - gcc: -O3 -march=armv8.1-a
+  - armclang: -O3 -march=armv8-a+simd -mcpu=thunderx2t99 -D_POSIX_C_SOURCE=200112L -ffreestanding
+  - clang: -O3 -target aarch64-unknown-linux-gnu -D_POSIX_C_SOURCE=200112L -ffreestanding
+  - gcc: -O3 -march=armv8.1-a -ffreestanding
 
 non-overlapping model: 
   performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,

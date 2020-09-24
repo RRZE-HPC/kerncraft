@@ -20,9 +20,9 @@ FLOPs per cycle:
   SP: {ADD: 32, FMA: 64, MUL: 32, total: 32}
 
 compiler: !!omap
-- icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high
-- clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L -fopenmp
-- gcc: -O3 -march=skylake-avx512 -fopenmp
+- icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high -ffreestanding -nolib-inline
+- clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
+- gcc: -O3 -march=skylake-avx512 -fopenmp -ffreestanding
 
 non-overlapping model:
   ports:

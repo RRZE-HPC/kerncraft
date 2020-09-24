@@ -30,9 +30,9 @@ in-core model: !!omap
   - LLVM-MCA: -mcpu=skylake-avx512
 isa: x86
 compiler: !!omap
-- icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high
-- clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp
-- gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+- icc: -O3 -fno-alias -xCORE-AVX512 -qopenmp -qopt-zmm-usage=high -ffreestanding -nolib-inline
+- clang: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -ffreestanding
+- gcc: -O3 -march=skylake-avx512 -D_POSIX_C_SOURCE=200809L -fopenmp -lm -ffreestanding
 cacheline size: 64 B
 overlapping model:
   ports: 

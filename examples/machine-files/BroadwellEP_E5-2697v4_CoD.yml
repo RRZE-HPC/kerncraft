@@ -17,10 +17,10 @@ in-core model: !!omap
 isa: x86
 
 compiler: !!omap
-- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
-- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
-- gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200809L
-    -fopenmp -lm
+- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp -ffreestanding -nolib-inline
+- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp -ffreestanding
+- gcc: -O3 -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200809L
+    -fopenmp -lm -ffreestanding
 
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}

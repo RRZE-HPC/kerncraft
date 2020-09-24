@@ -20,9 +20,9 @@ FLOPs per cycle:
   DP: {total: 8, ADD: 4, MUL: 4}
 
 compiler: !!omap
-- icc: -O3 -xAVX -fno-alias -qopenmp
-- clang: -O3 -march=corei7-avx -mtune=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp
-- gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+- icc: -O3 -xAVX -fno-alias -qopenmp -ffreestanding -nolib-inline
+- clang: -O3 -march=corei7-avx -mtune=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp -ffreestanding
+- gcc: -O3 -march=corei7-avx -D_POSIX_C_SOURCE=200809L -fopenmp -lm -ffreestanding
 
 overlapping model:
   ports: 

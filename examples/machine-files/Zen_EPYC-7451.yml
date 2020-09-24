@@ -19,9 +19,9 @@ FLOPs per cycle:
   SP: {ADD: 8, FMA: 8, MUL: 8, total: 16}
 
 compiler: !!omap
-- clang: -O3 -march=znver1 -D_POSIX_C_SOURCE=200112L -fopenmp
-- gcc: -O3 -march=znver1 -fopenmp
-- icc: -O3 -xHost -fno-alias -qopenmp
+- clang: -O3 -march=znver1 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
+- gcc: -O3 -march=znver1 -fopenmp -ffreestanding
+- icc: -O3 -xHost -fno-alias -qopenmp -ffreestanding -nolib-inline
 
 non-overlapping model:
   performance counter metric: INFORAMTION_REQUIRED T_L3 + T_MEM, TODO
