@@ -109,7 +109,8 @@ class x86(ISA):
                             register_class_usage[prefix].append(op.register.name)
 
             # Identify and count packed and avx instructions
-            if re.match(r"^[v]?(mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]", line.instruction):
+            if re.match(r"^[v]?(movu|mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]",
+                    line.instruction):
                 if line.instruction.startswith('v'):
                     avx_instruction_ctr += 1
                 packed_instruction_ctr += 1
