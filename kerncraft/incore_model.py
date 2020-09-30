@@ -133,9 +133,10 @@ class x86(ISA):
             if line.instruction is None:
                 continue
 
-            # Extract destination references
+            # Extract destination references, ignoring var(%rip)
             dst_mem_references = [op.memory for op in line.semantic_operands.destination
-                                  if 'memory' in op]
+                                  if 'memory' in op and
+                                  (op.memory.base is None or op.memory.base.name != 'rip')]
             if dst_mem_references:
                 if not stores_only:
                     stores_only = True

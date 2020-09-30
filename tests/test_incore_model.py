@@ -57,7 +57,29 @@ class TestIncoreModelX86(unittest.TestCase):
                 subq	$-128, %rcx
                 cmpq	%rcx, %r15
                 jne	.L19
-            """, 128)
+            """, 128),
+            ("""
+            .L3:
+                vmovsd      (%rdi,%rax,8), %xmm0
+                vmulsd      (%rsi,%rax,8), %xmm0, %xmm0
+                movq        %rax, %rdx
+                incq        %rax
+                vaddsd      %xmm0, %xmm1, %xmm1
+                vmovsd      %xmm1, s(%rip)
+                cmpq        %rdx, %rcx
+                jne .L3
+            """, 8),
+            ("""
+            .L3:
+                vmovsd  (%rdi,%rax,8), %xmm0
+                vmulsd  (%rsi,%rax,8), %xmm0, %xmm0
+                movq    %rax, %rdx
+                incq    %rax
+                vaddsd  %xmm0, %xmm1, %xmm1
+                vmovsd  %xmm1, s(%rip)
+                cmpq    %rdx, %rcx
+                jne     .L3
+            """, 8),
         ]
         for code, correct_increment in test_cases:
             block_lines, pointer_increment = asm_instrumentation(StringIO(code))
