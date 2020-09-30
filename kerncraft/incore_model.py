@@ -147,12 +147,12 @@ class x86(ISA):
             if not stores_only:
                 mem_references += [op.memory for op in line.semantic_operands.source
                                    if 'memory' in op]
-            if re.match(r'^inc[bwlq]?$', line.instruction) and 'immediate' in line.operands[0]:
+            if re.match(r'^inc[bwlq]?$', line.instruction):
                 increments[line.operands[0].register.name] = 1
             elif re.match(r'^add[bwlq]?$', line.instruction) and 'immediate' in line.operands[0] \
                     and 'register' in line.operands[1]:
                 increments[line.operands[1].register.name] = int(line.operands[0].immediate.value)
-            elif re.match(r'^dec[bwlq]?$', line.instruction) and 'immediate' in line.operands[0]:
+            elif re.match(r'^dec[bwlq]?$', line.instruction):
                 increments[line.operands[0].register.name] = -1
             elif re.match(r'^sub[bwlq]?$', line.instruction) and 'immediate' in line.operands[0] \
                     and 'register' in line.operands[1]:
