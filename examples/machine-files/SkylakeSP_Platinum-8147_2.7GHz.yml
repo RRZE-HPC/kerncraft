@@ -13,6 +13,8 @@ cores per socket: 24
 threads per core: 2
 NUMA domains per socket: 1
 cores per NUMA domain: 24
+transparent hugepage: always
+
 clock: 2.7 GHz
 # special for supermuc. the CPU base clock is at 3.1 but it is currently reduced to 2.7 according to lscpu
 FLOPs per cycle:

@@ -9,6 +9,7 @@ cores per socket: 18
 threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 9
+transparent hugepage: always
 
 in-core model: !!omap
   - IACA: BDW

@@ -542,14 +542,15 @@ class MachineModel(object):
         """
         current_topology = get_machine_readouts()
         current_topology.update(get_memory_hierarchy())
+        same = True
         for k in ['model type', 'model name', 'sockets', 'cores per socket', 'threads per core',
-                  'NUMA domains per socket', 'cores per NUMA domain']:
+                  'NUMA domains per socket', 'cores per NUMA domain', 'transparent hugepage']:
             if current_topology[k] != self[k]:
                 if print_diff:
-                    print("Expected {!r} and found {!r} for key {}.".format(
+                    print("Expected {!r} and found {!r} for key {!r}.".format(
                         self[k], current_topology[k], k))
-                return False
-        return True
+                same = False
+        return same
 
     @staticmethod
     def parse_perfctr_event(perfctr):
@@ -687,11 +688,15 @@ def get_machine_readouts(cpuinfo_path: str='/proc/cpuinfo'):
                     get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topology)[0]),}
     readouts['NUMA domains per socket'] = int(
         get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topology)[0]) // readouts['sockets']
+    if readouts['NUMA domains per socket'] == 0:
+        readouts['NUMA domains per socket'] = 1
     readouts['cores per NUMA domain'] = \
         readouts['cores per socket'] // readouts['NUMA domains per socket']
     clock = get_cpu_frequency()
     if clock is not None:
         readouts['clock'] = PrefixedUnit(clock, "Hz")
+    with open('/sys/kernel/mm/transparent_hugepage/enabled') as f:
+        readouts['transparent hugepage'] = get_match_or_break(r'\[([a-z]+)\]', f.read())[0]
 
     return readouts
 

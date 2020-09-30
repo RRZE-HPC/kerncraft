@@ -9,6 +9,7 @@ threads per core: 2
 cores per socket: 14
 cores per NUMA domain: 14
 NUMA domains per socket: 1
+transparent hugepage: always
 
 compiler: !!omap
 - icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp -ffreestanding -nolib-inline

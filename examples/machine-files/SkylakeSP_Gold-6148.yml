@@ -14,6 +14,7 @@ cores per socket: 20
 threads per core: 2
 NUMA domains per socket: 1
 cores per NUMA domain: 20
+transparent hugepage: always
 
 in-core model: !!omap
   - IACA: SKX

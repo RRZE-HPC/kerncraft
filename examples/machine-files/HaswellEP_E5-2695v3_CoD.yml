@@ -8,6 +8,7 @@ cores per socket: 14
 threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 7
+transparent hugepage: always
 
 in-core model: !!omap
   - IACA: HSW

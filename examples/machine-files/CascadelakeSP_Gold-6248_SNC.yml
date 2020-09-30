@@ -8,6 +8,7 @@ cores per socket: 20
 threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 10
+transparent hugepage: always
 
 in-core model: !!omap
   - IACA: SKX  # IACA does not support anything newer than SKX, which is similar to CLX

@@ -8,6 +8,7 @@ cores per socket: 8
 threads per core: 2
 NUMA domains per socket: 1
 cores per NUMA domain: 8
+transparent hugepage: always
 
 in-core model: !!omap
   - IACA: SNB
@@ -29,14 +30,13 @@ overlapping model:
     IACA: ['0', 0DV, '1', '2', '3', '4', '5']
     OSACA: ['0', 0DV, '1', '2', '3', '4', '5']
     LLVM-MCA: [SBDivider, SBFPDivider, SBPort0, SBPort1, SBPort23, SBPort4, SBPort5]
-  performance counter metric: Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3],
+  performance counter metric: Max(UOPS_DISPATCHED_PORT_PORT_0:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_1:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])
 non-overlapping model:
   ports: 
     IACA: [2D, 3D]
     OSACA: [2D, 3D]
     LLVM-MCA: [SBPort23]
   performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
-    UOPS_DISPATCHED_PORT_PORT_4:PMC[0-3], UOPS_DISPATCHED_PORT_PORT_5:PMC[0-3])
 
 cacheline size: 64 B
 memory hierarchy:

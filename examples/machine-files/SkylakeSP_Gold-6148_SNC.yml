@@ -12,6 +12,8 @@ cores per socket: 20
 threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 10
+transparent hugepage: always
+
 clock: 2.4 GHz
 FLOPs per cycle:
   SP:

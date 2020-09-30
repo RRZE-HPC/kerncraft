@@ -8,6 +8,7 @@ cores per socket: 8
 threads per core: 2
 NUMA domains per socket: 1
 cores per NUMA domain: 8
+transparent hugepage: always
 
 in-core model: !!omap
   - OSACA: ZEN1

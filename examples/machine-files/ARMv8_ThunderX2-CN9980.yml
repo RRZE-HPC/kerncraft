@@ -15,6 +15,7 @@ cores per socket: 32
 threads per core: 1
 NUMA domains per socket: 1
 cores per NUMA domain: 32
+transparent hugepage: always
 
 in-core model: !!omap
   - OSACA: TX2
