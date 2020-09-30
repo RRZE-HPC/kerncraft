@@ -1295,17 +1295,33 @@ class KernelCode(Kernel):
     def _build_kernel_function_declaration(self, name='kernel'):
         """Build and return kernel function declaration"""
         array_declarations, array_dimensions = self._build_array_declarations(with_init=False)
+        scalar_declarations = self.get_scalar_declarations(pointer=True, suffix='_')
         const_declarations = self._build_const_declartions(with_init=False)
         return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations +
+                                                          scalar_declarations +
                                                           const_declarations),
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
                                                   type=c_ast.IdentifierType(names=['void'])))
 
-    def get_scalar_declarations(self):
-        """Get all scalar declarations."""
-        return [d for d in self.kernel_ast.block_items
-                if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+    def get_scalar_declarations(self, pointer=False, suffix=''):
+        """
+        Give list of scalars used in code.
+        
+        optionatlly with added suffix and converted to pointers
+        """
+        decls = [d for d in self.kernel_ast.block_items
+                 if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+        for i, d in enumerate(decls):
+            if suffix or pointer:
+                d = deepcopy(d)
+                decls[i] = d
+            if suffix:
+                d.name += suffix
+                d.type.declname += suffix
+            if pointer:
+                d.type = c_ast.PtrDecl(quals=[], type=d.type)
+        return decls
 
     def _build_scalar_extern_declarations(self):
         """Build and return scalar variable declarations, with extern attribute."""
@@ -1317,16 +1333,18 @@ class KernelCode(Kernel):
     def _build_scalar_initializations(self):
         """Build and return scalar variable initialization."""
         random.seed(2342)  # we want reproducible random numbers
-        scalar_inits = []
-        for d in self.get_scalar_declarations():
-            if d.type.type.names[0] in ['double', 'float']:
+        scalar_inits = self.get_scalar_declarations(pointer=True)
+        for d in self.get_scalar_declarations(pointer=True):
+            if d.type.type.type.names[0] in ['double', 'float']:
                 init_const = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
-            elif d.type.type.names[0] in ['int', 'long', 'long long',
+            elif d.type.type.type.names[0] in ['int', 'long', 'long long',
                                           'unsigned int', 'unsigned long', 'unsigned long long']:
                     init_const = c_ast.Constant('int', 2)
-
+            
             scalar_inits.append(c_ast.Assignment(
-                '=', c_ast.ID(d.name), init_const))
+                op='=',
+                lvalue=c_ast.UnaryOp(op='*', expr=c_ast.ID(name=d.name)),
+                rvalue=init_const))
 
         return scalar_inits
 
@@ -1347,9 +1365,8 @@ class KernelCode(Kernel):
         else:  # lock_mode == fcntl.LOCK_EX
             # needs update
             func_decl = self._build_kernel_function_declaration(name=name)
-            scalar_decls = self.get_scalar_declarations()
             code = CGenerator().visit(
-                c_ast.FileAST(ext=[func_decl]+scalar_decls))
+                c_ast.FileAST(ext=[func_decl]))
             with open(file_path, 'w') as f:
                 f.write(code)
             self.release_exclusive_lock(lock_fp)  # degrade to shared lock
@@ -1388,6 +1405,16 @@ class KernelCode(Kernel):
             for aref in find_node_type(kernel, c_ast.ArrayRef):
                 # transform to 1d references
                 transform_multidim_to_1d_ref(aref, array_dimensions)
+            # Declar scalars and copy from (and to) pointer
+            scalar_decl_init = []
+            scalar_copy_back = []
+            for sd in deepcopy(self.get_scalar_declarations()):
+                ptr = c_ast.UnaryOp(op='*', expr=c_ast.ID(name=sd.name + '_'))
+                sd.init = ptr
+                scalar_decl_init.append(sd)
+                scalar_copy_back.append(c_ast.Assignment(
+                    op='=', lvalue=ptr, rvalue=c_ast.ID(name=sd.name)))
+            kernel = scalar_decl_init + kernel + scalar_copy_back
 
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
@@ -1417,6 +1444,7 @@ class KernelCode(Kernel):
         """Generate and return kernel call ast."""
         return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=(
             [c_ast.ID(name=d.name) for d in self._build_array_declarations()[0]] +
+            [c_ast.ID(name=d.name) for d in self.get_scalar_declarations()] +
             [c_ast.ID(name=d.name) for d in self._build_const_declartions()])))
 
     CODE_TEMPLATE = textwrap.dedent("""
@@ -1433,8 +1461,8 @@ class KernelCode(Kernel):
           DECLARE_CONSTS;
           // Declaring arrays
           DECLARE_ARRAYS;
-          // Initializing scalars
-          INIT_SCALARS;
+          // Declaring and initializing scalars
+          DECLARE_INIT_SCALARS;
 
           likwid_markerInit();
           #pragma omp parallel
@@ -1500,7 +1528,7 @@ class KernelCode(Kernel):
             replace_id(ast, "DECLARE_ARRAYS", array_declarations)
 
             # Define and replace DECLARE_INIT_SCALARS
-            replace_id(ast, "INIT_SCALARS", self._build_scalar_initializations())
+            replace_id(ast, "DECLARE_INIT_SCALARS", self._build_scalar_initializations())
 
             # Define and replace DUMMY_CALLS
             replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
@@ -1508,7 +1536,7 @@ class KernelCode(Kernel):
             # Define and insert kernel declaration at top
             #ast.ext.insert(0, self._build_kernel_function_declaration(
             #    name=kernel_function_name))
-            ast.ext[:0] = self._build_scalar_extern_declarations()
+            #ast.ext[:0] = self._build_scalar_extern_declarations()
 
             # Define and replace KERNEL_CALL
             replace_id(ast, "KERNEL_CALL", self._build_kernel_call())
