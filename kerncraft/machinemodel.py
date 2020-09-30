@@ -866,12 +866,24 @@ def main():
     parser.add_argument('--no-benchmarks', dest='benchmarks', action='store_false')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true')
     parser.add_argument('--no-overwrite', dest='overwrite', action='store_false')
-    parser.add_argument('output_file', metavar='FILE', type=argparse.FileType('w'),
+    parser.add_argument('--compare-host', action='store_true',
+                        help='Compares machine file (require --machine) with current hosts and '
+                              'reports if system differs in a configuration.')
+    parser.add_argument('output_file', metavar='FILE', type=argparse.FileType('w'), default='-',
                         help='File to save new machine description to.')
 
     parser.set_defaults(readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True)
 
     args = parser.parse_args()
+
+    if args.compare_host:
+        if not args.machine:
+            raise argparse.ArgumentError("--compare-host requires --machine")
+        m = MachineModel(args.machine.name)
+        if m.current_system(print_diff=True):
+            sys.exit(0)
+        else:
+            sys.exit(1)
 
     if args.machine:
         m = MachineModel(args.machine.name, args=args)
