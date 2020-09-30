@@ -806,7 +806,13 @@ class KernelCode(Kernel):
         # 1. Open lockfile (create and write)
         lock_fp = open(lock_filename, 'w')
         # 2. Acquire SH lock (blocking)
-        fcntl.flock(lock_fp, fcntl.LOCK_SH)
+        try:
+            fcntl.flock(lock_fp, fcntl.LOCK_SH)
+        except OSError:
+            print("WARNING: locking does not work on this filesystem! Assuming exclusive access! "
+                  "THIS MAY BREAK IF MULTIPLE KERNCRAFT INSTANCES RUN IN PARALLEL!",
+                  file=sys.stderr)
+            return (fcntl.LOCK_EX, lock_fp)
         # 3. Check existence and freshness
         if self._check_freshness(file_path):
             # -> READ MODE
@@ -823,6 +829,19 @@ class KernelCode(Kernel):
             return (fcntl.LOCK_SH, lock_fp)
         # else: -> WRITE MODE
         return (fcntl.LOCK_EX, lock_fp)
+
+    def release_exclusive_lock(self, lock_fd):
+        """
+        Release exclusive lock and degrade to shared lock.
+
+        Shared lock is released by closing the file descriptor.
+        """
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_SH)
+        except OSError:
+            print("WARNING: locking does not work on this filesystem! Assuming exclusive access! "
+                  "THIS MAY BREAK IN SHARED USE!",
+                  file=sys.stderr)
 
     def _strip_comments(self, code):
         clean_code = []
@@ -1333,7 +1352,7 @@ class KernelCode(Kernel):
                 c_ast.FileAST(ext=[func_decl]+scalar_decls))
             with open(file_path, 'w') as f:
                 f.write(code)
-            fcntl.flock(lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+            self.release_exclusive_lock(lock_fp)  # degrade to shared lock
 
         return file_name, lock_fp
 
@@ -1390,7 +1409,7 @@ class KernelCode(Kernel):
             # Store to file
             with open(file_path, 'w') as f:
                 f.write(code)
-            fcntl.flock(lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+            self.release_exclusive_lock(lock_fp)  # degrade to shared lock
 
         return file_path, lock_fp
 
@@ -1507,7 +1526,7 @@ class KernelCode(Kernel):
             # Store to file
             with open(file_path, 'w') as f:
                 f.write(code)
-            fcntl.flock(lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+            self.release_exclusive_lock(lock_fp)  # degrade to shared lock
 
         return file_path, lock_fp
 
@@ -1541,7 +1560,7 @@ class KernelCode(Kernel):
             try:
                 # Assemble all to a binary
                 subprocess.check_output(cmd)
-                fcntl.flock(lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+                self.release_exclusive_lock(lock_fp)  # degrade to shared lock
             except subprocess.CalledProcessError as e:
                 print("Assembly failed:", e, file=sys.stderr)
                 sys.exit(1)
@@ -1608,7 +1627,7 @@ class KernelCode(Kernel):
                     f.truncate()
             # FIXME TODO FIXME TODO FIXME TODO
 
-            fcntl.flock(out_lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+            self.release_exclusive_lock(out_lock_fp)  # degrade to shared lock
 
         return out_filename, out_lock_fp
 
@@ -1664,7 +1683,7 @@ class KernelCode(Kernel):
                     pointer_increment=pointer_increment,
                     isa=self._machine['isa'])
             asm_lock_fp.close()
-            fcntl.flock(marked_lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+            self.release_exclusive_lock(marked_lock_fp)  # degrade to shared lock
 
         if model == 'OSACA':
             analysis = incore_model.osaca_analyse_instrumented_assembly(
@@ -1740,7 +1759,7 @@ class KernelCode(Kernel):
                 subprocess.check_output(cmd)
                 main_lock_fp.close()
                 kernel_obj_lock_fp.close()
-                fcntl.flock(out_lock_fp, fcntl.LOCK_SH)  # degrade to shared lock
+                self.release_exclusive_lock(out_lock_fp)  # degrade to shared lock
             except subprocess.CalledProcessError as e:
                 print("Build failed:", e, file=sys.stderr)
                 sys.exit(1)
