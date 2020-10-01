@@ -36,6 +36,42 @@ from . import incore_model
 from .pycparser_utils import clean_code, replace_id
 
 
+class LessParanthesizingCGenerator(CGenerator):
+    def get_BinaryOp_precedence(self, n):
+        """
+        Gives precedence for op of n, otherwise -1.
+        
+        Lower number have precedence over higher numbers.
+        """
+        binary_op_precedence = {
+            # based on https://en.cppreference.com/w/c/language/operator_precedence
+            '*': 3, '%': 3,
+            '-': 4, '+': 4,
+            '<<': 5, '>>': 5,
+            '<': 6, '<=': 6, '>': 6, '>=': 6,
+            '==': 7, '!=': 7,
+            '&': 8,
+            '^': 9,
+            '|': 10,
+            '&&': 11,
+            '||': 12
+        }
+        if not isinstance(n, c_ast.BinaryOp):
+            return -1
+        else:
+            return binary_op_precedence[n.op]
+
+    def visit_BinaryOp(self, n):
+        p = self.get_BinaryOp_precedence(n)
+        lval_str = self._parenthesize_if(n.left,
+                            lambda d: not self._is_simple_node(d) and 
+                                      self.get_BinaryOp_precedence(d) > p)
+        rval_str = self._parenthesize_if(n.right,
+                            lambda d: not self._is_simple_node(d) and
+                                      self.get_BinaryOp_precedence(d) >= p)
+        return '%s %s %s' % (lval_str, n.op, rval_str)
+    
+
 @contextmanager
 def set_recursionlimit(new_limit):
     old_limit = sys.getrecursionlimit()
@@ -1365,7 +1401,7 @@ class KernelCode(Kernel):
         else:  # lock_mode == fcntl.LOCK_EX
             # needs update
             func_decl = self._build_kernel_function_declaration(name=name)
-            code = CGenerator().visit(
+            code = LessParanthesizingCGenerator().visit(
                 c_ast.FileAST(ext=[func_decl]))
             with open(file_path, 'w') as f:
                 f.write(code)
@@ -1424,7 +1460,7 @@ class KernelCode(Kernel):
 
             # Generate code
             with set_recursionlimit(100000):
-                code = CGenerator().visit(function_ast)
+                code = LessParanthesizingCGenerator().visit(function_ast)
             
             if not openmp:
                 # remove all omp pragmas
@@ -1545,7 +1581,7 @@ class KernelCode(Kernel):
             replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions))
 
             # Generate code
-            code = CGenerator().visit(ast)
+            code = LessParanthesizingCGenerator().visit(ast)
 
             # Insert missing #includes from template to top of code
             code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
