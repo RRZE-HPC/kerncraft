@@ -1369,18 +1369,14 @@ class KernelCode(Kernel):
     def _build_scalar_initializations(self):
         """Build and return scalar variable initialization."""
         random.seed(2342)  # we want reproducible random numbers
-        scalar_inits = self.get_scalar_declarations(pointer=True)
-        for d in self.get_scalar_declarations(pointer=True):
-            if d.type.type.type.names[0] in ['double', 'float']:
-                init_const = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
-            elif d.type.type.type.names[0] in ['int', 'long', 'long long',
+        scalar_inits = []
+        for d in deepcopy(self.get_scalar_declarations()):
+            if d.type.type.names[0] in ['double', 'float']:
+                d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
+            elif d.type.type.names[0] in ['int', 'long', 'long long',
                                           'unsigned int', 'unsigned long', 'unsigned long long']:
-                    init_const = c_ast.Constant('int', 2)
-            
-            scalar_inits.append(c_ast.Assignment(
-                op='=',
-                lvalue=c_ast.UnaryOp(op='*', expr=c_ast.ID(name=d.name)),
-                rvalue=init_const))
+                d.init = c_ast.Constant('int', 2)
+            scalar_inits.append(d)
 
         return scalar_inits
 
@@ -1480,7 +1476,8 @@ class KernelCode(Kernel):
         """Generate and return kernel call ast."""
         return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=(
             [c_ast.ID(name=d.name) for d in self._build_array_declarations()[0]] +
-            [c_ast.ID(name=d.name) for d in self.get_scalar_declarations()] +
+            [c_ast.UnaryOp(op='&', expr=c_ast.ID(name=d.name))
+             for d in self.get_scalar_declarations()] +
             [c_ast.ID(name=d.name) for d in self._build_const_declartions()])))
 
     CODE_TEMPLATE = textwrap.dedent("""
@@ -1528,6 +1525,7 @@ class KernelCode(Kernel):
             likwid_markerStopRegion("loop");
           }
           likwid_markerClose();
+          return 0;
         }
         """)
 
