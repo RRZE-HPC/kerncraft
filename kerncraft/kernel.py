@@ -840,7 +840,7 @@ class KernelCode(Kernel):
         """
         lock_filename = file_path + '.lock'
         # 1. Open lockfile (create and write)
-        lock_fp = open(lock_filename, 'w')
+        lock_fp = open(lock_filename, 'w+')
         # 2. Acquire SH lock (blocking)
         try:
             fcntl.flock(lock_fp, fcntl.LOCK_SH)
