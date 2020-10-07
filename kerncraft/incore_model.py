@@ -74,7 +74,6 @@ class ISA:
 
         for label, block in list(blocks.items())[1:]:
             metric = cls.compute_block_metric(block)
-            print(label, metric)  # DONOTCOMMIT
             if best_metric < metric:
                 best_block_label = label
                 best_metric = metric
@@ -272,24 +271,32 @@ class AArch64(ISA):
             if line.instruction is None:
                 continue
 
-            # Extract destination references (stores)
-            dst_mem_references = [op.memory for op in chain(line.semantic_operands.destination,
-                                                            line.semantic_operands.src_dst)
-                                  if 'memory' in op]
-            # if any store was found, with register listed in modified_registers,
+            # Extract and filter destination references (stores)
+            dst_mem_references = []
+            for dst in [op.memory for op in chain(line.semantic_operands.destination,
+                                                  [])  # line.semantic_operands.src_dst)
+                        # ignoring src_dst here, because it includes loads with increments
+                        if 'memory' in op]:
+                # base or index must be a modified (i.e., changing) register
+                if AArch64.normalize_to_register_str(dst.base) not in modified_registers and \
+                    AArch64.normalize_to_register_str(dst.index) not in modified_registers:
+                    continue
+
+                # offset operands with identifiers (e.g. `:lo12:gosa`) are ignored
+                if dst.offset is not None and 'identifier' in dst.offset:
+                    continue
+
+                dst_mem_references.append(dst)
             # consider only stores from here on
-            if dst_mem_references and any(
-                    [AArch64.normalize_to_register_str(dst.base) in modified_registers or
-                     AArch64.normalize_to_register_str(dst.index) in modified_registers
-                     for dst in dst_mem_references]):
-                if not stores_only:
-                    stores_only = True
-                    mem_references = []
-                mem_references += dst_mem_references
+            if dst_mem_references and not stores_only:
+                stores_only = True
+                mem_references = []
+            mem_references += dst_mem_references
 
             # If no destination references were found sofar, include source references (loads)
             if not stores_only:
-                mem_references += [op.memory for op in line.semantic_operands.source
+                mem_references += [op.memory for op in chain(line.semantic_operands.source,
+                                                             line.semantic_operands.src_dst)
                                    if 'memory' in op]
 
             # ADD dest_reg, src_reg, immd
@@ -305,29 +312,40 @@ class AArch64(ISA):
                 increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
                     -int(line.operands[2].immediate.value)
 
+        # Second pass to find lsl instructions on increments
+        for line in block:
+            if line.instruction is None:
+                continue
+            # LSL dest_reg, src_reg, immd
+            if re.match(r'^lsl$', line.instruction) and \
+                    'immediate' in line.operands[2] and \
+                    AArch64.normalize_to_register_str(line.operands[1].register) in increments:
+                increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
+                    increments[AArch64.normalize_to_register_str(line.operands[1].register)] * \
+                    2**int(line.operands[2].immediate.value)
+
         # deduce loop increment from memory index register
         address_registers = []
         scales = defaultdict(lambda: 1)
-        if mem_references:
-            for mref in mem_references:
-                # Assume base to be scaled
-                base_reg = AArch64.normalize_to_register_str(mref.base)
-                if mref.index is not None:
-                    # If index register is used, check which is incremented
-                    index_reg = AArch64.normalize_to_register_str(mref.index)
-                    if index_reg in increments:
-                        reg = index_reg
-                        # If index is used, a scale other than 1 needs to be considered
-                        if 'shift' in mref.index:
-                            scales[reg] = 2**int(mref.index.shift.value)
-                    elif base_reg in increments:
-                        reg = base_reg
+        for mref in mem_references:
+            # Assume base to be scaled
+            base_reg = AArch64.normalize_to_register_str(mref.base)
+            if mref.index is not None:
+                # If index register is used, check which is incremented
+                index_reg = AArch64.normalize_to_register_str(mref.index)
+                if index_reg in increments:
+                    reg = index_reg
+                    # If index is used, a scale other than 1 needs to be considered
+                    if 'shift' in mref.index:
+                        scales[reg] = 2**int(mref.index.shift.value)
                 else:
                     reg = base_reg
-                # ignore all unmodiefed registers
-                if reg in modified_registers:
-                    address_registers.append(reg)
-                increment = None
+            else:
+                reg = base_reg
+            # ignore all unmodiefed registers
+            if reg in modified_registers:
+                address_registers.append(reg)
+            increment = None
 
         pointer_increment = None  # default -> can not decide, let user choose
         if address_registers and all([reg in increments for reg in address_registers]):
@@ -338,6 +356,7 @@ class AArch64(ISA):
         # Check cache as last resort
         if pointer_increment is None:
             pointer_increment = find_increment_in_cache(block)
+
         return pointer_increment
 
 
@@ -481,7 +500,8 @@ def asm_instrumentation(input_file, output_file=None,
         if pointer_increment == 'auto':
             pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
             if pointer_increment is None:
-                os.unlink(output_file.name)
+                if output_file is not None:
+                    os.unlink(output_file.name)
                 raise RuntimeError("pointer_increment could not be detected automatically. Use "
                                    "--pointer-increment to set manually to byte offset of store "
                                    "pointer address between consecutive assembly block iterations. "

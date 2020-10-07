@@ -340,6 +340,8 @@ class MachineModel(object):
 
             # Run actual benchmarks and safe machine file in between
             for mem_level in sorted(list(benchmarks['measurements'].keys())):
+                if verbose > 1:
+                    print('Running for {}'.format(mem_level), file=sys.stderr)
                 for threads_per_core in sorted(list(benchmarks['measurements'][mem_level].keys())):
                     measurement = benchmarks['measurements'][mem_level][threads_per_core]
                     if overwrite or kernel not in measurement['results'] or \
@@ -892,9 +894,12 @@ def main():
 
     m.set_path(args.output_file.name)
 
-    m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
-             benchmarks=args.benchmarks, overwrite=args.overwrite)
-
+    try:
+        m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
+                 benchmarks=args.benchmarks, overwrite=args.overwrite)
+    except KeyboardInterrupt:
+        print("Incomplete machine file was written. Continue by providing it via -m argument.")
+    
     m.dump()
 
 

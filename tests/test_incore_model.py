@@ -167,8 +167,8 @@ class TestIncoreModelX86(unittest.TestCase):
                 add     x4, x4, 4
                 bgt     .L5
             """, 4),
-            #("""
-            #.LBB0_6:                                //   Parent Loop BB0_2 Depth=1
+            # ("""
+            # .LBB0_6:                                //   Parent Loop BB0_2 Depth=1
             #    //     Parent Loop BB0_4 Depth=2
             #    // =>    This Inner Loop Header: Depth=3
             #    mov     x11, x22
@@ -264,9 +264,9 @@ class TestIncoreModelX86(unittest.TestCase):
             #    mov     x0, x18
             #    str     s0, [x30, x21]
             #    b.ne    .LBB0_6
-            #""", 4),
-            #("""
-            #.LBB0_10:                               //   Parent Loop BB0_2 Depth=1
+            # """, 4),
+            # ("""
+            # .LBB0_10:                               //   Parent Loop BB0_2 Depth=1
             #    //     Parent Loop BB0_4 Depth=2
             #    // =>    This Inner Loop Header: Depth=3
             #    ldr     x8, [sp, #520]          // 8-byte Folded Reload
@@ -442,10 +442,10 @@ class TestIncoreModelX86(unittest.TestCase):
             #    fadd    s0, s1, s0
             #    str     s0, [x27, #4]
             #    cmp     x13, x2
-            #    b.ne    .LBB0_1
-            #""", 8),
-            #("""
-            #.LBB0_7:                                //   Parent Loop BB0_2 Depth=1
+            #    b.ne    .LBB0_10
+            # """, 8),
+            # ("""
+            # .LBB0_7:                                //   Parent Loop BB0_2 Depth=1
             #    //     Parent Loop BB0_4 Depth=2
             #    // =>    This Inner Loop Header: Depth=3
             #    str     x13, [sp, #632]         // 8-byte Folded Spill
@@ -519,7 +519,7 @@ class TestIncoreModelX86(unittest.TestCase):
             #    ldur    d7, [x25, #-8]
             #    ldur    d18, [x22, #-8]
             #    ldr     d1, [x29, :lo12:c3]
-            #            add     x21, x1, x30
+            #    add     x21, x1, x30
             #    add     x28, x16, x30
             #    fadd    d7, d18, d7
             #    fmul    d3, d1, d6
@@ -679,7 +679,7 @@ class TestIncoreModelX86(unittest.TestCase):
             #    str     d0, [x26, #8]
             #    cmp     x19, x18
             #    b.ne    .LBB0_7
-            #""", 16),
+            # """, 16),
             ("""
             .LBB0_2:                                // =>This Inner Loop Header: Depth=1
                 ldr     d1, [x0], #8
@@ -768,10 +768,84 @@ class TestIncoreModelX86(unittest.TestCase):
                 add     x4, x4, 4
                 bgt     .L5
             """, 4),
+            ("""
+            .L4:
+                ldp     d20, d0, [x1, 16]
+                ldp     d3, d2, [x1, 32]
+                ldr     d1, [x19, x0, lsl 3]
+                ldr     d6, [x21, x0, lsl 3]
+                fadd    d2, d2, d0
+                ldr     d5, [x18, x0, lsl 3]
+                ldr     d0, [x5, x0, lsl 3]
+                fadd    d6, d6, d1
+                fmul    d1, d3, d19
+                ldp     d4, d21, [x1, 48]
+                fmul    d2, d2, d18
+                fadd    d5, d5, d0
+                ldr     d23, [x9, x0, lsl 3]
+                fmul    d6, d6, d18
+                ldr     d0, [x16, x0, lsl 3]
+                fadd    d4, d4, d20
+                ldr     d22, [x17, x0, lsl 3]
+                fadd    d2, d2, d1
+                ldr     d1, [x7, x0, lsl 3]
+                fmul    d5, d5, d18
+                ldr     d20, [x1, 8]
+                fadd    d22, d22, d0
+                ldr     d0, [x15, x0, lsl 3]
+                fadd    d1, d23, d1
+                fmul    d4, d4, d17
+                fadd    d2, d2, d6
+                fadd    d21, d21, d20
+                ldr     d6, [x14, x0, lsl 3]
+                fadd    d3, d3, d3
+                fmul    d22, d22, d17
+                ldr     d20, [x8, x0, lsl 3]
+                fmul    d23, d1, d17
+                ldr     d24, [x10, x0, lsl 3]
+                fadd    d1, d2, d5
+                fadd    d0, d0, d6
+                fmul    d21, d21, d16
+                ldr     d5, [x11, x0, lsl 3]
+                ldr     d6, [x1, 64]
+                ldr     d2, [x1], 8
+                fadd    d1, d1, d4
+                fadd    d20, d20, d5
+                fmul    d0, d0, d16
+                ldr     d5, [x13, x0, lsl 3]
+                fadd    d6, d6, d2
+                ldr     d2, [x3, x0, lsl 3]
+                ldr     d4, [x12, x0, lsl 3]
+                fadd    d1, d1, d22
+                fmul    d20, d20, d16
+                fadd    d5, d5, d2
+                ldr     d2, [x2, x0, lsl 3]
+                fmul    d6, d6, d7
+                fadd    d4, d4, d24
+                ldr     d22, [x6, x0, lsl 3]
+                fadd    d1, d1, d23
+                fsub    d2, d3, d2
+                fmul    d5, d5, d7
+                fmul    d3, d4, d7
+                fadd    d1, d1, d21
+                fadd    d0, d1, d0
+                fadd    d0, d0, d20
+                fadd    d0, d0, d6
+                fadd    d0, d0, d5
+                fadd    d0, d0, d3
+                fmul    d1, d0, d22
+                fadd    d1, d2, d1
+                str     d1, [x2, x0, lsl 3]
+                add     x0, x0, 1
+                cmp     w20, w0
+                bgt     .L4
+            """, 8)
         ]
         for code, correct_increment in test_cases:
-            block_lines, pointer_increment = asm_instrumentation(StringIO(code), isa='aarch64')
-            self.assertEqual(pointer_increment, correct_increment)
+            block_lines, pointer_increment = asm_instrumentation(
+                StringIO(code), isa='aarch64')  # , pointer_increment='auto')
+            self.assertEqual(pointer_increment, correct_increment,
+                             msg='\n'.join(code.split('\n')[:10]))
 
 
 if __name__ == '__main__':
