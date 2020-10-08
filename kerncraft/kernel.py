@@ -1437,16 +1437,18 @@ class KernelCode(Kernel):
             for aref in find_node_type(kernel, c_ast.ArrayRef):
                 # transform to 1d references
                 transform_multidim_to_1d_ref(aref, array_dimensions)
-            # Declar scalars and copy from (and to) pointer
-            scalar_decl_init = []
+            # Declar scalars, initialize and copy from (and to) pointer
+            scalar_decl = []
+            scalar_init = []
             scalar_copy_back = []
             for sd in deepcopy(self.get_scalar_declarations()):
+                sd.storage = ['static']
+                scalar_decl.append(sd)
+                s_id = c_ast.ID(name=sd.name)
                 ptr = c_ast.UnaryOp(op='*', expr=c_ast.ID(name=sd.name + '_'))
-                sd.init = ptr
-                scalar_decl_init.append(sd)
-                scalar_copy_back.append(c_ast.Assignment(
-                    op='=', lvalue=ptr, rvalue=c_ast.ID(name=sd.name)))
-            kernel = scalar_decl_init + kernel + scalar_copy_back
+                scalar_init.append(c_ast.Assignment(op='=', lvalue=s_id, rvalue=ptr))
+                scalar_copy_back.append(c_ast.Assignment(op='=', lvalue=ptr, rvalue=s_id))
+            kernel = scalar_decl + scalar_init + kernel + scalar_copy_back
 
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
@@ -1461,9 +1463,6 @@ class KernelCode(Kernel):
             if not openmp:
                 # remove all omp pragmas
                 code = re.sub('#pragma omp[^\n]*\n', '', code)
-
-            # Insert missing #includes from template to top of code
-            code = '#include "kerncraft.h"\n#include "kernel.h"\n\n' + code
 
             # Store to file
             with open(file_path, 'w') as f:
