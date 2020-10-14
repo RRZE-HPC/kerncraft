@@ -254,8 +254,8 @@ class AArch64(ISA):
             for d in dests:
                 if 'register' in d:
                     modified_registers.append(AArch64.normalize_to_register_str(d.register))
-        for src_dst in [l.semantic_operands.src_dst for l in block if 'semantic_operands' in l]:
-            for d in src_dst:
+        for l in block:
+            for d in l.operands:
                 if 'memory' in d:
                     if 'post_indexed' in d.memory or 'pre_indexed' in d.memory:
                         modified_registers.append(AArch64.normalize_to_register_str(d.memory.base))
@@ -274,8 +274,7 @@ class AArch64(ISA):
             # Extract and filter destination references (stores)
             dst_mem_references = []
             for dst in [op.memory for op in chain(line.semantic_operands.destination,
-                                                  [])  # line.semantic_operands.src_dst)
-                        # ignoring src_dst here, because it includes loads with increments
+                                                  line.semantic_operands.src_dst)
                         if 'memory' in op]:
                 # base or index must be a modified (i.e., changing) register
                 if AArch64.normalize_to_register_str(dst.base) not in modified_registers and \
@@ -323,6 +322,26 @@ class AArch64(ISA):
                 increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
                     increments[AArch64.normalize_to_register_str(line.operands[1].register)] * \
                     2**int(line.operands[2].immediate.value)
+
+        # Third pass to find registers based on constant +- increment
+        for line in block:
+            if line.instruction is None:
+                continue
+            # ADD|SUB dest_reg, const_reg, increment_reg (source registers may be switched)
+            m = re.match(r'^(add|sub)[s]?$', line.instruction)
+            if m:
+                if m.group(1) == 'add':
+                    factor = 1
+                else:
+                    factor = -1
+                if 'register' not in line.operands[1] or 'register' not in line.operands[2]:
+                    continue
+                for i,j in [(1,2), (2,1)]:
+                    reg_i_name = AArch64.normalize_to_register_str(line.operands[i].register)
+                    reg_j_name = AArch64.normalize_to_register_str(line.operands[j].register)
+                    if reg_i_name in increments and reg_j_name not in modified_registers:
+                        increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
+                            factor * increments[reg_i_name]
 
         # deduce loop increment from memory index register
         address_registers = []

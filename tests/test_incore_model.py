@@ -839,11 +839,66 @@ class TestIncoreModelX86(unittest.TestCase):
                 add     x0, x0, 1
                 cmp     w20, w0
                 bgt     .L4
-            """, 8)
+            """, 8),
+            ("""
+                .LBB0_7:                                //   Parent Loop BB0_9 Depth=1
+                // =>  This Inner Loop Header: Depth=2
+                add x8, x24, x17
+                ldur        q3, [x8, #8]
+                ldp q4, q5, [x8]
+                ldur        q2, [x24, #8]
+                add x6, x24, x18
+                ldur        q6, [x6, #8]
+                fadd        v3.2d, v3.2d, v4.2d
+                fadd        v3.2d, v3.2d, v5.2d
+                fadd        v2.2d, v3.2d, v2.2d
+                fadd        v2.2d, v2.2d, v6.2d
+                fmul        v2.2d, v2.2d, v1.2d
+                subs        x25, x25, #2            // =2
+                str q2, [x26], #16
+                add x24, x24, #16           // =16
+                b.ne        .LBB0_7
+            """, 16),
+            ("""
+                .LBB0_8:                                //   Parent Loop BB0_10 Depth=1 
+                // =>  This Inner Loop Header: Depth=2
+                add     x13, x19, x25
+                add     x18, x0, x25
+                ldur    q0, [x13, #8]
+                ldr     q1, [x18]
+                ldr     q2, [x13]
+                add     x3, x16, x25
+                ldr     q3, [x3]
+                fadd    v0.2d, v0.2d, v1.2d
+                ldur    q1, [x18, #8]
+                fadd    v0.2d, v0.2d, v2.2d
+                ldur    q2, [x3, #8]
+                fadd    v0.2d, v0.2d, v3.2d
+                fadd    v0.2d, v0.2d, v1.2d
+                ldr     q1, [x18, #16]
+                fadd    v0.2d, v0.2d, v2.2d
+                ldr     q2, [x13, #16]
+                add     x13, x7, x25
+                fadd    v0.2d, v0.2d, v1.2d
+                ldr     q1, [x3, #16]
+                fadd    v0.2d, v0.2d, v2.2d
+                ldur    q2, [x13, #8]
+                add     x13, x6, x25
+                fadd    v0.2d, v0.2d, v1.2d
+                subs    x5, x5, #2              // =2
+                fmul    v0.2d, v2.2d, v0.2d
+                add     x25, x25, #16           // =16
+                stur    q0, [x13, #8]
+                b.ne    .LBB0_8
+            """, 16),
         ]
         for code, correct_increment in test_cases:
-            block_lines, pointer_increment = asm_instrumentation(
-                StringIO(code), isa='aarch64')  # , pointer_increment='auto')
+            try:
+                block_lines, pointer_increment = asm_instrumentation(
+                    StringIO(code), isa='aarch64', pointer_increment='auto')
+            except RuntimeError:
+                pointer_increment = None
+                print(code)
             self.assertEqual(pointer_increment, correct_increment,
                              msg='\n'.join(code.split('\n')[:10]))
 
