@@ -20,20 +20,21 @@ FLOPs per cycle:
   SP: {ADD: 8, FMA: 8, MUL: 8, total: 16}
 
 compiler: !!omap
-- clang: -O3 -march=znver1 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
-- gcc: -O3 -march=znver1 -fopenmp -ffreestanding
-- icc: -O3 -xHost -fno-alias -qopenmp -ffreestanding -nolib-inline
+  - clang: -O3 -march=znver1 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
+  - gcc: -O3 -march=znver1 -fopenmp -ffreestanding
+  - icc: -O3 -xAVX2 -fno-alias -qopenmp -ffreestanding -nolib-inline
 
 non-overlapping model:
   performance counter metric: INFORAMTION_REQUIRED T_L3 + T_MEM, TODO
   ports:
-    OSACA: ['8', '9']    # Not actually overlapping, but this is described in the memory hierarchy description. https://hpc.fau.de/files/2018/09/SC18-Poster-ECM_DRAFT.pdf
+    OSACA: ['8D', '9D']    # Not actually overlapping, but this is described in the memory hierarchy description. https://hpc.fau.de/files/2018/09/SC18-Poster-ECM_DRAFT.pdf
     LLVM-MCA: [ZnAGU0, ZnAGU1]
 overlapping model:
   performance counter metric: INFORAMTION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
     UOPS_DISPATCHED_PORT_PORT_1__PMC3, UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)
   ports:
-    OSACA: ['0', '1', '2', '3', 3DV, '4', '5', '6', '7']      # https://arxiv.org/pdf/1809.00912.pdf
+    # https://arxiv.org/pdf/1809.00912.pdf
+    OSACA: ['0', '1', '2', '3', 3DV, '4', '5', '6', '7', '8', '9']
     LLVM-MCA: [ZnAGU0, ZnAGU1, ZnALU0, ZnALU1, ZnALU2, ZnALU3, ZnDivider, ZnFPU0, ZnFPU1, ZnFPU2, ZnFPU3, ZnMultiplier]
 
 cacheline size: 64 B
