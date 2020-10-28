@@ -113,7 +113,7 @@ class MachineModel(object):
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'ADD': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED'}}),
-            ('ISA', 'INFORMATION_REQUIRED (e.g., x86, aarch64)'),
+            ('isa', 'INFORMATION_REQUIRED (e.g., x86, aarch64)'),
             ('in-core model', OrderedDict([
                 ('IACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
                 ('OSACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
