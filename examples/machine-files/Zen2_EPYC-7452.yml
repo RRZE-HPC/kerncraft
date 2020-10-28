@@ -1,7 +1,7 @@
 kerncraft version: 0.8.6.dev0
 model name: AMD EPYC 7452 32-Core Processor
 model type: AMD K17 (Zen2) architecture
-clock: 2.2 GHz
+clock: 2.35 GHz
 
 sockets: 1
 cores per socket: 32
