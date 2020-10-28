@@ -311,18 +311,22 @@ class AArch64(ISA):
                 increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
                     -int(line.operands[2].immediate.value)
 
+        # Remove any increments that are modiefed more than once
+        increments = {reg_name: inc for reg_name, inc in increments.items()
+                      if modified_registers.count(reg_name) == 1}
+
         # Second pass to find lsl instructions on increments
         for line in block:
             if line.instruction is None:
                 continue
             # LSL dest_reg, src_reg, immd
-            if re.match(r'^lsl$', line.instruction) and \
-                    'immediate' in line.operands[2] and \
+            if re.match(r'^lsl$', line.instruction) and 'immediate' in line.operands[2] and \
                     AArch64.normalize_to_register_str(line.operands[1].register) in increments:
                 increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
                     increments[AArch64.normalize_to_register_str(line.operands[1].register)] * \
                     2**int(line.operands[2].immediate.value)
 
+        new_increments = []
         # Third pass to find registers based on constant +- increment
         for line in block:
             if line.instruction is None:
@@ -340,8 +344,26 @@ class AArch64(ISA):
                     reg_i_name = AArch64.normalize_to_register_str(line.operands[i].register)
                     reg_j_name = AArch64.normalize_to_register_str(line.operands[j].register)
                     if reg_i_name in increments and reg_j_name not in modified_registers:
-                        increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
-                            factor * increments[reg_i_name]
+                        reg_dest_name = AArch64.normalize_to_register_str(line.operands[0].register)
+                        increments[reg_dest_name] = factor * increments[reg_i_name]
+                        new_increments.append(reg_dest_name)
+
+        # Remove any increments that are modiefed more than once
+        increments = {reg_name: inc for reg_name, inc in increments.items()
+                      if modified_registers.count(reg_name) == 1}
+
+        # Last pass to find lsl instructions on increments
+        for line in block:
+            if line.instruction is None:
+                continue
+            # LSL dest_reg, src_reg, immd
+            if re.match(r'^lsl$', line.instruction) and 'immediate' in line.operands[2] and \
+                    'register' in line.operands[1]:
+                src_reg_name = AArch64.normalize_to_register_str(line.operands[1].register)
+                if src_reg_name in new_increments and src_reg_name in increments:
+                    increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
+                        increments[src_reg_name] * \
+                        2**int(line.operands[2].immediate.value)
 
         # deduce loop increment from memory index register
         address_registers = []
