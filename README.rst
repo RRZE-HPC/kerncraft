@@ -13,8 +13,8 @@ apply performance models.
 
 For a detailed documentation see publications in `<doc/>`_.
 
-.. image:: https://travis-ci.org/RRZE-HPC/kerncraft.svg?branch=master
-    :target: https://travis-ci.org/RRZE-HPC/kerncraft?branch=master
+.. image:: https://travis-ci.com/RRZE-HPC/kerncraft.svg?branch=master
+    :target: https://travis-ci.com/github/RRZE-HPC/kerncraft?branch=master
 
 .. image:: https://codecov.io/github/RRZE-HPC/kerncraft/coverage.svg?branch=master
     :target: https://codecov.io/github/RRZE-HPC/kerncraft?branch=master
