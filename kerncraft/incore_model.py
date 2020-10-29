@@ -244,21 +244,21 @@ class AArch64(ISA):
     @staticmethod
     def get_pointer_increment(block):
         """Return pointer increment."""
-        increments = {}
+        increments = defaultdict(int)
         mem_references = []
         stores_only = False
 
-        # build list of modified registers in block
-        modified_registers = []
+        # build dict of modified registers in block with count of number of modifications
+        modified_registers = defaultdict(int)
         for dests in [l.semantic_operands.destination for l in block if 'semantic_operands' in l]:
             for d in dests:
                 if 'register' in d:
-                    modified_registers.append(AArch64.normalize_to_register_str(d.register))
+                    modified_registers[AArch64.normalize_to_register_str(d.register)] += 1
         for l in block:
             for d in l.operands:
                 if 'memory' in d:
                     if 'post_indexed' in d.memory or 'pre_indexed' in d.memory:
-                        modified_registers.append(AArch64.normalize_to_register_str(d.memory.base))
+                        modified_registers[AArch64.normalize_to_register_str(d.memory.base)] += 1
                         inc = 1
                         if 'post_indexed' in d.memory and 'value' in d.memory.post_indexed:
                             inc = int(d.memory.post_indexed.value)
@@ -302,18 +302,21 @@ class AArch64(ISA):
             if re.match(r'^add[s]?$', line.instruction) and \
                     line.operands[0] == line.operands[1] and \
                     'immediate' in line.operands[2]:
-                increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
-                    int(line.operands[2].immediate.value)
+                reg_name = AArch64.normalize_to_register_str(line.operands[0].register)
+                inc = int(line.operands[2].immediate.value)
+                increments[reg_name] = inc
             # SUB dest_reg, src_reg, immd
             elif re.match(r'^sub[s]?$', line.instruction) and \
                     line.operands[0] == line.operands[1] and \
                     'immediate' in line.operands[2]:
-                increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
-                    -int(line.operands[2].immediate.value)
+                reg_name = AArch64.normalize_to_register_str(line.operands[0].register)
+                inc = -int(line.operands[2].immediate.value)
+                if reg_name in increments and increments[reg_name] == inc:
+                    increments[reg_name] = inc
 
         # Remove any increments that are modiefed more than once
         increments = {reg_name: inc for reg_name, inc in increments.items()
-                      if modified_registers.count(reg_name) == 1}
+                      if modified_registers[reg_name] == 1}
 
         # Second pass to find lsl instructions on increments
         for line in block:
@@ -345,12 +348,15 @@ class AArch64(ISA):
                     reg_j_name = AArch64.normalize_to_register_str(line.operands[j].register)
                     if reg_i_name in increments and reg_j_name not in modified_registers:
                         reg_dest_name = AArch64.normalize_to_register_str(line.operands[0].register)
-                        increments[reg_dest_name] = factor * increments[reg_i_name]
+                        inc = factor * increments[reg_i_name]
+                        if reg_dest_name in increments and increments[reg_dest_name] == inc:
+                            modified_registers[reg_dest_name] -= 1
+                        increments[reg_dest_name] = inc
                         new_increments.append(reg_dest_name)
 
-        # Remove any increments that are modiefed more than once
+        # Remove any increments that are modified more often than updates have been detected
         increments = {reg_name: inc for reg_name, inc in increments.items()
-                      if modified_registers.count(reg_name) == 1}
+                      if modified_registers[reg_name] == 1}
 
         # Last pass to find lsl instructions on increments
         for line in block:
