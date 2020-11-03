@@ -8,9 +8,27 @@ from io import BytesIO
 import tempfile
 import shutil
 import platform
+from urllib.request import urlopen
 
-import requests
 
+url_dict = {
+    'v3.0': {
+        'mac': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-v3.0-mac.zip',
+        'lin64': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-v3.0-lin64.zip',
+    },
+    'v2.3': {
+        'mac': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-2.3-mac.zip',
+        'lin64': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-2.3-lin64.zip',
+    },
+    'v2.2': {
+        'mac': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-2.2-mac.zip',
+        'lin64': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-2.2-lin64.zip',
+    },
+    'v2.1': {
+        'mac': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-2.1-mac64.zip',
+        'lin64': 'https://software.intel.com/content/dam/develop/external/us/en/protected/iaca-version-2.1-lin64.zip',
+    }
+}
 
 class TemporaryDirectory:
     def __enter__(self):
@@ -29,7 +47,7 @@ def get_os():
     return os_map[system]
 
 
-def serach_path():
+def search_path():
     """Return potential locations of IACA installation."""
     operating_system = get_os()
     # 1st choice: in ~/.kerncraft/iaca-{}
@@ -42,7 +60,7 @@ def serach_path():
 def find_iaca():
     """Return (hopefully) valid installation of IACA."""
     requires = ['iaca2.2', 'iaca2.3', 'iaca3.0']
-    for path in serach_path():
+    for path in search_path():
         path += 'bin/'
         valid = True
         for r in requires:
@@ -52,7 +70,7 @@ def find_iaca():
         if valid:
             return path
     raise RuntimeError("No IACA installation found in {}. Run iaca_get command to fix this issue."
-                       "".format(serach_path()))
+                       "".format(search_path()))
 
 
 def main():
@@ -84,7 +102,7 @@ def main():
 
     # Locate and create IACA base directory, in reverse server order
     base_dir = None
-    for path in reversed(serach_path()):
+    for path in reversed(search_path()):
         print("Trying " + path + ": ", end='', file=sys.stderr)
         try:
             os.makedirs(path)
@@ -104,27 +122,14 @@ def main():
     else:
         print("selected.", file=sys.stderr)
 
-    URL = "https://software.intel.com/protected-download/267266/157552"
-
-    s = requests.Session()
-    r = s.get(URL)
-    response_data = {
-        'accept_license': 1,
-        'form_build_id': re.search(r'name="form_build_id" value="([^"]+)" />', r.text).group(1),
-        'form_id': 'intel_licensed_dls_step_1'}
-    download_list = s.post(URL, data=response_data).text
-
     print("IACA v2.1 (for manual use - only version analyzing latency):", file=sys.stderr)
     if operating_system == 'mac':
         operating_system_temp = 'mac64'
     else:
         operating_system_temp = operating_system
-    download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-' + operating_system_temp + '\.zip)"',
-        download_list).group(1)
-    print("Downloading", download_url, "...", file=sys.stderr)
-    r = s.get(download_url, stream=True)
-    zfile = zipfile.ZipFile(BytesIO(r.content))
+    url = url_dict['v2.1'][operating_system]
+    print("Downloading", url, "...", file=sys.stderr)
+    zfile = zipfile.ZipFile(BytesIO(urlopen(url).read()))
     members = [n
                for n in zfile.namelist()
                if '/.' not in n and n.startswith('iaca-{:}/'.format(operating_system_temp))]
@@ -156,12 +161,9 @@ def main():
     print("IACA v2.1 installed to", os.getcwd() + '/' + base_dir + 'v2.1', file=sys.stderr)
 
     print("IACA v2.2 (for NHM and WSM support):", file=sys.stderr)
-    download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-2.2-' + operating_system + '\.zip)"',
-        download_list).group(1)
-    print("Downloading", download_url, "...", file=sys.stderr)
-    r = s.get(download_url, stream=True)
-    zfile = zipfile.ZipFile(BytesIO(r.content))
+    url = url_dict['v2.2'][operating_system]
+    print("Downloading", url, "...", file=sys.stderr)
+    zfile = zipfile.ZipFile(BytesIO(urlopen(url).read()))
     members = [n
                for n in zfile.namelist()
                if '/.' not in n and n.startswith('iaca-{:}/'.format(operating_system))]
@@ -193,13 +195,9 @@ def main():
     print("IACA v2.2 installed to", os.getcwd() + '/' + base_dir + 'v2.2', file=sys.stderr)
 
     print("IACA v2.3 (for SNB and IVY support):", file=sys.stderr)
-    download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-2.3-' + operating_system + '\.zip)"',
-        download_list).group(1)
-    print("Downloading", download_url, "...", file=sys.stderr)
-    r = s.get(download_url, stream=True)
-    print("Reading zip file...", file=sys.stderr)
-    zfile = zipfile.ZipFile(BytesIO(r.content))
+    url = url_dict['v2.3'][operating_system]
+    print("Downloading", url, "...", file=sys.stderr)
+    zfile = zipfile.ZipFile(BytesIO(urlopen(url).read()))
     members = [n
                for n in zfile.namelist()
                if '/.' not in n and n.startswith('iaca-{:}/'.format(operating_system))]
@@ -231,13 +229,9 @@ def main():
     print("IACA v2.3 installed to", os.getcwd() + '/' + base_dir + 'v2.3', file=sys.stderr)
 
     print("IACA v3.0 (for HSW, BDW, SKL and SKX support):", file=sys.stderr)
-    download_url = re.search(
-        r'"(https://software.intel.com/[^"]*iaca-version-v3.0-' + operating_system + '\.zip)"',
-        download_list).group(1)
-    print("Downloading...", download_url, "...", file=sys.stderr)
-    r = s.get(download_url, stream=True)
-    print("Reading zip file...", file=sys.stderr)
-    zfile = zipfile.ZipFile(BytesIO(r.content))
+    url = url_dict['v3.0'][operating_system]
+    print("Downloading", url, "...", file=sys.stderr)
+    zfile = zipfile.ZipFile(BytesIO(urlopen(url).read()))
     members = [n
                for n in zfile.namelist()
                if '/.' not in n and n.startswith('iaca-{:}/'.format(operating_system))]

@@ -2,12 +2,15 @@
 """Cache prediction interface classes are gathered in this module."""
 from itertools import chain
 from functools import cmp_to_key, reduce
+from copy import copy
+import fcntl
+import compress_pickle
 
 import sympy
-from sympy.logic.boolalg import BooleanTrue
+from sympy.logic.boolalg import BooleanTrue, BooleanFalse
 import numpy as np
 
-from kerncraft.kernel import symbol_pos_int
+from kerncraft.kernel import symbol_pos_int, KernelCode
 
 
 # From https://stackoverflow.com/a/17511341 by dlitz
@@ -217,6 +220,38 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
     return tuple(offsets), tuple(dimension_factors)
 
 
+def canonical_relational(rel):
+    """
+    Make relational canonical.
+
+    Positive integer on rhs.
+    Minimum integer factors on lhs.
+    """
+    if isinstance(rel, (BooleanTrue, BooleanFalse)):
+        # Nothing to do
+        return rel
+    rel = rel.canonical.simplify().expand()
+    lhs = rel.lhs
+    rhs = rel.rhs
+    rel_op = rel.rel_op
+
+    # Move integer from lhs to rhs
+    remainder = lhs.as_coeff_add()[0]
+    lhs -= remainder
+    rhs -= remainder
+
+    # Find common divider and divide
+    gcd = (lhs - rhs).factor().as_coeff_mul()[0]
+    if gcd != 1:
+        lhs /= max(gcd, -gcd)
+        rhs /= max(gcd, -gcd)
+
+    rel = sympy.relational.Relational(lhs, rhs, rel_op)
+    if rhs < 0:
+        rel = rel.reversedsign
+    return rel
+
+
 class CachePredictor(object):
     """
     Predictor class used to interface LayerCondition and CacheSimulation with model classes.
@@ -264,7 +299,37 @@ class LayerConditionPredictor(CachePredictor):
     def __init__(self, kernel, machine, cores=1, symbolic=False):
         """Initialize layer condition based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores=cores)
+        if isinstance(kernel, KernelCode):
+            # Make use of caching for symbolic LC representation:
+            file_name = 'LC_analysis.pickle.lzma'
+            file_path = kernel.get_intermediate_location(
+                file_name, machine_and_compiler_dependent=False, other_dependencies=[str(cores)])
+            lock_mode, lock_fp = kernel.lock_intermediate(file_path)
+            if lock_mode == fcntl.LOCK_SH:
+                # use cache
+                self.results = compress_pickle.load(file_path)
+                lock_fp.close()  # release lock
+            else:  # lock_mode == fcntl.LOCK_EX
+                # needs update
+                self.build_symbolic_LCs()
+                compress_pickle.dump(self.results, file_path)
+                lock_fp.close()  # release lock
+        else:
+            # No caching support without filename for kernel code
+            self.build_symbolic_LCs()
 
+        if not symbolic:
+            self.desymbolize()
+
+    def desymbolize(self):
+        """Evaluate LCs and remove symbols"""
+        for i, options in enumerate(self.results['cache']):
+            for o in options:
+                if self.kernel.subs_consts(o['condition']):
+                    self.results['cache'][i] = o
+                    break
+
+    def build_symbolic_LCs(self):
         # check that layer conditions can be applied on this kernel:
         # 1. All iterations may only have a step width of 1
         loop_stack = list(self.kernel.get_loop_stack())
@@ -314,7 +379,6 @@ class LayerConditionPredictor(CachePredictor):
         # 3. Indices may only increase with one
         inner_index = symbol_pos_int(loop_stack[-1]['index'])
         inner_increment = loop_stack[-1]['increment']
-        # TODO use a public interface, not self.kernel._*
         for aref in chain(chain(*self.kernel.sources.values()),
                           chain(*self.kernel.destinations.values())):
             if aref is None:
@@ -394,7 +458,7 @@ class LayerConditionPredictor(CachePredictor):
             options = []
             # Full caching
             options.append({
-                'condition': (c.size() > sum_array_sizes).simplify().expand(),
+                'condition': canonical_relational(c.size() > sum_array_sizes),
                 'hits': len(distances),
                 'misses': 0,
                 'evicts': 0,
@@ -416,7 +480,7 @@ class LayerConditionPredictor(CachePredictor):
                     tail*len([d for d in distances_bytes
                               if sympy_expr_abs_distance_key(d) >
                                  sympy_expr_abs_distance_key(tail)]))
-                condition = (cache_requirement <= c.size()).simplify().expand()
+                condition = canonical_relational(cache_requirement <= c.size())
 
                 hits = len(
                     [d for d in distances_bytes
@@ -432,6 +496,7 @@ class LayerConditionPredictor(CachePredictor):
                     'misses': misses,
                     'evicts': len(destinations),
                     'tail': tail})
+
                 # If we encountered a True condition, break to not include multiple such.
                 if isinstance(condition, BooleanTrue):
                     break
@@ -445,13 +510,8 @@ class LayerConditionPredictor(CachePredictor):
                     'tail': 0
                 })
 
-            if symbolic:
-                results['cache'].append(options)
-            else:
-                for o in options:
-                    if self.kernel.subs_consts(o['condition']):
-                        results['cache'].append(o)
-                        break
+            results['cache'].append(options)
+
         self.results = results
 
     def get_loads(self):
@@ -490,6 +550,32 @@ class CacheSimulationPredictor(CachePredictor):
     def __init__(self, kernel, machine, cores=1):
         """Initialize cache simulation based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores)
+        if isinstance(kernel, KernelCode):
+            # Make use of caching for symbolic LC representation:
+            file_name = 'CSIM_analysis.pickle.lzma'
+            file_path = kernel.get_intermediate_location(
+                file_name, machine_and_compiler_dependent=False,
+                other_dependencies=[str(cores)]+[str(t) for t in self.kernel.constants.items()])
+            lock_mode, lock_fp = kernel.lock_intermediate(file_path)
+            if lock_mode == fcntl.LOCK_SH:
+                # use cache
+                cache = compress_pickle.load(file_path)
+                lock_fp.close()  # release lock
+                self.first_dim_factor = cache['first_dim_factor']
+                self.stats = cache['stats']
+            else:  # lock_mode == fcntl.LOCK_EX
+                # needs update
+                self.simulate()
+                compress_pickle.dump(
+                    {'first_dim_factor': self.first_dim_factor, 'stats': self.stats},
+                    file_path)
+                lock_fp.close()  # release lock
+        else:
+            # No caching support without filename for kernel code
+            self.simulate()
+
+    def simulate(self):
+        """Execute simulation"""
         # Get the machine's cache model and simulator
         self.csim = self.machine.get_cachesim(self.cores)
 
@@ -621,110 +707,6 @@ class CacheSimulationPredictor(CachePredictor):
             return iteration - (diff // element_size) // inner_increment
         else:
             return iteration + (elements_per_cacheline - diff // element_size) // inner_increment
-
-    def __init__old(self, kernel, machine, cores=1):
-        """Initialize cache simulation based predictor from kernel and machine object."""
-        CachePredictor.__init__(self, kernel, machine, cores)
-        # Get the machine's cache model and simulator
-        csim = self.machine.get_cachesim(self.cores)
-
-        # FIXME handle multiple datatypes
-        element_size = self.kernel.datatypes_size[self.kernel.datatype]
-        cacheline_size = self.machine['cacheline size']
-        elements_per_cacheline = int(cacheline_size // element_size)
-
-        # Gathering some loop information:
-        inner_loop = list(self.kernel.get_loop_stack(subs_consts=True))[-1]
-        inner_index = symbol_pos_int(inner_loop['index'])
-        inner_increment = inner_loop['increment']  # Calculate the number of iterations for warm-up
-        max_cache_size = max(map(lambda c: c.size(), csim.levels(with_mem=False)))
-        max_array_size = max(self.kernel.array_sizes(in_bytes=True, subs_consts=True).values())
-
-        # Regular Initialization
-        warmup_indices = {
-            symbol_pos_int(l['index']): ((l['stop']-l['start'])//l['increment'])//3
-            for l in self.kernel.get_loop_stack(subs_consts=True)}
-        warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-        # Make sure we are not handeling gigabytes of data, but 1.5x the maximum cache size
-        while warmup_iteration_count * element_size > max_cache_size*1.5:
-            # Decreasing indices (starting from outer), until total size is small enough
-            for l in self.kernel.get_loop_stack():
-                index = symbol_pos_int(l['index'])
-                if warmup_indices[index] > l['start']:
-                    warmup_indices[index] -= 1
-                    # get offset in iterations and size that a change on this level provokes
-                    diff_iterations = (warmup_iteration_count -
-                                       self.kernel.indices_to_global_iterator(warmup_indices))
-                    diff_size = diff_iterations*element_size
-                    warmup_indices[index] = max(
-                        l['start'],
-                        (warmup_iteration_count - (max_cache_size*1.5) // element_size) // diff_size
-                    )
-                    break
-            warmup_iteration_count = self.kernel.indices_to_global_iterator(warmup_indices)
-
-        # Align iteration count with cachelines
-        # do this by aligning either writes (preferred) or reads
-        # Assumption: writes (and reads) increase linearly
-        o = self.kernel.compile_global_offsets(iteration=warmup_iteration_count)[0]
-        if len(o[1]):
-            # we have a write to work with:
-            first_offset = min(o[1])
-        else:
-            # we use reads
-            first_offset = min(o[0])
-
-        # Distance from cacheline boundary (in bytes)
-        diff = first_offset - \
-            (int(first_offset) >> csim.first_level.cl_bits << csim.first_level.cl_bits)
-        warmup_iteration_count -= (diff//element_size)//inner_increment
-        warmup_indices = self.kernel.global_iterator_to_indices(warmup_iteration_count)
-        offsets = self.kernel.compile_global_offsets(
-            iteration=range(0, warmup_iteration_count))
-
-        if max_array_size < 2*max_cache_size:
-            # Full caching possible, go through all itreration before actual initialization
-            offsets = np.concatenate((self.kernel.compile_global_offsets(
-                                         iteration=range(0, self.kernel.iteration_length())),
-                                      offsets))
-
-        # Do the warm-up
-        csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # Reset stats to conclude warm-up phase
-        csim.reset_stats()
-
-        # Benchmark iterations:
-        # Starting point is one past the last warmup element
-        bench_iteration_start = warmup_iteration_count
-        # End point is the end of the current dimension (cacheline alligned)
-        first_dim_factor = int((inner_loop['stop'] - warmup_indices[inner_index] - 1)
-                               // (elements_per_cacheline // inner_increment))
-        # If end point is less than one cacheline away, go beyond for 100 cachelines and
-        # warn user of potentially inaccurate results
-        if first_dim_factor == 0:
-            # TODO a nicer solution would be to do less warmup iterations to select a
-            # cacheline within a first dimension, if possible
-            print('Warning: (automatic) warmup vs benchmark iteration choice was not perfect '
-                  'and may lead to inaccurate cache miss predictions. This is most likely the '
-                  'result of too few inner loop iterations ({} from {} to {}).'.format(
-                      inner_loop['index'], inner_loop['start'], inner_loop['stop']
-                  ))
-            first_dim_factor = 100
-        bench_iteration_end = (bench_iteration_start +
-                               elements_per_cacheline * inner_increment * first_dim_factor)
-
-        # compile access needed for one cache-line
-        offsets = self.kernel.compile_global_offsets(
-            iteration=range(bench_iteration_start, bench_iteration_end))
-        # simulate
-        csim.loadstore(offsets, length=element_size)
-        # FIXME compile_global_offsets should already expand to element_size
-
-        # use stats to build results
-        self.stats = list(csim.stats())
-        self.first_dim_factor = first_dim_factor
 
     def get_loads(self):
         """Return a list with number of loaded cache lines per memory hierarchy level."""

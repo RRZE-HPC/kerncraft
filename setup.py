@@ -103,8 +103,9 @@ setup(
         'numpy',
         'requests',
         'pycparser>=2.19',
-        'osaca>=0.2.1,<0.3.0',
+        'osaca>=0.3.2.dev4',
         'psutil',
+        'compress_pickle',
     ],
     python_requires='>=3.5',
 
@@ -138,12 +139,13 @@ setup(
     entry_points={
         'console_scripts': [
             'kerncraft=kerncraft.kerncraft:main',
-            'iaca_marker=kerncraft.iaca:main',
+            'iaca_marker=kerncraft.incore_model:main',
             'likwid_bench_auto=kerncraft.machinemodel:main',
             'picklemerge=kerncraft.picklemerge:main',
             'cachetile=kerncraft.cachetile:main',
             'iaca_get=kerncraft.iaca_get:main',
             'kc-pheno=kerncraft.standalone_pheno:main'
         ],
-    }
+    },
+    scripts=['kerncraft/scripts/machine-state.sh'],
 )

@@ -18,6 +18,9 @@ from collections import defaultdict
 from itertools import chain
 import random
 import atexit
+import re
+from contextlib import contextmanager
+import fcntl
 
 from math import floor
 
@@ -25,13 +28,60 @@ import sympy
 from sympy.utilities.lambdify import implemented_function
 from sympy.parsing.sympy_parser import parse_expr
 import numpy
+import compress_pickle
 
 from pycparser import CParser, c_ast, plyparser
 from pycparser.c_generator import CGenerator
 
 from . import kerncraft
-from . import iaca
+from . import incore_model
 from .pycparser_utils import clean_code, replace_id
+
+
+class LessParanthesizingCGenerator(CGenerator):
+    def get_BinaryOp_precedence(self, n):
+        """
+        Gives precedence for op of n, otherwise -1.
+        
+        Lower number have precedence over higher numbers.
+        """
+        binary_op_precedence = {
+            # based on https://en.cppreference.com/w/c/language/operator_precedence
+            '*': 3, '%': 3,
+            '-': 4, '+': 4,
+            '<<': 5, '>>': 5,
+            '<': 6, '<=': 6, '>': 6, '>=': 6,
+            '==': 7, '!=': 7,
+            '&': 8,
+            '^': 9,
+            '|': 10,
+            '&&': 11,
+            '||': 12
+        }
+        if not isinstance(n, c_ast.BinaryOp):
+            return -1
+        else:
+            return binary_op_precedence[n.op]
+
+    def visit_BinaryOp(self, n):
+        p = self.get_BinaryOp_precedence(n)
+        lval_str = self._parenthesize_if(n.left,
+                            lambda d: not self._is_simple_node(d) and 
+                                      self.get_BinaryOp_precedence(d) > p)
+        rval_str = self._parenthesize_if(n.right,
+                            lambda d: not self._is_simple_node(d) and
+                                      self.get_BinaryOp_precedence(d) >= p)
+        return '%s %s %s' % (lval_str, n.op, rval_str)
+    
+
+@contextmanager
+def set_recursionlimit(new_limit):
+    old_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(new_limit)
+    try:
+        yield new_limit
+    finally:
+        sys.setrecursionlimit(old_limit)
 
 
 @lru_cache()
@@ -199,7 +249,10 @@ class Kernel(object):
     """Kernel information with functions to analyze and report access patterns."""
 
     # Datatype sizes in bytes
-    datatypes_size = {('double', '_Complex'): 16, ('double',): 8, ('float',): 4}
+    datatypes_size = {('double', '_Complex'): 16,
+                      ('float', '_Complex'): 8,
+                      ('double',): 8,
+                      ('float',): 4}
 
     def __init__(self, machine=None):
         """Create kernel representation."""
@@ -247,8 +300,8 @@ class Kernel(object):
         :param type_: may be any key from Kernel.datatypes_size (typically float or double)
         :param size: either None for scalars or an n-tuple of ints for an n-dimensional array
         """
-        assert type_ in self.datatypes_size, 'only float, double and double _Complex variables ' \
-                                             'are supported'
+        assert type_ in self.datatypes_size, 'only float, double, float _Complex and ' \
+                                             'double _Complex variables are supported'
         if self.datatype is None:
             self.datatype = type_
         else:
@@ -708,7 +761,7 @@ class KernelCode(Kernel):
         super(KernelCode, self).__init__(machine=machine)
 
         # Initialize state
-        self.asm_block = None
+        self.clear_state()
 
         self.kernel_code = kernel_code
         self._filename = filename
@@ -724,20 +777,16 @@ class KernelCode(Kernel):
         self._process_code()
 
         self.check()
-
-    def _get_intermediate_file(self, name, machine_and_compiler_dependent=True, binary=False,
-                               fp=True):
+    
+    def get_intermediate_location(
+            self, name, machine_and_compiler_dependent=True, other_dependencies=[]):
         """
-        Create or open intermediate file (may be used for caching).
+        Get a suitable and reproduceble file path string for intermediate files.
 
-        Will replace files older than kernel file, machine file or kerncraft version.
-
+        :param name: filename to use for caching
         :param machine_and_compiler_dependent: set to False if file content does not depend on
                                                machine file or compiler settings
-        :param fp: if False, will only return file name, not file object
-        :paarm binary: if True, use binary mode for file access
-
-        :return: (file object or file name, boolean if already existent and up-to-date)
+        :param other_dependencies: list of strings to use in path. slashes are stripped
         """
         if self._filename:
             base_name = os.path.join(os.path.dirname(self._filename),
@@ -747,13 +796,16 @@ class KernelCode(Kernel):
 
         if not self._keep_intermediates:
             # Remove directory and all content up on program exit
-            atexit.register(shutil.rmtree, base_name)
+            atexit.register(shutil.rmtree, base_name, ignore_errors=True)
 
         if machine_and_compiler_dependent:
             compiler, compiler_args = self._machine.get_compiler()
             compiler_args = '_'.join(compiler_args).replace('/', '')
             base_name += '/{}/{}/{}/'.format(
                 self._machine.get_identifier(), compiler, compiler_args)
+        
+        for i in other_dependencies:
+            base_name = os.path.join(base_name, str(i).replace('/', ''))
 
         # Create dirs recursively
         os.makedirs(base_name, exist_ok=True)
@@ -761,30 +813,73 @@ class KernelCode(Kernel):
         # Build actual file path
         file_path = os.path.join(base_name, name)
 
-        already_exists = False
+        return reduce_path(file_path)
 
-        # Check if file exists and is still fresh
+    def _check_freshness(self, file_path):
+        """Return True, if file_path exists and file is up-to-date."""
         if os.path.exists(file_path):
             file_modified = datetime.utcfromtimestamp(os.stat(file_path).st_mtime)
-            if (file_modified < self._machine.get_last_modified_datetime() or
-                file_modified < kerncraft.get_last_modified_datetime() or
-                (self._filename and
-                 file_modified < datetime.utcfromtimestamp(os.stat(self._filename).st_mtime))):
-                os.remove(file_path)
-            else:
-                already_exists = True
+            # Check if file is newer than machine file, kerncraft code and input kernel code
+            if (file_modified > self._machine.get_last_modified_datetime() and  # machine file
+                file_modified > kerncraft.get_last_modified_datetime() and  # kerncraft
+                file_modified > datetime.utcfromtimestamp(os.stat(self._filename).st_mtime)):
+                    return True
+        return False
 
-        if fp:
-            if already_exists:
-                mode = 'r+'
-            else:
-                mode = 'w'
-            if binary:
-                mode += 'b'
-            f = open(file_path, mode)
-            return f, already_exists
-        else:
-            return reduce_path(file_path), already_exists
+    def lock_intermediate(self, file_path):
+        """
+        Lock intermediate. Depending on state, readable or writable.
+
+        A sepeate file_path+'.lock' file is used. It is the callees responsibility to close the lock
+
+        :param file_path: path to baser lock file on.
+
+        :return: tuple: (acquired lock mode, lock file pointer)
+
+        lock modes are: fcntl.LOCK_SH, which means file_path is good for read-only access
+                        fcntl.LOCK_EX, which means file_path is good for write access and MUST be 
+                        create/updated.
+        """
+        lock_filename = file_path + '.lock'
+        # 1. Open lockfile (create and write)
+        lock_fp = open(lock_filename, 'w+')
+        # 2. Acquire SH lock (blocking)
+        try:
+            fcntl.flock(lock_fp, fcntl.LOCK_SH)
+        except OSError:
+            print("WARNING: locking does not work on this filesystem! Assuming exclusive access! "
+                  "THIS MAY BREAK IF MULTIPLE KERNCRAFT INSTANCES RUN IN PARALLEL!",
+                  file=sys.stderr)
+            return (fcntl.LOCK_EX, lock_fp)
+        # 3. Check existence and freshness
+        if self._check_freshness(file_path):
+            # -> READ MODE
+            return (fcntl.LOCK_SH, lock_fp)
+        # 4. Release SH lock (to allow other processes already awaiting an exclusive lock to enter)
+        fcntl.flock(lock_fp, fcntl.LOCK_UN)
+        # 5. Acquire EX lock (blocking)
+        fcntl.flock(lock_fp, fcntl.LOCK_EX)
+        # 6. Check if file is now fresh (things may have changed!)
+        if self._check_freshness(file_path):
+            # Acquire SH lock (this will replace EX lock in-place)
+            fcntl.flock(lock_fp, fcntl.LOCK_SH)
+            # -> READ MODE
+            return (fcntl.LOCK_SH, lock_fp)
+        # else: -> WRITE MODE
+        return (fcntl.LOCK_EX, lock_fp)
+
+    def release_exclusive_lock(self, lock_fd):
+        """
+        Release exclusive lock and degrade to shared lock.
+
+        Shared lock is released by closing the file descriptor.
+        """
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_SH)
+        except OSError:
+            print("WARNING: locking does not work on this filesystem! Assuming exclusive access! "
+                  "THIS MAY BREAK IN SHARED USE!",
+                  file=sys.stderr)
 
     def _strip_comments(self, code):
         clean_code = []
@@ -812,6 +907,7 @@ class KernelCode(Kernel):
         """Clear mutable internal states."""
         super(KernelCode, self).clear_state()
         self.asm_block = None
+        self.pointer_increment = None
 
     def _process_code(self):
         assert type(self.kernel_ast) is c_ast.Compound, "Kernel has to be a compound statement"
@@ -900,7 +996,7 @@ class KernelCode(Kernel):
         Return a tuple of offsets of an ArrayRef object in all dimensions.
 
         The index order is right to left (c-code order).
-        e.g. c[i+1][j-2] -> (-2, +1)
+        e.g. c[i+1][j-2] -> (j-2, i+1)
 
         If aref is actually a c_ast.ID, None will be returned.
         """
@@ -1133,10 +1229,22 @@ class KernelCode(Kernel):
                 if type(d) is c_ast.Decl and type(d.type) is c_ast.ArrayDecl]
 
     def get_kernel_loop_nest(self):
-        """Return kernel loop nest including any preceding pragmas and following swaps."""
+        """
+        Return kernel loop nest, with openmp pragmas insert unless already present.
+        """
         loop_nest = [s for s in self.kernel_ast.block_items
                      if type(s) in [c_ast.For, c_ast.Pragma, c_ast.FuncCall]]
         assert len(loop_nest) >= 1, "Found to few for statements in kernel"
+
+        omp_pragmas = [p for p in find_node_type(loop_nest, c_ast.Pragma)
+                        if 'omp' in p.string]
+        # if omp pragmas were found: replace "parallel for" -> "for"
+        for op in omp_pragmas:
+            op.string = op.string.replace(' parallel', '')
+        # if no omp for pragmas are present, insert suitable one at start of outer loop
+        if not omp_pragmas:
+            loop_nest.insert(0, c_ast.Pragma("omp for"))
+
         return loop_nest
 
     def _build_array_declarations(self, with_init=True):
@@ -1176,7 +1284,8 @@ class KernelCode(Kernel):
 
         :return: list of nodes
         """
-        kernel = deepcopy(deepcopy(self.get_kernel_loop_nest()))
+        with set_recursionlimit(100000):
+            kernel = deepcopy(self.get_kernel_loop_nest())
         # traverse to the inner most for loop:
         inner_most = self._find_inner_most_loop(kernel)
         orig_inner_stmt = inner_most.stmt
@@ -1224,94 +1333,124 @@ class KernelCode(Kernel):
     def _build_kernel_function_declaration(self, name='kernel'):
         """Build and return kernel function declaration"""
         array_declarations, array_dimensions = self._build_array_declarations(with_init=False)
-        scalar_declarations = self._build_scalar_declarations(with_init=False, as_ptr=True)
+        scalar_declarations = self.get_scalar_declarations(pointer=True, suffix='_')
         const_declarations = self._build_const_declartions(with_init=False)
-        return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations + scalar_declarations +
+        return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations +
+                                                          scalar_declarations +
                                                           const_declarations),
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
                                                   type=c_ast.IdentifierType(names=['void'])))
-    
-    def get_scalar_declarations(self):
-        """Get all scalar declarations."""
-        return [d for d in self.kernel_ast.block_items
-                if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
 
-    def _build_scalar_declarations(self, with_init=True, as_ptr=False):
-        """Build and return scalar variable declarations"""
-        # copy scalar declarations from from kernel ast
+    def get_scalar_declarations(self, pointer=False, suffix=''):
+        """
+        Give list of scalars used in code.
+        
+        optionatlly with added suffix and converted to pointers
+        """
+        decls = [d for d in self.kernel_ast.block_items
+                 if type(d) is c_ast.Decl and type(d.type) is c_ast.TypeDecl]
+        for i, d in enumerate(decls):
+            if suffix or pointer:
+                d = deepcopy(d)
+                decls[i] = d
+            if suffix:
+                d.name += suffix
+                d.type.declname += suffix
+            if pointer:
+                d.type = c_ast.PtrDecl(quals=[], type=d.type)
+        return decls
+
+    def _build_scalar_extern_declarations(self):
+        """Build and return scalar variable declarations, with extern attribute."""
         scalar_declarations = deepcopy(self.get_scalar_declarations())
-        # add init values to declarations
-        if with_init:
-            random.seed(2342)  # we want reproducible random numbers
-            for d in scalar_declarations:
-                if d.type.type.names[0] in ['double', 'float']:
-                    d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
-                elif d.type.type.names[0] in ['int', 'long', 'long long', 'unsigned int',
-                                              'unsigned long', 'unsigned long long']:
-                    d.init = c_ast.Constant('int', 2)
-        # make declaration pointer types
-        if as_ptr:
-            for d in scalar_declarations:
-                d.type = c_ast.PtrDecl([], d.type)
-
+        for d in scalar_declarations:
+            d.storage = ['extern']
         return scalar_declarations
 
+    def _build_scalar_initializations(self):
+        """Build and return scalar variable initialization."""
+        random.seed(2342)  # we want reproducible random numbers
+        scalar_inits = []
+        for d in deepcopy(self.get_scalar_declarations()):
+            if d.type.type.names[0] in ['double', 'float']:
+                d.init = c_ast.Constant('float', str(random.uniform(1.0, 0.1)))
+            elif d.type.type.names[0] in ['int', 'long', 'long long',
+                                          'unsigned int', 'unsigned long', 'unsigned long long']:
+                d.init = c_ast.Constant('int', 2)
+            scalar_inits.append(d)
 
-    def get_kernel_code(self, openmp=False, as_filename=False, name='kernel'):
+        return scalar_inits
+
+    def get_kernel_header(self, name='kernel'):
+        """
+        Generate and store kernel.h
+
+        :return: tuple of filename of header and file pointer of lockfile
+        """
+        file_name = 'kernel.h'
+        file_path = self.get_intermediate_location(
+            file_name, machine_and_compiler_dependent=False)
+        lock_mode, lock_fp = self.lock_intermediate(file_path)
+        if lock_mode == fcntl.LOCK_SH:
+            # use cache
+            with open(file_path) as f:
+                code = f.read()
+        else:  # lock_mode == fcntl.LOCK_EX
+            # needs update
+            func_decl = self._build_kernel_function_declaration(name=name)
+            code = LessParanthesizingCGenerator().visit(
+                c_ast.FileAST(ext=[func_decl]))
+            with open(file_path, 'w') as f:
+                f.write(code)
+            self.release_exclusive_lock(lock_fp)  # degrade to shared lock
+
+        return file_name, lock_fp
+
+    def get_kernel_code(self, openmp=False, name='kernel'):
         """
         Generate and return compilable source code with kernel function from AST.
 
-        :param openmp: if true, OpenMP code will be generated
-        :param as_filename: if true, will save to file and return filename
+        :param openmp: include openmp paragmas (or strip them)
         :param name: name of kernel function
         """
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
-        file_name = 'kernel'
+        filename = 'kernel'
         if openmp:
-            file_name += '-omp'
-        file_name += '.c'
+            filename += '-omp'
+        filename += '.c'
+        file_path = self.get_intermediate_location(
+            filename, machine_and_compiler_dependent=False)
+        lock_mode, lock_fp = self.lock_intermediate(file_path)
 
-        fp, already_available = self._get_intermediate_file(
-            file_name, machine_and_compiler_dependent=False)
-
-        # Use already cached version
-        if already_available:
-            code = fp.read()
-        else:
+        if lock_mode == fcntl.LOCK_SH:
+            # use cache
+            with open(file_path) as f:
+                code = f.read()
+        else:  # lock_mode == fcntl.LOCK_EX
+            # needs update
             array_declarations, array_dimensions = self._build_array_declarations()
 
             # Prepare actual kernel loop nest
-            if openmp:
-                # with OpenMP code
+            with set_recursionlimit(100000):
                 kernel = deepcopy(self.get_kernel_loop_nest())
-                # find all array references in kernel
-                for aref in find_node_type(kernel, c_ast.ArrayRef):
-                    # transform to 1d references
-                    transform_multidim_to_1d_ref(aref, array_dimensions)
-                omp_pragmas = [p for p in find_node_type(kernel, c_ast.Pragma)
-                               if 'omp' in p.string]
-                # TODO if omp parallel was found, remove it (also replace "parallel for" -> "for")
-                # if no omp for pragmas are present, insert suitable ones
-                if not omp_pragmas:
-                    kernel.insert(0, c_ast.Pragma("omp for"))
-                # otherwise do not change anything
-            else:
-                # with original code
-                kernel = deepcopy(self.get_kernel_loop_nest())
-                # find all array references in kernel
-                for aref in find_node_type(kernel, c_ast.ArrayRef):
-                    # transform to 1d references
-                    transform_multidim_to_1d_ref(aref, array_dimensions)
-            
-            # Replace scalar variables in code with pointer references
-            scalar_names = [sclar.name for sclar in self.get_scalar_declarations()]
-            for scalar in find_node_type(kernel, c_ast.ID):
-                if scalar.name in scalar_names:
-                    # FIXME dirty work-around to not have to replace scalar 
-                    # (at original location) with c_ast.UnaryOp(op='*', expr=scalar)
-                    scalar.name = "*"+scalar.name
+            # find all array references in kernel
+            for aref in find_node_type(kernel, c_ast.ArrayRef):
+                # transform to 1d references
+                transform_multidim_to_1d_ref(aref, array_dimensions)
+            # Declar scalars, initialize and copy from (and to) pointer
+            scalar_decl = []
+            scalar_init = []
+            scalar_copy_back = []
+            for sd in deepcopy(self.get_scalar_declarations()):
+                sd.storage = ['static']
+                scalar_decl.append(sd)
+                s_id = c_ast.ID(name=sd.name)
+                ptr = c_ast.UnaryOp(op='*', expr=c_ast.ID(name=sd.name + '_'))
+                scalar_init.append(c_ast.Assignment(op='=', lvalue=s_id, rvalue=ptr))
+                scalar_copy_back.append(c_ast.Assignment(op='=', lvalue=ptr, rvalue=s_id))
+            kernel = scalar_decl + scalar_init + kernel + scalar_copy_back
 
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
@@ -1320,32 +1459,33 @@ class KernelCode(Kernel):
                 param_decls=None)
 
             # Generate code
-            code = CGenerator().visit(function_ast)
-
-            # Insert missing #includes from template to top of code
-            code = '#include "kerncraft.h"\n\n' + code
+            with set_recursionlimit(100000):
+                code = LessParanthesizingCGenerator().visit(function_ast)
+            
+            if not openmp:
+                # remove all omp pragmas
+                code = re.sub('#pragma omp[^\n]*\n', '', code)
 
             # Store to file
-            fp.write(code)
-        fp.close()
+            with open(file_path, 'w') as f:
+                f.write(code)
+            self.release_exclusive_lock(lock_fp)  # degrade to shared lock
 
-        if as_filename:
-            return fp.name
-        else:
-            return code
+        return file_path, lock_fp
 
     def _build_kernel_call(self, name='kernel'):
         """Generate and return kernel call ast."""
-        return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=[
-            c_ast.ID(name=d.name) for d in (
-                    self._build_array_declarations()[0] +
-                    self._build_scalar_declarations(as_ptr=True) +
-                    self._build_const_declartions())]))
+        return c_ast.FuncCall(name=c_ast.ID(name=name), args=c_ast.ExprList(exprs=(
+            [c_ast.ID(name=d.name) for d in self._build_array_declarations()[0]] +
+            [c_ast.UnaryOp(op='&', expr=c_ast.ID(name=d.name))
+             for d in self.get_scalar_declarations()] +
+            [c_ast.ID(name=d.name) for d in self._build_const_declartions()])))
 
     CODE_TEMPLATE = textwrap.dedent("""
         #include <likwid.h>
         #include <stdlib.h>
         #include "kerncraft.h"
+        #include "kernel.h"
 
         void dummy(void *);
         extern int var_false;
@@ -1365,7 +1505,6 @@ class KernelCode(Kernel):
             #pragma omp barrier
 
             // Initializing arrays in same order as touched in kernel loop nest
-            #pragma omp for
             INIT_ARRAYS;
 
             // Dummy call
@@ -1387,24 +1526,29 @@ class KernelCode(Kernel):
             likwid_markerStopRegion("loop");
           }
           likwid_markerClose();
+          return 0;
         }
         """)
 
-    def get_main_code(self, as_filename=False, kernel_function_name='kernel'):
+    def get_main_code(self, kernel_function_name='kernel'):
         """
         Generate and return compilable source code from AST.
+
+        :return: tuple of filename and shared lock file pointer
         """
         # TODO produce nicer code, including help text and other "comfort features".
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
 
-        fp, already_available = self._get_intermediate_file('main.c',
-                                                            machine_and_compiler_dependent=False)
+        file_path = self.get_intermediate_location('main.c', machine_and_compiler_dependent=False)
+        lock_mode, lock_fp = self.lock_intermediate(file_path)
 
-        # Use already cached version
-        if already_available:
-            code = fp.read()
-        else:
+        if lock_mode == fcntl.LOCK_SH:
+            # use cache
+            with open(file_path) as f:
+                code = f.read()
+        else:  # lock_mode == fcntl.LOCK_EX
+            # needs update
             parser = CParser()
             template_code = self.CODE_TEMPLATE
             template_ast = parser.parse(clean_code(template_code,
@@ -1419,14 +1563,15 @@ class KernelCode(Kernel):
             replace_id(ast, "DECLARE_ARRAYS", array_declarations)
 
             # Define and replace DECLARE_INIT_SCALARS
-            replace_id(ast, "DECLARE_INIT_SCALARS", self._build_scalar_declarations())
+            replace_id(ast, "DECLARE_INIT_SCALARS", self._build_scalar_initializations())
 
             # Define and replace DUMMY_CALLS
             replace_id(ast, "DUMMY_CALLS", self._build_dummy_calls())
 
-            # Define and replace KERNEL_DECL
-            ast.ext.insert(0, self._build_kernel_function_declaration(
-                name=kernel_function_name))
+            # Define and insert kernel declaration at top
+            #ast.ext.insert(0, self._build_kernel_function_declaration(
+            #    name=kernel_function_name))
+            #ast.ext[:0] = self._build_scalar_extern_declarations()
 
             # Define and replace KERNEL_CALL
             replace_id(ast, "KERNEL_CALL", self._build_kernel_call())
@@ -1435,124 +1580,119 @@ class KernelCode(Kernel):
             replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions))
 
             # Generate code
-            code = CGenerator().visit(ast)
+            code = LessParanthesizingCGenerator().visit(ast)
 
             # Insert missing #includes from template to top of code
             code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
                    '\n\n' + code
 
             # Store to file
-            fp.write(code)
-        fp.close()
+            with open(file_path, 'w') as f:
+                f.write(code)
+            self.release_exclusive_lock(lock_fp)  # degrade to shared lock
 
-        if as_filename:
-            return fp.name
-        else:
-            return code
+        return file_path, lock_fp
+
 
     def assemble_to_object(self, in_filename, verbose=False):
         """
         Assemble *in_filename* assembly into *out_filename* object.
 
-        If *iaca_marked* is set to true, markers are inserted around the block with most packed
-        instructions or (if no packed instr. were found) the largest block and modified file is
-        saved to *in_file*.
-
-        *asm_block* controls how the to-be-marked block is chosen. "auto" (default) results in
-        the largest block, "manual" results in interactive and a number in the according block.
-
-        *pointer_increment* is the number of bytes the pointer is incremented after the loop or
-           - 'auto': automatic detection, RuntimeError is raised in case of failure
-           - 'auto_with_manual_fallback': automatic detection, fallback to manual input
-           - 'manual': prompt user
-
-        Returns filename to temp binary file or out_filename.
+        Returns tuple of filename to binary file and shared lock file pointer
         """
         # Build file name
         file_base_name = os.path.splitext(os.path.basename(in_filename))[0]
-        out_filename, already_exists = self._get_intermediate_file(file_base_name + '.o',
-                                                                   binary=True,
-                                                                   fp=False)
-        if already_exists:
-            # Do not use caching, because pointer_increment or asm_block selection may be different
+        out_filename = self.get_intermediate_location(file_base_name + '.o')
+        lock_mode, lock_fp = self.lock_intermediate(out_filename)
+
+        if lock_mode == fcntl.LOCK_SH:
+            # use cached version
             pass
+        else:  # lock_mode == fcntl.LOCK_EX
+            # needs update
+            compiler, compiler_args = self._machine.get_compiler()
 
-        compiler, compiler_args = self._machine.get_compiler()
+            # Compile to object file
+            compiler_args.append('-c')
 
-        # Compile to object file
-        compiler_args.append('-c')
+            cmd = [compiler] + [in_filename] + compiler_args + ['-o', out_filename]
 
-        cmd = [compiler] + [
-            in_filename] + \
-              compiler_args + ['-o', out_filename]
+            if verbose:
+                print('Executing (assemble_to_object): ', ' '.join(cmd))
 
-        if verbose:
-            print('Executing (assemble_to_object): ', ' '.join(cmd))
+            try:
+                # Assemble all to a binary
+                subprocess.check_output(cmd)
+                self.release_exclusive_lock(lock_fp)  # degrade to shared lock
+            except subprocess.CalledProcessError as e:
+                print("Assembly failed:", e, file=sys.stderr)
+                sys.exit(1)
 
-        try:
-            # Assemble all to a binary
-            subprocess.check_output(cmd)
-        except subprocess.CalledProcessError as e:
-            print("Assembly failed:", e, file=sys.stderr)
-            sys.exit(1)
+        return out_filename, lock_fp
 
-        return out_filename
-
-    def compile_kernel(self, openmp=False, assembly=False, verbose=False):
+    def compile_kernel(self, assembly=False, openmp=False, verbose=False):
         """
         Compile source (from as_code(type_)) to assembly or object and return (fileptr, filename).
 
-        Output can be used with Kernel.assemble()
+        :return: tuple of filename of compiled kernel and shared lock file pointer
         """
         compiler, compiler_args = self._machine.get_compiler()
 
-        in_filename = self.get_kernel_code(openmp=openmp, as_filename=True)
-
+        filename = 'kernel'
+        if openmp:
+            filename += '-omp'
         if assembly:
             compiler_args += ['-S']
-            suffix = '.s'
+            filename += '.s'
         else:
-            suffix = '.o'
-        out_filename, already_exists = self._get_intermediate_file(
-            os.path.splitext(os.path.basename(in_filename))[0]+suffix, binary=not assembly, fp=False)
-        if already_exists:
+            filename += '.o'
+        out_filename = self.get_intermediate_location(filename)
+        lock_mode, out_lock_fp = self.lock_intermediate(out_filename)
+
+        if lock_mode == fcntl.LOCK_SH:
+            # use cached version
             if verbose:
                 print('Executing (compile_kernel): ', 'using cached', out_filename)
-            return out_filename
+        else:  # lock_mode == fcntl.LOCK_EX
+            # needs update
+            compiler_args += ['-std=c99']
 
-        compiler_args += ['-std=c99']
+            header_filename, header_lock_fp = self.get_kernel_header()
+            in_filename, in_lock_fp = self.get_kernel_code(openmp=openmp)
+            cmd = ([compiler] +
+                   [in_filename,
+                    '-c',
+                    '-I'+reduce_path(os.path.abspath(os.path.dirname(
+                        os.path.realpath(__file__)))+'/headers/'),
+                    '-o', out_filename] +
+                   compiler_args)
 
-        cmd = ([compiler] +
-               [in_filename,
-                '-c',
-                '-I'+reduce_path(os.path.abspath(os.path.dirname(
-                    os.path.realpath(__file__)))+'/headers/'),
-                '-o', out_filename] +
-               compiler_args)
+            if verbose:
+                print('Executing (compile_kernel): ', ' '.join(cmd))
 
-        if verbose:
-            print('Executing (compile_kernel): ', ' '.join(cmd))
+            try:
+                subprocess.check_output(cmd)
+                in_lock_fp.close()
+                header_lock_fp.close()
 
-        try:
-            subprocess.check_output(cmd)
+            except subprocess.CalledProcessError as e:
+                print("Compilation failed:", e, file=sys.stderr)
+                sys.exit(1)
 
-        except subprocess.CalledProcessError as e:
-            print("Compilation failed:", e, file=sys.stderr)
-            sys.exit(1)
+            # FIXME TODO FIXME TODO FIXME TODO
+            # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which 
+            # are invalid and should be kmovb):
+            if compiler == 'icc' and assembly:
+                with open(out_filename, 'r+') as f:
+                    assembly = f.read()
+                    f.seek(0)
+                    f.write(assembly.replace('vkmovb', 'kmovb'))
+                    f.truncate()
+            # FIXME TODO FIXME TODO FIXME TODO
 
-        # FIXME TODO FIXME TODO FIXME TODO
-        # Hacky workaround for icc issue (icc may issue vkmovb instructions with AVX512, which are
-        # invalid and should be kmovb):
-        if compiler == 'icc' and assembly:
-            with open(out_filename, 'r+') as f:
-                assembly = f.read()
-                f.seek(0)
-                f.write(assembly.replace('vkmovb', 'kmovb'))
-                f.truncate()
-        # FIXME TODO FIXME TODO FIXME TODO
+            self.release_exclusive_lock(out_lock_fp)  # degrade to shared lock
 
-        # Let's return the out_file name
-        return out_filename
+        return out_filename, out_lock_fp
 
 
     def incore_analysis(self, asm_block='auto', pointer_increment='auto_with_manual_fallback',
@@ -1570,42 +1710,79 @@ class KernelCode(Kernel):
                                    - 'manual': prompt user
         :param model: which model to use, "IACA", "OSACA" or "LLVM-MCA"
         """
-        asm_filename = self.compile_kernel(assembly=True, verbose=verbose)
-        asm_marked_filename = os.path.splitext(asm_filename)[0]+'-iaca.s'
-        with open(asm_filename, 'r') as in_file, open(asm_marked_filename, 'w') as out_file:
-            self.asm_block = iaca.iaca_instrumentation(
-                in_file, out_file,
-                block_selection=asm_block,
-                pointer_increment=pointer_increment)
-
         # Get model and parameter
-        if model is None:
-            model = next(iter(self._machine['in-core model']))
+        model = self._machine.get_incore_model(model)
         model_parameter = self._machine['in-core model'][model]
 
+        analysis_filename = self.get_intermediate_location('incore_analysis.pickle.lzma',
+            other_dependencies=[model, str(model_parameter)])
+        analysis_lock_mode, analysis_lock_fp = self.lock_intermediate(analysis_filename)
+        if analysis_lock_mode == fcntl.LOCK_SH:
+            # use cached analysis
+            analysis, self.pointer_increment = compress_pickle.load(analysis_filename)
+            analysis_lock_fp.close()  # release lock
+            return analysis, self.pointer_increment
+        
+        marked_filename = self.get_intermediate_location('kernel-marked.s',
+            other_dependencies=[asm_block, pointer_increment])
+        lock_mode, marked_lock_fp = self.lock_intermediate(marked_filename)
+        if lock_mode == fcntl.LOCK_SH:
+            # use cached maked assembly and extract asm_block and pointer_increment
+            with open(marked_filename) as f:
+                marked_asm = f.read()
+            m = re.search(r'pointer_increment=([0-9]+)', marked_asm)
+            if m:
+                self.pointer_increment = int(m.group(1))
+            else:
+                os.unlink(marked_filename)
+                print("Could not find `pointer_increment=<byte increment>`. Plase place into file.",
+                      file=sys.stderr)
+                sys.exit(1)
+        else:  # analysis_lock_mode == fcntl.LOCK_EX
+            # marked assembly needs update
+            asm_filename, asm_lock_fp = self.compile_kernel(assembly=True, verbose=verbose)
+            with open(asm_filename, 'r') as in_file, open(marked_filename, 'w') as out_file:
+                asm_block, self.pointer_increment = incore_model.asm_instrumentation(
+                    in_file, out_file,
+                    block_selection=asm_block,
+                    pointer_increment=pointer_increment,
+                    isa=self._machine['isa'])
+            asm_lock_fp.close()
+            self.release_exclusive_lock(marked_lock_fp)  # degrade to shared lock
+
         if model == 'OSACA':
-            return iaca.osaca_analyse_instrumented_assembly(
-                asm_marked_filename, model_parameter), self.asm_block
+            analysis = incore_model.osaca_analyse_instrumented_assembly(
+                marked_filename, model_parameter)
         elif model == 'LLVM-MCA':
-            return iaca.llvm_mca_analyse_instrumented_assembly(
-                asm_marked_filename, model_parameter), self.asm_block
+            analysis = incore_model.llvm_mca_analyse_instrumented_assembly(
+                marked_filename, model_parameter)
         elif model == 'IACA':
-            obj_name = self.assemble_to_object(asm_marked_filename, verbose=verbose)
-            return iaca.iaca_analyse_instrumented_binary(obj_name, model_parameter), self.asm_block
+            obj_name, obj_lock_fp = self.assemble_to_object(marked_filename, verbose=verbose)
+            analysis = incore_model.iaca_analyse_instrumented_binary(obj_name, model_parameter)
+            obj_lock_fp.close()
         else:
             raise ValueError("Unknown micro-architecture model: {!r}".format(model))
+        compress_pickle.dump((analysis, self.pointer_increment), analysis_filename)
+        analysis_lock_fp.close()
+        marked_lock_fp.close()
+        return analysis, self.pointer_increment
 
     def build_executable(self, lflags=None, verbose=False, openmp=False):
         """Compile source to executable with likwid capabilities and return the executable name."""
         compiler, compiler_args = self._machine.get_compiler()
 
-        kernel_obj_filename = self.compile_kernel(openmp=openmp, verbose=verbose)
-        out_filename, already_exists = self._get_intermediate_file(
-            os.path.splitext(os.path.basename(kernel_obj_filename))[0], binary=True, fp=False)
+        filename = 'kernel'
+        if openmp:
+            filename += '-omp'
+        out_filename = self.get_intermediate_location(filename)
+        lock_mode, out_lock_fp = self.lock_intermediate(out_filename)
 
-        if not already_exists:
-            main_source_filename = self.get_main_code(as_filename=True)
-
+        if lock_mode == fcntl.LOCK_SH:
+            # use cached version
+            if verbose:
+                print('Executing (build_executable): ', 'using cached', out_filename)
+        else:  # lock_mode == fcntl.LOCK_EX
+            # needs update
             if not (('LIKWID_INCLUDE' in os.environ or 'LIKWID_INC' in os.environ) and
                     'LIKWID_LIB' in os.environ):
                 print('Could not find LIKWID_INCLUDE (e.g., "-I/app/likwid/4.1.2/include") and '
@@ -1630,9 +1807,13 @@ class KernelCode(Kernel):
             lflags += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
             compiler_args += os.environ['LIKWID_LIB'].split(' ') + ['-pthread']
 
+            main_filename, main_lock_fp = self.get_main_code()
+            kernel_obj_filename, kernel_obj_lock_fp = self.compile_kernel(
+                openmp=openmp, verbose=verbose)
+
             infiles = [reduce_path(os.path.abspath(os.path.dirname(
                 os.path.realpath(__file__)))+'/headers/dummy.c'),
-                       kernel_obj_filename, main_source_filename]
+                       kernel_obj_filename, main_filename]
 
             cmd = [compiler] + infiles + compiler_args + ['-o', out_filename]
             # remove empty arguments
@@ -1641,14 +1822,14 @@ class KernelCode(Kernel):
                 print('Executing (build_executable): ', ' '.join(cmd))
             try:
                 subprocess.check_output(cmd)
+                main_lock_fp.close()
+                kernel_obj_lock_fp.close()
+                self.release_exclusive_lock(out_lock_fp)  # degrade to shared lock
             except subprocess.CalledProcessError as e:
                 print("Build failed:", e, file=sys.stderr)
                 sys.exit(1)
-        else:
-            if verbose:
-                print('Executing (build_executable): ', 'using cached', out_filename)
 
-        return out_filename
+        return out_filename, out_lock_fp
 
 
 class KernelDescription(Kernel):

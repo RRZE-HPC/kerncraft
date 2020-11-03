@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3.dev0
+kerncraft version: 0.8.6.dev0
 
 model name: Intel(R) Xeon(R) CPU E5-2697 v4 @ 2.30GHz
 model type: Intel Xeon Broadwell EN/EP/EX processor
@@ -9,30 +9,38 @@ cores per socket: 18
 threads per core: 2
 NUMA domains per socket: 2
 cores per NUMA domain: 9
+transparent hugepage: always
 
 in-core model: !!omap
   - IACA: BDW
   - OSACA: BDW
   - LLVM-MCA: -mcpu=broadwell
+isa: x86
 
 compiler: !!omap
-- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
-- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
-- gcc: -Ofast -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200809L
-    -fopenmp -lm
+- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp -ffreestanding -nolib-inline
+- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp -ffreestanding
+- gcc: -O3 -march=core-avx2 -fargument-noalias -ffast-math -D_POSIX_C_SOURCE=200809L
+    -fopenmp -lm -ffreestanding
 
 FLOPs per cycle:
   DP: {ADD: 4, FMA: 8, MUL: 4, total: 16}
   SP: {ADD: 8, FMA: 16, MUL: 8, total: 32}
 
+non-overlapping model:
+  ports:
+    IACA: [2D, 3D]
+    OSACA: [2D, 3D]
+    LLVM-MCA: [BWPort2, BWPort3]
+  performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
 overlapping model:
-  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+  ports:
+    IACA: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+    OSACA: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+    LLVM-MCA: [BWDivider, BWFPDivider, BWPort0, BWPort1, BWPort2, BWPort3, BWPort4, BWPort5, BWPort6, BWPort7]
   performance counter metric: Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3], UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
     UOPS_EXECUTED_PORT_PORT_4:PMC[0-3], UOPS_EXECUTED_PORT_PORT_5:PMC[0-3], UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
     UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
-non-overlapping model:
-  ports: [2D, 3D]
-  performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
 
 cacheline size: 64 B
 memory hierarchy:
@@ -83,7 +91,6 @@ memory hierarchy:
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
   level: MEM
-  penalty cycles per read stream: 0
   size per group:
   threads per group: 36
 

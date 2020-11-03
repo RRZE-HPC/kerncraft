@@ -1,5 +1,7 @@
 """Kerncraft static analytical performance modeling framework and tool."""
-__version__ = '0.8.3.dev0'
+__version__ = '0.8.6.dev0'
+from .kerncraft import main
+__main__ = main
 
 # To trigger travis deployment to pypi, do the following:
 # 1. Increment __version___

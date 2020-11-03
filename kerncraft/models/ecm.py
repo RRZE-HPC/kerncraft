@@ -6,13 +6,6 @@ import math
 import pprint
 
 import sympy
-try:
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plot_support = True
-except ImportError:
-    plot_support = False
 
 from kerncraft.prefixedunit import PrefixedUnit
 from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPredictor
@@ -136,10 +129,13 @@ class ECMData(PerformanceModel):
                 else:  # full-duplex
                     raise NotImplementedError(
                         "full-duplex mode is not (yet) supported for memory transfers.")
-                # add penalty cycles for each read stream
-                if 'penalty cycles per read stream' in cache_info:
+                # add penalty cycles
+                if 'penalty cycles per cacheline load' in cache_info:
+                    cycles += loads[cache_level] * \
+                              cache_info['penalty cycles per cacheline load']
+                if 'penalty cycles per cacheline store' in cache_info:
                     cycles += stores[cache_level] * \
-                              cache_info['penalty cycles per read stream']
+                              cache_info['penalty cycles per cacheline store']
 
                 self.results.update({
                     'memory bandwidth kernel': measurement_kernel,
@@ -291,7 +287,7 @@ class ECMCPU(PerformanceModel):
         Run complete analysis and return results.
         """
         try:
-            incore_analysis, asm_block = self.kernel.incore_analysis(
+            incore_analysis, pointer_increment = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 model=self._args.incore_model,
@@ -305,7 +301,7 @@ class ECMCPU(PerformanceModel):
         uops = incore_analysis['uops']
 
         # Normalize to cycles per cacheline
-        elements_per_block = abs(asm_block['pointer_increment']
+        elements_per_block = abs(pointer_increment
                                  // self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         try:
@@ -320,12 +316,15 @@ class ECMCPU(PerformanceModel):
         cl_throughput = block_throughput*block_to_cl_ratio
 
         # Compile most relevant information
+        incore_model = self.machine.get_incore_model(self._args.incore_model)
         T_comp = float(max([v for k, v in list(port_cycles.items())
-                            if k in self.machine['overlapping model']['ports']] + [0]))
+                            if k in self.machine['overlapping model']['ports'][incore_model]] +
+                           [0]))
         T_RegL1 = float(max([v for k, v in list(port_cycles.items())
-                             if k in self.machine['non-overlapping model']['ports']] + [0]))
+                             if k in self.machine['non-overlapping model']['ports'][incore_model]] +
+                            [0]))
 
-        # Use IACA throughput prediction if it is slower then T_RegL1
+        # Use In-Core Model throughput prediction if it is slower then T_RegL1
         if T_RegL1 < cl_throughput:
             T_comp = cl_throughput
 
@@ -336,9 +335,9 @@ class ECMCPU(PerformanceModel):
             'uops': uops,
             'T_comp': T_comp,
             'T_RegL1': T_RegL1,
-            'IACA output': incore_analysis['output'],
+            'in-core model output': incore_analysis['output'],
             'elements_per_block': elements_per_block,
-            'pointer_increment': asm_block['pointer_increment'],
+            'pointer_increment': pointer_increment,
             'flops per iteration': sum(self.kernel._flops.values())}
         return self.results
 
@@ -368,8 +367,8 @@ class ECMCPU(PerformanceModel):
     def report(self, output_file=sys.stdout):
         """Print generated model data in human readable format."""
         if self.verbose > 2:
-            print("IACA Output:", file=output_file)
-            print(self.results['IACA output'], file=output_file)
+            print("In-Core Model Output:", file=output_file)
+            print(self.results['in-core model output'], file=output_file)
             print('', file=output_file)
 
         if self.verbose > 1:
@@ -406,9 +405,7 @@ class ECM(PerformanceModel):
     def configure_arggroup(cls, parser):
         """Configure argument parser."""
         # others are being configured in ECMData and ECMCPU
-        parser.add_argument(
-            '--ecm-plot',
-            help='Filename to save ECM plot to (supported extensions: pdf, png, svg and eps)')
+        pass
 
     def __init__(self, kernel, machine, args=None, parser=None, asm_block="auto",
                  pointer_increment="auto", cores=1, cache_predictor=CacheSimulationPredictor,
@@ -599,72 +596,8 @@ class ECM(PerformanceModel):
 
         print(report, file=output_file)
 
-        if self._args and self._args.ecm_plot:
-            assert plot_support, "matplotlib couldn't be imported. Plotting is not supported."
-            fig = plt.figure(frameon=False)
-            self.plot(fig)
-
         if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \
                 self._args.unit == 'FLOP/s':
             print("WARNING: FLOP counts are probably wrong, because complex flops are counted\n"
                   "         as single flops. All other units should not be affected.\n",
                   file=sys.stderr)
-
-    def plot(self, fig=None):
-        """Plot visualization of model prediction."""
-        if not fig:
-            fig = plt.gcf()
-
-        fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-        ax = fig.add_subplot(1, 1, 1)
-
-        sorted_overlapping_ports = sorted(
-            [(p, self.results['port cycles'][p]) for p in self.machine['overlapping ports']],
-            key=lambda x: x[1])
-
-        yticks_labels = []
-        yticks = []
-        xticks_labels = []
-        xticks = []
-
-        # Plot configuration
-        height = 0.9
-
-        i = 0
-        # T_comp
-        colors = ([(254. / 255, 177. / 255., 178. / 255.)] +
-                  [(255. / 255., 255. / 255., 255. / 255.)] * (len(sorted_overlapping_ports) - 1))
-        for p, c in sorted_overlapping_ports:
-            ax.barh(i, c, height, align='center', color=colors.pop(),
-                    edgecolor=(0.5, 0.5, 0.5), linestyle='dashed')
-            if i == len(sorted_overlapping_ports) - 1:
-                ax.text(c / 2.0, i, '$T_\mathrm{comp}$', ha='center', va='center')
-            yticks_labels.append(p)
-            yticks.append(i)
-            i += 1
-        xticks.append(sorted_overlapping_ports[-1][1])
-        xticks_labels.append('{:.1f}'.format(sorted_overlapping_ports[-1][1]))
-
-        # T_RegL1 + memory transfers
-        y = 0
-        colors = [(187. / 255., 255 / 255., 188. / 255.)] * (len(self.results['cycles'])) + \
-                 [(119. / 255, 194. / 255., 255. / 255.)]
-        for k, v in [('RegL1', self.results['T_RegL1'])] + self.results['cycles']:
-            ax.barh(i, v, height, y, align='center', color=colors.pop())
-            ax.text(y + v / 2.0, i, '$T_\mathrm{' + k + '}$', ha='center', va='center')
-            xticks.append(y + v)
-            xticks_labels.append('{:.1f}'.format(y + v))
-            y += v
-        yticks_labels.append('LD')
-        yticks.append(i)
-
-        ax.tick_params(axis='y', which='both', left='off', right='off')
-        ax.tick_params(axis='x', which='both', top='off')
-        ax.set_xlabel('t [cy]')
-        ax.set_ylabel('execution port')
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(yticks_labels)
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticks_labels, rotation='vertical')
-        ax.xaxis.grid(alpha=0.7, linestyle='--')
-        fig.savefig(self._args.ecm_plot)

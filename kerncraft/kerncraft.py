@@ -11,6 +11,9 @@ import re
 import itertools
 from datetime import datetime
 from functools import lru_cache
+import atexit
+import io
+from collections import OrderedDict
 
 from ruamel import yaml
 
@@ -109,8 +112,8 @@ class AppendStringRange(argparse.Action):
                 else:
                     log = gd['log'] is not None
                     base = int(gd['base']) if gd['base'] is not None else 10
-                    values[1] = space(
-                        int(gd['start']), int(gd['stop']), int(gd['num']), log=log, base=base)
+                    values[1] = list(space(
+                        int(gd['start']), int(gd['stop']), int(gd['num']), log=log, base=base))
             else:
                 message = 'second argument must match: start[-stop[:num[log[base]]]]'
 
@@ -157,7 +160,7 @@ def create_parser():
                         help='Define constant to be used in C code. Values must be integer or '
                              'match start-stop[:num[log[base]]]. If range is given, all '
                              'permutation s will be tested. Overwrites constants from testcase '
-                             'file.')
+                             'file. Key can be . for default value for all used constants.')
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increases verbosity level.')
     parser.add_argument('code_file', metavar='FILE', type=argparse.FileType(),
@@ -209,7 +212,11 @@ def create_parser():
 
 
 def check_arguments(args, parser):
-    """Check arguments passed by user that are not checked by argparse itself."""
+    """
+    Check arguments passed by user that are not checked by argparse itself.
+    
+    Also register files for closing.
+    """
     if args.asm_block not in ['auto', 'manual']:
         try:
             args.asm_block = int(args.asm_block)
@@ -222,6 +229,47 @@ def check_arguments(args, parser):
             args.unit = 'FLOP/s'
         else:
             args.unit = 'cy/CL'
+
+    # Register all opened files for closing at exit.
+    if args.store:
+        atexit.register(args.store.close)
+    if args.code_file:
+        atexit.register(args.code_file.close)
+    if args.machine:
+        atexit.register(args.machine.close)
+
+
+def to_tuple(x):
+    '''Transform nested lists (and tuple) in purely nested tuples.'''
+    if isinstance(x, (list, tuple)):
+        if len(x) >= 2:
+            return tuple(to_tuple(x[:1]) + to_tuple(x[1:]))
+        elif len(x) == 1:
+            return (to_tuple(x[0]),)
+        else:
+            return ()
+    else:
+        return x
+
+
+def identifier_from_arguments(args, **kwargs):
+    identifier = []
+    for k in sorted(args.__dict__):
+        if k in kwargs:
+            identifier.append((k, kwargs[k]))
+            continue
+        if k in ['verbose', 'store', 'unit', 'clean_intermediates']:
+            # Ignore these, as they do not change the outcome
+            continue
+        v = args.__dict__[k]
+        if isinstance(v, list):
+            v = to_tuple(v)
+        if isinstance(v, tuple):
+            v = to_tuple(v)
+        if isinstance(v, io.IOBase):
+            v = v.name
+        identifier.append((k, v))
+    return tuple(identifier)
 
 
 def run(parser, args, output_file=sys.stdout):
@@ -239,27 +287,46 @@ def run(parser, args, output_file=sys.stdout):
     # machine information
     # Read machine description
     machine = MachineModel(args.machine.name, args=args)
+    args.machine.close()
 
     # process kernel
     if not args.kernel_description:
         code = str(args.code_file.read())
+        args.code_file.close()
         code = clean_code(code)
         kernel = KernelCode(code, filename=args.code_file.name, machine=machine,
                             keep_intermediates=not args.clean_intermediates)
     else:
         description = str(args.code_file.read())
+        args.code_file.close()
         kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
 
+    loop_indices = set([symbol_pos_int(l['index']) for l in kernel.get_loop_stack()])
     # define constants
     required_consts = [v[1] for v in kernel.variables.values() if v[1] is not None]
     required_consts += [[l['start'], l['stop']] for l in kernel.get_loop_stack()]
+    required_consts += [i for a in kernel.sources.values() for i in a if i is not None]
+    required_consts += [i for a in kernel.destinations.values() for i in a if i is not None]
     # split into individual consts
     required_consts = [i for l in required_consts for i in l]
     required_consts = set([i for l in required_consts for i in l.free_symbols])
+    # remove loop indices
+    required_consts -= loop_indices
+    
     if len(required_consts) > 0:
         # build defines permutations
-        define_dict = {}
+        define_dict = OrderedDict()
+        args.define.sort()
+        # Prefill with default value, if any is given
+        if '.' in [n for n,v in args.define]:
+            default_const_values = dict(args.define)['.']
+            for name in required_consts:
+                name = str(name)
+                define_dict[str(name)] = [[str(name), v] for v in default_const_values]
         for name, values in args.define:
+            if name not in [str(n) for n in required_consts]:
+                # ignore
+                continue
             if name not in define_dict:
                 define_dict[name] = [[name, v] for v in values]
                 continue
@@ -267,7 +334,6 @@ def run(parser, args, output_file=sys.stdout):
                 if v not in define_dict[name]:
                     define_dict[name].append([name, v])
         define_product = list(itertools.product(*list(define_dict.values())))
-
         # Check that all consts have been defined
         if set(required_consts).difference(set([symbol_pos_int(k) for k in define_dict.keys()])):
             raise ValueError("Not all constants have been defined. Required are: {}".format(
@@ -306,13 +372,9 @@ def run(parser, args, output_file=sys.stdout):
             model.report(output_file=output_file)
 
             # Add results to storage
-            kernel_name = os.path.split(args.code_file.name)[1]
-            if kernel_name not in result_storage:
-                result_storage[kernel_name] = {}
-            if tuple(kernel.constants.items()) not in result_storage[kernel_name]:
-                result_storage[kernel_name][tuple(kernel.constants.items())] = {}
-            result_storage[kernel_name][tuple(kernel.constants.items())][model_name] = \
-                model.results
+            result_identifier = identifier_from_arguments(
+                args, define=to_tuple(define), pmodel=model_name)
+            result_storage[result_identifier] = model.results
 
             print('', file=output_file)
 
@@ -322,6 +384,7 @@ def run(parser, args, output_file=sys.stdout):
             with open(temp_name, 'wb+') as f:
                 pickle.dump(result_storage, f)
             shutil.move(temp_name, args.store.name)
+    return result_storage
 
 
 def main():

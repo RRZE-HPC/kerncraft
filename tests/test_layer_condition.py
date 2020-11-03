@@ -28,6 +28,7 @@ class TestLayerCondition(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory
         self.temp_dir = tempfile.mkdtemp()
+        self.maxDiff = None
 
     def tearDown(self):
         # Remove the directory after the test
@@ -57,16 +58,14 @@ class TestLayerCondition(unittest.TestCase):
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
                                   '-p', 'LC',
                                   self._find_file('3d-7pt.c'),
-                                  '-D', 'N', '0',
-                                  '-D', 'M', '0',
+                                  '-D', '.', '0',
                                   '-vvv',
                                   '--store', store_file])
         kc.check_arguments(args, parser)
         kc.run(parser, args, output_file=output_stream)
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
-        result = next(iter(results['3d-7pt.c'].values()))['LC']
-
+        result = next(iter(results.values()))
         N, M, i, j, k = sympy.var('N, M, i, j, k')
         result_expected = {'accesses':
                      {'a': [(k - 1, j, i),
@@ -78,17 +77,17 @@ class TestLayerCondition(unittest.TestCase):
                             (k + 1, j, i)],
                       'b': [(k, j, i)],
                       's': []},
-         'cache': [[{'condition': 16 * M * N ** 2 < 32768,
+         'cache': [[{'condition': M*N**2 < 2048,
                      'evicts': 0,
                      'hits': 8,
                      'misses': 0,
                      'tail': oo},
-                    {'condition': 32 * N ** 2 - 16 * N <= 32768,
+                    {'condition': 2*N**2 - N <= 2048,
                      'evicts': 1,
                      'hits': 6,
                      'misses': 2,
-                     'tail': 8 * N ** 2 - 8 * N},
-                    {'condition': 48 * N - 32 <= 32768,
+                     'tail': 8*N**2 - 8*N},
+                    {'condition': 3*N <= 2050,
                      'evicts': 1,
                      'hits': 4,
                      'misses': 4,
@@ -98,17 +97,17 @@ class TestLayerCondition(unittest.TestCase):
                      'hits': 2,
                      'misses': 6,
                      'tail': 8}],
-                   [{'condition': 16 * M * N ** 2 < 262144,
+                   [{'condition': M*N**2 < 16384,
                      'evicts': 0,
                      'hits': 8,
                      'misses': 0,
                      'tail': oo},
-                    {'condition': 32 * N ** 2 - 16 * N <= 262144,
+                    {'condition': 2*N**2 - N <= 16384,
                      'evicts': 1,
                      'hits': 6,
                      'misses': 2,
                      'tail': 8 * N ** 2 - 8 * N},
-                    {'condition': 48 * N - 32 <= 262144,
+                    {'condition': N <= 5462,
                      'evicts': 1,
                      'hits': 4,
                      'misses': 4,
@@ -118,17 +117,17 @@ class TestLayerCondition(unittest.TestCase):
                      'hits': 2,
                      'misses': 6,
                      'tail': 8}],
-                   [{'condition': 16 * M * N ** 2 < 20971520,
+                   [{'condition': M*N**2 < 1310720,
                      'evicts': 0,
                      'hits': 8,
                      'misses': 0,
                      'tail': oo},
-                    {'condition': 32 * N ** 2 - 16 * N <= 20971520,
+                    {'condition': 2*N**2 - N <= 1310720,
                      'evicts': 1,
                      'hits': 6,
                      'misses': 2,
                      'tail': 8 * N ** 2 - 8 * N},
-                    {'condition': 48 * N - 32 <= 20971520,
+                    {'condition': 3*N <= 1310722,
                      'evicts': 1,
                      'hits': 4,
                      'misses': 4,
@@ -166,24 +165,44 @@ class TestLayerCondition(unittest.TestCase):
         kc.run(parser, args, output_file=output_stream)
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
-        result = next(iter(results['constantdim.c'].values()))['LC']
+        result = next(iter(results.values()))
 
         N, M, j, i = sympy.var('N'), sympy.var('M'), sympy.var('j'), sympy.var('i')
         result_expected = \
             {'accesses': {'W': [(j, i), (1, j, i)],
                           'a': [(j - 1, i), (j, i - 1), (j, i), (j, i + 1), (j + 1, i)],
                           'b': [(j, i)]},
-             'cache': [[{'condition': 32 * M * N < 32768,
+             'cache': [[{'condition': M*N < 1024,
                          'evicts': 0,
                          'hits': 8,
                          'misses': 0,
                          'tail': oo},
-                        {'condition': 32 * M * N + 16 * N <= 32768,
+                        {'condition': 2*M*N + N <= 2048,
                          'evicts': 1,
                          'hits': 5,
                          'misses': 3,
                          'tail': 8 * M * N},
-                        {'condition': 48 * N - 32 <= 32768,
+                        {'condition': 3*N <= 2050,
+                         'evicts': 1,
+                         'hits': 4,
+                         'misses': 4,
+                         'tail': 8*N - 8},
+                        {'condition': True,
+                         'evicts': 1,
+                         'hits': 2,
+                         'misses': 6,
+                         'tail': 8}],
+                       [{'condition': M*N < 8192,
+                         'evicts': 0,
+                         'hits': 8,
+                         'misses': 0,
+                         'tail': oo},
+                        {'condition': 2*M*N + N <= 16384,
+                         'evicts': 1,
+                         'hits': 5,
+                         'misses': 3,
+                         'tail': 8 * M * N},
+                        {'condition':  N <= 5462,
                          'evicts': 1,
                          'hits': 4,
                          'misses': 4,
@@ -193,37 +212,17 @@ class TestLayerCondition(unittest.TestCase):
                          'hits': 2,
                          'misses': 6,
                          'tail': 8}],
-                       [{'condition': 32 * M * N < 262144,
+                       [{'condition': M*N < 655360,
                          'evicts': 0,
                          'hits': 8,
                          'misses': 0,
                          'tail': oo},
-                        {'condition': 32 * M * N + 16 * N <= 262144,
+                        {'condition': 2*M*N + N <= 1310720,
                          'evicts': 1,
                          'hits': 5,
                          'misses': 3,
                          'tail': 8 * M * N},
-                        {'condition': 48 * N - 32 <= 262144,
-                         'evicts': 1,
-                         'hits': 4,
-                         'misses': 4,
-                         'tail': 8 * N - 8},
-                        {'condition': True,
-                         'evicts': 1,
-                         'hits': 2,
-                         'misses': 6,
-                         'tail': 8}],
-                       [{'condition': 32 * M * N < 20971520,
-                         'evicts': 0,
-                         'hits': 8,
-                         'misses': 0,
-                         'tail': oo},
-                        {'condition': 32 * M * N + 16 * N <= 20971520,
-                         'evicts': 1,
-                         'hits': 5,
-                         'misses': 3,
-                         'tail': 8 * M * N},
-                        {'condition': 48 * N - 32 <= 20971520,
+                        {'condition': 3*N <= 1310722,
                          'evicts': 1,
                          'hits': 4,
                          'misses': 4,
@@ -242,10 +241,12 @@ class TestLayerCondition(unittest.TestCase):
             key_path, value = stack.pop()
             if isinstance(value, dict):
                 stack.extend([(key_path + (k,), v) for k, v in value.items()])
+            if isinstance(value, list):
+                stack.extend([(key_path + (i,), v) for i, v in enumerate(value)])
             else:
                 self.assertEqual(value, recursive_dict_get(result, key_path),
                                  msg="at key_path={}".format(key_path))
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(buffer=True)

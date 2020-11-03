@@ -56,14 +56,10 @@ class Roofline(PerformanceModel):
             self.predictor = cache_predictor(self.kernel, self.machine, self.cores)
             self.verbose = verbose
 
-        if sum(self.kernel._flops.values()) == 0:
-            raise ValueError("The Roofline model requires that the sum of FLOPs is non-zero.")
-
     def calculate_cache_access(self):
         """Apply cache prediction to generate cache access behaviour."""
-        self.results = {'misses': self.predictor.get_misses(),
-                        'hits': self.predictor.get_hits(),
-                        'evicts': self.predictor.get_evicts(),
+        self.results = {'loads': self.predictor.get_loads(),
+                        'stores': self.predictor.get_stores(),
                         'verbose infos': self.predictor.get_infos(),  # only for verbose outputs
                         'bottleneck level': 0,
                         'mem bottlenecks': []}
@@ -91,45 +87,45 @@ class Roofline(PerformanceModel):
         write_streams = len(write_offsets)
         read_streams = len(read_offsets) + write_streams  # write-allocate
         total_loads = read_streams * element_size
-        # total_evicts = write_streams * element_size
+        total_evicts = write_streams * element_size
         bw, measurement_kernel = self.machine.get_bandwidth(
             0,
-            read_streams - write_streams,  # no write-allocate in L1
-            write_streams,
+            read_streams,
+            0,  # we do not consider stores to L1 
             threads_per_core,
             cores=self.cores)
 
         # Calculate performance (arithmetic intensity * bandwidth with
-        # arithmetic intensity = flops / bytes loaded )
+        # arithmetic intensity = Iterations / bytes loaded
         if total_loads == 0:
             # This happens in case of full-caching
             arith_intens = None
-            performance = None
+            it_s = None
         else:
-            arith_intens = float(total_flops)/total_loads
-            performance = PrefixedUnit(arith_intens * float(bw), 'FLOP/s')
+            arith_intens = 1.0/(total_loads/elements_per_cacheline)
+            it_s = PrefixedUnit(float(bw)*arith_intens, 'It/s')
 
         self.results['mem bottlenecks'].append({
-            'performance': self.conv_perf(PrefixedUnit(performance, 'FLOP/s')),
+            'performance': self.conv_perf(it_s),
             'level': self.machine['memory hierarchy'][0]['level'],
             'arithmetic intensity': arith_intens,
             'bw kernel': measurement_kernel,
             'bandwidth': bw,
             'bytes transfered': total_loads})
         self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
-        self.results['min performance'] = self.conv_perf(performance)
+        self.results['min performance'] = self.conv_perf(it_s)
 
         # for other cache and memory levels:
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[:-1]:
             # Compiling stats (in bytes!)
-            total_misses = self.results['misses'][cache_level]*cacheline_size
-            total_evicts = self.results['evicts'][cache_level]*cacheline_size
+            total_loads = self.results['loads'][cache_level+1]*cacheline_size
+            total_stores = self.results['stores'][cache_level+1]*cacheline_size
 
             # choose bw according to cache level and problem
             # first, compile stream counts at current cache level
             # write-allocate is allready resolved above
-            read_streams = self.results['misses'][cache_level]
-            write_streams = self.results['evicts'][cache_level]
+            read_streams = self.results['loads'][cache_level+1]
+            write_streams = self.results['stores'][cache_level+1]
             # second, try to find best fitting kernel (closest to stream seen stream counts):
             bw, measurement_kernel = self.machine.get_bandwidth(
                 cache_level+1, read_streams, write_streams, threads_per_core,
@@ -137,26 +133,26 @@ class Roofline(PerformanceModel):
 
             # Calculate performance (arithmetic intensity * bandwidth with
             # arithmetic intensity = flops / bytes transfered)
-            bytes_transfered = total_misses + total_evicts
+            bytes_transfered = total_loads + total_stores
 
             if bytes_transfered == 0:
                 # This happens in case of full-caching
                 arith_intens = float('inf')
-                performance = PrefixedUnit(float('inf'), 'FLOP/s')
+                it_s = PrefixedUnit(float('inf'), 'It/s')
             else:
-                arith_intens = float(total_flops)/bytes_transfered
-                performance = PrefixedUnit(arith_intens * float(bw), 'FLOP/s')
+                arith_intens = 1/(bytes_transfered/elements_per_cacheline)
+                it_s = PrefixedUnit(float(bw)*arith_intens, 'It/s')
 
             self.results['mem bottlenecks'].append({
-                'performance': self.conv_perf(performance),
+                'performance': self.conv_perf(it_s),
                 'level': (self.machine['memory hierarchy'][cache_level + 1]['level']),
                 'arithmetic intensity': arith_intens,
                 'bw kernel': measurement_kernel,
                 'bandwidth': bw,
                 'bytes transfered': bytes_transfered})
-            if performance < self.results.get('min performance', {'FLOP/s': performance})['FLOP/s']:
+            if it_s < self.results.get('min performance', {'It/s': it_s})['It/s']:
                 self.results['bottleneck level'] = len(self.results['mem bottlenecks'])-1
-                self.results['min performance'] = self.conv_perf(performance)
+                self.results['min performance'] = self.conv_perf(it_s)
 
         return self.results
 
@@ -168,12 +164,12 @@ class Roofline(PerformanceModel):
         self.results['max_perf'] = self.conv_perf(self.machine['clock'] * self.cores * \
             self.machine['FLOPs per cycle'][precision]['total'])
 
-    def conv_perf(self, performance):
-        """Convert performance (FLOP/s) to other units, such as It/s or cy/CL."""
+    def conv_perf(self, it_s):
+        """Convert performance (It/s) to other units, such as FLOP/s or cy/CL."""
         clock = self.machine['clock']
         flops_per_it = sum(self.kernel._flops.values())
-        it_s = performance/flops_per_it
-        it_s.unit = 'It/s'
+        performance = it_s*flops_per_it
+        performance.unit = 'FLOP/s'
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
         elements_per_cacheline = int(float(self.machine['cacheline size'])) / element_size
         cy_cl = clock/it_s*elements_per_cacheline
@@ -204,7 +200,7 @@ class Roofline(PerformanceModel):
                 max_perf[self._args.unit]),
                   file=output_file)
             for b in self.results['mem bottlenecks']:
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
+                print('{level:>7} | {arithmetic intensity:>7.2} It/B | {0!s:>15} |'
                       ' {bandwidth!s:>17} | {bw kernel:<8}'.format(
                           b['performance'][self._args.unit], **b),
                       file=output_file)
@@ -223,7 +219,7 @@ class Roofline(PerformanceModel):
                     bottleneck['level'],
                     bottleneck['bw kernel']),
                   file=output_file)
-            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
+            print('Arithmetic Intensity: {:.2f} It/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
 
         if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]):
@@ -287,23 +283,23 @@ class RooflineIACA(Roofline):
         """Run complete analysis."""
         self.results = self.calculate_cache_access()
         try:
-            iaca_analysis, asm_block = self.kernel.incore_analysis(
+            incore_analysis, pointer_increment = self.kernel.incore_analysis(
                 asm_block=self.asm_block,
                 pointer_increment=self.pointer_increment,
                 model=self._args.incore_model,
                 verbose=self.verbose > 2)
         except RuntimeError as e:
-            print("IACA analysis failed: " + str(e))
+            print("In-core analysis failed: " + str(e))
             sys.exit(1)
 
-        block_throughput = iaca_analysis['throughput']
-        uops = iaca_analysis['uops']
-        iaca_output = iaca_analysis['output']
-        port_cycles = iaca_analysis['port cycles']
+        block_throughput = incore_analysis['throughput']
+        uops = incore_analysis['uops']
+        incore_output = incore_analysis['output']
+        port_cycles = incore_analysis['port cycles']
 
         # Normalize to cycles per cacheline
-        elements_per_block = abs(asm_block['pointer_increment']
-                                 / self.kernel.datatypes_size[self.kernel.datatype])
+        elements_per_block = abs(
+            pointer_increment / self.kernel.datatypes_size[self.kernel.datatype])
         block_size = elements_per_block*self.kernel.datatypes_size[self.kernel.datatype]
         try:
             block_to_cl_ratio = float(self.machine['cacheline size'])/block_size
@@ -317,17 +313,17 @@ class RooflineIACA(Roofline):
         cl_throughput = block_throughput*block_to_cl_ratio
         flops_per_element = sum(self.kernel._flops.values())
 
-        # Overwrite CPU-L1 stats, because they are covered by IACA
+        # Overwrite CPU-L1 stats, because they are covered by In-Core Model
         self.results['mem bottlenecks'][0] = None
 
         # Reevaluate mem bottleneck
-        self.results['min performance'] = self.conv_perf(PrefixedUnit(float('inf'), 'FLOP/s'))
+        self.results['min performance'] = self.conv_perf(PrefixedUnit(float('inf'), 'It/s'))
         self.results['bottleneck level'] = None
         for level, bottleneck in enumerate(self.results['mem bottlenecks']):
             if level == 0:
                 # ignoring CPU-L1
                 continue
-            if bottleneck['performance']['FLOP/s'] < self.results['min performance']['FLOP/s']:
+            if bottleneck['performance']['It/s'] < self.results['min performance']['It/s']:
                 self.results['bottleneck level'] = level
                 self.results['min performance'] = bottleneck['performance']
 
@@ -338,9 +334,9 @@ class RooflineIACA(Roofline):
                 'cl throughput': cl_throughput,
                 'uops': uops,
                 'performance throughput': self.conv_perf(PrefixedUnit(
-                    self.machine['clock']/block_throughput*elements_per_block*flops_per_element
-                    * self.cores, "FLOP/s")),
-                'IACA output': iaca_output}})
+                    self.machine['clock']/block_throughput*elements_per_block
+                    * self.cores, "It/s")),
+                'in-core model output': incore_output}})
 
     def report(self, output_file=sys.stdout):
         """Print human readable report of model."""
@@ -362,19 +358,19 @@ class RooflineIACA(Roofline):
                 # Skip CPU-L1 from Roofline model
                 if b is None:
                     continue
-                print('{level:>7} | {arithmetic intensity:>5.2} FLOP/B | {0!s:>15} |'
+                print('{level:>7} | {arithmetic intensity:>7.2} It/B | {0!s:>15} |'
                       ' {bandwidth!s:>17} | {bw kernel:<8}'.format(
                           b['performance'][self._args.unit], **b),
                       file=output_file)
             print('', file=output_file)
-            print('IACA analisys:', file=output_file)
+            print('In-Core Model analisys:', file=output_file)
             print('{!s}'.format(
                 {k: v
                  for k, v in list(self.results['cpu bottleneck'].items())
-                 if k not in['IACA output']}),
+                 if k not in['in-core model output']}),
                 file=output_file)
 
-        if self.results['min performance']['FLOP/s'] > cpu_perf['FLOP/s']:
+        if self.results['min performance']['It/s'] > cpu_perf['It/s']:
             # CPU bound
             print('CPU bound. {!s} due to CPU bottleneck'.format(cpu_perf[self._args.unit]),
                   file=output_file)
@@ -388,7 +384,7 @@ class RooflineIACA(Roofline):
                       bottleneck['level'],
                       bottleneck['bw kernel']),
                   file=output_file)
-            print('Arithmetic Intensity: {:.2f} FLOP/B'.format(bottleneck['arithmetic intensity']),
+            print('Arithmetic Intensity: {:.2f} It/B'.format(bottleneck['arithmetic intensity']),
                   file=output_file)
 
         if any(['_Complex' in var_info[0] for var_info in self.kernel.variables.values()]) and \

@@ -1,4 +1,4 @@
-kerncraft version: 0.8.3.dev0
+kerncraft version: 0.8.6.dev0
 
 model type: Intel Core Haswell EX processor
 model name: Intel(R) Xeon(R) CPU E5-2695 v3 @ 2.30GHz
@@ -9,23 +9,32 @@ threads per core: 2
 cores per socket: 14
 cores per NUMA domain: 14
 NUMA domains per socket: 1
+transparent hugepage: always
 
 compiler: !!omap
-- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp
-- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp
-- gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200809L -fopenmp -lm
+- icc: -O3 -xCORE-AVX2 -fno-alias -qopenmp -ffreestanding -nolib-inline
+- clang: -O3 -mavx2 -D_POSIX_C_SOURCE=200809L -fopenmp -ffreestanding
+- gcc: -O3 -march=core-avx2 -D_POSIX_C_SOURCE=200809L -fopenmp -lm -ffreestanding
 
 in-core model: !!omap
   - IACA: HSW
   - OSACA: HSW
   - LLVM-MCA: -mcpu=haswell
+isa: x86
+
 overlapping model:
-  ports: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+  ports:
+    IACA: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+    OSACA: ['0', 0DV, '1', '2', '3', '4', '5', '6', '7']
+    LLVM-MCA: [HWDivider, HWFPDivider, HWPort0, HWPort1, HWPort2, HWPort3, HWPort4, HWPort5, HWPort6, HWPort7]
   performance counter metric: Max(UOPS_EXECUTED_PORT_PORT_0:PMC[0-3], UOPS_EXECUTED_PORT_PORT_1:PMC[0-3],
     UOPS_EXECUTED_PORT_PORT_4:PMC[0-3], UOPS_EXECUTED_PORT_PORT_5:PMC[0-3], UOPS_EXECUTED_PORT_PORT_6:PMC[0-3],
     UOPS_EXECUTED_PORT_PORT_7:PMC[0-3])
 non-overlapping model:
-  ports: [2D, 3D]
+  ports:
+    IACA: [2D, 3D]
+    OSACA: [2D, 3D]
+    LLVM-MCA: [HWPort2, HWPort3]
   performance counter metric: T_nOL + T_L1L2 + T_L2L3 + T_L3MEM
 
 FLOPs per cycle:
@@ -79,7 +88,6 @@ memory hierarchy:
   cores per group: 14
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
-  penalty cycles per read stream: 0
   size per group:
   threads per group: 28
 

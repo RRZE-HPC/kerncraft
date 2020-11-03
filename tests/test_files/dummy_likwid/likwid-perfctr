@@ -18,10 +18,41 @@ if __name__ == '__main__':
     
     args = remove_find(r'-O -g (:?CLOCK|MEM) -[cC] S0:0', args)
     args = remove_find(r'-m', args)
-    args = remove_find(r'[a-zA-Z\-0-9/\._]+\.likwid_marked(:? [0-9]+(:?\.[0-9]+)?)+$', args)
+    args = remove_find(r'[a-zA-Z\-0-9/\._=]+/kernel(:? [0-9]+(:?\.[0-9]+)?)+$', args)
     args = remove_find(r'-f', args)
     
-    if len(args) > 0:
+    if args == '-a':
+        print('''    Group name  Description
+--------------------------------------------------------------------------------
+        MEM_SP  Overview of arithmetic and main memory performance
+          NUMA  Local and remote data transfers
+CYCLE_ACTIVITY  Cycle Activities
+            HA  Main memory bandwidth in MBytes/s seen from Home agent
+        ENERGY  Power and Energy consumption
+     TLB_INSTR  L1 Instruction TLB miss rate/ratio
+          DATA  Load to store ratio
+        ICACHE  Instruction cache miss rate/ratio
+       L2CACHE  L2 cache miss rate/ratio
+            L2  L2 cache bandwidth in MBytes/s
+     FLOPS_AVX  Packed AVX MFLOP/s
+           MEM  Main memory bandwidth in MBytes/s
+        BRANCH  Branch prediction miss rate/ratio
+      FLOPS_SP  Single Precision MFLOP/s
+        MEM_DP  Overview of arithmetic and main memory performance
+       L3CACHE  L3 cache miss rate/ratio
+   FALSE_SHARE  False sharing
+      TLB_DATA  L2 data TLB miss rate/ratio
+           QPI  QPI Link Layer data
+        CACHES  Cache bandwidth in MBytes/s
+        DIVIDE  Divide unit information
+           TMA  Top down cycle allocation
+         CLOCK  Power and Energy consumption
+          UOPS  UOPs execution info
+      FLOPS_DP  Double Precision MFLOP/s
+  CYCLE_STALLS  Cycle Activities (Stalls)
+            L3  L3 cache bandwidth in MBytes/s''')
+        sys.exit(0)
+    elif len(args) > 0:
         print('Could not remove all arguments. Remaining:', args)
         sys.exit(1)
     
@@ -38,7 +69,7 @@ CPU clock:      2.70 GHz
 STRUCT,Info,5
 1,MEM,loop
 Region Info,Core 0,
-RDTSC Runtime [s],1.23456,
+RDTSC Runtime [s],10.23456,
 call count,1,
 CPU clock,2.700118 MHz,
 TABLE,Group 1 Raw,MEM,11
@@ -56,8 +87,8 @@ CAS_COUNT_RD,MBOX3C0,5.763000e+03
 CAS_COUNT_WR,MBOX3C1,3.710000e+03
 TABLE,Group 1 Metric,MEM,10
 Metric,Core 0,
-Runtime (RDTSC) [s],1.23456,
-Runtime unhalted [s],1.23456,
+Runtime (RDTSC) [s],10.23456,
+Runtime unhalted [s],10.23456,
 Clock [MHz],2.700119e+03,
 CPI,6.977878e-01,
 Memory read bandwidth [MBytes/s],2.342234e+02,

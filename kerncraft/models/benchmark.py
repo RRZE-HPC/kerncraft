@@ -240,7 +240,14 @@ class Benchmark(PerformanceModel):
             self.iterations = 10
 
         if self._args.cores > 1 and not self.no_phenoecm:
-            print("Info: phenological ECM model can only be created with a single core benchmark.")
+            print("Info: phenological ECM model can only be created with a single core benchmark.",
+                  file=sys.stderr)
+            self.no_phenoecm = True
+        elif "INFORAMTION_REQUIRED" in ''.join(
+                [self.machine['overlapping model']['performance counter metric'],
+                 self.machine['non-overlapping model']['performance counter metric']]):
+            print("Info: disabled phenological ECM model, because definition is incomplete.",
+                  file=sys.stderr)
             self.no_phenoecm = True
         elif not self.no_phenoecm:
             print("Info: If this takes too long and a phenological ECM model is not required, run "
@@ -336,7 +343,8 @@ class Benchmark(PerformanceModel):
 
     def analyze(self):
         """Run analysis."""
-        bench = self.kernel.build_executable(verbose=self.verbose > 1, openmp=self._args.cores > 1)
+        bench_filename, bench_lock_fp = self.kernel.build_executable(
+            verbose=self.verbose > 1, openmp=self._args.cores > 1)
         element_size = self.kernel.datatypes_size[self.kernel.datatype]
 
         # Build arguments to pass to command:
@@ -364,7 +372,7 @@ class Benchmark(PerformanceModel):
             else:
                 repetitions = int(repetitions * 10)
 
-            results = self.perfctr([bench] + [str(repetitions)] + args, group=group)
+            results = self.perfctr([bench_filename] + [str(repetitions)] + args, group=group)
             runtime = results['Runtime (RDTSC) [s]']
             time_per_repetition = runtime / float(repetitions)
         raw_results = [results]
@@ -380,8 +388,7 @@ class Benchmark(PerformanceModel):
                                     self.kernel.bytes_per_iteration)
         cys_per_repetition = time_per_repetition * float(self.machine['clock'])
 
-        # Gather remaining counters
-        if not self.no_phenoecm:
+        try:
             # Build events and sympy expressions for all model metrics
             T_OL, event_counters = self.machine.parse_perfmetric(
                 self.machine['overlapping model']['performance counter metric'])
@@ -395,15 +402,27 @@ class Benchmark(PerformanceModel):
                 for k, v in cache_info['performance counter metrics'].items():
                     cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
                     event_counters.update(event_dict)
+        except SyntaxError as e:
+            print('Disabled Phenomenological ECM, due to syntax error in machine file '
+                    'metrics:', e, file=sys.stderr)
+            self.no_phenoecm = True
 
+        # Gather remaining counters
+        if self.no_phenoecm:
+            bench_lock_fp.close()
+            event_counters = {}
+            ecm_model = None
+            cache_transfers_per_cl = None
+        else:
             # Compile minimal runs to gather all required events
             minimal_runs = build_minimal_runs(list(event_counters.values()))
             measured_ctrs = {}
             for run in minimal_runs:
                 ctrs = ','.join([eventstr(e) for e in run])
-                r = self.perfctr([bench] + [str(repetitions)] + args, group=ctrs)
+                r = self.perfctr([bench_filename] + [str(repetitions)] + args, group=ctrs)
                 raw_results.append(r)
                 measured_ctrs.update(r)
+            bench_lock_fp.close()
             # Match measured counters to symbols
             event_counter_results = {}
             for sym, ctr in event_counters.items():
@@ -425,8 +444,8 @@ class Benchmark(PerformanceModel):
 
             # Inter-cache transfers per CL
             cache_transfers_per_cl = {cache: {k: PrefixedUnit(v / total_cachelines, 'CL/CL')
-                                              for k, v in d.items()}
-                                      for cache, d in cache_metric_results.items()}
+                                            for k, v in d.items()}
+                                    for cache, d in cache_metric_results.items()}
             cache_transfers_per_cl['L1']['accesses'].unit = 'LOAD/CL'
 
             # Select appropriate bandwidth
@@ -442,14 +461,14 @@ class Benchmark(PerformanceModel):
                 'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
                 'T_L1L2': ((cache_metric_results['L1']['misses'] +
                             cache_metric_results['L1']['evicts']) /
-                           total_cachelines * cl_size /
-                           self.machine['memory hierarchy'][1]['upstream throughput'][0]),
+                        total_cachelines * cl_size /
+                        self.machine['memory hierarchy'][1]['upstream throughput'][0]),
                 'T_L2L3': ((cache_metric_results['L2']['misses'] +
                             cache_metric_results['L2']['evicts']) /
-                           total_cachelines * cl_size /
-                           self.machine['memory hierarchy'][2]['upstream throughput'][0]),
+                        total_cachelines * cl_size /
+                        self.machine['memory hierarchy'][2]['upstream throughput'][0]),
                 'T_L3MEM': ((cache_metric_results['L3']['misses'] +
-                             cache_metric_results['L3']['evicts']) *
+                            cache_metric_results['L3']['evicts']) *
                             float(self.machine['cacheline size']) /
                             total_cachelines / mem_bw *
                             float(self.machine['clock']))
@@ -458,10 +477,6 @@ class Benchmark(PerformanceModel):
             # Build phenomenological ECM model:
             ecm_model = {'T_OL': T_OL_result}
             ecm_model.update(data_transfers)
-        else:
-            event_counters = {}
-            ecm_model = None
-            cache_transfers_per_cl = None
 
         self.results = {'raw output': raw_results, 'ECM': ecm_model,
                         'data transfers': cache_transfers_per_cl,
@@ -512,9 +527,9 @@ class Benchmark(PerformanceModel):
         print('MEM volume (per repetition): {:.0f} Byte'.format(
             self.results['MEM volume (per repetition) [B]']),
             file=output_file)
-        print('Performance: {:.2f} MFLOP/s'.format(self.results['Performance [MFLOP/s]']),
+        print('Performance: {:.2f} MFLOP/s'.format(float(self.results['Performance [MFLOP/s]'])),
               file=output_file)
-        print('Performance: {:.2f} MLUP/s'.format(self.results['Performance [MLUP/s]']),
+        print('Performance: {:.2f} MLUP/s'.format(float(self.results['Performance [MLUP/s]'])),
               file=output_file)
         print('Performance: {:.2f} MIt/s'.format(self.results['Performance [MIt/s]']),
               file=output_file)

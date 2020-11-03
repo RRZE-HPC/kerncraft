@@ -55,10 +55,20 @@ CHANGES_SINCE = OrderedDict([
      Replaced 'micro-architecture' and 'micro-architecture modeller' with
      'in-core model' ordered map, which allows multiple model tools to be
      supported by a single machine file. The first entry is used by default.
-     
+
      Also added stats to benchmark measurements for (manual) validation of model
      parameters.
      """),
+    ("0.8.3.dev1",
+     """
+     Added ISA attribute, which may either be x86 or aarch64 (or any ISA name
+     supported by OSACA)
+     """),
+    ("0.8.6.dev0",
+    """
+    Per in-core model 'port' attribute for 'overlapping model' and 
+    'non-overlapping model' introduced to support LLVM-MCAs naming scheme.
+    """)
 ])
 
 
@@ -73,6 +83,7 @@ def sanitize_symbolname(name):
 
 class MachineModel(object):
     """Representation of the hardware and machine architecture."""
+    _loaded_machine_yaml = {}
 
     def __init__(self, path_to_yaml=None, machine_yaml=None, args=None):
         """
@@ -102,6 +113,7 @@ class MachineModel(object):
                                         'FMA': 'INFORMATION_REQUIRED',
                                         'ADD': 'INFORMATION_REQUIRED',
                                         'MUL': 'INFORMATION_REQUIRED'}}),
+            ('isa', 'INFORMATION_REQUIRED (e.g., x86, aarch64)'),
             ('in-core model', OrderedDict([
                 ('IACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
                 ('OSACA', 'INFORMATION_REQUIRED (e.g., NHM, WSM, SNB, IVB, HSW, BDW, SKL, SKX)'),
@@ -131,6 +143,7 @@ class MachineModel(object):
             }),
             ('memory hierarchy', 'INFORMATION_REQUIRED'),
             ('benchmarks', 'INFORMATION_REQUIRED'),
+            ('machine state', 'INFORMATION_REQUIRED (output of machine-state.sh)'),
         ])
 
         if path_to_yaml and machine_yaml:
@@ -138,9 +151,13 @@ class MachineModel(object):
         self._path = path_to_yaml
         self._args = args
         if path_to_yaml:
-            with open(path_to_yaml, 'r') as f:
-                # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                self._data = yaml.load(f, Loader=yaml.Loader)
+            # Load into cache and save to self._data
+            abspath_to_yaml = os.path.abspath(path_to_yaml)
+            if abspath_to_yaml not in self._loaded_machine_yaml:
+                with open(path_to_yaml, 'r') as f:
+                    # Ignore ruamel unsafe loading warning, by supplying Loader parameter
+                    self._loaded_machine_yaml[abspath_to_yaml] = yaml.load(f, Loader=yaml.Loader)
+            self._data = self._loaded_machine_yaml[abspath_to_yaml]
         elif machine_yaml:
             self._data = machine_yaml
 
@@ -163,7 +180,7 @@ class MachineModel(object):
         self._path = path
 
     def update(self, readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True,
-               cpuinfo_path: str='/proc/cpuinfo'):
+               machine_state=True, cpuinfo_path: str='/proc/cpuinfo'):
         """Update model from readouts and benchmarks on current machine."""
         if readouts:
             self._data.update(get_machine_readouts(cpuinfo_path=cpuinfo_path))
@@ -173,9 +190,13 @@ class MachineModel(object):
 
         if benchmarks:
             self._update_benchmarks()
+        
+        if machine_state:
+            self._update_machine_state()
 
     def _update_benchmarks(self, repetitions=10,
-                           usage_factor=0.66, mem_factor=15.0, overwrite=False):
+                           usage_factor=0.66, min_surpass_factor=0.2, mem_factor=15.0,
+                           overwrite=False):
         """Run benchmarks and update internal dataset"""
         if not isinstance(self._data['benchmarks'], dict):
             self._data['benchmarks'] = {}
@@ -219,18 +240,29 @@ class MachineModel(object):
             benchmarks['measurements'] = {}
 
         cores = list(range(1, self['cores per socket'] + 1))
-        for mem in self['memory hierarchy']:
+        for mem_index, mem in enumerate(self['memory hierarchy']):
             try:
                 measurement = benchmarks['measurements'][mem['level']]
             except (KeyError, TypeError):
                 measurement = benchmarks['measurements'][mem['level']] = {}
 
+            if mem_index > 0:
+                mem_previous = self['memory hierarchy'][mem_index - 1]
+            else:
+                mem_previous = {
+                    'size per group': 0,
+                    'cores per group': 1
+                }
+
             for threads_per_core in range(1, self['threads per core'] + 1):
                 threads = [c * threads_per_core for c in cores]
                 if mem['size per group'] is not None:
                     total_sizes = [
-                        PrefixedUnit(max(int(mem['size per group']) * c / mem['cores per group'],
-                                         int(mem['size per group'])) * usage_factor, 'B')
+                        PrefixedUnit(max(
+                            max(int(mem['size per group']) * c / mem['cores per group'],
+                                int(mem['size per group'])) * usage_factor,
+                            max(int(mem_previous['size per group']) * c / mem_previous['cores per group'],
+                                int(mem_previous['size per group'])) * (1.0 + min_surpass_factor)), 'B')
                         for c in cores]
                 else:
                     last_mem = self['memory hierarchy'][-2]
@@ -289,7 +321,7 @@ class MachineModel(object):
                     benchmarks['kernels'][kernel]['fastest bench kernel'] is None:
                 mem_level = 'L1'
                 fastest_kernel = find_fastest_bench_kernel(
-                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp']),
+                    get_available_bench_kernels(prefix=kernel, excludes=['_mem', '_sp', '_nt']),
                     total_size=int(float(
                         benchmarks['measurements'][mem_level][1]['total size'][0]) / 1000),
                     threads_per_core=1,
@@ -308,6 +340,8 @@ class MachineModel(object):
 
             # Run actual benchmarks and safe machine file in between
             for mem_level in sorted(list(benchmarks['measurements'].keys())):
+                if verbose > 1:
+                    print('Running for {}'.format(mem_level), file=sys.stderr)
                 for threads_per_core in sorted(list(benchmarks['measurements'][mem_level].keys())):
                     measurement = benchmarks['measurements'][mem_level][threads_per_core]
                     if overwrite or kernel not in measurement['results'] or \
@@ -341,6 +375,10 @@ class MachineModel(object):
                         if not verbose:
                             print('.', end='', file=sys.stderr)
                         sys.stderr.flush()
+    
+    def _update_machine_state(self):
+        """Read and update machine state."""
+        self._data['machine state'] = get_machien_state()
 
     def __getitem__(self, key):
         """Return configuration entry."""
@@ -384,6 +422,7 @@ class MachineModel(object):
             if 'cache per group' not in c:
                 continue
             cache_dict[c['level']] = deepcopy(c['cache per group'])
+            cache_dict[c['level']]['cl_size'] = int(c['cache per group']['cl_size'])
             # Scale size of last cache according to cores (typically shared within NUMA domain)
             if c['cores per group'] > 1:
                 cache_dict[c['level']]['sets'] //= min(cores, self['cores per NUMA domain'])
@@ -484,6 +523,14 @@ class MachineModel(object):
             flags = self['compiler'].get(compiler, '')
 
         return compiler, flags.split(' ')
+    
+    def get_incore_model(self, model=None):
+        """
+        Return incore model name to use.
+        """
+        if model is None:
+            model = next(iter(self['in-core model']))
+        return model
 
     def current_system(self, print_diff=False):
         """
@@ -497,14 +544,15 @@ class MachineModel(object):
         """
         current_topology = get_machine_readouts()
         current_topology.update(get_memory_hierarchy())
+        same = True
         for k in ['model type', 'model name', 'sockets', 'cores per socket', 'threads per core',
-                  'NUMA domains per socket', 'cores per NUMA domain']:
+                  'NUMA domains per socket', 'cores per NUMA domain', 'transparent hugepage']:
             if current_topology[k] != self[k]:
                 if print_diff:
-                    print("Expected {!r} and found {!r} for key {}.".format(
+                    print("Expected {!r} and found {!r} for key {!r}.".format(
                         self[k], current_topology[k], k))
-                return False
-        return True
+                same = False
+        return same
 
     @staticmethod
     def parse_perfctr_event(perfctr):
@@ -613,6 +661,18 @@ def get_cpu_frequency():
         return None
 
 
+def get_machien_state():
+    """
+    Build complete machine state information
+    
+    Using:
+    https://github.com/RRZE-HPC/Artifact-description/blob/master/machine-state.sh
+    """
+    return subprocess.check_output(
+        os.path.join(os.path.dirname(__file__), 'scripts', 'machine-state.sh'),
+        stderr=subprocess.STDOUT).decode("utf-8")
+
+
 @lru_cache(1)
 def get_machine_readouts(cpuinfo_path: str='/proc/cpuinfo'):
     """Read machine information using different commands and files and return dictionary."""
@@ -630,11 +690,15 @@ def get_machine_readouts(cpuinfo_path: str='/proc/cpuinfo'):
                     get_match_or_break(r'^Cores per socket:\s+([0-9]+)\s*$', topology)[0]),}
     readouts['NUMA domains per socket'] = int(
         get_match_or_break(r'^NUMA domains:\s+([0-9]+)\s*$', topology)[0]) // readouts['sockets']
+    if readouts['NUMA domains per socket'] == 0:
+        readouts['NUMA domains per socket'] = 1
     readouts['cores per NUMA domain'] = \
         readouts['cores per socket'] // readouts['NUMA domains per socket']
     clock = get_cpu_frequency()
     if clock is not None:
         readouts['clock'] = PrefixedUnit(clock, "Hz")
+    with open('/sys/kernel/mm/transparent_hugepage/enabled') as f:
+        readouts['transparent hugepage'] = get_match_or_break(r'\[([a-z]+)\]', f.read())[0]
 
     return readouts
 
@@ -705,7 +769,8 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
         memory_hierarchy[-1]['upstream throughput'] = [
             'full socket memory bandwidth',
             'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
-    memory_hierarchy[-1]['penalty cycles per read stream'] = 0
+    memory_hierarchy[-1]['penalty cycles per cacheline load'] = 0
+    memory_hierarchy[-1]['penalty cycles per cacheline store'] = 0
     memory_hierarchy[-1]['size per group'] = None
 
     return {'memory hierarchy': memory_hierarchy}
@@ -803,12 +868,24 @@ def main():
     parser.add_argument('--no-benchmarks', dest='benchmarks', action='store_false')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true')
     parser.add_argument('--no-overwrite', dest='overwrite', action='store_false')
-    parser.add_argument('output_file', metavar='FILE', type=argparse.FileType('w'),
+    parser.add_argument('--compare-host', action='store_true',
+                        help='Compares machine file (require --machine) with current hosts and '
+                              'reports if system differs in a configuration.')
+    parser.add_argument('output_file', metavar='FILE', type=argparse.FileType('w'), default='-',
                         help='File to save new machine description to.')
 
     parser.set_defaults(readouts=True, memory_hierarchy=True, benchmarks=True, overwrite=True)
 
     args = parser.parse_args()
+
+    if args.compare_host:
+        if not args.machine:
+            raise argparse.ArgumentError("--compare-host requires --machine")
+        m = MachineModel(args.machine.name)
+        if m.current_system(print_diff=True):
+            sys.exit(0)
+        else:
+            sys.exit(1)
 
     if args.machine:
         m = MachineModel(args.machine.name, args=args)
@@ -817,9 +894,12 @@ def main():
 
     m.set_path(args.output_file.name)
 
-    m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
-             benchmarks=args.benchmarks, overwrite=args.overwrite)
-
+    try:
+        m.update(readouts=args.readouts, memory_hierarchy=args.memory_hierarchy,
+                 benchmarks=args.benchmarks, overwrite=args.overwrite)
+    except KeyboardInterrupt:
+        print("Incomplete machine file was written. Continue by providing it via -m argument.")
+    
     m.dump()
 
 
