@@ -18,15 +18,8 @@ jobs:
     - name: Install
       run: |
         python -m pip install --upgrade pip
-        python -m pip install requests flake8
         python -m pip install -e .
         iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --statistics
     - name: Test
       run: |
         python tests/all_tests.py
