@@ -144,6 +144,7 @@ setup(
             'picklemerge=kerncraft.picklemerge:main',
             'cachetile=kerncraft.cachetile:main',
             'iaca_get=kerncraft.iaca_get:main',
+            'kc-pheno=kerncraft.standalone_pheno:main'
         ],
     },
     scripts=['kerncraft/scripts/machine-state.sh'],
