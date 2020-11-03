@@ -1,9 +1,9 @@
-name: kerncraft-tests
+name: test-n-publish
 
 on: [push, pull_request]
 
 jobs:
-  build:
+  test-n-publish:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -26,3 +26,12 @@ jobs:
         coverage run -p tests/all_tests.py
         coverage run -p `which kerncraft` --help
     - uses: codecov/codecov-action@v1
+    - name: Build package
+      run: |
+        python setup.py build sdist
+    - name: Publish to PyPI
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.pypi_password }}
