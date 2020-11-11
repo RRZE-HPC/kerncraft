@@ -1413,6 +1413,8 @@ class KernelCode(Kernel):
 
         :param openmp: include openmp paragmas (or strip them)
         :param name: name of kernel function
+
+        :return: tuple of filename of header and file pointer of lockfile
         """
         assert self.kernel_ast is not None, "AST does not exist, this could be due to running " \
                                             "based on a kernel description rather than code."
