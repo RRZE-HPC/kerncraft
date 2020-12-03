@@ -487,6 +487,8 @@ class ECM(PerformanceModel):
         #  - bottleneck is always LLC-MEM
         #  - all caches scale with number of cores (bw AND size, which is WRONG but good enough
         #    for a first estimate)
+        #    when --cores was provided, single core prediction will take reduces size of available
+        #    shared caches into account
 
         # Full caching in higher cache level
         self.results['scaling cores'] = float('inf')
