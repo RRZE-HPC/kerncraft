@@ -11,6 +11,8 @@ from sympy.logic.boolalg import BooleanTrue, BooleanFalse
 import numpy as np
 
 from kerncraft.kernel import symbol_pos_int, KernelCode
+from collections import defaultdict
+import operator
 
 
 # From https://stackoverflow.com/a/17511341 by dlitz
@@ -119,13 +121,13 @@ def dimension_from_factor(dimension_factor):
 
 
 # TODO support this delinearization in KernelCode?
-def split_sympy_access_in_dim_offset_and_factor(expr, indices):
+def split_sympy_access_in_dim_offset(expr, dimension_factors):
     """
     Extract dimensional offsets and factors from single-dimension sympy array index expression.
 
     :param expr: sympy expression
-    :param indices: list of index symbols
-    :return tuple of offsets with indices and dimension factors
+    :param dimension_factors: list of dimension factor expressions, in decreasing order!
+    :return tuple of offsets with indices
 
     >>> M = sympy.Symbol(name='M', positive=True, integer=True)
     >>> N = sympy.Symbol(name='N', positive=True, integer=True)
@@ -133,91 +135,49 @@ def split_sympy_access_in_dim_offset_and_factor(expr, indices):
     >>> i = sympy.Symbol(name='i', positive=True, integer=True)
     >>> j = sympy.Symbol(name='j', positive=True, integer=True)
     >>> k = sympy.Symbol(name='k', positive=True, integer=True)
-    >>> split_sympy_access_in_dim_offset_and_factor(M*N*k + N*(j+1) + (i-1), [i, j, k])
-    ((k, j + 1, i - 1), (M*N, N, 1))
-    >>> split_sympy_access_in_dim_offset_and_factor(M*N*k - M*N + N*j+ N*2 + i, [i, j, k])
-    ((k - 1, j + 2, i), (M*N, N, 1))
-    >>> split_sympy_access_in_dim_offset_and_factor(N**2*(k-2) + N*j+ N*2 + i, [i, j, k])
-    ((k - 2, j + 2, i), (N**2, N, 1))
-    >>> split_sympy_access_in_dim_offset_and_factor(2*L*N*M + N*M*(k+1)+ N*(2+j) + i, [i, j, k])
-    ((2, k + 1, j + 2, i), (L*M*N, M*N, N, 1))
-    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + N*k + i + j, [i, j, k])
-    ((k, k, i + j), (N**2, N, 1))
-    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + N*k + i + j + 2, [i, j, k])
-    ((k, k, i + j + 2), (N**2, N, 1))
-    >>> split_sympy_access_in_dim_offset_and_factor(sympy.Integer(2), [i, j, k])
-    ((2,), (1,))
-    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k, [i, j, k])
-    Traceback (most recent call last):
-        ...
-    ValueError: Invalid expression. Some dimension terms seem to be missing.
-    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + M*k + i + j, [i, j, k])
-    Traceback (most recent call last):
-        ...
-    ValueError: Invalid expression. Dimensions do not seem to be coefficients of one another. M*k + N**2*k + i + j
-    >>> split_sympy_access_in_dim_offset_and_factor(N*N*k + i + j, [i, j, k])
-    Traceback (most recent call last):
-        ...
-    ValueError: Invalid expression. Some dimension terms seem to be missing.
+    >>> split_sympy_access_in_dim_offset(M*N*k + N*(j+1) + (i-1), [M*N, N, 1])
+    (k, j + 1, i - 1)
+    >>> split_sympy_access_in_dim_offset(M*N*k - M*N + N*j+ N*2 + i, [M*N, N, 1])
+    ((k - 1, j + 2, i)
+    >>> split_sympy_access_in_dim_offset(N**2*(k-2) + N*j+ N*2 + i, [N**2, N, 1])
+    ((k - 2, j + 2, i))
+    >>> split_sympy_access_in_dim_offset(2*L*N*M + N*M*(k+1)+ N*(2+j) + i, [L*M*N, M*N, N, 1])
+    (2, k + 1, j + 2, i)
+    >>> split_sympy_access_in_dim_offset(N*N*k + N*k + i + j, [N**2, N, 1])
+    (k, k, i + j)
+    >>> split_sympy_access_in_dim_offset(N*N*k + N*k + i + j + 2, [N**2, N, 1])
+    (k, k, i + j + 2)
+    >>> split_sympy_access_in_dim_offset(sympy.Integer(2), [1])
+    (2,)
+    >>> split_sympy_access_in_dim_offset(N*N*k, [N*N, N, 1])
+    (k, 0, 0)
+    >>> split_sympy_access_in_dim_offset(N*N*k + M*k + i + j, [N*N, N, 1])
+    (k, 0, M*k + i + j)
+    >>> split_sympy_access_in_dim_offset(N*N*k + i + j, [N*N, N, 1])
+    (k, 0, i + j)
     """
     # Expand polynomial expressions, e.g., N*(j+1) -> N*j + N
     eexpr = expr.expand()
     terms = eexpr.as_ordered_terms()
 
-    # Find dimension factors belonging to indices and remember unmatched terms
-    one = sympy.Integer(1)
-    dimension_factors = set([one])
-    terms_without_index = []
+    # Find coefficients going along with dimension_factors
+    coefficients = [sympy.Integer(0)] * len(dimension_factors)
     for term in terms:
-        for index in indices:
-            c = term.coeff(index)
+        for factor_idx, factor in enumerate(dimension_factors):
+            if term.is_Integer and factor == 1:
+                c = term
+            else:
+                c = term.coeff(factor)
             if c:
-                dimension_factors.add(c)
-                break
-        else:
-            terms_without_index.append(term)
-
-    # Find additional dimension factors, not based on indices, e.g., L*M*N
-    for term in terms_without_index:
-        for dim_factor in dimension_factors:
-            c = term.coeff(dim_factor)
-            if isinstance(c, sympy.Mul):
-                dimension_factors.add(reduce(sympy.Mul, c.free_symbols) * dim_factor)
+                coefficients[factor_idx] += c
                 break
 
-    # Sort dimension factors by dimension (highest to lowest)
-    dimension_factors = sorted(dimension_factors, key=dimension_from_factor, reverse=True)
-    # Check that dimension_factors include preceding dim. factor
-    for d1, d2 in zip(dimension_factors, dimension_factors[1:]):
-        # Check if d2 is contained in d1 AND d2 is part of a power in d1
-        if d1.as_coefficient(d2) is None and d1.as_coeff_exponent(d2)[1] < 1:
-            raise ValueError("Invalid expression. Dimensions do not seem to be coefficients of one "
-                             "another. {!r}".format(expr))
+    # Test: reassemble original expression
+    if expr != reduce(operator.add, [c*f for c, f in zip(coefficients, dimension_factors)], 0):
+        raise ValueError("Unable to split expression and reproduce from coefficients and factors: "
+                         "{!r} with {!r}".format(terms, dimension_factors))
 
-    # Check that all intermediate dimensions are represented
-    if dimension_from_factor(dimension_factors[0]) + 1 != len(dimension_factors):
-        raise ValueError("Invalid expression. Some dimension terms seem to be missing.")
-
-    # Find offsets associated with dimension factors
-    offsets = []
-    for dim_factor in dimension_factors:
-        offsets.append(sympy.Integer(0))
-        for term in list(terms):
-            c = term.as_coefficient(dim_factor)
-            if c is not None:
-                offsets[-1] += c
-                terms.remove(term)
-            # because 1.as_coefficient(1) is None, we need to consider integers manually
-            elif isinstance(term, sympy.Integer) and dim_factor == 1:
-                offsets[-1] += term
-                terms.remove(term)
-
-    # Reassemble and check for equality
-    assert eexpr == reduce(
-        sympy.Add, [o * df for o, df in zip(offsets, dimension_factors)]).expand(), \
-        "Reassembly of expression from offsets and dimension_factors did not succeed. May be a bug."
-
-    return tuple(offsets), tuple(dimension_factors)
+    return tuple(coefficients)
 
 
 def canonical_relational(rel):
@@ -401,18 +361,17 @@ class LayerConditionPredictor(CachePredictor):
         for var_name in sorted(self.kernel.variables):
             # Gather all access to current variable/array and delinearize accesses
             accesses[var_name] = []
-            dimension_factors = None
+            dimension_factors = []
+            array_dimensions = self.kernel.variables[var_name][1]
+            # Skipping scalars
+            if array_dimensions is None:
+                continue
+            for dimension in range(len(array_dimensions)):
+                dimension_factors.append(reduce(operator.mul, array_dimensions[dimension+1:],
+                                                sympy.Integer(1)))
             for a in sympy_accesses[var_name]:
-                o, df = split_sympy_access_in_dim_offset_and_factor(a, indices)
+                o = split_sympy_access_in_dim_offset(a, dimension_factors)
                 accesses[var_name].append(o)
-                if dimension_factors is None:
-                    dimension_factors = df
-                elif dimension_factors[-len(indices):] != df[-len(indices):]:
-                    raise ValueError("Extracted dimension factors are different within one "
-                                     "variable. Must be a bug. {!r} != {!r}".format(
-                        df, dimension_factors))
-                elif len(dimension_factors) < len(df):
-                    dimension_factors = df
             # Skip non-variable offsets, where acs is [None, None, None] (or similar) or only made
             # up from constant offsets
             if not any(accesses[var_name]) or not any(
