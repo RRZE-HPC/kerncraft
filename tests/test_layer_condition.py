@@ -169,7 +169,7 @@ class TestLayerCondition(unittest.TestCase):
 
         N, M, j, i = sympy.var('N'), sympy.var('M'), sympy.var('j'), sympy.var('i')
         result_expected = \
-            {'accesses': {'W': [(j, i), (1, j, i)],
+            {'accesses': {'W': [(0, j, i), (1, j, i)],
                           'a': [(j - 1, i), (j, i - 1), (j, i), (j, i + 1), (j + 1, i)],
                           'b': [(j, i)]},
              'cache': [[{'condition': M*N < 1024,

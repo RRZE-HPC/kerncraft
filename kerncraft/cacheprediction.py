@@ -363,6 +363,9 @@ class LayerConditionPredictor(CachePredictor):
             accesses[var_name] = []
             dimension_factors = []
             array_dimensions = self.kernel.variables[var_name][1]
+            # Skipping scalars
+            if array_dimensions is None:
+                continue
             for dimension in range(len(array_dimensions)):
                 dimension_factors.append(reduce(operator.mul, array_dimensions[dimension+1:],
                                                 sympy.Integer(1)))
