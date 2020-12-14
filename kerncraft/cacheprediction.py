@@ -206,7 +206,7 @@ def canonical_relational(rel):
         lhs /= max(gcd, -gcd)
         rhs /= max(gcd, -gcd)
 
-    rel = sympy.relational.Relational(lhs, rhs, rel_op)
+    rel = sympy.core.relational.Relational(lhs, rhs, rel_op)
     if rhs < 0:
         rel = rel.reversedsign
     return rel
