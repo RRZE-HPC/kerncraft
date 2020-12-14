@@ -43,6 +43,7 @@ setup(
 
     description='Loop Kernel Analysis and Performance Modeling Toolkit',
     long_description=long_description,
+    long_description_content_type='text/x-rst',
 
     # The project's main homepage.
     url='https://github.com/RRZE-HPC/kerncraft',
