@@ -31,7 +31,7 @@ for the latest release. In order to get the `Intel Achitecture Code Analyzer (IA
 ``iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul``
 
 Additional requirements are:
- * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto.py``)
+ * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto``)
 
 Usage
 =====
