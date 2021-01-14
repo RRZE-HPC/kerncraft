@@ -153,7 +153,9 @@ class x86(ISA):
                 increments[reg] = 1
             elif re.match(r'^add[bwlq]?$', line.instruction) and 'immediate' in line.operands[0] \
                     and 'register' in line.operands[1]:
-                increments[line.operands[1].register.name] = int(line.operands[0].immediate.value)
+                reg = line.operands[1].register.name
+                increments[reg] = int(line.operands[0].immediate.value)
+                modified_registers.append(reg)
             elif re.match(r'^dec[bwlq]?$', line.instruction):
                 reg = line.operands[0].register.name
                 modified_registers.append(reg)
