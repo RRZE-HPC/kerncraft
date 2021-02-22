@@ -822,6 +822,10 @@ def find_fastest_bench_kernel(kernels, *args, **kwargs):
                 print(file=sys.stderr)
             pass
 
+    if not results:
+        raise RuntimeError("Could not measure any of these kernels successfully: {}".format(
+            kernels))
+
     return max(results)[1]
 
 
