@@ -70,7 +70,7 @@ memory hierarchy:
     misses: L2_LINES_IN_ALL:PMC[0-3]
     evicts: L2_TRANS_L2_WB:PMC[0-3]
 - level: L3
-  cache per group: {cl_size: 64, sets: 20.480, ways: 20, replacement_policy: LRU,
+  cache per group: {cl_size: 64, sets: 20480, ways: 20, replacement_policy: LRU,
     write_allocate: true, write_back: true}
   cores per group: 10
   upstream throughput: [32 B/cy, half-duplex]
