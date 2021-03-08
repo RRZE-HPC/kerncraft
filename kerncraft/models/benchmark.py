@@ -195,6 +195,75 @@ def get_supported_likwid_groups():
     return re.findall('^\s*([A-Z_0-9]{2,})\s', output, re.MULTILINE)
 
 
+def perfctr(cmd, cores, group='MEM', code_markers=True, verbose=0):
+    """
+    Run *cmd* with likwid-perfctr and returns result as dict.
+
+    *group* may be a performance group known to likwid-perfctr or an event string.
+
+    if CLI argument cores > 1, running with multi-core, otherwise single-core
+    """
+    # Making sure likwid-perfctr is available:
+    if find_executable('likwid-perfctr') is None:
+        print("likwid-perfctr was not found. Make sure likwid is installed and found in PATH.",
+                file=sys.stderr)
+        sys.exit(1)
+
+    # FIXME currently only single core measurements support!
+    perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
+
+    cpu = 'S0:0'
+    if cores > 1:
+        cpu += '-'+str(cores-1)
+
+    # Pinned and measured on cpu
+    perf_cmd += ['-C', cpu]
+
+    # code must be marked using likwid markers
+    perf_cmd.append('-m')
+
+    perf_cmd += cmd
+    if verbose > 1:
+        print(' '.join(perf_cmd))
+    try:
+        with fix_env_variable('OMP_NUM_THREADS', None):
+            output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
+    except subprocess.CalledProcessError as e:
+        print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
+        sys.exit(1)
+
+    # TODO multicore output is different and needs to be considered here!
+    results = {}
+    for line in output:
+            line = line.split(',')
+            try:
+                # Metrics
+                results[line[0]] = float(line[1])
+                continue
+            except ValueError:
+                # Would not convert to float
+                pass
+            except IndexError:
+                # Not a parable line (did not contain any commas)
+                continue
+            try:
+                # Event counters
+                if line[2] == '-' or line[2] == 'nan':
+                    counter_value = 0
+                else:
+                    counter_value = int(line[2])
+                if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
+                    results.setdefault(line[0], {})
+                    results[line[0]][line[1]] = counter_value
+                    continue
+            except (IndexError, ValueError):
+                pass
+            if line[0].endswith(":") and len(line) == 3 and line[2] == "":
+                # CPU information strings
+                results[line[0]] = line[1]
+                continue
+    return results
+
 class Benchmark(PerformanceModel):
     """Produce a benchmarkable binary to be used with likwid."""
 
@@ -267,65 +336,9 @@ class Benchmark(PerformanceModel):
 
         if CLI argument cores > 1, running with multi-core, otherwise single-core
         """
-        # Making sure likwid-perfctr is available:
-        if find_executable('likwid-perfctr') is None:
-            print("likwid-perfctr was not found. Make sure likwid is installed and found in PATH.",
-                  file=sys.stderr)
-            sys.exit(1)
-
-        # FIXME currently only single core measurements support!
-        perf_cmd = ['likwid-perfctr', '-f', '-O', '-g', group]
-
-        cpu = 'S0:0'
-        if self._args.cores > 1:
-            cpu += '-'+str(self._args.cores-1)
-
-        # Pinned and measured on cpu
-        perf_cmd += ['-C', cpu]
-
-        # code must be marked using likwid markers
-        perf_cmd.append('-m')
-
-        perf_cmd += cmd
-        if self.verbose > 1:
-            print(' '.join(perf_cmd))
-        try:
-            with fix_env_variable('OMP_NUM_THREADS', None):
-                output = subprocess.check_output(perf_cmd).decode('utf-8').split('\n')
-        except subprocess.CalledProcessError as e:
-            print("Executing benchmark failed: {!s}".format(e), file=sys.stderr)
-            sys.exit(1)
-
-        # TODO multicore output is different and needs to be considered here!
-        results = {}
-        for line in output:
-            line = line.split(',')
-            try:
-                # Metrics
-                results[line[0]] = float(line[1])
-                continue
-            except ValueError:
-                # Would not convert to float
-                pass
-            except IndexError:
-                # Not a parable line (did not contain any commas)
-                continue
-            try:
-                # Event counters
-                if line[2] == '-' or line[2] == 'nan':
-                    counter_value = 0
-                else:
-                    counter_value = int(line[2])
-                if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
-                    results.setdefault(line[0], {})
-                    results[line[0]][line[1]] = counter_value
-                    continue
-            except (IndexError, ValueError):
-                pass
-            if line[0].endswith(":") and len(line) == 3 and line[2] == "":
-                # CPU information strings
-                results[line[0]] = line[1]
-                continue
+        results = perfctr(
+            cmd=cmd, cores=self._args.cores, group=group, code_markers=code_markers,
+            verbose=self.verbose)
 
         # Check that frequency during measurement matches machine description
         expected_clock = float(self.machine['clock'])
