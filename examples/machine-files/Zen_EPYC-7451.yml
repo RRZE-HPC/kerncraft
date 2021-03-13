@@ -53,9 +53,9 @@ memory hierarchy:
   cores per group: 1
   groups: 48
   performance counter metrics:
-    accesses: DATA_CACHE_ACCESSES__PMC[0-3]
-    evicts: DATA_CACHE_WRITEBACKS__PMC[0-3]
-    misses: DATA_CACHE_MISSES__PMC[0-3]
+    accesses: LS_DISPATCH_LOADS:PMC[0-3]
+    evicts: ~
+    misses: REQUESTS_TO_L2_GRP1_ALL_NO_PF:PMC[0-3]
   size per group: 32.00 kB
   threads per group: 2
   upstream throughput: [architecture code analyzer, ['8', '9']]
@@ -68,7 +68,7 @@ memory hierarchy:
     replacement_policy: LRU
     write_allocate: true
     write_back: true
-    load_from:             # L3 is a victim cache. Unless a hit in L3, misses get forwarded to MEM
+    load_from: L3
     victims_to: L3
     store_to: L3
   cores per group: 1
@@ -76,9 +76,9 @@ memory hierarchy:
   upstream throughput: [32 B/cy, full-duplex]        # https://en.wikichip.org/wiki/amd/microarchitectures/zen
   transfers overlap: true
   performance counter metrics:
-    accesses: INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)
-    evicts: INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)
-    misses: INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)
+    accesses: REQUESTS_TO_L2_GRP1_ALL_NO_PF:PMC[0-3]
+    evicts: ~
+    misses: L3_ACCESS:CPMC[0-5]
   size per group: 512.00 kB
   threads per group: 2
 - level: L3
@@ -94,9 +94,9 @@ memory hierarchy:
   upstream throughput: [32 B/cy, half-duplex]        # J. Hofmann SC19 paper (not published)
   transfers overlap: false
   performance counter metrics:
-    accesses: EVENT_L3_ACCESS__CMPC[0-5]
-    evicts: INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)
-    misses: EVENT_L3_MISS__CMPC[0-5]
+    accesses: L3_ACCESS:CPMC[0-5]
+    evicts: ~
+    misses: L3_MISS:CPMC[0-5]
   size per group: 8.00 MB
   threads per group: 6
 - cores per group: 24

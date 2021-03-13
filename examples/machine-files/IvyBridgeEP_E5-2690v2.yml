@@ -53,6 +53,7 @@ memory hierarchy:
     evicts: L1D_M_EVICT:PMC[0-3]
   upstream throughput: [architecture code analyzer, [2D, 3D]]
   transfers overlap: false
+  size per group: 32768 B
 - level: L2
   cache per group: {sets: 512, ways: 8, cl_size: 64, replacement_policy: LRU, write_allocate: true,
     write_back: true, load_from: L3, store_to: L3}
@@ -65,6 +66,7 @@ memory hierarchy:
     accesses: L1D_REPLACEMENT:PMC[0-3] + L1D_M_EVICT:PMC[0-3]
     misses: L2_LINES_IN_ALL:PMC[0-3]
     evicts: L2_TRANS_L2_WB:PMC[0-3]
+  size per group: 262144 B
 - level: L3
   cache per group: {sets: 25600, ways: 16, cl_size: 64, replacement_policy: LRU, write_allocate: true,
     write_back: true}
@@ -81,6 +83,7 @@ memory hierarchy:
     evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01]
       + CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01]
       + CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
+  size per group: 22118400 B
 - level: MEM
   cores per group: 10
   upstream throughput: [full socket memory bandwidth, half-duplex]
