@@ -254,15 +254,16 @@ class Kernel(object):
                       ('double',): 8,
                       ('float',): 4}
 
-    def __init__(self, machine=None):
+    def __init__(self, machine=None, loop_stack=None, variables=None, sources=None,
+                 destinations=None, datatype=None):
         """Create kernel representation."""
         self._machine = machine
-        self._loop_stack = []
-        self.variables = {}
-        self.sources = {}
-        self.destinations = {}
+        self._loop_stack = loop_stack or []
+        self.variables = variables or {}
+        self.sources = sources or {}
+        self.destinations = destinations or {}
         self._flops = {}
-        self.datatype = None
+        self.datatype = datatype
         self.constants = None
 
         self.clear_state()
