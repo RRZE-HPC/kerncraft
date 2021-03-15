@@ -506,7 +506,6 @@ class Kernel(object):
         # unwind global iteration count into loop counters:
         base_loop_counters = {}
         global_iterator = symbol_pos_int('global_iterator')
-        idiv = implemented_function(sympy.Function(str('idiv')), lambda x, y: x//y)
         total_length = 1
         last_incr = 1
         for var_name, start, end, incr in reversed(self._loop_stack):
@@ -514,13 +513,14 @@ class Kernel(object):
 
             # This unspools the iterations:
             length = end-start  # FIXME is incr handled correct here?
-            counter = start+(idiv(global_iterator*last_incr, total_length)*incr) % length
+            counter = start+(((global_iterator*last_incr) // total_length)*incr) % length
             total_length = total_length*length
             last_incr = incr
 
             base_loop_counters[loop_var] = sympy.lambdify(
                 global_iterator,
-                self.subs_consts(counter), modules=[numpy, {'Mod': numpy.mod}])
+                self.subs_consts(counter),
+                modules='numpy')
 
             if git is not None:
                 try:  # Try to resolve to integer if global_iterator was given
@@ -581,11 +581,12 @@ class Kernel(object):
         global_store_offsets = []
 
         if isinstance(iteration, range):
-            iteration = numpy.arange(iteration.start, iteration.stop, iteration.step, dtype='O')
+            iteration = numpy.arange(iteration.start, iteration.stop, iteration.step,
+                                     dtype='int64')
         else:
             if not isinstance(iteration, collections.abc.Sequence):
                 iteration = [iteration]
-            iteration = numpy.array(iteration, dtype='O')
+            iteration = numpy.array(iteration, dtype='int64')
 
         # loop indices based on iteration
         # unwind global iteration count into loop counters:
@@ -621,7 +622,8 @@ class Kernel(object):
                     base_loop_counters.keys(),
                     self.subs_consts(
                         offset_expr*element_size
-                        + base_offsets[var_name]), numpy))
+                        + base_offsets[var_name]),
+                    'numpy'))
                 # TODO possibly differentiate between index order
                 global_load_offsets.append(offset)
             for w in self.destinations.get(var_name, []):
@@ -633,7 +635,8 @@ class Kernel(object):
                     base_loop_counters.keys(),
                     self.subs_consts(
                         offset_expr*element_size
-                        + base_offsets[var_name]), numpy))
+                        + base_offsets[var_name]),
+                    'numpy'))
                 # TODO possibly differentiate between index order
                 global_store_offsets.append(offset)
                 # TODO take element sizes into account, return in bytes
@@ -660,13 +663,13 @@ class Kernel(object):
         store_offsets = numpy.asarray(store_offsets).T
 
         # Combine loads and stores
+        load_width = load_offsets.shape[1] if len(load_offsets.shape) > 1 else 0
         store_width = store_offsets.shape[1] if len(store_offsets.shape) > 1 else 0
-        dtype = [('load', load_offsets.dtype, (load_offsets.shape[1],)),
+        dtype = [('load', load_offsets.dtype, (load_width,)),
                  ('store', store_offsets.dtype, (store_width,))]
         offsets = numpy.empty(max(load_offsets.shape[0], store_offsets.shape[0]), dtype=dtype)
         offsets['load'] = load_offsets
         offsets['store'] = store_offsets
-
         return offsets
 
     @property
