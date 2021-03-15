@@ -508,7 +508,6 @@ class LayerConditionPredictor(CachePredictor):
 
 class CacheSimulationPredictor(CachePredictor):
     """Predictor class based on layer condition analysis."""
-
     def __init__(self, kernel, machine, cores=1):
         """Initialize cache simulation based predictor from kernel and machine object."""
         CachePredictor.__init__(self, kernel, machine, cores)
@@ -625,7 +624,7 @@ class CacheSimulationPredictor(CachePredictor):
         # print("bench_iteration", bench_iteration)
         first_dim_factor = float((bench_iteration - warmup_iteration) / iterations_per_cacheline)
         # If end point is less than 100 cacheline away, warn user of inaccuracy
-        if first_dim_factor < 1000:
+        if not complete_sweep and first_dim_factor < 1000:
             print("Warning: benchmark iterations are very low ({} CL). This may lead to inaccurate "
                   "cache predictions.".format(first_dim_factor))
 
