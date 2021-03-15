@@ -233,35 +233,35 @@ def perfctr(cmd, cores, group='MEM', code_markers=True, verbose=0):
         sys.exit(1)
 
     # TODO multicore output is different and needs to be considered here!
-    results = {}
+    results = {"raw output": output}
     for line in output:
-            line = line.split(',')
-            try:
-                # Metrics
-                results[line[0]] = float(line[1])
+        line = line.split(',')
+        try:
+            # Metrics
+            results[line[0]] = float(line[1])
+            continue
+        except ValueError:
+            # Would not convert to float
+            pass
+        except IndexError:
+            # Not a parable line (did not contain any commas)
+            continue
+        try:
+            # Event counters
+            if line[2] == '-' or line[2] == 'nan':
+                counter_value = 0
+            else:
+                counter_value = int(line[2])
+            if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
+                results.setdefault(line[0], {})
+                results[line[0]][line[1]] = counter_value
                 continue
-            except ValueError:
-                # Would not convert to float
-                pass
-            except IndexError:
-                # Not a parable line (did not contain any commas)
-                continue
-            try:
-                # Event counters
-                if line[2] == '-' or line[2] == 'nan':
-                    counter_value = 0
-                else:
-                    counter_value = int(line[2])
-                if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
-                    results.setdefault(line[0], {})
-                    results[line[0]][line[1]] = counter_value
-                    continue
-            except (IndexError, ValueError):
-                pass
-            if line[0].endswith(":") and len(line) == 3 and line[2] == "":
-                # CPU information strings
-                results[line[0]] = line[1]
-                continue
+        except (IndexError, ValueError):
+            pass
+        if line[0].endswith(":") and len(line) == 3 and line[2] == "":
+            # CPU information strings
+            results[line[0]] = line[1]
+            continue
     return results
 
 class Benchmark(PerformanceModel):
