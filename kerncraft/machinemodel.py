@@ -416,20 +416,24 @@ class MachineModel(object):
 
         :param cores: core count (default: 1)
         """
-        cache_dict = {}
-        for c in self['memory hierarchy']:
-            # Skip main memory
-            if 'cache per group' not in c:
-                continue
-            cache_dict[c['level']] = deepcopy(c['cache per group'])
-            cache_dict[c['level']]['cl_size'] = int(c['cache per group']['cl_size'])
-            # Scale size of last cache according to cores (typically shared within NUMA domain)
-            if c['cores per group'] > 1:
-                cache_dict[c['level']]['sets'] //= min(cores, self['cores per NUMA domain'])
+        if hasattr(self, '_cachesimulator'):
+            self._cachesimulator.mark_all_invalid()
+            self._cachesimulator.reset_stats()
+        else:
+            cache_dict = {}
+            for c in self['memory hierarchy']:
+                # Skip main memory
+                if 'cache per group' not in c:
+                    continue
+                cache_dict[c['level']] = deepcopy(c['cache per group'])
+                cache_dict[c['level']]['cl_size'] = int(c['cache per group']['cl_size'])
+                # Scale size of last cache according to cores (typically shared within NUMA domain)
+                if c['cores per group'] > 1:
+                    cache_dict[c['level']]['sets'] //= min(cores, self['cores per NUMA domain'])
 
-        cs, caches, mem = cachesim.CacheSimulator.from_dict(cache_dict)
+            self._cachesimulator, caches, mem = cachesim.CacheSimulator.from_dict(cache_dict)
 
-        return cs
+        return self._cachesimulator
 
     def get_bandwidth(self, cache_level, read_streams, write_streams, threads_per_core, cores=None):
         """
