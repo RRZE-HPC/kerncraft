@@ -302,8 +302,11 @@ class LayerConditionPredictor(CachePredictor):
         #    reference, the reference is simply ignored
         index_order = [symbol_pos_int(l['index']) for l in loop_stack]
         for var_name, arefs in chain(self.kernel.sources.items(), self.kernel.destinations.items()):
-            if next(iter(arefs)) is None:
-                # Anything that is a scalar may be ignored
+            try:
+                if next(iter(arefs)) is None:
+                    # Anything that is a scalar may be ignored
+                    continue
+            except StopIteration:
                 continue
 
             for a in [self.kernel.access_to_sympy(var_name, a) for a in arefs]:
