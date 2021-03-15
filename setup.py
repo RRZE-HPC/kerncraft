@@ -99,9 +99,8 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
         'ruamel.yaml>=0.15.37',
-        'sympy>=1.1.1',
-        'pycachesim>=0.2.1',
-        'pylru',
+        'sympy>=1.7.1',
+        'pycachesim>=0.2.3',
         'numpy',
         'requests',
         'pycparser>=2.19',
