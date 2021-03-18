@@ -138,7 +138,7 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     'L1D_RE'+'PLACEMENT:PMC0'
     >>> eventstr(('L1D_RE'+'PLACEMENT', 'PMC0'))
     'L1D_RE'+'PLACEMENT:PMC0'
-    >>> eventstr(('MEM_UOPS_RETIRED_LOADS', 'PMC3', {'EDGEDETECT': None, 'THRESHOLD': 2342}))
+    >>> eventstr(('MEM_UOPS_RETIRED_LOADS', 'PMC3', ('EDGEDETECT', 'THRESHOLD=0x926')))
     'MEM_UOPS_RETIRED_LOADS:PMC3:EDGEDETECT:THRESHOLD=0x926'
     >>> eventstr(event='DTLB_LOAD_MISSES_WALK_DURATION', register='PMC3')
     'DTLB_LOAD_MISSES_WALK_DURATION:PMC3'
@@ -150,10 +150,8 @@ def eventstr(event_tuple=None, event=None, register=None, parameters=None):
     event_dscr = [event, register]
 
     if parameters:
-        for k, v in sorted(event_tuple[2].items()):  # sorted for reproducability
-            if type(v) is int:
-                k += "={}".format(hex(v))
-            event_dscr.append(k)
+        event_dscr += parameters
+
     return ":".join(event_dscr)
 
 
@@ -252,7 +250,8 @@ def perfctr(cmd, cores, group='MEM', code_markers=True, verbose=0):
                 counter_value = 0
             else:
                 counter_value = int(line[2])
-            if re.fullmatch(r'[A-Z0-9_]+', line[0]) and re.fullmatch(r'[A-Z0-9]+', line[1]):
+            if re.fullmatch(r'[A-Z0-9_]+', line[0]) and \
+                    re.fullmatch(r'[A-Z0-9]+(:[A-Z]+=[0-9x]+)*', line[1]):
                 results.setdefault(line[0], {})
                 results[line[0]][line[1]] = counter_value
                 continue
@@ -439,7 +438,10 @@ class Benchmark(PerformanceModel):
             # Match measured counters to symbols
             event_counter_results = {}
             for sym, ctr in event_counters.items():
-                event, regs, parameter = ctr[0], register_options(ctr[1]), ctr[2]
+                event, regs, parameters = ctr[0], register_options(ctr[1]), ctr[2]
+                if parameters:
+                    parameter_str = ':'.join(parameters)
+                    regs = [r+':'+parameter_str for r in regs]
                 for r in regs:
                     if r in measured_ctrs[event]:
                         event_counter_results[sym] = measured_ctrs[event][r]

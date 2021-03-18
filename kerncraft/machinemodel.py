@@ -567,23 +567,14 @@ class MachineModel(object):
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]')
         ('PERF_EVENT', 'REG[0-3]')
         >>> parse_perfctr_event('PERF_EVENT:REG[0-3]:STAY:FOO=23:BAR=0x23')
-        ('PERF_EVENT', 'REG[0-3]', {'STAY': None, 'FOO': 23, 'BAR': 35})
+        ('PERF_EVENT', 'REG[0-3]', ('STAY', 'FOO=23', 'BAR=0x23'))
 
         """
         split_perfctr = perfctr.split(':')
         assert len(split_perfctr) >= 2, "Atleast one colon (:) is required in the event name"
         event_tuple = split_perfctr[:2]
-        parameters = {}
-        for p in split_perfctr[2:]:
-            if '=' in p:
-                k, v = p.split('=')
-                if v.startswith('0x'):
-                    parameters[k] = int(v, 16)
-                else:
-                    parameters[k] = int(v)
-            else:
-                parameters[p] = None
-        event_tuple.append(parameters)
+        parameters = split_perfctr[2:]
+        event_tuple.append(tuple(parameters))
         return tuple(event_tuple)
 
     @staticmethod
