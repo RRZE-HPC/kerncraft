@@ -68,7 +68,12 @@ CHANGES_SINCE = OrderedDict([
     """
     Per in-core model 'port' attribute for 'overlapping model' and 
     'non-overlapping model' introduced to support LLVM-MCAs naming scheme.
-    """)
+    """),
+    ("0.8.11.dev0",
+     """
+     'performance counter metrics' added to Memory level and spit key 'access' 
+     into 'loads' and 'stores'.
+     """)
 ])
 
 
@@ -580,6 +585,7 @@ class MachineModel(object):
     @staticmethod
     def parse_perfmetric(metric):
         """Return (sympy expressions, event names and symbols dict) from performance metric str."""
+        metric = str(metric)
         # Find all perfs counter references
         perfcounters = re.findall(r'[A-Z0-9_]+:[A-Z0-9\[\]|\-]+(?::[A-Za-z0-9\-_=]+)*', metric)
 
@@ -746,9 +752,10 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
                 int(mem_level['cores per group'] * readouts['threads per core'])
         if placeholders:
             mem_level['performance counter metrics'] = {
-                'accesses': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT__PMC0)',
-                'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL__PMC1)',
-                'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL__PMC2)'
+                'loads': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT:PMC[0-4])',
+                'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',
+                'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4])',
+                'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL:PMC[0-4])'
             }
 
     # Remove last caches load_from and store_to:
@@ -759,6 +766,9 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
         ('level', 'MEM'),
         ('cores per group', int(readouts['cores per socket'])),
         ('threads per group', int(readouts['threads per core'] * readouts['cores per socket'])),
+        ('performance counter metrics', {
+                'loads': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT:PMC[0-4])',
+                'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',})
     ]))
     if placeholders:
         memory_hierarchy[-1]['upstream throughput'] = [

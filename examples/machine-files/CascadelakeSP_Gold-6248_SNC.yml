@@ -1,4 +1,4 @@
-kerncraft version: 0.8.6.dev0
+kerncraft version: 0.8.11.dev0
 model name: Intel(R) Xeon(R) Gold 6248 CPU @ 2.50GHz
 model type: Intel Cascadelake SP processor
 clock: 2.5 GHz
@@ -45,7 +45,8 @@ memory hierarchy:
 - level: L1
   # upstream throughput is gathered from port assignment (non-overlapping model -> ports)
   performance counter metrics:
-    accesses: MEM_INST_RETIRED_ALL_LOADS:PMC[0-3]
+    loads: MEM_INST_RETIRED_ALL_LOADS:PMC[0-3]
+    stores: MEM_INST_RETIRED_ALL_STORES:PMC[0-3]
     misses: L1D_REPLACEMENT:PMC[0-3]
     evicts: L2_TRANS_L1D_WB:PMC[0-3]
   cache per group:
@@ -67,7 +68,8 @@ memory hierarchy:
   upstream throughput: [64 B/cy, half-duplex]
   transfers overlap: false
   performance counter metrics:
-    accesses: L1D_REPLACEMENT:PMC[0-3]
+    loads: L1D_REPLACEMENT:PMC[0-3]
+    stores: L2_TRANS_L1D_WB:PMC[0-3]
     misses: L2_LINES_IN_ALL:PMC[0-3]
     evicts: L2_TRANS_L2_WB:PMC[0-3]
   cache per group:
@@ -97,10 +99,9 @@ memory hierarchy:
   upstream throughput: [16 B/cy, full-duplex]
   transfers overlap: false
   performance counter metrics:
-    accesses: L2_LINES_IN_ALL:PMC[0-3]
-    # FIXME not all misses in L2 lead to loads from L3, only the hits do
-    misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01]
-      + CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01])
+    loads: (LLC_LOOKUP_ANY:CBOX0C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX1C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX2C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX3C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX4C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX5C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX6C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX7C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX8C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX9C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX10C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX11C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX12C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX13C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX14C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX15C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX16C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX17C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX18C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX19C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX20C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX21C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX22C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX23C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX24C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX25C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX26C[0-3]:STATE=0xF0:OPCODE=0x202+LLC_LOOKUP_ANY:CBOX27C[0-3]:STATE=0xF0:OPCODE=0x202)
+    stores: MEM_LOAD_RETIRED_L3_HIT:PMC[0-3] + L2_TRANS_L2_WB:PMC[0-3]
+    misses: 0  # this assumes LLC prefetcher to be off. may be measured with OFFCORE_RESPONSE_0_OPTIONS:PMC0:MATCH0=0x180
     evicts: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01]
       + CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   size per group: 14.00 MB
@@ -109,6 +110,9 @@ memory hierarchy:
   cores per group: 20
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
+  performance counter metrics:
+    loads: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01] + CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01])
+    stores: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01] + CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01])
   size per group:
   threads per group: 40
 

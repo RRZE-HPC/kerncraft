@@ -1,4 +1,4 @@
-kerncraft version: 0.8.6.dev0
+kerncraft version: 0.8.11.dev0
 
 # Details from
 # [1] https://en.wikichip.org/wiki/cavium/thunderx2/cn9980
@@ -46,7 +46,8 @@ overlapping model:
 memory hierarchy:
 - level: L1
   performance counter metrics:
-    accesses: LD_RETIRED:PMC[0-5]
+    loads: LD_RETIRED:PMC[0-5]
+    stores: ST_RETIRED:PMC[0-5]
     evicts: L1D_CACHE_WB:PMC[0-5]
     misses: L1D_CACHE_REFILL:PMC[0-5]
   cache per group: {sets: 64, ways: 8, cl_size: 64 B, replacement_policy: LRU, write_allocate: true,
@@ -61,7 +62,8 @@ memory hierarchy:
   upstream throughput: [64 B/cy, half-duplex]
   transfers overlap: false
   performance counter metrics:
-    accesses: L1D_CACHE_REFILL:PMC[0-5]
+    loads: L1D_CACHE_REFILL:PMC[0-5]
+    stores: L1D_CACHE_WB:PMC[0-5]
     evicts: L2D_CACHE_WB:PMC[0-5]
     misses: L2D_CACHE_REFILL:PMC[0-5] - L2D_CACHE_ALLOCATE:PMC[0-5]
   cache per group: {sets: 512, ways: 8, cl_size: 64 B, replacement_policy: LRU,
@@ -75,7 +77,8 @@ memory hierarchy:
   upstream throughput: [32 B/cy, half-duplex]
   transfers overlap: false
   performance counter metrics:
-    accesses: L2D_CACHE_REFILL:PMC[0-5] - L2D_CACHE_ALLOCATE:PMC[0-5]
+    loads: L2D_CACHE_REFILL:PMC[0-5] - L2D_CACHE_ALLOCATE:PMC[0-5]
+    stores: L2D_CACHE_WB:PMC[0-5]
     evicts: MEMORY_WRITES:MBOX0C[01] + MEMORY_WRITES:MBOX1C[01]
     misses: MEMORY_READS:MBOX0C[01] + MEMORY_READS:MBOX1C[01]
   cache per group: {sets: 65536, ways: 8, cl_size: 64 B, replacement_policy: LRU,
@@ -91,6 +94,9 @@ memory hierarchy:
   transfers overlap: false
   penalty cycles per cacheline load: 2.56
   penalty cycles per cachlinie store: 2.56
+  performance counter metrics:
+    loads: MEMORY_READS:MBOX0C0 + MEMORY_READS:MBOX1C0
+    stores: MEMORY_WRITES:MBOX0C1 + MEMORY_WRITES:MBOX1C1
   size per group: ~
 
 benchmarks:

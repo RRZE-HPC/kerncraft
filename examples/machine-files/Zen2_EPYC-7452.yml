@@ -1,4 +1,4 @@
-kerncraft version: 0.8.6.dev0
+kerncraft version: 0.8.11.dev0
 model name: AMD EPYC 7452 32-Core Processor
 model type: AMD K17 (Zen2) architecture
 clock: 2.35 GHz
@@ -51,7 +51,8 @@ memory hierarchy:
   cores per group: 1
   groups: 32
   performance counter metrics:
-    accesses: LS_DISPATCH_LOADS:PMC[0-3]
+    loads: LS_DISPATCH_LOADS:PMC[0-3]
+    stores: LS_DISPATCH_STORES:PMC[0-3]
     evicts: ~
     misses: REQUESTS_TO_L2_GRP1_ALL_NO_PF:PMC[0-3]
   size per group: 32.00 kB
@@ -74,7 +75,8 @@ memory hierarchy:
   upstream throughput: [32 B/cy, full-duplex]        # https://en.wikichip.org/wiki/amd/microarchitectures/zen
   transfers overlap: true
   performance counter metrics:
-    accesses: REQUESTS_TO_L2_GRP1_ALL_NO_PF:PMC[0-3]
+    loads: REQUESTS_TO_L2_GRP1_ALL_NO_PF:PMC[0-3]
+    stores: ~
     evicts: ~
     misses: L3_ACCESS:CPMC[0-5]
   size per group: 512.00 kB
@@ -92,7 +94,8 @@ memory hierarchy:
   upstream throughput: [32 B/cy, half-duplex]        # J. Hofmann SC19 paper (not published)
   transfers overlap: false
   performance counter metrics:
-    accesses: L3_ACCESS:CPMC[0-5]
+    loads: L3_ACCESS:CPMC[0-5]
+    stores: ~
     evicts: ~
     misses: L3_MISS:CPMC[0-5]
   size per group: 16.00 MB
@@ -101,6 +104,9 @@ memory hierarchy:
   level: MEM
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
+  performance counter metrics:
+    loads: DATA_FROM_LOCAL_DRAM_CHANNEL:DFC[01] + DATA_TO_LOCAL_DRAM_CHANNEL:DFC[01]
+    stores: ~
   size per group:
   threads per group: 64
 

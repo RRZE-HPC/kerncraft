@@ -11,6 +11,7 @@ from collections import defaultdict
 import string
 import pprint
 import contextlib
+import itertools
 
 from kerncraft.prefixedunit import PrefixedUnit
 from .base import PerformanceModel
@@ -251,7 +252,7 @@ def perfctr(cmd, cores, group='MEM', code_markers=True, verbose=0):
             else:
                 counter_value = int(line[2])
             if re.fullmatch(r'[A-Z0-9_]+', line[0]) and \
-                    re.fullmatch(r'[A-Z0-9]+(:[A-Z]+=[0-9x]+)*', line[1]):
+                    re.fullmatch(r'[A-Z0-9]+(:[A-Z]+=[0-9a-fA-Fx]+)*', line[1]):
                 results.setdefault(line[0], {})
                 results[line[0]][line[1]] = counter_value
                 continue
@@ -408,11 +409,10 @@ class Benchmark(PerformanceModel):
                 self.machine['non-overlapping model']['performance counter metric'])
             event_counters.update(event_dict)
             cache_metrics = defaultdict(dict)
-            for i in range(len(self.machine['memory hierarchy']) - 1):
-                cache_info = self.machine['memory hierarchy'][i]
+            for i, cache_info in enumerate(self.machine['memory hierarchy']):
                 name = cache_info['level']
                 for k, v in cache_info['performance counter metrics'].items():
-                    cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(v)
+                    cache_metrics[name][k], event_dict = self.machine.parse_perfmetric(str(v))
                     event_counters.update(event_dict)
         except SyntaxError as e:
             print('Disabled Phenomenological ECM, due to syntax error in machine file '
@@ -461,7 +461,8 @@ class Benchmark(PerformanceModel):
             cache_transfers_per_cl = {cache: {k: PrefixedUnit(v / total_cachelines, 'CL/CL')
                                             for k, v in d.items()}
                                     for cache, d in cache_metric_results.items()}
-            cache_transfers_per_cl['L1']['accesses'].unit = 'LOAD/CL'
+            cache_transfers_per_cl['L1']['loads'].unit = 'LOAD/CL'
+            cache_transfers_per_cl['L1']['stores'].unit = 'LOAD/CL'
 
             # Select appropriate bandwidth
             mem_bw, mem_bw_kernel = self.machine.get_bandwidth(
@@ -473,17 +474,17 @@ class Benchmark(PerformanceModel):
             data_transfers = {
                 # Assuming 0.5 cy / LOAD (SSE on SNB or IVB; AVX on HSW, BDW, SKL or SKX)
                 # TODO make this mapping generic
-                'T_nOL': (cache_metric_results['L1']['accesses'] / total_cachelines * 0.5),
-                'T_L1L2': ((cache_metric_results['L1']['misses'] +
-                            cache_metric_results['L1']['evicts']) /
+                'T_nOL': (cache_metric_results['L1']['loads'] / total_cachelines * 0.5),
+                'T_L1L2': ((cache_metric_results['L2']['loads'] +
+                            cache_metric_results['L2']['stores']) /
                         total_cachelines * cl_size /
                         self.machine['memory hierarchy'][1]['upstream throughput'][0]),
-                'T_L2L3': ((cache_metric_results['L2']['misses'] +
-                            cache_metric_results['L2']['evicts']) /
+                'T_L2L3': ((cache_metric_results['L3']['loads'] +
+                            cache_metric_results['L3']['stores']) /
                         total_cachelines * cl_size /
                         self.machine['memory hierarchy'][2]['upstream throughput'][0]),
-                'T_L3MEM': ((cache_metric_results['L3']['misses'] +
-                            cache_metric_results['L3']['evicts']) *
+                'T_MEM': ((cache_metric_results['MEM']['loads'] +
+                            cache_metric_results['MEM']['stores']) *
                             float(self.machine['cacheline size']) /
                             total_cachelines / mem_bw *
                             float(self.machine['clock']))
@@ -556,20 +557,20 @@ class Benchmark(PerformanceModel):
         if not self.no_phenoecm:
             print("Data Transfers:")
             print("{:^8} |".format("cache"), end='')
-            for metrics in self.results['data transfers'].values():
-                for metric_name in sorted(metrics):
-                    print(" {:^14}".format(metric_name), end='')
-                print()
-                break
+            metric_names = ['loads', 'misses', 'stores', 'evicts']
+            for mn in metric_names:
+                print(" {:^14}".format(mn), end='')
+            print()
             for cache, metrics in sorted(self.results['data transfers'].items()):
                 print("{!s:^8} |".format(cache), end='')
-                for k, v in sorted(metrics.items()):
+                for mn in metric_names:
+                    v = metrics.get(mn, '-')
                     print(" {!s:^14}".format(v), end='')
                 print()
             print()
 
             print('Phenomenological ECM model: {{ {T_OL:.1f} || {T_nOL:.1f} | {T_L1L2:.1f} | '
-                  '{T_L2L3:.1f} | {T_L3MEM:.1f} }} cy/CL'.format(
+                  '{T_L2L3:.1f} | {T_MEM:.1f} }} cy/CL'.format(
                 **{k: float(v) for k, v in self.results['ECM'].items()}),
                 file=output_file)
             print('T_OL assumes that two loads per cycle may be retired, which is true for '

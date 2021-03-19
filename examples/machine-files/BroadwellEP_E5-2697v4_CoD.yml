@@ -1,4 +1,4 @@
-kerncraft version: 0.8.6.dev0
+kerncraft version: 0.8.11.dev0
 
 model name: Intel(R) Xeon(R) CPU E5-2697 v4 @ 2.30GHz
 model type: Intel Xeon Broadwell EN/EP/EX processor
@@ -54,7 +54,8 @@ memory hierarchy:
   upstream throughput: [architecture code analyzer, [2D, 3D]]
   transfers overlap: false
   performance counter metrics:
-    accesses: MEM_UOPS_RETIRED_LOADS_ALL:PMC[0-3] + MEM_UOPS_RETIRED_STORES_ALL:PMC[0-3]
+    loads: MEM_UOPS_RETIRED_LOADS_ALL:PMC[0-3]
+    stores: MEM_UOPS_RETIRED_STORES_ALL:PMC[0-3]
     misses: L1D_REPLACEMENT:PMC[0-3]
     evicts: L2_TRANS_L1D_WB:PMC[0-3]
 - cache per group: {cl_size: 64, load_from: L3, replacement_policy: LRU, sets: 512,
@@ -80,7 +81,8 @@ memory hierarchy:
   size per group: 11.25 MB
   threads per group: 18
   performance counter metrics:
-    accesses: L2_LINES_IN_ALL:PMC[0-3] + L2_TRANS_L2_WB:PMC[0-3]
+    loads: L2_LINES_IN_ALL:PMC[0-3]
+    stores: L2_TRANS_L2_WB:PMC[0-3]
     misses: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01]
       + CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01]
       + CAS_COUNT_RD:MBOX6C[01] + CAS_COUNT_RD:MBOX7C[01])
@@ -91,6 +93,13 @@ memory hierarchy:
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
   level: MEM
+  performance counter metrics:
+    loads: (CAS_COUNT_RD:MBOX0C[01] + CAS_COUNT_RD:MBOX1C[01] + CAS_COUNT_RD:MBOX2C[01]
+      + CAS_COUNT_RD:MBOX3C[01] + CAS_COUNT_RD:MBOX4C[01] + CAS_COUNT_RD:MBOX5C[01]
+      + CAS_COUNT_RD:MBOX6C[01] + CAS_COUNT_RD:MBOX7C[01])
+    stores: (CAS_COUNT_WR:MBOX0C[01] + CAS_COUNT_WR:MBOX1C[01] + CAS_COUNT_WR:MBOX2C[01]
+      + CAS_COUNT_WR:MBOX3C[01] + CAS_COUNT_WR:MBOX4C[01] + CAS_COUNT_WR:MBOX5C[01]
+      + CAS_COUNT_WR:MBOX6C[01] + CAS_COUNT_WR:MBOX7C[01])
   size per group:
   threads per group: 36
 

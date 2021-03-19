@@ -479,7 +479,7 @@ class LayerConditionPredictor(CachePredictor):
     def get_loads(self):
         """Return a list with number of loaded cache lines per memory hierarchy level."""
         # TODO FIXME L1 loads need to be derived from accesses
-        return [0]+[c['misses'] for c in self.results['cache']]
+        return [float('nan')]+[c['misses'] for c in self.results['cache']]
 
     def get_hits(self):
         """Return a list with number of hit cache lines per memory hierarchy level."""
@@ -494,7 +494,7 @@ class LayerConditionPredictor(CachePredictor):
     def get_stores(self):
         """Return a list with number of stored cache lines per memory hierarchy level."""
         # TODO FIXME L1 stores need to be derived from accesses
-        return [0]+[c['evicts'] for c in self.results['cache']]
+        return [float('nan')]+[c['evicts'] for c in self.results['cache']]
 
     def get_evicts(self):
         """Return a list with number of evicted cache lines per memory hierarchy level."""
