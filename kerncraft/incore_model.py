@@ -393,8 +393,8 @@ class AArch64(ISA):
                 if index_reg in increments:
                     reg = index_reg
                     # If index is used, a scale other than 1 needs to be considered
-                    if 'shift' in mref.index:
-                        scales[reg] = 2**int(mref.index.shift.value)
+                    if 'shift' in mref.index and mref.index.shift:
+                        scales[reg] = 2**int(mref.index.shift[0].value)
                 else:
                     reg = base_reg
             else:
