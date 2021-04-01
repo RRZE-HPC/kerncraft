@@ -625,6 +625,7 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
             sum([instr_form['latency_lcd'] for instr_form in lcd_dict[dep]['dependencies']]))
 
     result['output'] = frontend.full_analysis(kernel, kernel_graph, verbose=True)
+    result['analyzed kernel'] = kernel
     result['port cycles'] = OrderedDict(list(zip(osaca_machine_model['ports'], throughput_values)))
     result['throughput'] = max(throughput_values + [max_lcd])
     result['uops'] = None  # Not given by OSACA
