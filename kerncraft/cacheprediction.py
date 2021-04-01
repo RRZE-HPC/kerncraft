@@ -663,11 +663,12 @@ class CacheSimulationPredictor(CachePredictor):
         diff = first_offset - \
                (int(first_offset) >> self.csim.first_level.cl_bits << self.csim.first_level.cl_bits)
         if diff == 0:
-            return iteration
+            return int(iteration)
         elif subtract:
-            return iteration - (diff // element_size) // inner_increment
+            return int(iteration - (diff // element_size) // inner_increment)
         else:
-            return iteration + (elements_per_cacheline - diff // element_size) // inner_increment
+            return int(iteration + (elements_per_cacheline - diff // element_size)
+                       // inner_increment)
 
     def get_loads(self):
         """Return a list with number of loaded cache lines per memory hierarchy level."""
