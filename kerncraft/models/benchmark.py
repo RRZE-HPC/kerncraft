@@ -252,7 +252,7 @@ def perfctr(cmd, cores, group='MEM', code_markers=True, verbose=0):
             else:
                 counter_value = int(line[2])
             if re.fullmatch(r'[A-Z0-9_]+', line[0]) and \
-                    re.fullmatch(r'[A-Z0-9]+(:[A-Z]+=[0-9a-fA-Fx]+)*', line[1]):
+                    re.fullmatch(r'[A-Z0-9]+(:[A-Z0-9]+=[0-9a-fA-Fx]+)*', line[1]):
                 results.setdefault(line[0], {})
                 results[line[0]][line[1]] = counter_value
                 continue
