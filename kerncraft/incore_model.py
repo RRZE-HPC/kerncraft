@@ -115,10 +115,11 @@ class x86(ISA):
                 packed_instruction_ctr += 1
 
         # Build metric
-        return (packed_instruction_ctr, avx_instruction_ctr, instruction_ctr,
+        return (packed_instruction_ctr, avx_instruction_ctr,
                 len(set(register_class_usage['zmm'])),
                 len(set(register_class_usage['ymm'])),
-                len(set(register_class_usage['xmm'])))
+                len(set(register_class_usage['xmm'])),
+                instruction_ctr)
 
     @staticmethod
     def get_pointer_increment(block):
@@ -623,11 +624,15 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
         max_lcd = max(
             max_lcd,
             sum([instr_form['latency_lcd'] for instr_form in lcd_dict[dep]['dependencies']]))
+    # Critical-Path Analysis
+    cp_list = kernel_graph.get_critical_path()
 
     result['output'] = frontend.full_analysis(kernel, kernel_graph, verbose=True)
     result['analyzed kernel'] = kernel
     result['port cycles'] = OrderedDict(list(zip(osaca_machine_model['ports'], throughput_values)))
     result['throughput'] = max(throughput_values + [max_lcd])
+    result['lcd'] = max_lcd
+    result['cp_latency'] = sum([x['latency'] for x in cp_list])
     result['uops'] = None  # Not given by OSACA
 
     unmatched_ratio = osaca.get_unmatched_instruction_ratio(kernel)
@@ -698,7 +703,18 @@ def llvm_mca_analyse_instrumented_assembly(
         elif l.startswith('[1,'+last_instr_index+']'):
             lcd = l.index('R') - lcd_start
             break
+    result['lcd'] = lcd
     result['throughput'] = max(max(port_cycles.values()), lcd)
+
+    # Extract critical path latency
+    # find cycle distance between first D and last R in first iteration
+    cp_start = float("inf")
+    cp_end = 0
+    for l in timeline_lines:
+        if l.startswith('[0,'):
+            cp_start = min(l.index('D'), cp_start)
+            cp_end = max(l.index('R'), cp_end)
+    result['cp_latency'] = cp_end - cp_start
 
     # Extract uops
     uops = 0
@@ -787,6 +803,8 @@ def iaca_analyse_instrumented_binary(instrumented_binary_file, micro_architectur
     match = re.search(r'^Total Num Of Uops: ([0-9]+)', iaca_output, re.MULTILINE)
     assert match, "Could not find Uops in IACA output."
     result['uops'] = float(match.groups()[0])
+    result['cp_latency'] = None
+    result['lcd'] = None
     return result
 
 
