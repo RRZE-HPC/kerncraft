@@ -50,8 +50,10 @@ memory hierarchy:
     stores: ST_RETIRED:PMC[0-5]
     evicts: L1D_CACHE_WB:PMC[0-5]
     misses: L1D_CACHE_REFILL:PMC[0-5]
-  cache per group: {sets: 64, ways: 8, cl_size: 64 B, replacement_policy: LRU, write_allocate: true,
-      write_back: true, load_from: L2, store_to: L2}
+  cache per group: {
+      sets: 64, ways: 8, cl_size: 64 B, replacement_policy: LRU,
+      write_combining: false, write_allocate: true, write_back: true,
+      load_from: L2, store_to: L2}
   size per group: 32.00 kB
   groups: 64
   cores per group: 1
@@ -67,8 +69,8 @@ memory hierarchy:
     evicts: L2D_CACHE_WB:PMC[0-5]
     misses: L2D_CACHE_REFILL:PMC[0-5] - L2D_CACHE_ALLOCATE:PMC[0-5]
   cache per group: {sets: 512, ways: 8, cl_size: 64 B, replacement_policy: LRU,
-                    write_allocate: true, write_back: true, load_from: L3, store_to: L3,
-                    victims_to: L3}
+                    write_allocate: true, write_back: true,
+                    load_from: L3, store_to: L3, victims_to: L3}
   size per group: 256.00 kB
   groups: 64
   cores per group: 1

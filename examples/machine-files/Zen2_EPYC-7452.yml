@@ -105,7 +105,8 @@ memory hierarchy:
   upstream throughput: [full socket memory bandwidth, half-duplex]
   transfers overlap: false
   performance counter metrics:
-    loads: DATA_FROM_LOCAL_DRAM_CHANNEL:DFC[01] + DATA_TO_LOCAL_DRAM_CHANNEL:DFC[01]
+    loads+stores: DATA_FROM_LOCAL_DRAM_CHANNEL:DFC[01] + DATA_TO_LOCAL_DRAM_CHANNEL:DFC[01]
+    loads: ~
     stores: ~
   size per group:
   threads per group: 64
