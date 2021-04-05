@@ -222,7 +222,8 @@ class AArch64(ISA):
     @staticmethod
     def compute_block_metric(block):
         """Return comparable metric on block information."""
-        arithmetic_ctr = 0
+        farithmetic_ctr = 0
+        iarithmetic_ctr = 0
         vector_ctr = 0
         instruction_ctr = 0
         # Analyze code to determine metric
@@ -231,8 +232,10 @@ class AArch64(ISA):
             if line.instruction is None:
                 continue
             # Counting basic arithmetic insstructions
-            if line.instruction in ['add', 'sub', 'mul', 'fmul', 'fdiv', 'fadd', 'fsub']:
-                arithmetic_ctr += 1
+            if line.instruction in ['fmul', 'fdiv', 'fadd', 'fsub']:
+                farithmetic_ctr += 1
+            elif line.instruction in ['add', 'sub', 'mul']:
+                iarithmetic_ctr += 1
             # Counting use of vector registers
             for op in line.operands:
                 if 'register' in op and op.register.prefix in 'zv':
@@ -241,7 +244,7 @@ class AArch64(ISA):
             instruction_ctr += 1
 
         # Build metric
-        return (vector_ctr, arithmetic_ctr, instruction_ctr)
+        return (vector_ctr, farithmetic_ctr, iarithmetic_ctr, instruction_ctr)
     
     @staticmethod
     def normalize_to_register_str(register):
