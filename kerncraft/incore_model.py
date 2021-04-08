@@ -168,8 +168,17 @@ class x86(ISA):
                 increments[reg] = -int(line.operands[0].immediate.value)
             elif re.match(r'^lea[bwlq]?$', line.instruction):
                 # `lea 1(%r11), %r11` is the same as `add $1, %r11`
-                if line.operands[0].memory.base.name  == line.operands[1].register.name and \
+                if line.operands[0].memory.base is not None and \
+                        line.operands[0].memory.base.name  == line.operands[1].register.name and \
                         line.operands[0].memory.index is None:
+                    reg = line.operands[1].register.name
+                    modified_registers.append(reg)
+                    increments[reg] = int(
+                        line.operands[0].memory.offset.value)
+                # `lea 1(,%r11), %r11` is the same as `add $1, %r11`
+                if line.operands[0].memory.index is not None and \
+                        line.operands[0].memory.index.name  == line.operands[1].register.name and \
+                        line.operands[0].memory.base is None:
                     reg = line.operands[1].register.name
                     modified_registers.append(reg)
                     increments[reg] = int(
@@ -626,7 +635,7 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
     for dep in lcd_dict:
         max_lcd = max(
             max_lcd,
-            sum([instr_form['latency_lcd'] for instr_form in lcd_dict[dep]['dependencies']]))
+            lcd_dict[dep]['latency'])
     # Critical-Path Analysis
     cp_list = kernel_graph.get_critical_path()
 
