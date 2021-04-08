@@ -91,7 +91,7 @@ memory hierarchy:
     write_back: true
   cores per group: 4
   groups: 8
-  upstream throughput: [32 B/cy, half-duplex]        # J. Hofmann SC19 paper (not published)
+  upstream throughput: [24 B/cy, half-duplex]        # according to Christie
   transfers overlap: true
   performance counter metrics:
     loads: L3_ACCESS:CPMC[0-5]
