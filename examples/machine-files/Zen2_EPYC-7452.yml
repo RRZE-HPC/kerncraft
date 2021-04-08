@@ -92,7 +92,7 @@ memory hierarchy:
   cores per group: 4
   groups: 8
   upstream throughput: [32 B/cy, half-duplex]        # J. Hofmann SC19 paper (not published)
-  transfers overlap: false
+  transfers overlap: true
   performance counter metrics:
     loads: L3_ACCESS:CPMC[0-5]
     stores: ~
@@ -103,6 +103,8 @@ memory hierarchy:
 - cores per group: 32
   level: MEM
   upstream throughput: [full socket memory bandwidth, half-duplex]
+  penalty cycles per cacheline load: 0.585  # JH: fitted from triad and copy single- vs 8-core BW
+  penalty cycles per cacheline store: 2.57  # JH: fitted from triad and copy single- vs 8-core BW
   transfers overlap: false
   performance counter metrics:
     loads+stores: DATA_FROM_LOCAL_DRAM_CHANNEL:DFC[01] + DATA_TO_LOCAL_DRAM_CHANNEL:DFC[01]

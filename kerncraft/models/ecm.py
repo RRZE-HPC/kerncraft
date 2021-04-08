@@ -103,7 +103,7 @@ class ECMData(PerformanceModel):
         cacheline_size = float(self.machine['cacheline size'])
 
         loads, stores = (self.predictor.get_loads(), self.predictor.get_stores())
-
+        penalty = 0.0
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy']))[1:]:
             throughput, duplexness = cache_info['upstream throughput']
 
@@ -130,11 +130,12 @@ class ECMData(PerformanceModel):
                     raise NotImplementedError(
                         "full-duplex mode is not (yet) supported for memory transfers.")
                 # add penalty cycles
+
                 if 'penalty cycles per cacheline load' in cache_info:
-                    cycles += loads[cache_level] * \
+                    penalty += loads[cache_level] * \
                               cache_info['penalty cycles per cacheline load']
                 if 'penalty cycles per cacheline store' in cache_info:
-                    cycles += stores[cache_level] * \
+                    penalty += stores[cache_level] * \
                               cache_info['penalty cycles per cacheline store']
 
                 self.results.update({
@@ -155,6 +156,7 @@ class ECMData(PerformanceModel):
                         duplexness, cache_info['name']))
 
             self.results['cycles'].append((cache_info['level'], cycles))
+            self.results['penalty'] = penalty
 
             self.results[cache_info['level']] = cycles
 
@@ -211,6 +213,9 @@ class ECMData(PerformanceModel):
         for level, cycles in self.results['cycles']:
             print('{} = {}'.format(
                 level, self.conv_cy(cycles)[self._args.unit]), file=output_file)
+
+        if self.results['penalty']:
+            print('penalty cycles: {:.2f} cy/CL'.format(self.results['penalty']))
 
         if self.verbose > 1:
             if 'memory bandwidth kernel' in self.results:
@@ -471,6 +476,10 @@ class ECM(PerformanceModel):
                 ECM_nOL_construction.append(
                     'T_' + self.machine['memory hierarchy'][cache_level-1]['level'] +
                     cache_info['level'])
+        T_penalty = self.results['penalty']
+        if T_penalty != 0.0:
+            ECM_nOL.append(T_penalty)
+            ECM_nOL_construction.append('T_penalty')
         # TODO consider multiple paths per cache level with victim caches
         self.results['ECM'] = tuple(ECM_OL + [tuple(ECM_nOL)])
         self.results['ECM Model Construction'] = tuple(ECM_OL_construction +
