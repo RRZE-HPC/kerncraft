@@ -47,7 +47,7 @@ class LessParanthesizingCGenerator(CGenerator):
         """
         binary_op_precedence = {
             # based on https://en.cppreference.com/w/c/language/operator_precedence
-            '*': 3, '%': 3,
+            '*': 3, '%': 3, '/': 3,
             '-': 4, '+': 4,
             '<<': 5, '>>': 5,
             '<': 6, '<=': 6, '>': 6, '>=': 6,
