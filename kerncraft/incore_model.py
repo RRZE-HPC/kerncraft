@@ -600,13 +600,15 @@ def asm_instrumentation(input_file, output_file=None,
     return block_lines, pointer_increment
 
 
-def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_architecture):
+def osaca_analyse_instrumented_assembly(
+    instrumented_assembly_file, micro_architecture, assign_optimal_throughput=True):
     """
     Run OSACA analysis on an instrumented assembly.
 
     :param instrumented_assembly_file: path of assembly that was built with markers
     :param micro_architecture: micro architecture string as taken by OSACA.
                                one of: SNB, IVB, HSW, BDW, SKL
+    :param assign_optimal_throughput: use optimal scheduling
     :return: a dictionary with the following keys:
         - 'output': the output of the iaca executable
         - 'throughput': the block throughput in cycles for one possibly vectorized loop iteration
@@ -622,9 +624,10 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
     osaca_machine_model = osaca.MachineModel(arch=micro_architecture)
     semantics = osaca.ArchSemantics(machine_model=osaca_machine_model)
     semantics.add_semantics(kernel)
-    semantics.assign_optimal_throughput(kernel)
+    if assign_optimal_throughput:
+        semantics.assign_optimal_throughput(kernel)
 
-    kernel_graph = osaca.KernelDG(kernel, parser, osaca_machine_model)
+    kernel_graph = osaca.KernelDG(kernel, parser, osaca_machine_model, semantics)
     frontend = osaca.Frontend(instrumented_assembly_file, arch=micro_architecture)
 
     # Throughput Analysis
@@ -644,7 +647,7 @@ def osaca_analyse_instrumented_assembly(instrumented_assembly_file, micro_archit
     result['port cycles'] = OrderedDict(list(zip(osaca_machine_model['ports'], throughput_values)))
     result['throughput'] = max(throughput_values + [max_lcd])
     result['lcd'] = max_lcd
-    result['cp_latency'] = sum([x['latency'] for x in cp_list])
+    result['cp_latency'] = sum([x['latency_cp'] for x in cp_list])
     result['uops'] = None  # Not given by OSACA
 
     unmatched_ratio = osaca.get_unmatched_instruction_ratio(kernel)
@@ -706,20 +709,15 @@ def llvm_mca_analyse_instrumented_assembly(
     result['port cycles'] = port_cycles
     
     # Extract throughput including loop-carried-dependecy latency
-    timeline_lines = [l for l in output.split('\n') if re.match(r'\[[0-9]+,[0-9]+\]', l)]
-    lcd = 0
-    for l in timeline_lines:
-        if l.startswith('[0,'):
-            last_instr_index = re.match(r'\[0,([0-9]+)\]', l).group(1)
-            lcd_start = l.index('R')
-        elif l.startswith('[1,'+last_instr_index+']'):
-            lcd = l.index('R') - lcd_start
-            break
+    total_cycles = int(re.search(r'Total Cycles:\s+([0-9]+)', output).group(1))
+    iterations = int(re.search(r'Iterations:\s+([0-9]+)', output).group(1))
+    lcd = total_cycles / iterations
     result['lcd'] = lcd
-    result['throughput'] = max(max(port_cycles.values()), lcd)
+    result['throughput'] = lcd
 
     # Extract critical path latency
     # find cycle distance between first D and last R in first iteration
+    timeline_lines = [l for l in output.split('\n') if re.match(r'\[[0-9]+,[0-9]+\]', l)]
     cp_start = float("inf")
     cp_end = 0
     for l in timeline_lines:
@@ -729,13 +727,8 @@ def llvm_mca_analyse_instrumented_assembly(
     result['cp_latency'] = cp_end - cp_start
 
     # Extract uops
-    uops = 0
-    uops_raw = re.search(r'\n\[1\](\s+\[[0-9\.]+\]\s+)+Instructions:\n(:?\s*[0-9\.]+\s+[^\n]+\n)+',
-                         output).group()
-    for l in uops_raw.strip().split('\n')[2:]:
-        uops += int(l.strip().split(' ')[0])
-
-    result['uops'] = uops
+    total_uops = int(re.search(r'Total uOps:\s+([0-9]+)', output).group(1))
+    result['uops'] = total_uops / iterations
 
     return result
 

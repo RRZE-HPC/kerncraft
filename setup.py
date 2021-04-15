@@ -104,7 +104,7 @@ setup(
         'numpy',
         'requests',
         'pycparser>=2.19',
-        'osaca>=0.3.14',
+        'osaca>=0.4.0',
         'psutil',
         'compress_pickle',
     ],
