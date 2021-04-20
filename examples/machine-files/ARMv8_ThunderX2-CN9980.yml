@@ -28,20 +28,22 @@ FLOPs per cycle:
     total: INFORMATION_REQUIRED}
 cacheline size: 64 B
 compiler: !!omap
-  - armclang: -O3 -march=armv8-a+simd -mcpu=thunderx2t99 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
-  - clang: -O3 -target aarch64-unknown-linux-gnu -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
-  - gcc: -O3 -march=armv8.1-a -fopenmp -ffreestanding
+  - armclang: -Ofast -march=armv8-a+simd -mcpu=thunderx2t99 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
+  - clang: -Ofast -mcpu=thunderx2t99 -D_POSIX_C_SOURCE=200112L -fopenmp -ffreestanding
+  - gcc: -Ofast -march=armv8.1-a -fopenmp -ffreestanding
 
 non-overlapping model: 
   performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
     UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
   ports: 
-    OSACA: ['0', 0DV, '1', 1DV, '2', '3', '4', '5']        # [3] [4]
+    OSACA: ['3', '4', '5']  # [3] [4]
+    LLVM-MCA: [THX2T99P4, THX2T99P5]
 overlapping model:
   performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,
     UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
   ports: 
-    OSACA: ['3', '4', '5']    # [3] [4] TODO change when data pipelines are implemented in OSACA
+    OSACA: ['0', 0DV, '1', 1DV, '2', '3', '4', '5']  # [3] [4]
+    LLVM-MCA: [THX2T99P0, THX2T99P1, THX2T99P2, THX2T99P3, THX2T99P4, THX2T99P5]
 
 memory hierarchy:
 - level: L1
