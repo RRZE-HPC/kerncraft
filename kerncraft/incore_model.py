@@ -613,7 +613,8 @@ def asm_instrumentation(input_file, output_file=None,
 
 
 def osaca_analyse_instrumented_assembly(
-    instrumented_assembly_file, micro_architecture, assign_optimal_throughput=True):
+    instrumented_assembly_file, micro_architecture, assign_optimal_throughput=True,
+    isa=None):
     """
     Run OSACA analysis on an instrumented assembly.
 
@@ -628,7 +629,8 @@ def osaca_analyse_instrumented_assembly(
         - 'uops': total number of Uops
     """
     result = {}
-    isa = osaca.MachineModel.get_isa_for_arch(micro_architecture)
+    if isa is not None:
+        isa = osaca.MachineModel.get_isa_for_arch(micro_architecture)
     parser = osaca.get_asm_parser(micro_architecture)
     with open(instrumented_assembly_file) as f:
         parsed_code = parser.parse_file(f.read())
@@ -688,7 +690,6 @@ def llvm_mca_analyse_instrumented_assembly(
     """
     result = {}
     with open(instrumented_assembly_file) as f:
-        print(isa)
         parsed_code = parse_asm(f.read(), isa)
     kernel = osaca.reduce_to_section(parsed_code, isa)
     assembly_section = '\n'.join([l.line for l in kernel])
