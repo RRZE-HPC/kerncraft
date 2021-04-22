@@ -346,7 +346,7 @@ class MachineModel(object):
             # Run actual benchmarks and safe machine file in between
             for mem_level in sorted(list(benchmarks['measurements'].keys())):
                 if verbose > 1:
-                    print('Running for {}'.format(mem_level), file=sys.stderr)
+                    print('Running for {} with {}kB'.format(mem_level, int(float(total_size) / 1000)), file=sys.stderr)
                 for threads_per_core in sorted(list(benchmarks['measurements'][mem_level].keys())):
                     measurement = benchmarks['measurements'][mem_level][threads_per_core]
                     if overwrite or kernel not in measurement['results'] or \
@@ -726,10 +726,14 @@ def get_memory_hierarchy(placeholders=True, cpuinfo_path: str='/proc/cpuinfo'):
         if line.startswith('Level:'):
             mem_level = OrderedDict([('level', 'L' + line.split(':')[1].strip())])
             memory_hierarchy.append(mem_level)
-            if mem_level['level'] != 'L1' and placeholders:
-                mem_level['upstream throughput'] = [
-                    'INFORMATION_REQUIRED (e.g. 24 B/cy)',
-                    'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
+            if placeholders:
+                if mem_level['level'] == 'L1':
+                    mem_level['upstream throughput'] = [
+                        'architecture code analyzer', 'INFORMATION_REQUIRED (e.g. [port1, port2])']
+                else:
+                    mem_level['upstream throughput'] = [
+                        'INFORMATION_REQUIRED (e.g. 24 B/cy)',
+                        'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']
         elif line.startswith('Size:'):
             size = PrefixedUnit(line.split(':')[1].strip())
             if placeholders:
