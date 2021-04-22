@@ -430,7 +430,7 @@ class AArch64(ISA):
         return pointer_increment
 
 
-def userselect_increment(block, default=None):
+def userselect_increment(block, default=None, comment=None):
     """Let user interactively select byte increment."""
     print("Selected block:")
     print('\n    ' + ('\n    '.join([b.line for b in block])))
@@ -448,6 +448,8 @@ def userselect_increment(block, default=None):
             increment = int(increment)
         except ValueError:
             increment = default
+    if increment:
+        store_increment_to_cache(block, increment, comment=comment)
     return increment
 
 
@@ -495,9 +497,9 @@ def find_increment_in_cache(block, cache_file='~/.kerncraft/increment_cache'):
             cache = f.readlines()
     for c in cache:
         c_split = c.split()
-        if len(c_split) != 2:
+        if len(c_split) < 2:
             continue
-        hashstr, increment = c_split
+        hashstr, increment = c_split[:2]
         try:
             increment = int(increment)
         except:
@@ -505,6 +507,16 @@ def find_increment_in_cache(block, cache_file='~/.kerncraft/increment_cache'):
         if hashstr == search_hash:
             return increment
     return None
+
+
+def store_increment_to_cache(
+        block, pointer_increment, cache_file='~/.kerncraft/increment_cache', comment=None):
+    cache_file = expanduser(cache_file)
+    line = "{} {}".format(hashblock(block), pointer_increment)
+    if comment:
+        line += " #{}".format(comment)
+    with open(cache_file, 'a') as f:
+        f.write(line+"\n")
 
 
 def parse_asm(code, isa):
@@ -519,7 +531,7 @@ def asm_instrumentation(input_file, output_file=None,
                         block_selection='auto',
                         pointer_increment='auto_with_manual_fallback',
                         debug=False,
-                        isa='x86'):
+                        isa='x86', cache=True):
     """
     Add markers to an assembly file.
 
@@ -534,7 +546,6 @@ def asm_instrumentation(input_file, output_file=None,
     :param pointer_increment: number of bytes the pointer is incremented after the loop or
                               - 'auto': automatic detection, otherwise RuntimeError is raised
                               - 'auto_with_manual_fallback': like auto with fallback to manual input
-                              - 'auto_with_cache_fallback': like auto with fallback to cache file
                               - 'manual': prompt user
     :param debug: output additional internal analysis information. Only works with manual selection.
     :return: selected assembly block lines, pointer increment
@@ -580,10 +591,11 @@ def asm_instrumentation(input_file, output_file=None,
         elif pointer_increment == 'auto_with_manual_fallback':
             pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
             if pointer_increment is None:
-                pointer_increment = userselect_increment(block_lines)
+                pointer_increment = userselect_increment(block_lines, comment=input_file)
         elif pointer_increment == 'manual':
             pointer_increment = ISA.get_isa(isa).get_pointer_increment(block_lines)
-            pointer_increment = userselect_increment(block_lines, default=pointer_increment)
+            pointer_increment = userselect_increment(
+                block_lines, default=pointer_increment, comment=input_file)
         else:
             raise ValueError("pointer_increment has to be an integer, 'auto', 'manual' or  "
                              "'auto_with_manual_fallback' ")
@@ -676,6 +688,7 @@ def llvm_mca_analyse_instrumented_assembly(
     """
     result = {}
     with open(instrumented_assembly_file) as f:
+        print(isa)
         parsed_code = parse_asm(f.read(), isa)
     kernel = osaca.reduce_to_section(parsed_code, isa)
     assembly_section = '\n'.join([l.line for l in kernel])
@@ -827,13 +840,16 @@ def main():
     parser.add_argument('--debug', action='store_true',
                         help='Output internal analysis information for debugging.')
     parser.add_argument('--isa', default='x86', choices=['x86', 'aarch64'])
+    parser.add_argument('--cache', action='store_true',
+                        help='Consult cache and store manual setting there.')
     args = parser.parse_args()
 
     # pointer_increment is given, since it makes no difference on the command lien and requires
     # less user input
+    pointer_increment = 'auto_with_manual_fallback'
     asm_instrumentation(input_file=args.source, output_file=args.outfile,
                         block_selection='manual', pointer_increment='auto_with_manual_fallback',
-                        debug=args.debug, isa=args.isa)
+                        debug=args.debug, isa=args.isa, cache=args.cache)
 
 
 if __name__ == '__main__':

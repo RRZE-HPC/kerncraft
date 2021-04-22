@@ -1760,10 +1760,10 @@ class KernelCode(Kernel):
 
         if model == 'OSACA':
             analysis = incore_model.osaca_analyse_instrumented_assembly(
-                marked_filename, model_parameter)
+                marked_filename, model_parameter, isa=self._machine['isa'])
         elif model == 'LLVM-MCA':
             analysis = incore_model.llvm_mca_analyse_instrumented_assembly(
-                marked_filename, model_parameter)
+                marked_filename, model_parameter, isa=self._machine['isa'])
         elif model == 'IACA':
             obj_name, obj_lock_fp = self.assemble_to_object(marked_filename, verbose=verbose)
             analysis = incore_model.iaca_analyse_instrumented_binary(obj_name, model_parameter)

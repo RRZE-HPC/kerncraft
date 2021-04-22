@@ -6,7 +6,7 @@ cacheline size: 256 B
 clock: 1.8 GHz
 compiler: !!omap
   - gcc: '-Ofast -D_POSIX_C_SOURCE=200112L -msve-vector-bits=512 -march=armv8.2-a+sve -ffreestanding'
-  - clang: '-Ofast -mcpu=a64fx -ffreestanding'
+  - clang: '-Ofast -target aarch64-unknown-linux-gnu -ffreestanding'  # on newer LLVM versions use -march=a64fx
 cores per NUMA domain: 12
 cores per socket: 12
 in-core model: !!omap
@@ -21,6 +21,8 @@ FLOPs per cycle:
 NUMA domains per socket: 1
 memory hierarchy:
 - level: L1
+  upstream throughput: [architecture code analyzer, ['5D', '6D']]
+  transfers overlap: true
   performance counter metrics:
     loads: 'LD_SPEC:PMC[0-4]'
     stores: 'ST_SPEC:PMC[0-4]'
@@ -40,6 +42,8 @@ memory hierarchy:
   cores per group: 1
   threads per group: 1
 - level: L2
+  upstream throughput: [64 B/cy, half-duplex]  # https://arxiv.org/pdf/2103.03013.pdf
+  transfers overlap: true
   performance counter metrics:
     loads: 'L1D_CACHE_REFILL:PMC[0-4]'
     stores: 'L1D_CACHE_WB:PMC[0-4]'
@@ -59,8 +63,8 @@ memory hierarchy:
 - level: MEM
   cores per group: 12
   threads per group: 12
-  upstream throughput: [
-      full socket memory bandwidth, INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")]
+  upstream throughput: [full socket memory bandwidth, "half-duplex"]
+  transfers overlap: true
   performance counter metrics:
     stores: 'BUS_WRITE_TOTAL_MEM:PMC[0-4]'
     loads: 'BUS_READ_TOTAL_MEM:PMC[0-4]'
