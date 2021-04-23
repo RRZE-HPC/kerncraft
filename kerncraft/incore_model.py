@@ -278,7 +278,10 @@ class AArch64(ISA):
         for dests in [l.semantic_operands.destination for l in block if 'semantic_operands' in l]:
             for d in dests:
                 if 'register' in d:
-                    modified_registers[AArch64.normalize_to_register_str(d.register)] += 1
+                    if 'range' in d.register:
+                        modified_registers[AArch64.normalize_to_register_str(d.register.range[0])] += 1
+                    else:
+                        modified_registers[AArch64.normalize_to_register_str(d.register)] += 1
         for l in block:
             for d in l.operands:
                 if 'memory' in d:
