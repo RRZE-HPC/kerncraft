@@ -247,7 +247,9 @@ class AArch64(ISA):
                 iarithmetic_ctr += 1
             # Counting use of vector registers
             for op in line.operands:
-                if 'register' in op and op.register.prefix in 'zv':
+                if 'register' in op and  'prefix' in op.register and op.register.prefix in 'zv':
+                    vector_ctr += 1
+                if 'register' in op and  'range' in op.register and op.register.range[0].prefix in 'zv':
                     vector_ctr += 1
             # Count all instructions
             instruction_ctr += 1
