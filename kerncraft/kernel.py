@@ -178,9 +178,9 @@ def transform_multidim_to_1d_ref(aref, dimension_dict):
     aref.name = name
 
 
-def transform_array_decl_to_malloc(decl, with_init=True):
+def transform_array_decl_to_malloc(decl, with_init=True, cl_size=32):
     """
-    Transform ast of "type var_name[N]" to "type* var_name = aligned_malloc(sizeof(type)*N, 32)"
+    Transform ast of "type var_name[N]" to "type* var_name = aligned_malloc(sizeof(type)*N, cl_size)"
 
     In-place operation.
 
@@ -202,7 +202,7 @@ def transform_array_decl_to_malloc(decl, with_init=True):
                         c_ast.Typename(None, [], c_ast.TypeDecl(
                             None, [], decl.type.type.type))),
                     decl.type.dim),
-                c_ast.Constant('int', '32')]))
+                c_ast.Constant('int', str(cl_size))]))
     decl.type = type_
 
 
@@ -608,8 +608,9 @@ class Kernel(object):
         for var_name, var_size in sorted(var_sizes.items(), key=lambda v: v[0]):
             base_offsets[var_name] = base
             array_total_size = self.subs_consts(var_size + spacing)
-            # Add bytes to align by 64 byte (typical cacheline size):
-            array_total_size = ((int(array_total_size) + 63) & ~63)
+            # Add bytes to align by maximum cacheline size (typical 64B):
+            cacheline_size = int(self._machine['cacheline size'])
+            array_total_size = ((int(array_total_size) + cacheline_size - 1) & ~(cacheline_size - 1))
             base += array_total_size
 
         # Gather all read and write accesses to the array:
@@ -1269,7 +1270,7 @@ class KernelCode(Kernel):
         for d in array_declarations:
             # We need to transform
             array_dict.append(transform_multidim_to_1d_decl(d))
-            transform_array_decl_to_malloc(d, with_init=with_init)
+            transform_array_decl_to_malloc(d, with_init=with_init, cl_size=int(self._machine['cacheline size']))
         return array_declarations, dict(array_dict)
 
     def _find_inner_most_loop(self, loop_nest):
