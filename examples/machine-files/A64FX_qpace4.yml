@@ -22,7 +22,7 @@ NUMA domains per socket: 1
 memory hierarchy:
 - level: L1
   upstream throughput: [architecture code analyzer, ['5D', '6D']]
-  transfers overlap: true
+  transfers overlap: false
   performance counter metrics:
     loads: 'LD_SPEC:PMC[0-4]'
     stores: 'ST_SPEC:PMC[0-4]'
@@ -43,7 +43,7 @@ memory hierarchy:
   threads per group: 1
 - level: L2
   upstream throughput: [64 B/cy, half-duplex]  # https://arxiv.org/pdf/2103.03013.pdf
-  transfers overlap: true
+  transfers overlap: false
   performance counter metrics:
     loads: 'L1D_CACHE_REFILL:PMC[0-4]'
     stores: 'L1D_CACHE_WB:PMC[0-4]'
@@ -63,8 +63,8 @@ memory hierarchy:
 - level: MEM
   cores per group: 12
   threads per group: 12
-  upstream throughput: [full socket memory bandwidth, "half-duplex"]
-  transfers overlap: true
+  upstream throughput: [full socket memory bandwidth, "full-duplex"]
+  transfers overlap: false
   performance counter metrics:
     stores: 'BUS_WRITE_TOTAL_MEM:PMC[0-4]'
     loads: 'BUS_READ_TOTAL_MEM:PMC[0-4]'
@@ -74,8 +74,8 @@ memory hierarchy:
 non-overlapping model:
     performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,UOPS_DISPATCHED_PORT_PORT_1__PMC3, UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
     ports:
-      OSACA: []
-      LLVM-MCA: []
+      OSACA: ['5D', '6D']
+      LLVM-MCA: [A64FXIPEAGA, A64FXIPEAGB]
 
 overlapping model: 
     performance counter metric: 'INFORMATION_REQUIRED Example:max(UOPS_DISPATCHED_PORT_PORT_0__PMC2,UOPS_DISPATCHED_PORT_PORT_1__PMC3,    UOPS_DISPATCHED_PORT_PORT_4__PMC0, UOPS_DISPATCHED_PORT_PORT_5__PMC1)'
