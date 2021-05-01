@@ -186,7 +186,7 @@ class ECMData(PerformanceModel):
         flops_per_it = sum(self.kernel._flops.values())
         performance = it_s*flops_per_it
         performance.unit = 'FLOP/s'
-        cy_it = cy_cl*elements_per_cacheline
+        cy_it = cy_cl/elements_per_cacheline
         cy_it.unit = 'cy/It'
 
         return {'It/s': it_s,
