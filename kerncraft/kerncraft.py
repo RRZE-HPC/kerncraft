@@ -188,19 +188,19 @@ def create_parser():
     parser.add_argument('--clean-intermediates', action='store_true',
                         help='If set, will delete all intermediate files after completion.')
 
-    # Needed for ECM, ECMData and Roofline models:
+    # Needed for ECM, ECMData and RooflineFLOP models:
     parser.add_argument('--cache-predictor', '-P', choices=['LC', 'SIM'], default='SIM',
                         help='Change cache predictor to use, options are LC (layer conditions) and '
                              'SIM (cache simulation with pycachesim), default is SIM.')
 
-    # Needed for ECM, RooflineIACA and Benchmark models:
+    # Needed for ECM, RooflineASM and Benchmark models:
     parser.add_argument('--compiler', '-C', type=str, default=None,
                         help='Compiler to use, default is first in machine description file.')
     parser.add_argument('--compiler-flags', type=str, default=None,
                         help='Compiler flags to use. If not set, flags are taken from machine '
                              'description file (-std=c99 is always added).')
 
-    # Needed for ECM and RooflineIACA models:
+    # Needed for ECM and RooflineASM models:
     parser.add_argument('--incore-model', '-i', type=str, default=None,
                         help='In-core model to use, default is first in machine description file.')
 
@@ -225,7 +225,7 @@ def check_arguments(args, parser):
 
     # Set default unit depending on performance model requested
     if not args.unit:
-        if 'Roofline' in args.pmodel or 'RooflineIACA' in args.pmodel:
+        if 'RooflineFLOP' in args.pmodel or 'RooflineASM' in args.pmodel:
             args.unit = 'FLOP/s'
         else:
             args.unit = 'cy/CL'
