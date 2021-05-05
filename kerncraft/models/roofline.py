@@ -8,14 +8,14 @@ from kerncraft.cacheprediction import LayerConditionPredictor, CacheSimulationPr
 from .base import PerformanceModel
 
 
-class Roofline(PerformanceModel):
+class RooflineFLOP(PerformanceModel):
     """
-    Representation of the Roofline model based on simplistic FLOP analysis.
+    Representation of the RooflineFLOP model based on simplistic FLOP analysis.
 
     more info to follow...
     """
 
-    name = "Roofline"
+    name = "RooflineFLOP"
 
     @classmethod
     def configure_arggroup(cls, parser):
@@ -228,14 +228,14 @@ class Roofline(PerformanceModel):
                   file=sys.stderr)
 
 
-class RooflineIACA(Roofline):
+class RooflineASM(RooflineFLOP):
     """
-    Representation of the Roofline model based on IACA throughput analysis.
+    Representation of the Roofline model based on ASM throughput analysis.
 
     more info to follow...
     """
 
-    name = "Roofline (with IACA throughput)"
+    name = "Roofline (with instruction execution model)"
 
     @classmethod
     def configure_arggroup(cls, parser):
@@ -245,7 +245,7 @@ class RooflineIACA(Roofline):
     def __init__(self, kernel, machine, args=None, parser=None, asm_block='auto',
                  pointer_increment='auto', cores=1, predictor=LayerConditionPredictor, verbose=0):
         """
-        Create Roofline model with IACA analysis from kernel and machine objects.
+        Create Roofline model with ASM analysis from kernel and machine objects.
 
         *kernel* is a Kernel object
         *machine* describes the machine (cpu, cache and memory) characteristics
@@ -255,7 +255,7 @@ class RooflineIACA(Roofline):
         If *args* is None, *asm_block*, *pointer_increment* and *verbose* will be used, otherwise
         *args* takes precedence.
         """
-        Roofline.__init__(self, kernel, machine, args, parser, cores, predictor, verbose)
+        RooflineFLOP.__init__(self, kernel, machine, args, parser, cores, predictor, verbose)
         self.results = None
 
         if args:

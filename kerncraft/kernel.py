@@ -1845,7 +1845,7 @@ class KernelDescription(Kernel):
     """
     Kernel information gathered from YAML kernel description file.
 
-    This class does NOT allow compilation, required for IACA analysis (ECMCPU and RooflineIACA)
+    This class does NOT allow compilation, required for IACA analysis (ECMCPU and RooflineASM)
     and LIKWID benchmarking (benchmark).
     """
 
@@ -1900,7 +1900,7 @@ class BinaryDescription(Kernel):
     """
     Binary information gathered from command line.
 
-    This class does NOT allow compilation, required for IACA analysis (ECMCPU and RooflineIACA)
+    This class does NOT allow compilation, required for IACA analysis (ECMCPU and RooflineASM)
     and LIKWID benchmarking (benchmark).
 
     To be used only for stand-alone benchmarking.

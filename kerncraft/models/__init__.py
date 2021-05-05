@@ -5,10 +5,10 @@ This model combines all performance models currently supported by kerncraft. Onl
 model class is exported, so please add new models to __all__.
 """
 from .ecm import ECM, ECMData, ECMCPU
-from .roofline import Roofline, RooflineIACA
+from .roofline import RooflineFLOP, RooflineASM
 from .benchmark import Benchmark
 from .layer_condition import LC
 from .base import PerformanceModel
 
-__all__ = ['ECM', 'ECMData', 'ECMCPU', 'Roofline', 'RooflineIACA', 'Benchmark', 'LC',
+__all__ = ['ECM', 'ECMData', 'ECMCPU', 'RooflineFLOP', 'RooflineASM', 'Benchmark', 'LC',
            'PerformanceModel']

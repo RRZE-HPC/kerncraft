@@ -135,12 +135,12 @@ class TestKerncraft(unittest.TestCase):
         assertRelativlyEqual(result['L3'], 6, 0.05)
         self.assertAlmostEqual(result['MEM'], 0.0, places=2)
 
-    def test_2d5pt_Roofline(self):
+    def test_2d5pt_RooflineFLOP(self):
         store_file = os.path.join(self.temp_dir, 'test_2d5pt_Roofline.pickle')
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
-                                  '-p', 'Roofline',
+                                  '-p', 'RooflineFLOP',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '1024-4096:3log2',
                                   '-D', 'M', '50',
@@ -158,7 +158,7 @@ class TestKerncraft(unittest.TestCase):
         # Check if results contains correct kernel and some other infoormation
         key = [k for k in results if ('define', (('M', 50), ('N', 4096))) in k][0]
         key_dict = dict(key)
-        self.assertEqual(key_dict['pmodel'], 'Roofline')
+        self.assertEqual(key_dict['pmodel'], 'RooflineFLOP')
 
         # Output of first result:
         result = results[key]
@@ -363,12 +363,12 @@ class TestKerncraft(unittest.TestCase):
         assertRelativlyEqual(result['MEM'], 13, 0.05)
 
     @unittest.skipUnless(find_executable('gcc'), "GCC not available")
-    def test_2d5pt_RooflineIACA(self):
-        store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineIACA.pickle')
+    def test_2d5pt_RooflineASM(self):
+        store_file = os.path.join(self.temp_dir, 'test_2d5pt_RooflineASM.pickle')
 
         parser = kc.create_parser()
         args = parser.parse_args(['-m', self._find_file('SandyBridgeEP_E5-2680.yml'),
-                                  '-p', 'RooflineIACA',
+                                  '-p', 'RooflineASM',
                                   self._find_file('2d-5pt.c'),
                                   '-D', 'N', '4000',
                                   '-D', 'M', '1000',

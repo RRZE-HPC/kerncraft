@@ -26,7 +26,7 @@ On most systems with python pip and setuputils installed, just run:
 
 ``pip install --user kerncraft``
 
-for the latest release. In order to get the `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_, required by the `ECM`, `ECMCPU` and `RooflineIACA` performance models, read `this <https://software.intel.com/protected-download/267266/157552>`_ and run:
+for the latest release. In order to get the `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_, required by the `ECM`, `ECMCPU` and `RooflineASM` performance models, read `this <https://software.intel.com/protected-download/267266/157552>`_ and run:
 
 ``iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul``
 
