@@ -10,5 +10,7 @@ from .benchmark import Benchmark
 from .layer_condition import LC
 from .base import PerformanceModel
 
+RooflineIACA = RooflineASM  # for downward compatability
+
 __all__ = ['ECM', 'ECMData', 'ECMCPU', 'RooflineFLOP', 'RooflineASM', 'Benchmark', 'LC',
-           'PerformanceModel']
+           'PerformanceModel', 'RooflineIACA']

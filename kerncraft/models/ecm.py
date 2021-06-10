@@ -127,8 +127,9 @@ class ECMData(PerformanceModel):
                              float(elements_per_cacheline) * float(element_size) * \
                              float(self.machine['clock']) / float(bw)
                 else:  # full-duplex
-                    raise NotImplementedError(
-                        "full-duplex mode is not (yet) supported for memory transfers.")
+                    cycles = max(float(loads[cache_level]), float(stores[cache_level])) * \
+                             float(elements_per_cacheline) * float(element_size) * \
+                             float(self.machine['clock']) / float(bw)
                 # add penalty cycles
 
                 if 'penalty cycles per cacheline load' in cache_info:

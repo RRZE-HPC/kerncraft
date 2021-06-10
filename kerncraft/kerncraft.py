@@ -225,7 +225,7 @@ def check_arguments(args, parser):
 
     # Set default unit depending on performance model requested
     if not args.unit:
-        if 'RooflineFLOP' in args.pmodel or 'RooflineASM' in args.pmodel:
+        if 'RooflineFLOP' in args.pmodel or 'RooflineASM' in args.pmodel or 'RooflineIACA' in args.pmodel:
             args.unit = 'FLOP/s'
         else:
             args.unit = 'cy/CL'
