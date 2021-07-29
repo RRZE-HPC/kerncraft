@@ -164,7 +164,7 @@ class TestMachineModel(unittest.TestCase):
                                                      ('threads per group', 20),
                                                      ('performance counter metrics', {
                                                         'loads': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT:PMC[0-4])',
-                                                        'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',})
+                                                        'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',}),
                                                      ('upstream throughput',
                                                       ['full socket memory bandwidth',
                                                        'INFORMATION_REQUIRED (e.g. "half-duplex" or "full-duplex")']),
