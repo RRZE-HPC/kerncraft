@@ -78,8 +78,8 @@ class TestMachineModel(unittest.TestCase):
                                                      ('performance counter metrics',
                                                       {
                                                           'loads': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT:PMC[0-4])',
-                                                          'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4]))',
-                                                          'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4]',
+                                                          'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',
+                                                          'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4])',
                                                           'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL:PMC[0-4])'}),
                                                      ('cache per group',
                                                       OrderedDict([('sets',
@@ -108,8 +108,8 @@ class TestMachineModel(unittest.TestCase):
                                                      ('performance counter metrics',
                                                       {
                                                           'loads': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT:PMC[0-4])',
-                                                          'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4]))',
-                                                          'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4]',
+                                                          'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',
+                                                          'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4])',
                                                           'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL:PMC[0-4])'}),
                                                      ('cache per group',
                                                       OrderedDict([('sets',
@@ -138,8 +138,8 @@ class TestMachineModel(unittest.TestCase):
                                                      ('performance counter metrics',
                                                       {
                                                           'loads': 'INFORMATION_REQUIRED (e.g., L1D_REPLACEMENT:PMC[0-4])',
-                                                          'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4]))',
-                                                          'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4]',
+                                                          'stores': 'INFORMATION_REQUIRED (e.g., L1D_WB:PMC[0-4])',
+                                                          'misses': 'INFORMATION_REQUIRED (e.g., L2_LINES_IN_ALL:PMC[0-4])',
                                                           'evicts': 'INFORMATION_REQUIRED (e.g., L2_LINES_OUT_DIRTY_ALL:PMC[0-4])'}),
                                                      ('cache per group',
                                                       OrderedDict([('sets',
