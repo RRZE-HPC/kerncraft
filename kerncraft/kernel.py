@@ -609,7 +609,10 @@ class Kernel(object):
             base_offsets[var_name] = base
             array_total_size = self.subs_consts(var_size + spacing)
             # Add bytes to align by maximum cacheline size (typical 64B):
-            cacheline_size = int(self._machine['cacheline size'])
+            if self._machine is not None:
+                cacheline_size = int(self._machine['cacheline size'])
+            else:
+                cacheline_size = 64
             array_total_size = ((int(array_total_size) + cacheline_size - 1) & ~(cacheline_size - 1))
             base += array_total_size
 
