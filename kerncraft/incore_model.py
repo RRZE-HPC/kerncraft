@@ -8,7 +8,6 @@ import os
 from copy import copy
 import argparse
 from pprint import pformat, pprint
-import pathlib
 import textwrap
 from collections import OrderedDict, defaultdict
 import io
@@ -518,7 +517,6 @@ def find_increment_in_cache(block, cache_file='~/.kerncraft/increment_cache'):
 def store_increment_to_cache(
         block, pointer_increment, cache_file='~/.kerncraft/increment_cache', comment=None):
     cache_file = expanduser(cache_file)
-    pathlib.Path(cache_file).parents[0].mkdir(parents=True, exist_ok=True)
     line = "{} {}".format(hashblock(block), pointer_increment)
     if comment:
         line += " #{}".format(comment)
