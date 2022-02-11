@@ -636,7 +636,7 @@ def osaca_analyse_instrumented_assembly(
         - 'uops': total number of Uops
     """
     result = {}
-    if isa is not None:
+    if isa is None:
         isa = osaca.MachineModel.get_isa_for_arch(micro_architecture)
     parser = osaca.get_asm_parser(micro_architecture)
     with open(instrumented_assembly_file) as f:
