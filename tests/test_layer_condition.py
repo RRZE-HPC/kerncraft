@@ -13,6 +13,7 @@ import sympy
 from sympy import oo
 
 from kerncraft import kerncraft as kc
+from kerncraft.kernel import symbol_pos_int
 from kerncraft.prefixedunit import PrefixedUnit
 
 
@@ -66,7 +67,7 @@ class TestLayerCondition(unittest.TestCase):
         with open(store_file, 'rb') as f:
             results = pickle.load(f)
         result = next(iter(results.values()))
-        N, M, i, j, k = sympy.var('N, M, i, j, k')
+        N, M, i, j, k = [symbol_pos_int(c) for c in 'NMijk']
         result_expected = {'accesses':
                      {'a': [(k - 1, j, i),
                             (k, j - 1, i),
@@ -167,7 +168,7 @@ class TestLayerCondition(unittest.TestCase):
             results = pickle.load(f)
         result = next(iter(results.values()))
 
-        N, M, j, i = sympy.var('N'), sympy.var('M'), sympy.var('j'), sympy.var('i')
+        N, M, j, i = [symbol_pos_int(c) for c in 'NMji']
         result_expected = \
             {'accesses': {'W': [(0, j, i), (1, j, i)],
                           'a': [(j - 1, i), (j, i - 1), (j, i), (j, i + 1), (j + 1, i)],
