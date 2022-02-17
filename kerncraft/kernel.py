@@ -515,7 +515,7 @@ class Kernel(object):
             loop_var = symbol_pos_int(var_name)
 
             # This unspools the iterations:
-            length = end-start  # FIXME is incr handled correct here?
+            length = int_ceil((end-start), incr)
             counter = start+(((global_iterator*last_incr) // total_length)*incr) % length
             total_length = total_length*length
             last_incr = incr
@@ -543,7 +543,7 @@ class Kernel(object):
         total_length = sympy.Integer(1)
         for var_name, start, end, incr in reversed(self._loop_stack):
             loop_var = symbol_pos_int(var_name)
-            length = end - start  # FIXME is incr handled correct here?
+            length = int_ceil((end-start), incr)
             global_iterator += (loop_var - start) * total_length
             total_length *= length
         return global_iterator
