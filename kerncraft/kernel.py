@@ -38,42 +38,6 @@ from . import incore_model
 from .pycparser_utils import clean_code, replace_id
 
 
-class LessParanthesizingCGenerator(CGenerator):
-    def get_BinaryOp_precedence(self, n):
-        """
-        Gives precedence for op of n, otherwise -1.
-        
-        Lower number have precedence over higher numbers.
-        """
-        binary_op_precedence = {
-            # based on https://en.cppreference.com/w/c/language/operator_precedence
-            '*': 3, '%': 3, '/': 3,
-            '-': 4, '+': 4,
-            '<<': 5, '>>': 5,
-            '<': 6, '<=': 6, '>': 6, '>=': 6,
-            '==': 7, '!=': 7,
-            '&': 8,
-            '^': 9,
-            '|': 10,
-            '&&': 11,
-            '||': 12
-        }
-        if not isinstance(n, c_ast.BinaryOp):
-            return -1
-        else:
-            return binary_op_precedence[n.op]
-
-    def visit_BinaryOp(self, n):
-        p = self.get_BinaryOp_precedence(n)
-        lval_str = self._parenthesize_if(n.left,
-                            lambda d: not self._is_simple_node(d) and 
-                                      self.get_BinaryOp_precedence(d) > p)
-        rval_str = self._parenthesize_if(n.right,
-                            lambda d: not self._is_simple_node(d) and
-                                      self.get_BinaryOp_precedence(d) >= p)
-        return '%s %s %s' % (lval_str, n.op, rval_str)
-    
-
 @contextmanager
 def set_recursionlimit(new_limit):
     old_limit = sys.getrecursionlimit()
@@ -199,8 +163,13 @@ def transform_array_decl_to_malloc(decl, with_init=True, cl_size=32):
                     '*',
                     c_ast.UnaryOp(
                         'sizeof',
-                        c_ast.Typename(None, [], c_ast.TypeDecl(
-                            None, [], [], decl.type.type.type))),
+                        c_ast.Typename(
+                            name=None,
+                            quals=[],
+                            align=[],
+                            type=c_ast.TypeDecl(
+                                None, [], [], decl.type.type.type),
+                            coord=[])),
                     decl.type.dim),
                 c_ast.Constant('int', str(cl_size))]))
     decl.type = type_
@@ -1228,8 +1197,8 @@ class KernelCode(Kernel):
                                                    c_ast.Constant('int', str(i)))]))
             i += 1
             decls.append(c_ast.Decl(
-                k.name, ['const'], [], [], [], [],
-                type_decl, init, None))
+                name=k.name, quals=['const'], align=[], storage=[], funcspec=[],
+                type=type_decl, init=init, bitsize=None))
 
         return decls
 
@@ -1410,7 +1379,7 @@ class KernelCode(Kernel):
         else:  # lock_mode == fcntl.LOCK_EX
             # needs update
             func_decl = self._build_kernel_function_declaration(name=name)
-            code = LessParanthesizingCGenerator().visit(
+            code = CGenerator().visit(
                 c_ast.FileAST(ext=[func_decl]))
             with open(file_path, 'w') as f:
                 f.write(code)
@@ -1473,7 +1442,7 @@ class KernelCode(Kernel):
 
             # Generate code
             with set_recursionlimit(100000):
-                code = LessParanthesizingCGenerator().visit(function_ast)
+                code = CGenerator().visit(function_ast)
             
             if not openmp:
                 # remove all omp pragmas
@@ -1593,7 +1562,7 @@ class KernelCode(Kernel):
             replace_id(ast, "INIT_ARRAYS", self._build_array_initializations(array_dimensions))
 
             # Generate code
-            code = LessParanthesizingCGenerator().visit(ast)
+            code = CGenerator().visit(ast)
 
             # Insert missing #includes from template to top of code
             code = '\n'.join([l for l in template_code.split('\n') if l.startswith("#include")]) + \
