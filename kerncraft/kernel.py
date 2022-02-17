@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Representation of computational kernel for performance model analysis and helper functions."""
+from ctypes import alignment
 import shutil
 import textwrap
 from copy import deepcopy
@@ -200,7 +201,7 @@ def transform_array_decl_to_malloc(decl, with_init=True, cl_size=32):
                     c_ast.UnaryOp(
                         'sizeof',
                         c_ast.Typename(None, [], c_ast.TypeDecl(
-                            None, [], decl.type.type.type))),
+                            None, [], [], decl.type.type.type))),
                     decl.type.dim),
                 c_ast.Constant('int', str(cl_size))]))
     decl.type = type_
@@ -1219,7 +1220,7 @@ class KernelCode(Kernel):
             # const long long N = strtoul(argv[2])
             # with increasing N and 1
             # TODO change subscript of argv depending on constant count
-            type_decl = c_ast.TypeDecl(k.name, ['const'], c_ast.IdentifierType(index_type))
+            type_decl = c_ast.TypeDecl(k.name, ['const'], [], c_ast.IdentifierType(index_type))
             init = None
             if with_init:
                 init = c_ast.FuncCall(
@@ -1350,6 +1351,7 @@ class KernelCode(Kernel):
                                                           const_declarations),
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
+                                                  align=[],
                                                   type=c_ast.IdentifierType(names=['void'])))
 
     def get_scalar_declarations(self, pointer=False, suffix=''):
