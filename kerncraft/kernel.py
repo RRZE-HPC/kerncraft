@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Representation of computational kernel for performance model analysis and helper functions."""
-from ctypes import alignment
 import shutil
 import textwrap
 from copy import deepcopy
@@ -1229,7 +1228,7 @@ class KernelCode(Kernel):
                                                    c_ast.Constant('int', str(i)))]))
             i += 1
             decls.append(c_ast.Decl(
-                k.name, ['const'], [], [],
+                k.name, ['const'], [], [], [], [],
                 type_decl, init, None))
 
         return decls
@@ -1347,8 +1346,8 @@ class KernelCode(Kernel):
         scalar_declarations = self.get_scalar_declarations(pointer=True, suffix='_')
         const_declarations = self._build_const_declartions(with_init=False)
         return c_ast.FuncDecl(args=c_ast.ParamList(params=array_declarations +
-                                                          scalar_declarations +
-                                                          const_declarations),
+                                                   scalar_declarations +
+                                                   const_declarations),
                               type=c_ast.TypeDecl(declname=name,
                                                   quals=[],
                                                   align=[],
@@ -1468,7 +1467,7 @@ class KernelCode(Kernel):
 
             function_ast = c_ast.FuncDef(decl=c_ast.Decl(
                 name=name, type=self._build_kernel_function_declaration(name=name), quals=[],
-                storage=[], funcspec=[], init=None, bitsize=None),
+                align=[], storage=[], funcspec=[], init=None, bitsize=None),
                 body=c_ast.Compound(block_items=kernel),
                 param_decls=None)
 
