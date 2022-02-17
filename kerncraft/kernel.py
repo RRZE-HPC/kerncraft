@@ -37,6 +37,7 @@ from . import kerncraft
 from . import incore_model
 from .pycparser_utils import clean_code, replace_id
 
+from kerncraft.symbolic.utils import int_ceil
 
 class LessParanthesizingCGenerator(CGenerator):
     def get_BinaryOp_precedence(self, n):
@@ -420,7 +421,7 @@ class Kernel(object):
 
         for var_name, start, end, incr in loops:
             # This unspools the iterations:
-            length = end-start
+            length = int_ceil((end-start), incr)
             total_length = total_length*length
         return self.subs_consts(total_length)
 
