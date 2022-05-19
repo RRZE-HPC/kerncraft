@@ -639,6 +639,7 @@ class Kernel(object):
         store_offsets = numpy.asarray(store_offsets).T
 
         # Combine loads and stores
+        load_offsets, store_offsets = load_offsets.astype('int64'), store_offsets.astype('int64')
         load_width = load_offsets.shape[1] if len(load_offsets.shape) > 1 else 0
         store_width = store_offsets.shape[1] if len(store_offsets.shape) > 1 else 0
         dtype = [('load', load_offsets.dtype, (load_width,)),
