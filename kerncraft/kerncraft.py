@@ -4,6 +4,7 @@
 import sys
 import argparse
 import os.path
+import json
 import pickle
 import shutil
 import math
@@ -175,6 +176,8 @@ def create_parser():
                              '"manual": always prompt user.')
     parser.add_argument('--store', metavar='PICKLE', type=argparse.FileType('a+b'),
                         help='Addes results to PICKLE file for later processing.')
+    parser.add_argument('--json', metavar='JSON', type=argparse.FileType('a+'),
+                        help='Stores result as JSON file for later processing')
     parser.add_argument('--unit', '-u', choices=['cy/CL', 'cy/It', 'It/s', 'FLOP/s'],
                         help='Select the output unit, defaults to model specific if not given.')
     parser.add_argument('--cores', '-c', metavar='CORES', type=int, default=1,
@@ -214,7 +217,6 @@ def create_parser():
 def check_arguments(args, parser):
     """
     Check arguments passed by user that are not checked by argparse itself.
-    
     Also register files for closing.
     """
     if args.asm_block not in ['auto', 'manual']:
@@ -233,6 +235,8 @@ def check_arguments(args, parser):
     # Register all opened files for closing at exit.
     if args.store:
         atexit.register(args.store.close)
+    if args.json:
+        atexit.register(args.json.close)
     if args.code_file:
         atexit.register(args.code_file.close)
     if args.machine:
@@ -270,6 +274,30 @@ def identifier_from_arguments(args, **kwargs):
             v = v.name
         identifier.append((k, v))
     return tuple(identifier)
+
+def jsonify_obj(obj):
+    #print("jsonify {}".format(str(obj) if len(str(obj)) < 15 else str(obj)[:12] + "..."))
+    # if obj is str, int, or float, keep it this way
+    if isinstance(obj, str) or isinstance(obj, int) or isinstance(obj, float):
+        return obj
+    # if obj is list, use recursion
+    elif isinstance(obj, list) or isinstance(obj, tuple):
+        new_list = []
+        for elem in obj:
+            new_list.append(jsonify_obj(elem))
+        if isinstance(obj, tuple):
+            return tuple(new_list)
+        return new_list
+    # if obj is dict, use recursion
+    elif isinstance(obj, dict):
+        new_dict = {}
+        for k,v in obj.items():
+            # key must be one element
+            k = str(k) if not (isinstance(k, str) or isinstance(k, int) or isinstance(k, float)) else k
+            new_dict[k] = jsonify_obj(v)
+        return new_dict
+    else:
+        return str(obj)
 
 
 def run(parser, args, output_file=sys.stdout):
@@ -312,7 +340,7 @@ def run(parser, args, output_file=sys.stdout):
     required_consts = set([i for l in required_consts for i in l.free_symbols])
     # remove loop indices
     required_consts -= loop_indices
-    
+
     if len(required_consts) > 0:
         # build defines permutations
         define_dict = OrderedDict()
@@ -384,6 +412,12 @@ def run(parser, args, output_file=sys.stdout):
             with open(temp_name, 'wb+') as f:
                 pickle.dump(result_storage, f)
             shutil.move(temp_name, args.store.name)
+        if args.json:
+            temp_name = args.json.name + '.tmp'
+            json_dict = jsonify_obj(result_storage)
+            with open(temp_name, 'w+') as f:
+                json.dump(json_dict, f, indent=4)
+            shutil.move(temp_name, args.json.name)
     return result_storage
 
 
