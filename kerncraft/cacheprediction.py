@@ -13,6 +13,7 @@ import numpy as np
 from kerncraft.kernel import symbol_pos_int, KernelCode
 from collections import defaultdict
 import operator
+from io import StringIO
 
 
 # From https://stackoverflow.com/a/17511341 by dlitz
@@ -697,9 +698,15 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_infos(self):
         """Return verbose information about the predictor."""
+        sio = StringIO()
+        if self.csim:
+            self.csim.print_stats(file=sio)
+        pretty_stats = sio.getvalue()
+        sio.close()
         first_dim_factor = self.first_dim_factor
         infos = {'memory hierarchy': [], 'cache stats': self.stats,
-                 'cachelines in stats': first_dim_factor}
+                 'cachelines in stats': first_dim_factor,
+                'cache pretty output': pretty_stats}
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy'])):
             infos['memory hierarchy'].append({
                 'index': len(infos['memory hierarchy']),
@@ -714,5 +721,6 @@ class CacheSimulationPredictor(CachePredictor):
                 'total lines hits': self.stats[cache_level]['HIT_count']/first_dim_factor,
                 'total lines stores': self.stats[cache_level]['STORE_count']/first_dim_factor,
                 'total lines evicts': self.stats[cache_level]['EVICT_count']/first_dim_factor,
-                'cycles': None})
+                'cycles': None,
+                })
         return infos
