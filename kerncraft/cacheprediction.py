@@ -525,11 +525,12 @@ class CacheSimulationPredictor(CachePredictor):
                 lock_fp.close()  # release lock
                 self.first_dim_factor = cache['first_dim_factor']
                 self.stats = cache['stats']
+                self.pretty_stats = cache['pretty_stats']
             else:  # lock_mode == fcntl.LOCK_EX
                 # needs update
                 self.simulate()
                 compress_pickle.dump(
-                    {'first_dim_factor': self.first_dim_factor, 'stats': self.stats},
+                    {'first_dim_factor': self.first_dim_factor, 'stats': self.stats, 'pretty_stats': self.pretty_stats},
                     file_path)
                 lock_fp.close()  # release lock
         else:
@@ -639,6 +640,12 @@ class CacheSimulationPredictor(CachePredictor):
         # use stats to build results
         self.stats = list(self.csim.stats())
         self.first_dim_factor = first_dim_factor
+        sio = StringIO()
+        self.csim.print_stats(file=sio)
+        pretty_stats = sio.getvalue()
+        sio.close()
+        self.pretty_stats = pretty_stats
+
 
     def _align_iteration_with_cl_boundary(self, iteration, subtract=True):
         """Align iteration with cacheline boundary."""
@@ -698,15 +705,10 @@ class CacheSimulationPredictor(CachePredictor):
 
     def get_infos(self):
         """Return verbose information about the predictor."""
-        sio = StringIO()
-        if self.csim:
-            self.csim.print_stats(file=sio)
-        pretty_stats = sio.getvalue()
-        sio.close()
         first_dim_factor = self.first_dim_factor
         infos = {'memory hierarchy': [], 'cache stats': self.stats,
                  'cachelines in stats': first_dim_factor,
-                'cache pretty output': pretty_stats}
+                'cache pretty output': self.pretty_stats}
         for cache_level, cache_info in list(enumerate(self.machine['memory hierarchy'])):
             infos['memory hierarchy'].append({
                 'index': len(infos['memory hierarchy']),
