@@ -17,6 +17,7 @@ import io
 from collections import OrderedDict
 
 from ruamel import yaml
+import ruamel
 
 from . import models
 from . import __version__
@@ -327,7 +328,8 @@ def run(parser, args, output_file=sys.stdout):
     else:
         description = str(args.code_file.read())
         args.code_file.close()
-        kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
+        yaml = ruamel.YAML(typ='rt')
+        kernel = KernelDescription(yaml.load(description), machine=machine)
 
     loop_indices = set([symbol_pos_int(l['index']) for l in kernel.get_loop_stack()])
     # define constants

@@ -16,6 +16,7 @@ from functools import lru_cache
 
 import psutil
 from ruamel import yaml
+import ruamel
 from ruamel.yaml.comments import CommentedMap
 import cachesim
 from sympy.parsing.sympy_parser import parse_expr
@@ -161,7 +162,8 @@ class MachineModel(object):
             if abspath_to_yaml not in self._loaded_machine_yaml:
                 with open(path_to_yaml, 'r') as f:
                     # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                    self._loaded_machine_yaml[abspath_to_yaml] = yaml.load(f, Loader=yaml.Loader)
+                    yaml = ruamel.YAML(typ='rt')
+                    self._loaded_machine_yaml[abspath_to_yaml] = yaml.load(f)
             self._data = self._loaded_machine_yaml[abspath_to_yaml]
         elif machine_yaml:
             self._data = machine_yaml
