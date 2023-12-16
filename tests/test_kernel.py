@@ -18,7 +18,7 @@ class TestKernel(unittest.TestCase):
         with open(self._find_file('3d-7pt.c')) as f:
             self.threed_code = f.read()
         with open(self._find_file('2d-5pt.yml')) as f:
-            yaml = ruamel.YAML(typ='rt')
+            yaml = ruamel.yaml.YAML(typ='rt')
             self.twod_description = yaml.load(f.read())
         with open(self._find_file('copy-2d-linearized.c')) as f:
             self.twod_linear = f.read()

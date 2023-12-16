@@ -328,7 +328,7 @@ def run(parser, args, output_file=sys.stdout):
     else:
         description = str(args.code_file.read())
         args.code_file.close()
-        yaml = ruamel.YAML(typ='rt')
+        yaml = ruamel.yaml.YAML(typ='rt')
         kernel = KernelDescription(yaml.load(description), machine=machine)
 
     loop_indices = set([symbol_pos_int(l['index']) for l in kernel.get_loop_stack()])
