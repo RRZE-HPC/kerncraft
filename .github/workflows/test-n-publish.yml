@@ -20,7 +20,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install codecov requests sympy
         python -m pip install -e .
-        iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
+        #iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul
     - name: Test
       run: |
         coverage run -p tests/all_tests.py
