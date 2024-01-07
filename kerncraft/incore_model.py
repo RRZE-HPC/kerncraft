@@ -21,6 +21,10 @@ from osaca import osaca
 from osaca.parser import get_parser
 from osaca.semantics import MachineModel, ISASemantics
 from osaca.semantics.marker_utils import find_basic_loop_bodies, get_marker
+from osaca.parser.register import RegisterOperand
+from osaca.parser.memory import MemoryOperand
+from osaca.parser.immediate import ImmediateOperand
+from osaca.parser.identifier import IdentifierOperand
 
 from kerncraft import iaca_get, __version__
 
@@ -104,9 +108,9 @@ class x86(ISA):
             # Count registers used
             for prefix in register_class_usage:
                 for op in line.operands:
-                    if 'register' in op:
-                        if op.register.name.startswith(prefix):
-                            register_class_usage[prefix].append(op.register.name)
+                    if isinstance(op, RegisterOperand):
+                        if op.name.startswith(prefix):
+                            register_class_usage[prefix].append(op.name)
 
             # Identify and count packed and avx instructions
             if re.match(r"^[v]?(movu|mul|add|sub|div|fmadd(132|213|231)?)[h]?p[ds]",
@@ -136,9 +140,9 @@ class x86(ISA):
                 continue
 
             # Extract destination references, ignoring var(%rip)
-            dst_mem_references = [op.memory for op in line.semantic_operands.destination
-                                  if 'memory' in op and
-                                  (op.memory.base is None or op.memory.base.name != 'rip')]
+            dst_mem_references = [op for op in line.semantic_operands["destination"]
+                                  if isinstance(op, MemoryOperand) and
+                                  (op.base is None or op.base.name != 'rip')]
             if dst_mem_references:
                 if not stores_only:
                     stores_only = True
@@ -147,43 +151,43 @@ class x86(ISA):
 
             # If no destination references were found sofar, include source references
             if not stores_only:
-                mem_references += [op.memory for op in line.semantic_operands.source
-                                   if 'memory' in op]
+                mem_references += [op for op in line.semantic_operands["source"]
+                                   if isinstance(op, MemoryOperand)]
             if re.match(r'^inc[bwlq]?$', line.instruction):
-                reg = line.operands[0].register.name
+                reg = line.operands[0].name
                 modified_registers.append(reg)
                 increments[reg] = 1
-            elif re.match(r'^add[bwlq]?$', line.instruction) and 'immediate' in line.operands[0] \
-                    and 'register' in line.operands[1]:
-                reg = line.operands[1].register.name
-                increments[reg] = int(line.operands[0].immediate.value)
+            elif re.match(r'^add[bwlq]?$', line.instruction) and isinstance(line.operands[0], ImmediateOperand) \
+                    and isinstance(line.operands[1], RegisterOperand):
+                reg = line.operands[1].name
+                increments[reg] = int(line.operands[0].value)
                 modified_registers.append(reg)
             elif re.match(r'^dec[bwlq]?$', line.instruction):
-                reg = line.operands[0].register.name
+                reg = line.operands[0].name
                 modified_registers.append(reg)
                 increments[reg] = -1
-            elif re.match(r'^sub[bwlq]?$', line.instruction) and 'immediate' in line.operands[0] \
-                    and 'register' in line.operands[1]:
-                reg = line.operands[1].register.name
+            elif re.match(r'^sub[bwlq]?$', line.instruction) and isinstance(line.operands[0], ImmediateOperand) \
+                    and  isinstance(line.operands[1], RegisterOperand):
+                reg = line.operands[1].name
                 modified_registers.append(reg)
-                increments[reg] = -int(line.operands[0].immediate.value)
+                increments[reg] = -int(line.operands[0].value)
             elif re.match(r'^lea[bwlq]?$', line.instruction):
                 # `lea 1(%r11), %r11` is the same as `add $1, %r11`
-                if line.operands[0].memory.base is not None and \
-                        line.operands[0].memory.base.name  == line.operands[1].register.name and \
-                        line.operands[0].memory.index is None:
-                    reg = line.operands[1].register.name
+                if line.operands[0].base is not None and \
+                        line.operands[0].base.name  == line.operands[1].name and \
+                        line.operands[0].index is None:
+                    reg = line.operands[1].name
                     modified_registers.append(reg)
                     increments[reg] = int(
-                        line.operands[0].memory.offset.value)
+                        line.operands[0].offset.value)
                 # `lea 1(,%r11), %r11` is the same as `add $1, %r11`
-                if line.operands[0].memory.index is not None and \
-                        line.operands[0].memory.index.name  == line.operands[1].register.name and \
-                        line.operands[0].memory.base is None:
-                    reg = line.operands[1].register.name
+                if line.operands[0].index is not None and \
+                        line.operands[0].index.name  == line.operands[1].name and \
+                        line.operands[0].base is None:
+                    reg = line.operands[1].name
                     modified_registers.append(reg)
                     increments[reg] = int(
-                        line.operands[0].memory.offset.value)
+                        line.operands[0].offset.value)
 
         # deduce loop increment from memory index register
         pointer_increment = None  # default -> can not decide, let user choose
@@ -248,10 +252,10 @@ class AArch64(ISA):
                 iarithmetic_ctr += 1
             # Counting use of vector registers
             for op in line.operands:
-                if 'register' in op and  'prefix' in op.register and op.register.prefix in 'zv':
+                if isinstance(op, RegisterOperand) and op.prefix is not None and op.prefix in 'zv':
                     vector_ctr += 1
-                if 'register' in op and  'range' in op.register and op.register.range[0].prefix in 'zv':
-                    vector_ctr += 1
+                #if isinstance(op, RegisterOperand) and  'range' in op.register and op.register.range[0].prefix in 'zv':
+                #    vector_ctr += 1
             # Count all instructions
             instruction_ctr += 1
 
@@ -276,24 +280,24 @@ class AArch64(ISA):
 
         # build dict of modified registers in block with count of number of modifications
         modified_registers = defaultdict(int)
-        for dests in [l.semantic_operands.destination for l in block if 'semantic_operands' in l]:
+        for dests in [l.semantic_operands["destination"] for l in block]:
             for d in dests:
-                if 'register' in d:
-                    if 'range' in d.register:
-                        modified_registers[AArch64.normalize_to_register_str(d.register.range[0])] += 1
-                    else:
-                        modified_registers[AArch64.normalize_to_register_str(d.register)] += 1
+                if isinstance(d, RegisterOperand):
+                    #if 'range' in d.register:
+                    #    modified_registers[AArch64.normalize_to_register_str(d.register.range[0])] += 1
+                    #else:
+                    modified_registers[AArch64.normalize_to_register_str(d)] += 1
         for l in block:
             for d in l.operands:
-                if 'memory' in d:
-                    if 'post_indexed' in d.memory or 'pre_indexed' in d.memory:
-                        modified_registers[AArch64.normalize_to_register_str(d.memory.base)] += 1
+                if isinstance(d, MemoryOperand):
+                    if d.post_indexed is not False or d.pre_indexed:
+                        modified_registers[AArch64.normalize_to_register_str(d.base)] += 1
                         inc = 1
-                        if 'post_indexed' in d.memory and 'value' in d.memory.post_indexed:
-                            inc = int(d.memory.post_indexed.value)
-                        if 'pre_indexed' in d.memory:
-                            inc = int(d.memory.offset.value)
-                        increments[AArch64.normalize_to_register_str(d.memory.base)] = inc
+                        if isinstance(d.post_indexed, dict):
+                            inc = int(d.post_indexed["value"])
+                        if d.pre_indexed:
+                            inc = int(d.offset.value)
+                        increments[AArch64.normalize_to_register_str(d.base)] = inc
         
         for line in block:
             # Skip non-instruction lines (such as comments and labels)
@@ -302,16 +306,16 @@ class AArch64(ISA):
 
             # Extract and filter destination references (stores)
             dst_mem_references = []
-            for dst in [op.memory for op in chain(line.semantic_operands.destination,
-                                                  line.semantic_operands.src_dst)
-                        if 'memory' in op]:
+            for dst in [op for op in chain(line.semantic_operands["destination"],
+                                                  line.semantic_operands["src_dst"])
+                        if isinstance(op, MemoryOperand)]:
                 # base or index must be a modified (i.e., changing) register
                 if AArch64.normalize_to_register_str(dst.base) not in modified_registers and \
                     AArch64.normalize_to_register_str(dst.index) not in modified_registers:
                     continue
 
                 # offset operands with identifiers (e.g. `:lo12:gosa`) are ignored
-                if dst.offset is not None and 'identifier' in dst.offset:
+                if dst.offset is not None and isinstance(dst.offset, IdentifierOperand):
                     continue
 
                 dst_mem_references.append(dst)
@@ -323,23 +327,23 @@ class AArch64(ISA):
 
             # If no destination references were found sofar, include source references (loads)
             if not stores_only:
-                mem_references += [op.memory for op in chain(line.semantic_operands.source,
-                                                             line.semantic_operands.src_dst)
-                                   if 'memory' in op]
+                mem_references += [op for op in chain(line.semantic_operands["source"],
+                                                             line.semantic_operands["src_dst"])
+                                   if isinstance(op, MemoryOperand)]
 
             # ADD dest_reg, src_reg, immd
             if re.match(r'^add[s]?$', line.instruction) and \
                     line.operands[0] == line.operands[1] and \
-                    'immediate' in line.operands[2]:
-                reg_name = AArch64.normalize_to_register_str(line.operands[0].register)
-                inc = int(line.operands[2].immediate.value)
+                    isinstance(line.operands[2], ImmediateOperand):
+                reg_name = AArch64.normalize_to_register_str(line.operands[0])
+                inc = int(line.operands[2].value)
                 increments[reg_name] = inc
             # SUB dest_reg, src_reg, immd
             elif re.match(r'^sub[s]?$', line.instruction) and \
                     line.operands[0] == line.operands[1] and \
-                    'immediate' in line.operands[2]:
-                reg_name = AArch64.normalize_to_register_str(line.operands[0].register)
-                inc = -int(line.operands[2].immediate.value)
+                    isinstance(line.operands[2], ImmediateOperand):
+                reg_name = AArch64.normalize_to_register_str(line.operands[0])
+                inc = -int(line.operands[2].value)
                 if reg_name in increments and increments[reg_name] == inc:
                     increments[reg_name] = inc
 
@@ -352,11 +356,11 @@ class AArch64(ISA):
             if line.instruction is None:
                 continue
             # LSL dest_reg, src_reg, immd
-            if re.match(r'^lsl$', line.instruction) and 'immediate' in line.operands[2] and \
-                    AArch64.normalize_to_register_str(line.operands[1].register) in increments:
-                increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
-                    increments[AArch64.normalize_to_register_str(line.operands[1].register)] * \
-                    2**int(line.operands[2].immediate.value)
+            if re.match(r'^lsl$', line.instruction) and isinstance(line.operands[2], ImmediateOperand) and \
+                    AArch64.normalize_to_register_str(line.operands[1]) in increments:
+                increments[AArch64.normalize_to_register_str(line.operands[0])] = \
+                    increments[AArch64.normalize_to_register_str(line.operands[1])] * \
+                    2**int(line.operands[2].value)
 
         new_increments = []
         # Third pass to find registers based on constant +- increment
@@ -370,13 +374,13 @@ class AArch64(ISA):
                     factor = 1
                 else:
                     factor = -1
-                if 'register' not in line.operands[1] or 'register' not in line.operands[2]:
+                if not isinstance(line.operands[1], RegisterOperand) or not isinstance(line.operands[2], RegisterOperand): 
                     continue
                 for i,j in [(1,2), (2,1)]:
-                    reg_i_name = AArch64.normalize_to_register_str(line.operands[i].register)
-                    reg_j_name = AArch64.normalize_to_register_str(line.operands[j].register)
+                    reg_i_name = AArch64.normalize_to_register_str(line.operands[i])
+                    reg_j_name = AArch64.normalize_to_register_str(line.operands[j])
                     if reg_i_name in increments and reg_j_name not in modified_registers:
-                        reg_dest_name = AArch64.normalize_to_register_str(line.operands[0].register)
+                        reg_dest_name = AArch64.normalize_to_register_str(line.operands[0])
                         inc = factor * increments[reg_i_name]
                         if reg_dest_name in increments and increments[reg_dest_name] == inc:
                             modified_registers[reg_dest_name] -= 1
@@ -392,13 +396,13 @@ class AArch64(ISA):
             if line.instruction is None:
                 continue
             # LSL dest_reg, src_reg, immd
-            if re.match(r'^lsl$', line.instruction) and 'immediate' in line.operands[2] and \
-                    'register' in line.operands[1]:
-                src_reg_name = AArch64.normalize_to_register_str(line.operands[1].register)
+            if re.match(r'^lsl$', line.instruction) and isinstance(line.operands[2], ImmediateOperand) and \
+                    isinstance(line.operands[1], RegisterOperand):
+                src_reg_name = AArch64.normalize_to_register_str(line.operands[1])
                 if src_reg_name in new_increments and src_reg_name in increments:
-                    increments[AArch64.normalize_to_register_str(line.operands[0].register)] = \
+                    increments[AArch64.normalize_to_register_str(line.operands[0])] = \
                         increments[src_reg_name] * \
-                        2**int(line.operands[2].immediate.value)
+                        2**int(line.operands[2].value)
 
         # deduce loop increment from memory index register
         address_registers = []
@@ -412,8 +416,8 @@ class AArch64(ISA):
                 if index_reg in increments:
                     reg = index_reg
                     # If index is used, a scale other than 1 needs to be considered
-                    if 'shift' in mref.index and mref.index.shift:
-                        scales[reg] = 2**int(mref.index.shift[0].value)
+                    if mref.index.shift:
+                        scales[reg] = 2**int(mref.index.shift[0]['value'])
                 else:
                     reg = base_reg
             else:
@@ -467,7 +471,7 @@ def userselect_block(blocks, default=None, debug=False):
         # Blocks first line is the label, the user will be able to spot it, so we don't need to
         # print it
         label_list.append(label)
-        print('\n\t'.join([b['line'] for b in block]))
+        print('\n\t'.join([b.line for b in block]))
 
     # Show all possible block labels in the end
     print(
@@ -490,7 +494,7 @@ def hashblock(block):
     # TODO normalize register names
     # TODO normalize instruction order
     # Remove target label and jump
-    h = md5('\n'.join([b['line'] for b in block]).encode())
+    h = md5('\n'.join([b.line for b in block]).encode())
     return h.hexdigest()
 
 
@@ -614,7 +618,7 @@ def asm_instrumentation(input_file, output_file=None,
                  marker_end + asm_lines[block_end:]
 
     if output_file is not None:
-        output_file.writelines([l['line']+'\n' for l in marked_asm])
+        output_file.writelines([l.line+'\n' for l in marked_asm])
 
     return block_lines, pointer_increment
 
@@ -668,7 +672,7 @@ def osaca_analyse_instrumented_assembly(
     result['port cycles'] = OrderedDict(list(zip(osaca_machine_model['ports'], throughput_values)))
     result['throughput'] = max(throughput_values + [max_lcd])
     result['lcd'] = max_lcd
-    result['cp_latency'] = sum([x['latency_cp'] for x in cp_list])
+    result['cp_latency'] = sum([x.latency_cp for x in cp_list])
     result['uops'] = None  # Not given by OSACA
 
     unmatched_ratio = osaca.get_unmatched_instruction_ratio(kernel)

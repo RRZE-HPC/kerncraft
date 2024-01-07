@@ -22,28 +22,28 @@ class TestIncoreModelX86(unittest.TestCase):
         with open(self._find_file('2d-5pt-constcoeffs.s')) as f:
             block_lines, pointer_increment = asm_instrumentation(f)
 
-        self.assertEqual(block_lines[0]['label'], '.L36')
+        self.assertEqual(block_lines[0].label, '.L36')
         self.assertEqual(pointer_increment, 8)
 
     def test_2d5pt_varcoeffs(self):
         with open(self._find_file('2d-5pt-varcoeffs.s')) as f:
             block_lines, pointer_increment = asm_instrumentation(f)
 
-        self.assertEqual(block_lines[0]['label'], '.L43')
+        self.assertEqual(block_lines[0].label, '.L43')
         self.assertEqual(pointer_increment, 16)
 
     def test_3d25pt_semi(self):
         with open(self._find_file('3d-25pt_semi.s')) as f:
             block_lines, pointer_increment = asm_instrumentation(f, pointer_increment=8)
 
-        self.assertEqual(block_lines[0]['label'], 'LBB0_62')
+        self.assertEqual(block_lines[0].label, 'LBB0_62')
         #self.assertEqual(pointer_increment, 8)
 
     def test_matvec_trans(self):
         with open(self._find_file('matvec_trans.s')) as f:
             block_lines, pointer_increment = asm_instrumentation(f)
 
-        self.assertEqual(block_lines[0]['label'], 'LBB0_30')
+        self.assertEqual(block_lines[0].label, 'LBB0_30')
         self.assertEqual(pointer_increment, 64)
 
     def test_increment_detection_x86(self):
