@@ -5,7 +5,7 @@ kerncraft
 
 Loop Kernel Analysis and Performance Modeling Toolkit
 
-This tool allows automatic analysis of loop kernels using the Execution Cache Memory (ECM) model,
+This tool allows automatic analysis of loop kernels using the `Execution Cache Memory (ECM) model <https://hpc.fau.de/research/ecm/>`_,
 the Roofline model and actual benchmarks. kerncraft provides a framework to investigate the
 data reuse and cache requirements by static code analysis. In combination with the Intel IACA tool
 kerncraft can give a good overview of both in-core and memory bottlenecks and use that data to
