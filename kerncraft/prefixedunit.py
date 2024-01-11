@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 import re
 
-from ruamel import yaml
+import ruamel.yaml
 
 
-class PrefixedUnit(yaml.YAMLObject):
+class PrefixedUnit(ruamel.yaml.YAMLObject):
     PREFIXES = {'k': 1e3, 'M': 1e6, 'G': 1e9, 'T': 1e13, 'P': 1e16, 'E': 1e19, 'Z': 1e21, 'Y': 1e24,
                 '': 1}
 
-    yaml_loader = yaml.Loader
-    yaml_dumper = yaml.Dumper
 
+    yaml = ruamel.yaml.YAML()
     yaml_tag = u'!prefixed'
     yaml_implicit_pattern = re.compile(re.compile(
         r'^(?P<value>[0-9]+(?:\.[0-9]+)?) (?P<prefix>[kMGTP])?(?P<unit>.*)$'))
@@ -204,4 +203,4 @@ class PrefixedUnit(yaml.YAMLObject):
 
 
 # Make this tag automatic
-yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)
+ruamel.yaml.add_implicit_resolver(PrefixedUnit.yaml_tag, PrefixedUnit.yaml_implicit_pattern)

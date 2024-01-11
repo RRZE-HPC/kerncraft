@@ -16,10 +16,11 @@ import atexit
 import io
 from collections import OrderedDict
 
-from ruamel import yaml
+import ruamel.yaml
 
 from . import models
 from . import __version__
+from .prefixedunit import PrefixedUnit
 from .kernel import KernelCode, KernelDescription, symbol_pos_int
 from .machinemodel import MachineModel
 from .pycparser_utils import clean_code
@@ -327,7 +328,9 @@ def run(parser, args, output_file=sys.stdout):
     else:
         description = str(args.code_file.read())
         args.code_file.close()
-        kernel = KernelDescription(yaml.load(description, Loader=yaml.Loader), machine=machine)
+        yaml = ruamel.yaml.YAML(typ='unsafe')
+        yaml.register_class(PrefixedUnit)
+        kernel = KernelDescription(yaml.load(description), machine=machine)
 
     loop_indices = set([symbol_pos_int(l['index']) for l in kernel.get_loop_stack()])
     # define constants
