@@ -30,6 +30,9 @@ for the latest release. In order to get the `Intel Achitecture Code Analyzer (IA
 
 ``iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul``
 
+.. warning::
+    As for 2023, Intel removed the download link for any IACA version. If you have any IACA version existing on your system, you can still use it with kerncraft by putting it in ``~/.kerncraft/iaca/vX.Y`` in your home directory.
+
 Additional requirements are:
  * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto``)
 
