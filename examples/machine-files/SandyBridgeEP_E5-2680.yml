@@ -11,8 +11,8 @@ cores per NUMA domain: 8
 transparent hugepage: always
 
 in-core model: !!omap
-  - IACA: SNB
   - OSACA: SNB
+  - IACA: SNB
   - LLVM-MCA: -mcpu=sandybridge
 isa: x86
 

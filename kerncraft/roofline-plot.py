@@ -2,7 +2,7 @@
 from pprint import pprint
 
 import matplotlib.pyplot as plt
-from ruamel import yaml
+import ruamel.yaml
 
 from .prefixedunit import PrefixedUnit
 
@@ -27,6 +27,8 @@ result = {
                         {'performance': PrefixedUnit(11175000000.0, '', 'FLOP/s'),
                          'bandwidth': PrefixedUnit(22.35, u'G', u'B/s'),
                          'arithmetic intensity': 0.5, 'bw kernel': 'triad', 'level': 'L3-MEM'}]}
+yaml = ruamel.yaml.YAML(typ='unsafe')
+yaml.register_class(PrefixedUnit)
 machine = yaml.load(open('machine-files/emmy.yaml'))
 max_flops = machine['clock']*sum(machine['FLOPs per cycle']['DP'].values())
 max_flops.unit = "FLOP/s"

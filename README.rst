@@ -5,7 +5,7 @@ kerncraft
 
 Loop Kernel Analysis and Performance Modeling Toolkit
 
-This tool allows automatic analysis of loop kernels using the Execution Cache Memory (ECM) model,
+This tool allows automatic analysis of loop kernels using the `Execution Cache Memory (ECM) model <https://hpc.fau.de/research/ecm/>`_,
 the Roofline model and actual benchmarks. kerncraft provides a framework to investigate the
 data reuse and cache requirements by static code analysis. In combination with the Intel IACA tool
 kerncraft can give a good overview of both in-core and memory bottlenecks and use that data to
@@ -29,6 +29,9 @@ On most systems with python pip and setuputils installed, just run:
 for the latest release. In order to get the `Intel Achitecture Code Analyzer (IACA) <https://software.intel.com/en-us/articles/intel-architecture-code-analyzer>`_, required by the `ECM`, `ECMCPU` and `RooflineASM` performance models, read `this <https://software.intel.com/protected-download/267266/157552>`_ and run:
 
 ``iaca_get --I-accept-the-Intel-What-If-Pre-Release-License-Agreement-and-please-take-my-soul``
+
+.. warning::
+    As for 2023, Intel removed the download link for any IACA version. If you have any IACA version existing on your system, you can still use it with kerncraft by putting it in ``~/.kerncraft/iaca/vX.Y`` in your home directory.
 
 Additional requirements are:
  * `likwid <https://github.com/RRZE-HPC/likwid>`_ (used in Benchmark model and by ``likwid_bench_auto``)

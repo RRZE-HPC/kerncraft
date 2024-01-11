@@ -5,19 +5,22 @@ High-level tests for the overall functionallity and things in kc.py
 import os
 import unittest
 
-from ruamel import yaml
+import ruamel.yaml
 
 from kerncraft.kernel import KernelCode, KernelDescription
+from kerncraft.prefixedunit import PrefixedUnit
 
 
 class TestKernel(unittest.TestCase):
     def setUp(self):
+        yaml = ruamel.yaml.YAML(typ='unsafe')
+        yaml.register_class(PrefixedUnit)
         with open(self._find_file('2d-5pt.c')) as f:
             self.twod_code = f.read()
         with open(self._find_file('3d-7pt.c')) as f:
             self.threed_code = f.read()
         with open(self._find_file('2d-5pt.yml')) as f:
-            self.twod_description = yaml.load(f.read(), Loader=yaml.Loader)
+            self.twod_description = yaml.load(f)
         with open(self._find_file('copy-2d-linearized.c')) as f:
             self.twod_linear = f.read()
 

@@ -15,8 +15,7 @@ import hashlib
 from functools import lru_cache
 
 import psutil
-from ruamel import yaml
-from ruamel.yaml.comments import CommentedMap
+import ruamel.yaml
 import cachesim
 from sympy.parsing.sympy_parser import parse_expr
 
@@ -156,12 +155,14 @@ class MachineModel(object):
         self._path = path_to_yaml
         self._args = args
         if path_to_yaml:
+            yaml = ruamel.yaml.YAML(typ='unsafe')
+            yaml.register_class(PrefixedUnit)
             # Load into cache and save to self._data
             abspath_to_yaml = os.path.abspath(path_to_yaml)
             if abspath_to_yaml not in self._loaded_machine_yaml:
                 with open(path_to_yaml, 'r') as f:
                     # Ignore ruamel unsafe loading warning, by supplying Loader parameter
-                    self._loaded_machine_yaml[abspath_to_yaml] = yaml.load(f, Loader=yaml.Loader)
+                    self._loaded_machine_yaml[abspath_to_yaml] = yaml.load(f)
             self._data = self._loaded_machine_yaml[abspath_to_yaml]
         elif machine_yaml:
             self._data = machine_yaml
@@ -612,7 +613,8 @@ class MachineModel(object):
         """
         Return YAML string to store machine model and store to f (if path or fp passed).
         """
-        yaml_string = yaml.dump(self._data, Dumper=yaml.Dumper)
+        yaml = ruamel.yaml.YAML()
+        yaml_string = yaml.dump(self._data)
         if f is None:
             f = self._path
 

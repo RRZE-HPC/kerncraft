@@ -3,11 +3,12 @@ import argparse
 import sys
 
 import sympy
-from ruamel import yaml
+import ruamel.yaml
 
 from . import models
 from .kernel import KernelDescription
 from .machinemodel import MachineModel
+from .prefixedunit import PrefixedUnit
 
 
 def create_parser():
@@ -49,6 +50,8 @@ def run(parser, args):
 
     # process kernel description
     description = str(args.description_file.read())
+    yaml = ruamel.yaml.YAML(typ='unsafe')
+    yaml.register_class(PrefixedUnit)
     kernel = KernelDescription(yaml.load(description))
 
     # Add constants from define arguments
