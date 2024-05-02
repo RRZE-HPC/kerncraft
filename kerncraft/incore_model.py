@@ -647,6 +647,7 @@ def osaca_analyse_instrumented_assembly(
     semantics.add_semantics(kernel)
     if assign_optimal_throughput:
         semantics.assign_optimal_throughput(kernel)
+        semantics.assign_optimal_throughput(kernel)
 
     kernel_graph = osaca.KernelDG(kernel, parser, osaca_machine_model, semantics)
     frontend = osaca.Frontend(instrumented_assembly_file, arch=micro_architecture)
