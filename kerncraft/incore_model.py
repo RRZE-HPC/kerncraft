@@ -5,13 +5,9 @@ import sys
 import re
 import subprocess
 import os
-from copy import copy
 import argparse
-from pprint import pformat, pprint
 import pathlib
-import textwrap
 from collections import OrderedDict, defaultdict
-import io
 from hashlib import md5
 from os.path import expanduser
 from itertools import chain
