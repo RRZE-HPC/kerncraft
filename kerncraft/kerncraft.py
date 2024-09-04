@@ -205,7 +205,7 @@ def create_parser():
                              'description file (-std=c99 is always added).')
 
     # Needed for ECM and RooflineASM models:
-    parser.add_argument('--incore-model', '-i', type=str, default=None,
+    parser.add_argument('--incore-model', '-i', type=str, default="OSACA",
                         help='In-core model to use, default is first in machine description file.')
 
     for m in models.__all__:
