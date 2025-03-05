@@ -578,11 +578,15 @@ def store_increment_to_cache(
         f.write(line + "\n")
 
 
-def parse_asm(code, isa):
+def parse_asm(code, isa, arch):
     """Prase and process asm code."""
     asm_parser = get_parser(isa)
     asm_lines = asm_parser.parse_file(code)
-    ISASemantics(isa).process(asm_lines)
+    isa = ISASemantics(asm_parser)
+    mm = osaca.MachineModel(arch=arch)
+    semantics = osaca.ArchSemantics(asm_parser, machine_model=mm)
+    semantics.normalize_instruction_forms(asm_lines)
+    isa.process(asm_lines)
     return asm_lines
 
 
@@ -613,7 +617,7 @@ def asm_instrumentation(
     :param debug: output additional internal analysis information. Only works with manual selection.
     :return: selected assembly block lines, pointer increment
     """
-    asm_lines = parse_asm(input_file.read(), isa)
+    asm_lines = parse_asm(input_file.read(), isa, "csx" if isa == "x86" else "a64fx")
 
     # If input and output files are the same, overwrite with output
     if input_file is output_file:
@@ -711,7 +715,7 @@ def osaca_analyse_instrumented_assembly(
         parsed_code = parser.parse_file(f.read())
     kernel = osaca.reduce_to_section(parsed_code, isa)
     osaca_machine_model = osaca.MachineModel(arch=micro_architecture)
-    semantics = osaca.ArchSemantics(machine_model=osaca_machine_model)
+    semantics = osaca.ArchSemantics(parser, machine_model=osaca_machine_model)
     semantics.add_semantics(kernel)
     if assign_optimal_throughput:
         semantics.assign_optimal_throughput(kernel)
@@ -767,7 +771,7 @@ def llvm_mca_analyse_instrumented_assembly(
     """
     result = {}
     with open(instrumented_assembly_file) as f:
-        parsed_code = parse_asm(f.read(), isa)
+        parsed_code = parse_asm(f.read(), isa, micro_architecture)
     kernel = osaca.reduce_to_section(parsed_code, isa)
     assembly_section = "\n".join([l.line for l in kernel])
 
