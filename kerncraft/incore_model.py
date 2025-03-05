@@ -580,17 +580,38 @@ def store_increment_to_cache(
 
 def parse_asm(code, isa, arch=None):
     """Prase and process asm code."""
-    asm_parser = get_parser(isa)
-    asm_lines = asm_parser.parse_file(code)
     osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
     if osaca_version_tuple >= (0,7,0):
+        try:
+            asm_parser = get_parser(isa, syntax="intel")
+            asm_lines = asm_parser.parse_file(code)
+        except Exception:
+            asm_parser = get_parser(isa, syntax="att")
+            asm_lines = asm_parser.parse_file(code)
         mm = osaca.MachineModel(arch=arch)
         semantics = osaca.ArchSemantics(asm_parser, machine_model=mm)
         semantics.normalize_instruction_forms(asm_lines)
         ISASemantics(asm_parser).process(asm_lines)
     else:
+        asm_parser = get_parser(isa)
+        asm_lines = asm_parser.parse_file(code)
         ISASemantics(isa).process(asm_lines)
     return asm_lines
+
+
+def detect_x86_syntax(code):
+    osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
+    if osaca_version_tuple < (0,7,0):
+        return "ATT"
+    try:
+        asm_parser = get_parser("x86", syntax="intel")
+        asm_lines = asm_parser.parse_file(code)
+        return "INTEL"
+    except Exception:
+        asm_parser = get_parser("x86", syntax="att")
+        asm_lines = asm_parser.parse_file(code)
+        return "ATT"
+    return None
 
 
 def asm_instrumentation(
@@ -620,7 +641,8 @@ def asm_instrumentation(
     :param debug: output additional internal analysis information. Only works with manual selection.
     :return: selected assembly block lines, pointer increment
     """
-    asm_lines = parse_asm(input_file.read(), isa, "csx" if isa == "x86" else "a64fx")
+    code = input_file.read()
+    asm_lines = parse_asm(code, isa, "csx" if isa == "x86" else "a64fx")
 
     # If input and output files are the same, overwrite with output
     if input_file is output_file:
@@ -676,8 +698,12 @@ def asm_instrumentation(
                 "'auto_with_manual_fallback' "
             )
 
+    if isa == "x86":
+        syntax = detect_x86_syntax(code)
     marker_start, marker_end = get_marker(
-        isa, comment="pointer_increment={} {}".format(pointer_increment, block_hashstr)
+        isa, syntax=syntax, comment="pointer_increment={} {}".format(
+            pointer_increment, block_hashstr
+        )
     )
 
     marked_asm = (
