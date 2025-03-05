@@ -578,15 +578,18 @@ def store_increment_to_cache(
         f.write(line + "\n")
 
 
-def parse_asm(code, isa, arch):
+def parse_asm(code, isa, arch=None):
     """Prase and process asm code."""
     asm_parser = get_parser(isa)
     asm_lines = asm_parser.parse_file(code)
-    isa = ISASemantics(asm_parser)
-    mm = osaca.MachineModel(arch=arch)
-    semantics = osaca.ArchSemantics(asm_parser, machine_model=mm)
-    semantics.normalize_instruction_forms(asm_lines)
-    isa.process(asm_lines)
+    osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
+    if osaca_version_tuple >= (0,7,0):
+        mm = osaca.MachineModel(arch=arch)
+        semantics = osaca.ArchSemantics(asm_parser, machine_model=mm)
+        semantics.normalize_instruction_forms(asm_lines)
+        ISASemantics(asm_parser).process(asm_lines)
+    else:
+        ISASemantics(isa).process(asm_lines)
     return asm_lines
 
 
@@ -715,7 +718,11 @@ def osaca_analyse_instrumented_assembly(
         parsed_code = parser.parse_file(f.read())
     kernel = osaca.reduce_to_section(parsed_code, isa)
     osaca_machine_model = osaca.MachineModel(arch=micro_architecture)
-    semantics = osaca.ArchSemantics(parser, machine_model=osaca_machine_model)
+    osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
+    if osaca_version_tuple >= (0,7,0):
+        semantics = osaca.ArchSemantics(parser, machine_model=osaca_machine_model)
+    else:
+        semantics = osaca.ArchSemantics(machine_model=osaca_machine_model)
     semantics.add_semantics(kernel)
     if assign_optimal_throughput:
         semantics.assign_optimal_throughput(kernel)
