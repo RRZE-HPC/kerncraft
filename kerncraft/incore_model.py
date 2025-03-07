@@ -698,6 +698,7 @@ def asm_instrumentation(
                 "'auto_with_manual_fallback' "
             )
 
+    syntax = ""
     if isa == "x86":
         syntax = detect_x86_syntax(code)
     osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
