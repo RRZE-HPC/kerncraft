@@ -700,11 +700,17 @@ def asm_instrumentation(
 
     if isa == "x86":
         syntax = detect_x86_syntax(code)
-    marker_start, marker_end = get_marker(
-        isa, syntax=syntax, comment="pointer_increment={} {}".format(
-            pointer_increment, block_hashstr
+    osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
+    if osaca_version_tuple >= (0,7,0):
+        marker_start, marker_end = get_marker(
+            isa, syntax=syntax, comment="pointer_increment={} {}".format(
+                pointer_increment, block_hashstr
+            )
         )
-    )
+    else:
+        marker_start, marker_end = get_marker(
+            isa, comment="pointer_increment={} {}".format(pointer_increment, block_hashstr)
+        )
 
     marked_asm = (
         asm_lines[:block_start]
