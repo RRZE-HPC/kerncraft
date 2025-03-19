@@ -20,7 +20,7 @@ class TestIACAMarker(unittest.TestCase):
     def tests_x86_2d5pt_constcoeffs(self):
         with open(self._find_file('2d-5pt-constcoeffs.s')) as f:
             assembly_orig = f.read()
-        assembly = parse_asm(assembly_orig, 'x86')
+        assembly = parse_asm(assembly_orig, 'x86', 'icx')
         blocks = find_basic_loop_bodies(assembly)
         isa = ISA.get_isa('x86')
         best_block_label = isa.select_best_block(blocks)
@@ -32,7 +32,7 @@ class TestIACAMarker(unittest.TestCase):
     def tests_x86_2d5pt_varcoeffs(self):
         with open(self._find_file('2d-5pt-varcoeffs.s')) as f:
             assembly_orig = f.read()
-        assembly = parse_asm(assembly_orig, 'x86')
+        assembly = parse_asm(assembly_orig, 'x86', 'icx')
         blocks = find_basic_loop_bodies(assembly)
         isa = ISA.get_isa('x86')
         best_block_label = isa.select_best_block(blocks)
@@ -44,7 +44,7 @@ class TestIACAMarker(unittest.TestCase):
     def tests_x86_3d25pt_semi(self):
         with open(self._find_file('3d-25pt_semi.s')) as f:
             assembly_orig = f.read()
-        assembly = parse_asm(assembly_orig, 'x86')
+        assembly = parse_asm(assembly_orig, 'x86', 'icx')
         blocks = find_basic_loop_bodies(assembly)
         isa = ISA.get_isa('x86')
         best_block_label = isa.select_best_block(blocks)
@@ -56,7 +56,7 @@ class TestIACAMarker(unittest.TestCase):
     def tests_x86_matvec_trans(self):
         with open(self._find_file('matvec_trans.s')) as f:
             assembly_orig = f.read()
-        assembly = parse_asm(assembly_orig, 'x86')
+        assembly = parse_asm(assembly_orig, 'x86', 'icx')
         blocks = find_basic_loop_bodies(assembly)
         isa = ISA.get_isa('x86')
         best_block_label = isa.select_best_block(blocks)

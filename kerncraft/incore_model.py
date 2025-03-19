@@ -749,13 +749,14 @@ def osaca_analyse_instrumented_assembly(
     parser = osaca.get_asm_parser(micro_architecture)
     with open(instrumented_assembly_file) as f:
         parsed_code = parser.parse_file(f.read())
-    kernel = osaca.reduce_to_section(parsed_code, isa)
+    kernel = osaca.reduce_to_section(parsed_code, parser)
     osaca_machine_model = osaca.MachineModel(arch=micro_architecture)
     osaca_version_tuple = tuple(map(int, (osaca.get_version().split("."))))
     if osaca_version_tuple >= (0,7,0):
         semantics = osaca.ArchSemantics(parser, machine_model=osaca_machine_model)
     else:
         semantics = osaca.ArchSemantics(machine_model=osaca_machine_model)
+    semantics.normalize_instruction_forms(kernel)
     semantics.add_semantics(kernel)
     if assign_optimal_throughput:
         semantics.assign_optimal_throughput(kernel)
