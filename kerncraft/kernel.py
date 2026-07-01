@@ -30,7 +30,8 @@ from sympy.parsing.sympy_parser import parse_expr
 import numpy
 import compress_pickle
 
-from pycparser import CParser, c_ast, plyparser
+from pycparser import CParser, c_ast
+from pycparser.c_parser import ParseError
 from pycparser.c_generator import CGenerator
 
 from . import kerncraft
@@ -751,7 +752,7 @@ class KernelCode(Kernel):
         try:
             self.kernel_ast = parser.parse(self._strip_comments(self._as_function()),
                                            filename=filename).ext[0].body
-        except plyparser.ParseError as e:
+        except ParseError as e:
             print('Error parsing kernel code:', e)
             sys.exit(1)
 

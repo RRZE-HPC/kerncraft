@@ -102,7 +102,7 @@ setup(
         'pycachesim>=0.2.3',
         'numpy',
         'requests',
-        'pycparser>=2.21',
+        'pycparser>=3.00',
         'osaca>=0.7.0',
         'psutil',
         'compress_pickle',
